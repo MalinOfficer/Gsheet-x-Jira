@@ -17,6 +17,7 @@ type DataRow = Record<string, string | number>;
 
 const ALL_ITEMS_VALUE = "__ALL__";
 const EMPTY_COLUMN_KEY = "__EMPTY__";
+const LOCAL_STORAGE_KEY_URL = 'gsheetDashboardUrl';
 
 const desiredHeadersConfig = [
   'Customer Name',
@@ -48,6 +49,65 @@ export function GsheetDashboard() {
   const topScrollRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+  
+  const processAndSetData = (resultData: DataRow[]) => {
+      setData(resultData);
+      const headersWithUniqueKeys = desiredHeadersConfig.map((h, i) => 
+          h === EMPTY_COLUMN_KEY ? `${EMPTY_COLUMN_KEY}_${i}` : h
+      );
+      setDisplayHeaders(headersWithUniqueKeys);
+
+      const transformedData = resultData.map(originalRow => {
+          const newRow: DataRow = {};
+          headersWithUniqueKeys.forEach(headerKey => {
+              if (headerKey.startsWith(EMPTY_COLUMN_KEY)) {
+                  newRow[headerKey] = '';
+              } else {
+                  newRow[headerKey] = originalRow[headerKey] || '';
+              }
+          });
+          return newRow;
+      });
+      setProcessedData(transformedData);
+
+      const uniqueVals: Record<string, string[]> = {};
+      headersWithUniqueKeys.forEach(header => {
+        if (header.startsWith(EMPTY_COLUMN_KEY)) return;
+        const values = new Set(transformedData.map(row => String(row[header] || '')));
+        uniqueVals[header] = [...Array.from(values).filter(v => v).sort()];
+      });
+      setColumnUniqueValues(uniqueVals);
+  };
+
+  const executeFetch = (fetchUrl: string) => {
+    if (!fetchUrl) return;
+    
+    setError(null);
+    setData(null);
+    setProcessedData(null);
+    setDisplayHeaders([]);
+    setFilters({});
+    setColumnUniqueValues({});
+
+    startTransition(async () => {
+      const result = await fetchSheetData(fetchUrl);
+      if (result.error) {
+        setError(result.error);
+        localStorage.removeItem(LOCAL_STORAGE_KEY_URL);
+      } else if (result.data) {
+        processAndSetData(result.data);
+        localStorage.setItem(LOCAL_STORAGE_KEY_URL, fetchUrl);
+      }
+    });
+  };
+
+  useEffect(() => {
+    const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_URL);
+    if (savedUrl) {
+      setUrl(savedUrl);
+      executeFetch(savedUrl);
+    }
+  }, []);
 
   useEffect(() => {
     const topDiv = topScrollRef.current;
@@ -75,48 +135,9 @@ export function GsheetDashboard() {
     };
   }, [processedData]);
 
-  const handleFetch = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleFetchFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null);
-    setData(null);
-    setProcessedData(null);
-    setDisplayHeaders([]);
-    setFilters({});
-    setColumnUniqueValues({});
-
-    startTransition(async () => {
-      const result = await fetchSheetData(url);
-      if (result.error) {
-        setError(result.error);
-      } else if (result.data) {
-        setData(result.data);
-        const headersWithUniqueKeys = desiredHeadersConfig.map((h, i) => 
-            h === EMPTY_COLUMN_KEY ? `${EMPTY_COLUMN_KEY}_${i}` : h
-        );
-        setDisplayHeaders(headersWithUniqueKeys);
-
-        const transformedData = result.data.map(originalRow => {
-            const newRow: DataRow = {};
-            headersWithUniqueKeys.forEach(headerKey => {
-                if (headerKey.startsWith(EMPTY_COLUMN_KEY)) {
-                    newRow[headerKey] = '';
-                } else {
-                    newRow[headerKey] = originalRow[headerKey] || '';
-                }
-            });
-            return newRow;
-        });
-        setProcessedData(transformedData);
-
-        const uniqueVals: Record<string, string[]> = {};
-        headersWithUniqueKeys.forEach(header => {
-          if (header.startsWith(EMPTY_COLUMN_KEY)) return;
-          const values = new Set(transformedData.map(row => String(row[header] || '')));
-          uniqueVals[header] = [...Array.from(values).filter(v => v).sort()];
-        });
-        setColumnUniqueValues(uniqueVals);
-      }
-    });
+    executeFetch(url);
   };
 
   const handleReset = () => {
@@ -127,6 +148,7 @@ export function GsheetDashboard() {
     setFilters({});
     setColumnUniqueValues({});
     setError(null);
+    localStorage.removeItem(LOCAL_STORAGE_KEY_URL);
   };
 
   const handleFilterChange = (header: string, value: string) => {
@@ -209,7 +231,7 @@ export function GsheetDashboard() {
               Paste the share link of your Google Sheet. Make sure it's accessible to "Anyone with the link".
             </CardDescription>
           </CardHeader>
-          <form onSubmit={handleFetch}>
+          <form onSubmit={handleFetchFormSubmit}>
             <CardContent>
               <div className="flex w-full items-center space-x-2">
                 <div className="relative flex-grow">
