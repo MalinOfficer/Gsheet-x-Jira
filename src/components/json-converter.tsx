@@ -108,7 +108,7 @@ export function JsonConverter() {
                 const value = row[header];
                 if (value === null || value === undefined) return '';
                 let stringValue = String(value);
-                if (stringValue.includes('\t') || stringValue.includes('\n')) {
+                if (stringValue.includes('\t') || stringValue.includes('\n') || stringValue.includes('"')) {
                     stringValue = `"${stringValue.replace(/"/g, '""')}"`;
                 }
                 return stringValue;
