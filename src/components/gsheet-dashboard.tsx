@@ -230,7 +230,7 @@ export function GsheetDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
-                           <div style={{ width: tableRef.current?.clientWidth, height: '1px' }}></div>
+                           <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
                         </div>
                         <div ref={tableScrollRef} className="w-full overflow-x-auto">
                             <Table ref={tableRef}>
@@ -270,7 +270,7 @@ export function GsheetDashboard() {
                                         filteredData.map((row, index) => (
                                             <TableRow key={index} className="hover:bg-muted/50">
                                                 {displayHeaders.map(header => (
-                                                    <TableCell key={`${header}-${index}`}>
+                                                    <TableCell key={`${header}-${index}`} className="whitespace-nowrap">
                                                         {String(row[header] || '')}
                                                     </TableCell>
                                                 ))}
@@ -288,7 +288,7 @@ export function GsheetDashboard() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {data.length} rows.</p>
+                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {processedData.length} rows.</p>
                     </CardFooter>
                 </Card>
             )}
@@ -297,3 +297,5 @@ export function GsheetDashboard() {
     </div>
   );
 }
+
+    
