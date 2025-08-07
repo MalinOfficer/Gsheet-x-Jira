@@ -97,6 +97,7 @@ export function GsheetDashboard() {
         setError(result.error);
         localStorage.removeItem(LOCAL_STORAGE_KEY_URL);
       } else if (result.data) {
+        console.log("Fetched data result:", result.data);
         processAndSetData(result.data);
         localStorage.setItem(LOCAL_STORAGE_KEY_URL, fetchUrl);
       }
