@@ -275,8 +275,8 @@ export function GsheetDashboard() {
                                                 key={header} 
                                                 className={cn(
                                                     "font-bold whitespace-nowrap",
-                                                    header.toLowerCase() === 'no' && "w-[50px]",
-                                                    header.toLowerCase().includes('date') && "w-[150px]"
+                                                    header.toLowerCase() === 'no' && "w-[40px]",
+                                                    header.toLowerCase().includes('date') && "w-[80px]"
                                                 )}
                                             >
                                                 {(header === 'Created At' || header === 'Solved At') ? (
@@ -334,8 +334,8 @@ export function GsheetDashboard() {
                                                         key={`${header}-${index}`} 
                                                         className={cn(
                                                             "whitespace-nowrap",
-                                                            header.toLowerCase() === 'no' && "w-[50px]",
-                                                            header.toLowerCase().includes('date') && "w-[150px]"
+                                                            header.toLowerCase() === 'no' && "w-[40px]",
+                                                            header.toLowerCase().includes('date') && "w-[80px]"
                                                         )}
                                                     >
                                                         {(header === 'Created At' || header === 'Solved At')
