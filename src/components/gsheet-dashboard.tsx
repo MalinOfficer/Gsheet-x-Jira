@@ -26,6 +26,7 @@ export function GsheetDashboard() {
   const [columnUniqueValues, setColumnUniqueValues] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isMounted, setIsMounted] = useState(false);
   const [dateFormats, setDateFormats] = useState<Record<string, DateFormat>>({
     'Created At': 'report',
     'Solved At': 'report',
@@ -71,12 +72,18 @@ export function GsheetDashboard() {
   };
 
   useEffect(() => {
-    const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_URL);
-    if (savedUrl) {
-      setUrl(savedUrl);
-      executeFetch(savedUrl);
-    }
+    setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_URL);
+      if (savedUrl) {
+        setUrl(savedUrl);
+        executeFetch(savedUrl);
+      }
+    }
+  }, [isMounted]);
 
   useEffect(() => {
     const topDiv = topScrollRef.current;
@@ -182,6 +189,16 @@ export function GsheetDashboard() {
     </Alert>
   );
 
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+           <TableSkeleton />
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
