@@ -123,46 +123,6 @@ export function GsheetDashboard() {
         return newFilters;
     });
   };
-  
- const formatDateTime = (value: any): string => {
-    if (!value || typeof value !== 'string') {
-        return '';
-    }
-
-    try {
-        // Handle common English date format
-        const dateParts = value.match(/([A-Z][a-z]+)\s(\d{1,2}),\s(\d{4}),\s(\d{1,2}):(\d{2})\s(AM|PM)/);
-
-        if (dateParts) {
-            const [_, monthName, day, year, hourStr, minuteStr, ampm] = dateParts;
-            
-            let hours = parseInt(hourStr, 10);
-            if (ampm === 'PM' && hours < 12) {
-                hours += 12;
-            } else if (ampm === 'AM' && hours === 12) {
-                hours = 0; // Midnight case
-            }
-            const hoursPadded = String(hours).padStart(2, '0');
-
-            return `${hoursPadded}:${minuteStr}`;
-        }
-
-        // Fallback for standard formats
-        const date = new Date(value);
-        if (isNaN(date.getTime())) {
-            return '';
-        }
-
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-
-        return `${hours}:${minutes}`;
-    } catch (e) {
-        console.error('Error parsing date:', e);
-        return '';
-    }
-};
-
 
   const filteredData = useMemo(() => {
     if (!processedData) return [];
@@ -312,7 +272,12 @@ export function GsheetDashboard() {
                                                 {displayHeaders.map(header => (
                                                     <TableCell key={`${header}-${index}`} className="whitespace-nowrap">
                                                         {(header === 'Created At' || header === 'Solved At')
-                                                          ? formatDateTime(row[header])
+                                                          ? (() => {
+                                                                const value = row[header];
+                                                                if (!value || typeof value !== 'string') return '';
+                                                                const timeMatch = value.match(/(\d{1,2}:\d{2})\s*(AM|PM)?/);
+                                                                return timeMatch ? timeMatch[1] : '';
+                                                            })()
                                                           : String(row[header] || '')}
                                                     </TableCell>
                                                 ))}

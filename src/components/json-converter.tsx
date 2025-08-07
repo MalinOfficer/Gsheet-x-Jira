@@ -34,7 +34,7 @@ export function JsonConverter() {
         }
     }, []);
 
-    const flattenObject = (obj: any, path: string = '', res: Record<string, any> = {}): Record<string, any> => {
+    const flattenAndProcessJson = (obj: any, path: string = '', res: Record<string, any> = {}): Record<string, any> => {
         if (obj === null || typeof obj !== 'object') {
             if (path) res[path] = obj;
             return res;
@@ -44,35 +44,28 @@ export function JsonConverter() {
             if (path) res[path] = JSON.stringify(obj);
             return res;
         }
-
+        
         Object.keys(obj).forEach(key => {
-            const value = obj[key];
             const newPath = path ? `${path}.${key}` : key;
+            const value = obj[key];
 
             if (typeof value === 'string') {
                 try {
-                    const parsed = JSON.parse(value);
-                    if (typeof parsed === 'object' && parsed !== null) {
-                         // It's a JSON string, flatten its content into the main result object
-                         // without creating a new path for the parent key.
-                        flattenObject(parsed, '', res);
+                    const parsedValue = JSON.parse(value);
+                    if (typeof parsedValue === 'object' && parsedValue !== null) {
+                        flattenAndProcessJson(parsedValue, '', res); 
                     } else {
-                        // Not an object, treat as a normal string value.
                         res[newPath] = value;
                     }
                 } catch (e) {
-                    // Not a valid JSON string, treat as a normal string value.
                     res[newPath] = value;
                 }
             } else if (typeof value === 'object' && value !== null) {
-                // It's already an object, flatten it.
-                flattenObject(value, newPath, res);
+                flattenAndProcessJson(value, newPath, res);
             } else {
-                // It's a primitive value (number, boolean, etc.).
                 res[newPath] = value;
             }
         });
-
         return res;
     };
 
@@ -98,7 +91,7 @@ export function JsonConverter() {
                 return;
             }
 
-            const flattenedData = data.map((item: any) => flattenObject(item));
+            const flattenedData = data.map((item: any) => flattenAndProcessJson(item));
             
             let headers: string[];
             if (templateInput.trim()) {
