@@ -1,45 +1,25 @@
 "use client";
 
-import { useState, useMemo, useTransition, useRef, useEffect } from 'react';
-import { Input } from "@/components/ui/input";
+import { useState, useMemo, useRef, useEffect, useContext } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, FileSpreadsheet, Loader2, ChevronsUpDown, Pencil } from 'lucide-react';
-import { fetchSheetData } from '@/app/actions';
+import { AlertCircle, ChevronsUpDown, Pencil, BarChart, ArrowLeft } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
-
-type DataRow = Record<string, string | number>;
+import { TableDataContext } from '@/store/table-data-context';
 
 const ALL_ITEMS_VALUE = "__ALL__";
-const EMPTY_COLUMN_KEY = "__EMPTY__";
-
-const desiredHeadersConfig = [
-  'Customer Name',
-  'Status',
-  EMPTY_COLUMN_KEY,
-  'Ticket Category',
-  'Module',
-  'Detail Module',
-  'Created At',
-  'Title',
-  EMPTY_COLUMN_KEY,
-  'Solved At'
-];
 
 export function ReportHarian() {
-  const [url, setUrl] = useState('');
-  const [data, setData] = useState<DataRow[] | null>(null);
-  const [processedData, setProcessedData] = useState<DataRow[] | null>(null);
-  const [displayHeaders, setDisplayHeaders] = useState<string[]>([]);
+  const { tableData } = useContext(TableDataContext);
+  const router = useRouter();
+
   const [statusFilter, setStatusFilter] = useState<string>(ALL_ITEMS_VALUE);
   const [columnUniqueValues, setColumnUniqueValues] = useState<Record<string, string[]>>({});
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
   const [dateFormats, setDateFormats] = useState<Record<string, DateFormat>>({
     'Created At': 'report',
     'Solved At': 'report',
@@ -48,6 +28,21 @@ export function ReportHarian() {
   const topScrollRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+
+  useEffect(() => {
+    if (!tableData) {
+        // Redirect or show a message if there's no data
+        return;
+    }
+
+    const uniqueVals: Record<string, string[]> = {};
+    const statusHeader = 'Status';
+    if (tableData.headers.includes(statusHeader)) {
+        const values = new Set(tableData.rows.map(row => String(row[statusHeader] || '')));
+        uniqueVals[statusHeader] = [...Array.from(values).filter(v => v).sort()];
+    }
+    setColumnUniqueValues(uniqueVals);
+  }, [tableData]);
 
   useEffect(() => {
     const topDiv = topScrollRef.current;
@@ -73,51 +68,8 @@ export function ReportHarian() {
         topDiv.removeEventListener('scroll', topSync);
         tableDiv.removeEventListener('scroll', tableSync);
     };
-  }, [processedData]);
+  }, [tableData]);
 
-  const handleFetch = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setData(null);
-    setProcessedData(null);
-    setDisplayHeaders([]);
-    setStatusFilter(ALL_ITEMS_VALUE);
-    setColumnUniqueValues({});
-
-    startTransition(async () => {
-      const result = await fetchSheetData(url);
-      if (result.error) {
-        setError(result.error);
-      } else if (result.data) {
-        setData(result.data);
-        const headersWithUniqueKeys = desiredHeadersConfig.map((h, i) => 
-            h === EMPTY_COLUMN_KEY ? `${EMPTY_COLUMN_KEY}_${i}` : h
-        );
-        setDisplayHeaders(headersWithUniqueKeys);
-
-        const transformedData = result.data.map(originalRow => {
-            const newRow: DataRow = {};
-            headersWithUniqueKeys.forEach(headerKey => {
-                if (headerKey.startsWith(EMPTY_COLUMN_KEY)) {
-                    newRow[headerKey] = '';
-                } else {
-                    newRow[headerKey] = originalRow[headerKey] || '';
-                }
-            });
-            return newRow;
-        });
-        setProcessedData(transformedData);
-
-        const uniqueVals: Record<string, string[]> = {};
-        headersWithUniqueKeys.forEach(header => {
-          if (header.startsWith(EMPTY_COLUMN_KEY) || header !== 'Status') return;
-          const values = new Set(transformedData.map(row => String(row[header] || '')));
-          uniqueVals[header] = [...Array.from(values).filter(v => v).sort()];
-        });
-        setColumnUniqueValues(uniqueVals);
-      }
-    });
-  };
 
   const handleFilterChange = (header: string, value: string) => {
     if (header === 'Status') {
@@ -132,46 +84,26 @@ export function ReportHarian() {
   };
 
   const filteredData = useMemo(() => {
-    if (!processedData) return [];
-    return processedData.filter(row => {
+    if (!tableData?.rows) return [];
+    return tableData.rows.filter(row => {
       if (statusFilter === ALL_ITEMS_VALUE) return true;
       const cellValue = String(row['Status'] || '');
       return cellValue.toLowerCase() === statusFilter.toLowerCase();
     });
-  }, [processedData, statusFilter]);
-
-  const TableSkeleton = () => (
-    <Card>
-      <CardHeader>
-        <Skeleton className="h-8 w-1/2" />
-        <Skeleton className="h-4 w-3/4" />
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-20 w-full" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-
+  }, [tableData, statusFilter]);
+  
   const InitialState = () => (
     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px]">
-        <FileSpreadsheet className="w-16 h-16 text-muted-foreground mb-4" />
-        <CardTitle>Your Daily Report Awaits</CardTitle>
-        <CardDescription className="mt-2">
-            Enter a Google Sheet link above to get started.
+        <BarChart className="w-16 h-16 text-muted-foreground mb-4" />
+        <CardTitle>No Report Data Found</CardTitle>
+        <CardDescription className="mt-2 mb-4">
+            Go back to the JSON to Table page to convert your data first.
         </CardDescription>
+        <Button onClick={() => router.push('/')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Converter
+        </Button>
     </Card>
-  );
-
-  const ErrorAlert = ({ message }: { message: string }) => (
-    <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{message}</AlertDescription>
-    </Alert>
   );
 
   return (
@@ -180,55 +112,16 @@ export function ReportHarian() {
         <header className="text-center">
           <h1 className="text-4xl font-bold tracking-tight text-primary font-headline">Report Harian</h1>
           <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-            Instantly turn your Google Sheets into a daily report, filtered by status.
+            This report is generated from the data you converted. Use the dropdown to filter by status.
           </p>
         </header>
 
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle>1. Enter Google Sheet Link</CardTitle>
-            <CardDescription>
-              Paste the share link of your Google Sheet. Make sure it's accessible to "Anyone with the link".
-            </CardDescription>
-          </CardHeader>
-          <form onSubmit={handleFetch}>
-            <CardContent>
-              <div className="flex w-full items-center space-x-2">
-                <div className="relative flex-grow">
-                    <FileSpreadsheet className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input
-                        type="url"
-                        placeholder="e.g., https://docs.google.com/spreadsheets/d/..."
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        required
-                        className="pl-10"
-                        aria-label="Google Sheet URL"
-                    />
-                </div>
-                <Button type="submit" disabled={isPending || !url} className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                  {isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Fetching...
-                    </>
-                  ) : (
-                    "Fetch Data"
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </form>
-        </Card>
-
         <div className="min-h-[400px]">
-            {isPending && <TableSkeleton />}
-            {error && <ErrorAlert message={error} />}
-            {!isPending && !error && !data && <InitialState />}
-            {!isPending && !error && data && processedData && (
+            {!tableData && <InitialState />}
+            {tableData && (
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>2. Your Report is Ready</CardTitle>
+                        <CardTitle>Filtered Report</CardTitle>
                         <CardDescription>
                             Your data is ready. Use the dropdown on the 'Status' column to filter the report.
                         </CardDescription>
@@ -241,10 +134,10 @@ export function ReportHarian() {
                             <Table ref={tableRef}>
                                 <TableHeader>
                                     <TableRow>
-                                        {displayHeaders.map(header => (
+                                        {tableData.headers.map(header => (
                                             <TableHead key={header} className="font-bold whitespace-nowrap">
-                                                {header.startsWith(EMPTY_COLUMN_KEY) ? "" : (
-                                                    (header === 'Created At' || header === 'Solved At') ? (
+                                                {header.startsWith("__EMPTY__") ? "" : (
+                                                    (header === 'Created At' || header === 'Solved At' || header === 'Resolved At') ? (
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button variant="ghost" className="pl-0">
@@ -258,7 +151,7 @@ export function ReportHarian() {
                                                             <DropdownMenuContent>
                                                                 <DropdownMenuLabel>Date Format</DropdownMenuLabel>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuRadioGroup value={dateFormats[header]} onValueChange={(value) => handleDateFormatChange(header, value)}>
+                                                                <DropdownMenuRadioGroup value={dateFormats[header] || 'report'} onValueChange={(value) => handleDateFormatChange(header, value)}>
                                                                     <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
                                                                     <DropdownMenuRadioItem value="jam">Jam</DropdownMenuRadioItem>
                                                                     <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
@@ -271,7 +164,7 @@ export function ReportHarian() {
                                         ))}
                                     </TableRow>
                                     <TableRow className="bg-muted/50">
-                                        {displayHeaders.map(header => (
+                                        {tableData.headers.map(header => (
                                             <TableHead key={`${header}-filter`}>
                                                 {header === 'Status' ? (
                                                   <Select
@@ -297,10 +190,10 @@ export function ReportHarian() {
                                     {filteredData.length > 0 ? (
                                         filteredData.map((row, index) => (
                                             <TableRow key={index} className="hover:bg-muted/50">
-                                                {displayHeaders.map(header => (
+                                                {tableData.headers.map(header => (
                                                     <TableCell key={`${header}-${index}`} className="whitespace-nowrap">
-                                                        {(header === 'Created At' || header === 'Solved At')
-                                                          ? formatDateTime(row[header], dateFormats[header])
+                                                        {(header === 'Created At' || header === 'Solved At' || header === 'Resolved At')
+                                                          ? formatDateTime(row[header], dateFormats[header] || 'report')
                                                           : String(row[header] || '')}
                                                     </TableCell>
                                                 ))}
@@ -308,7 +201,7 @@ export function ReportHarian() {
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={displayHeaders.length} className="h-24 text-center">
+                                            <TableCell colSpan={tableData.headers.length} className="h-24 text-center">
                                                 No results found. Try adjusting your filters.
                                             </TableCell>
                                         </TableRow>
@@ -318,7 +211,7 @@ export function ReportHarian() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {processedData.length} rows.</p>
+                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {tableData.rows.length} rows.</p>
                     </CardFooter>
                 </Card>
             )}

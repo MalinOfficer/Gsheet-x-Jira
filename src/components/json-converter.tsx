@@ -1,34 +1,32 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useContext } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save, Pencil, ChevronsUpDown } from 'lucide-react';
+import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save, Pencil, ChevronsUpDown, BarChart } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
-
-type TableData = {
-    headers: string[];
-    rows: Record<string, any>[];
-};
+import { TableDataContext, type TableData } from '@/store/table-data-context';
 
 const LOCAL_STORAGE_KEY = 'jsonConverterHeaderTemplate';
 
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
     const [templateInput, setTemplateInput] = useState('Customer Name,Status,,Ticket Category,Module,Detail Module,Created At,Title,,Resolved At');
-    const [tableData, setTableData] = useState<TableData | null>(null);
+    const { tableData, setTableData } = useContext(TableDataContext);
     const [error, setError] = useState<string | null>(null);
     const [isCopied, setIsCopied] = useState(false);
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [dateFormat, setDateFormat] = useState<DateFormat>('report');
+    const router = useRouter();
 
 
     useEffect(() => {
@@ -303,13 +301,19 @@ export function JsonConverter() {
                                 <div>
                                     <CardTitle>2. Your Table is Ready</CardTitle>
                                     <CardDescription>
-                                        The JSON has been converted. Click the button to copy it for your spreadsheet.
+                                        The JSON has been converted. You can now copy it or view it as a report.
                                     </CardDescription>
                                 </div>
-                                <Button onClick={handleCopyToClipboard} variant="outline" className="w-full sm:w-auto">
-                                    {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                                    {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
-                                </Button>
+                                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                    <Button onClick={handleCopyToClipboard} variant="outline" className="w-full sm:w-auto">
+                                        {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                                        {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
+                                    </Button>
+                                    <Button onClick={() => router.push('/report-harian')} variant="default" className="w-full sm:w-auto">
+                                        <BarChart className="mr-2 h-4 w-4" />
+                                        View as Report
+                                    </Button>
+                                </div>
                             </div>
                         </CardHeader>
                         <CardContent>
