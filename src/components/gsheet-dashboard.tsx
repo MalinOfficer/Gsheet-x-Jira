@@ -16,26 +16,11 @@ import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 type DataRow = Record<string, string | number>;
 
 const ALL_ITEMS_VALUE = "__ALL__";
-const EMPTY_COLUMN_KEY = "__EMPTY__";
 const LOCAL_STORAGE_KEY_URL = 'gsheetDashboardUrl';
-
-const desiredHeadersConfig = [
-  'Customer Name',
-  'Status',
-  EMPTY_COLUMN_KEY,
-  'Ticket Category',
-  'Module',
-  'Detail Module',
-  'Created At',
-  'Title',
-  EMPTY_COLUMN_KEY,
-  'Solved At'
-];
 
 export function GsheetDashboard() {
   const [url, setUrl] = useState('');
   const [data, setData] = useState<DataRow[] | null>(null);
-  const [processedData, setProcessedData] = useState<DataRow[] | null>(null);
   const [displayHeaders, setDisplayHeaders] = useState<string[]>([]);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [columnUniqueValues, setColumnUniqueValues] = useState<Record<string, string[]>>({});
@@ -50,32 +35,14 @@ export function GsheetDashboard() {
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   
-  const processAndSetData = (resultData: DataRow[]) => {
+  const processAndSetData = (resultData: DataRow[], resultHeaders: string[]) => {
       const filteredResultData = resultData.filter(row => row['Status'] === 'L3');
       setData(filteredResultData);
-
-      const headersWithUniqueKeys = desiredHeadersConfig.map((h, i) => 
-          h === EMPTY_COLUMN_KEY ? `${EMPTY_COLUMN_KEY}_${i}` : h
-      );
-      setDisplayHeaders(headersWithUniqueKeys);
-
-      const transformedData = filteredResultData.map(originalRow => {
-          const newRow: DataRow = {};
-          headersWithUniqueKeys.forEach(headerKey => {
-              if (headerKey.startsWith(EMPTY_COLUMN_KEY)) {
-                  newRow[headerKey] = '';
-              } else {
-                  newRow[headerKey] = originalRow[headerKey] || '';
-              }
-          });
-          return newRow;
-      });
-      setProcessedData(transformedData);
+      setDisplayHeaders(resultHeaders);
 
       const uniqueVals: Record<string, string[]> = {};
-      headersWithUniqueKeys.forEach(header => {
-        if (header.startsWith(EMPTY_COLUMN_KEY)) return;
-        const values = new Set(transformedData.map(row => String(row[header] || '')));
+      resultHeaders.forEach(header => {
+        const values = new Set(filteredResultData.map(row => String(row[header] || '')));
         uniqueVals[header] = [...Array.from(values).filter(v => v).sort()];
       });
       setColumnUniqueValues(uniqueVals);
@@ -86,7 +53,6 @@ export function GsheetDashboard() {
     
     setError(null);
     setData(null);
-    setProcessedData(null);
     setDisplayHeaders([]);
     setFilters({});
     setColumnUniqueValues({});
@@ -96,9 +62,9 @@ export function GsheetDashboard() {
       if (result.error) {
         setError(result.error);
         localStorage.removeItem(LOCAL_STORAGE_KEY_URL);
-      } else if (result.data) {
+      } else if (result.data && result.headers) {
         console.log("Fetched data result:", result.data);
-        processAndSetData(result.data);
+        processAndSetData(result.data, result.headers);
         localStorage.setItem(LOCAL_STORAGE_KEY_URL, fetchUrl);
       }
     });
@@ -136,7 +102,7 @@ export function GsheetDashboard() {
         topDiv.removeEventListener('scroll', topSync);
         tableDiv.removeEventListener('scroll', tableSync);
     };
-  }, [processedData]);
+  }, [data]);
 
   const handleFetchFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -146,7 +112,6 @@ export function GsheetDashboard() {
   const handleReset = () => {
     setUrl('');
     setData(null);
-    setProcessedData(null);
     setDisplayHeaders([]);
     setFilters({});
     setColumnUniqueValues({});
@@ -173,15 +138,15 @@ export function GsheetDashboard() {
   };
 
   const filteredData = useMemo(() => {
-    if (!processedData) return [];
-    return processedData.filter(row => {
+    if (!data) return [];
+    return data.filter(row => {
       return Object.entries(filters).every(([header, filterValue]) => {
         if (!filterValue) return true;
         const cellValue = String(row[header] || '');
         return cellValue.toLowerCase() === filterValue.toLowerCase();
       });
     });
-  }, [processedData, filters]);
+  }, [data, filters]);
 
   const TableSkeleton = () => (
     <Card>
@@ -272,7 +237,7 @@ export function GsheetDashboard() {
             {isPending && <TableSkeleton />}
             {error && <ErrorAlert message={error} />}
             {!isPending && !error && !data && <InitialState />}
-            {!isPending && !error && data && processedData && (
+            {!isPending && !error && data && (
                 <Card className="shadow-lg">
                     <CardHeader>
                         <CardTitle>Tabel L3</CardTitle>
@@ -290,52 +255,48 @@ export function GsheetDashboard() {
                                     <TableRow>
                                         {displayHeaders.map(header => (
                                             <TableHead key={header} className="font-bold whitespace-nowrap">
-                                                {header.startsWith(EMPTY_COLUMN_KEY) ? "" : (
-                                                    (header === 'Created At' || header === 'Solved At') ? (
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" className="pl-0">
-                                                                    <span className="flex items-center gap-2">
-                                                                      {header}
-                                                                      <Pencil className="h-3 w-3 text-muted-foreground" />
-                                                                    </span>
-                                                                    <ChevronsUpDown className="ml-2 h-4 w-4" />
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent>
-                                                                <DropdownMenuLabel>Date Format</DropdownMenuLabel>
-                                                                <DropdownMenuSeparator />
-                                                                <DropdownMenuRadioGroup value={dateFormats[header]} onValueChange={(value) => handleDateFormatChange(header, value)}>
-                                                                    <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
-                                                                    <DropdownMenuRadioItem value="jam">Jam</DropdownMenuRadioItem>
-                                                                    <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
-                                                                </DropdownMenuRadioGroup>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    ) : header
-                                                )}
+                                                {(header === 'Created At' || header === 'Solved At') ? (
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" className="pl-0">
+                                                                <span className="flex items-center gap-2">
+                                                                  {header}
+                                                                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                                                                </span>
+                                                                <ChevronsUpDown className="ml-2 h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent>
+                                                            <DropdownMenuLabel>Date Format</DropdownMenuLabel>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuRadioGroup value={dateFormats[header]} onValueChange={(value) => handleDateFormatChange(header, value)}>
+                                                                <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
+                                                                <DropdownMenuRadioItem value="jam">Jam</DropdownMenuRadioItem>
+                                                                <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
+                                                            </DropdownMenuRadioGroup>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                ) : header}
                                             </TableHead>
                                         ))}
                                     </TableRow>
                                     <TableRow className="bg-muted/50">
                                         {displayHeaders.map(header => (
                                             <TableHead key={`${header}-filter`}>
-                                                {!header.startsWith(EMPTY_COLUMN_KEY) ? (
-                                                  <Select
-                                                    value={filters[header] || ALL_ITEMS_VALUE}
-                                                    onValueChange={(value) => handleFilterChange(header, value)}
-                                                  >
-                                                    <SelectTrigger>
-                                                      <SelectValue placeholder="Filter..." />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                      <SelectItem value={ALL_ITEMS_VALUE}>All</SelectItem>
-                                                      {(columnUniqueValues[header] || []).map(value => (
-                                                        <SelectItem key={value} value={value}>{value}</SelectItem>
-                                                      ))}
-                                                    </SelectContent>
-                                                  </Select>
-                                                ) : <div></div>}
+                                                <Select
+                                                  value={filters[header] || ALL_ITEMS_VALUE}
+                                                  onValueChange={(value) => handleFilterChange(header, value)}
+                                                >
+                                                  <SelectTrigger>
+                                                    <SelectValue placeholder="Filter..." />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    <SelectItem value={ALL_ITEMS_VALUE}>All</SelectItem>
+                                                    {(columnUniqueValues[header] || []).map(value => (
+                                                      <SelectItem key={value} value={value}>{value}</SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
                                             </TableHead>
                                         ))}
                                     </TableRow>
@@ -365,7 +326,7 @@ export function GsheetDashboard() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {processedData?.length || 0} rows.</p>
+                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {data?.length || 0} rows.</p>
                     </CardFooter>
                 </Card>
             )}
