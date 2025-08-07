@@ -27,15 +27,32 @@ export function JsonConverter() {
         for (const key in obj) {
             if (Object.prototype.hasOwnProperty.call(obj, key)) {
                 const propName = parentKey ? `${parentKey}.${key}` : key;
-                if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
-                    flattenObject(obj[key], propName, res);
+                const value = obj[key];
+
+                if (typeof value === 'string') {
+                    try {
+                        // Check if the string is a JSON object or array
+                        const parsed = JSON.parse(value);
+                        if (typeof parsed === 'object' && parsed !== null) {
+                            // If it is, flatten it recursively
+                            flattenObject(parsed, propName, res);
+                            continue;
+                        }
+                    } catch (e) {
+                        // Not a JSON string, treat as a normal string
+                    }
+                }
+
+                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                    flattenObject(value, propName, res);
                 } else {
-                    res[propName] = obj[key];
+                    res[propName] = value;
                 }
             }
         }
         return res;
     };
+
 
     const handleConvert = (jsonString: string) => {
         setError(null);
@@ -167,7 +184,7 @@ export function JsonConverter() {
                     <CardContent>
                         <div className="grid gap-4">
                             <Textarea
-                                placeholder='[{"id": 1, "name": "John Doe", "address": {"city": "New York", "zip": "10001"}}, {"id": 2, "name": "Jane Doe", "address": {"city": "Los Angeles", "zip": "90001"}}]'
+                                placeholder='[{"id": 1, "name": "John Doe", "details": "{\\"city\\":\\"New York\\",\\"zip\\":\\"10001\\"}"}]'
                                 value={jsonInput}
                                 onChange={(e) => {
                                     setJsonInput(e.target.value);
