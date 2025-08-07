@@ -68,9 +68,13 @@ export function JsonConverter() {
             const headers = Array.from(headersSet).sort();
 
             setTableData({ headers, rows: flattenedData });
+            toast({
+                title: "Conversion Successful",
+                description: "Your JSON has been converted to a table.",
+            });
 
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Invalid JSON format.");
+            setError(e instanceof Error ? `Invalid JSON: ${e.message}` : "An unknown error occurred during conversion.");
         }
     };
 
@@ -83,7 +87,12 @@ export function JsonConverter() {
             ...rows.map(row => headers.map(header => {
                 const value = row[header];
                 if (value === null || value === undefined) return '';
-                return String(value).replace(/\s+/g, ' ');
+                // For values containing tabs or newlines, enclose in quotes for better compatibility
+                let stringValue = String(value);
+                if (stringValue.includes('\t') || stringValue.includes('\n')) {
+                    stringValue = `"${stringValue.replace(/"/g, '""')}"`;
+                }
+                return stringValue;
             }).join('\t'))
         ].join('\n');
 
@@ -91,14 +100,14 @@ export function JsonConverter() {
             setIsCopied(true);
             toast({
                 title: "Copied to clipboard!",
-                description: "You can now paste the data into your spreadsheet.",
+                description: "You can now paste the data into Google Sheets, Excel, or other spreadsheet software.",
             });
             setTimeout(() => setIsCopied(false), 2000);
         }, () => {
             toast({
                 variant: "destructive",
                 title: "Failed to copy",
-                description: "Could not copy data to clipboard.",
+                description: "Could not copy data to clipboard. Please try again.",
             });
         });
     };
@@ -114,6 +123,7 @@ export function JsonConverter() {
                 setJsonInput(text);
                 setError(null);
                 setTableData(null);
+                // Automatically convert after file is read
                 handleConvert(text);
             }
         };
@@ -121,6 +131,8 @@ export function JsonConverter() {
             setError("Failed to read file.");
         };
         reader.readAsText(file);
+        // Reset file input to allow selecting the same file again
+        event.target.value = '';
     };
 
     const handleImportClick = () => {
@@ -147,9 +159,9 @@ export function JsonConverter() {
                 
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>1. Paste or Import Your JSON</CardTitle>
+                        <CardTitle>1. Input Your JSON</CardTitle>
                         <CardDescription>
-                            Enter your JSON in the text area, or import a JSON file. It can be a single object or an array of objects.
+                            Paste your JSON in the text area and click "Convert", or simply import a JSON file to have it converted automatically.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -164,12 +176,14 @@ export function JsonConverter() {
                                 }}
                                 rows={10}
                                 className="font-mono"
+                                aria-label="JSON Input"
                             />
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <Button onClick={() => handleConvert(jsonInput)} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!jsonInput}>
                                     <Braces className="mr-2 h-4 w-4" />
-                                    Convert
+                                    Convert from Text
                                 </Button>
+                                <span className="text-sm text-muted-foreground">or</span>
                                 <Button onClick={handleImportClick} variant="outline">
                                     <Upload className="mr-2 h-4 w-4" />
                                     Import & Convert File
@@ -190,16 +204,16 @@ export function JsonConverter() {
                 {tableData && (
                     <Card className="shadow-lg">
                         <CardHeader>
-                             <div className="flex items-center justify-between">
+                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                 <div>
                                     <CardTitle>2. Your Table is Ready</CardTitle>
                                     <CardDescription>
-                                        The JSON data has been converted. You can now copy it.
+                                        The JSON has been converted. Click the button to copy it for your spreadsheet.
                                     </CardDescription>
                                 </div>
-                                <Button onClick={handleCopyToClipboard} variant="outline">
+                                <Button onClick={handleCopyToClipboard} variant="outline" className="w-full sm:w-auto">
                                     {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                                    {isCopied ? 'Copied!' : 'Copy Table'}
+                                    {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
                                 </Button>
                             </div>
                         </CardHeader>
