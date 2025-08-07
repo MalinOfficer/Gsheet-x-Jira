@@ -128,17 +128,25 @@ export function GsheetDashboard() {
     if (!value || typeof value !== 'string') {
         return '';
     }
-    try {
-        const date = new Date(value);
-        if (isNaN(date.getTime())) {
-            return value; // Return original value if parsing fails
-        }
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${hours}:${minutes}`;
-    } catch (e) {
-        return value; // Return original value on error
+    
+    // Attempt to create a date object. This is more robust.
+    const date = new Date(value);
+    
+    // Check if the date is valid. If so, format it.
+    if (!isNaN(date.getTime())) {
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     }
+
+    // Fallback for strings like "August 7, 2025, 3:26 PM" if new Date() fails.
+    // This is a more direct way to get the time.
+    const timeMatch = value.match(/(\d{1,2}:\d{2})\s*(AM|PM)?/);
+    if (timeMatch && timeMatch[1]) {
+        return timeMatch[1];
+    }
+    
+    return value; // Return original value if no time part is found
   };
 
   const filteredData = useMemo(() => {
