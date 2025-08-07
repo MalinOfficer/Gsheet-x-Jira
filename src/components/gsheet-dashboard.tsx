@@ -171,7 +171,7 @@ export function GsheetDashboard() {
                                 <TableHeader>
                                     <TableRow>
                                         {headers.map(header => (
-                                            <TableHead key={header} className="font-bold min-w-[150px]">{header}</TableHead>
+                                            <TableHead key={header} className="font-bold whitespace-nowrap">{header}</TableHead>
                                         ))}
                                     </TableRow>
                                     <TableRow className="bg-muted/50">
