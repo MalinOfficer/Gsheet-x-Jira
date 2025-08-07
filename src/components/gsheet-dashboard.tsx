@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useTransition, useRef, useEffect } from 'react';
@@ -64,7 +65,6 @@ export function GsheetDashboard() {
         setError(result.error);
         localStorage.removeItem(LOCAL_STORAGE_KEY_URL);
       } else if (result.data && result.headers) {
-        console.log("Fetched data result:", result.data);
         processAndSetData(result.data, result.headers);
         localStorage.setItem(LOCAL_STORAGE_KEY_URL, fetchUrl);
       }
@@ -275,7 +275,7 @@ export function GsheetDashboard() {
                                                 key={header} 
                                                 className={cn(
                                                     "font-bold whitespace-nowrap",
-                                                    header.toLowerCase() === 'no' && "w-[40px]",
+                                                    header.toLowerCase() === 'no' && "w-[30px]",
                                                     header.toLowerCase().includes('date') && "w-[80px]"
                                                 )}
                                             >
@@ -334,7 +334,7 @@ export function GsheetDashboard() {
                                                         key={`${header}-${index}`} 
                                                         className={cn(
                                                             "whitespace-nowrap",
-                                                            header.toLowerCase() === 'no' && "w-[40px]",
+                                                            header.toLowerCase() === 'no' && "w-[30px]",
                                                             header.toLowerCase().includes('date') && "w-[80px]"
                                                         )}
                                                     >
