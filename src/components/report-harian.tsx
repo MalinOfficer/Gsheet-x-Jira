@@ -23,6 +23,7 @@ export function ReportHarian() {
   const [dateFormats, setDateFormats] = useState<Record<string, DateFormat>>({
     'Created At': 'report',
     'Solved At': 'report',
+    'Resolved At': 'report',
   });
 
   const topScrollRef = useRef<HTMLDivElement>(null);
@@ -31,7 +32,6 @@ export function ReportHarian() {
 
   useEffect(() => {
     if (!tableData) {
-        // Redirect or show a message if there's no data
         return;
     }
 
@@ -117,8 +117,7 @@ export function ReportHarian() {
         </header>
 
         <div className="min-h-[400px]">
-            {!tableData && <InitialState />}
-            {tableData && (
+            {!tableData ? <InitialState /> : (
                 <Card className="shadow-lg">
                     <CardHeader>
                         <CardTitle>Filtered Report</CardTitle>
