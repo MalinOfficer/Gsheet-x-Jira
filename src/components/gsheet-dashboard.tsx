@@ -135,14 +135,6 @@ export function GsheetDashboard() {
 
         if (dateParts) {
             const [_, monthName, day, year, hourStr, minuteStr, ampm] = dateParts;
-            const monthMap: { [key: string]: string } = {
-                'January': '01', 'February': '02', 'March': '03', 'April': '04',
-                'May': '05', 'June': '06', 'July': '07', 'August': '08',
-                'September': '09', 'October': '10', 'November': '11', 'December': '12',
-            };
-
-            const month = monthMap[monthName] || '';
-            const dayPadded = day.padStart(2, '0');
             
             let hours = parseInt(hourStr, 10);
             if (ampm === 'PM' && hours < 12) {
@@ -152,7 +144,7 @@ export function GsheetDashboard() {
             }
             const hoursPadded = String(hours).padStart(2, '0');
 
-            return `${year}-${month}-${dayPadded} ${hoursPadded}:${minuteStr}`;
+            return `${hoursPadded}:${minuteStr}`;
         }
 
         // Fallback for standard formats
@@ -161,13 +153,10 @@ export function GsheetDashboard() {
             return '';
         }
 
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
 
-        return `${year}-${month}-${day} ${hours}:${minutes}`;
+        return `${hours}:${minutes}`;
     } catch (e) {
         console.error('Error parsing date:', e);
         return '';
@@ -274,7 +263,7 @@ export function GsheetDashboard() {
             {!isPending && !error && data && processedData && (
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>2. Filter Your Data</CardTitle>
+                        <CardTitle>3. Your Table is Ready</CardTitle>
                         <CardDescription>
                             Your data is ready. Use the dropdowns below each column header to instantly filter the table.
                         </CardDescription>
