@@ -82,15 +82,9 @@ export function GsheetDashboard() {
       } else if (result.data && result.headers) {
         setData(result.data);
         
-        // Filter and order headers based on desiredHeaders
-        const availableSheetHeaders = new Set(result.headers);
-        const finalHeaders = desiredHeaders.map((h, i) => {
-            if (h === EMPTY_COLUMN_KEY) {
-                return `${EMPTY_COLUMN_KEY}_${i}`; // Ensure unique key for empty columns
-            }
-            return availableSheetHeaders.has(h) ? h : null;
-        }).filter((h): h is string => h !== null);
-
+        const finalHeaders = desiredHeaders.map((h, i) => 
+            h === EMPTY_COLUMN_KEY ? `${EMPTY_COLUMN_KEY}_${i}` : h
+        );
         setHeaders(finalHeaders);
 
         const uniqueVals: Record<string, string[]> = {};
