@@ -51,7 +51,7 @@ export function GsheetDashboard() {
   const tableRef = useRef<HTMLTableElement>(null);
   
   const processAndSetData = (resultData: DataRow[]) => {
-      const filteredResultData = resultData.filter(row => row['STATUS CASE'] === 'L3');
+      const filteredResultData = resultData.filter(row => row['Status'] === 'L3');
       setData(filteredResultData);
 
       const headersWithUniqueKeys = desiredHeadersConfig.map((h, i) => 
