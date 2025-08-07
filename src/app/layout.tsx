@@ -41,10 +41,10 @@ export default function RootLayout({
                 JSON to Table
               </Link>
               <Link
-                href="/json-converter"
+                href="/report-harian"
                 className="text-muted-foreground transition-colors hover:text-foreground"
               >
-                GSheet Dashboard
+                Report Harian
               </Link>
             </nav>
             <Sheet>
@@ -71,10 +71,10 @@ export default function RootLayout({
                     JSON to Table
                   </Link>
                   <Link
-                    href="/json-converter"
+                    href="/report-harian"
                     className="text-muted-foreground hover:text-foreground"
                   >
-                    GSheet Dashboard
+                    Report Harian
                   </Link>
                 </nav>
               </SheetContent>

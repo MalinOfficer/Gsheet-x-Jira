@@ -1,0 +1,329 @@
+"use client";
+
+import { useState, useMemo, useTransition, useRef, useEffect } from 'react';
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, FileSpreadsheet, Loader2, ChevronsUpDown, Pencil } from 'lucide-react';
+import { fetchSheetData } from '@/app/actions';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { formatDateTime, type DateFormat } from '@/lib/date-utils';
+
+type DataRow = Record<string, string | number>;
+
+const ALL_ITEMS_VALUE = "__ALL__";
+const EMPTY_COLUMN_KEY = "__EMPTY__";
+
+const desiredHeadersConfig = [
+  'Customer Name',
+  'Status',
+  EMPTY_COLUMN_KEY,
+  'Ticket Category',
+  'Module',
+  'Detail Module',
+  'Created At',
+  'Title',
+  EMPTY_COLUMN_KEY,
+  'Solved At'
+];
+
+export function ReportHarian() {
+  const [url, setUrl] = useState('');
+  const [data, setData] = useState<DataRow[] | null>(null);
+  const [processedData, setProcessedData] = useState<DataRow[] | null>(null);
+  const [displayHeaders, setDisplayHeaders] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>(ALL_ITEMS_VALUE);
+  const [columnUniqueValues, setColumnUniqueValues] = useState<Record<string, string[]>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [dateFormats, setDateFormats] = useState<Record<string, DateFormat>>({
+    'Created At': 'report',
+    'Solved At': 'report',
+  });
+
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  useEffect(() => {
+    const topDiv = topScrollRef.current;
+    const tableDiv = tableScrollRef.current;
+
+    if (!topDiv || !tableDiv) return;
+
+    const syncScroll = (source: HTMLDivElement, target: HTMLDivElement) => {
+        return () => {
+            if (target.scrollLeft !== source.scrollLeft) {
+                target.scrollLeft = source.scrollLeft;
+            }
+        };
+    };
+
+    const topSync = syncScroll(topDiv, tableDiv);
+    const tableSync = syncScroll(tableDiv, topDiv);
+
+    topDiv.addEventListener('scroll', topSync);
+    tableDiv.addEventListener('scroll', tableSync);
+
+    return () => {
+        topDiv.removeEventListener('scroll', topSync);
+        tableDiv.removeEventListener('scroll', tableSync);
+    };
+  }, [processedData]);
+
+  const handleFetch = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setData(null);
+    setProcessedData(null);
+    setDisplayHeaders([]);
+    setStatusFilter(ALL_ITEMS_VALUE);
+    setColumnUniqueValues({});
+
+    startTransition(async () => {
+      const result = await fetchSheetData(url);
+      if (result.error) {
+        setError(result.error);
+      } else if (result.data) {
+        setData(result.data);
+        const headersWithUniqueKeys = desiredHeadersConfig.map((h, i) => 
+            h === EMPTY_COLUMN_KEY ? `${EMPTY_COLUMN_KEY}_${i}` : h
+        );
+        setDisplayHeaders(headersWithUniqueKeys);
+
+        const transformedData = result.data.map(originalRow => {
+            const newRow: DataRow = {};
+            headersWithUniqueKeys.forEach(headerKey => {
+                if (headerKey.startsWith(EMPTY_COLUMN_KEY)) {
+                    newRow[headerKey] = '';
+                } else {
+                    newRow[headerKey] = originalRow[headerKey] || '';
+                }
+            });
+            return newRow;
+        });
+        setProcessedData(transformedData);
+
+        const uniqueVals: Record<string, string[]> = {};
+        headersWithUniqueKeys.forEach(header => {
+          if (header.startsWith(EMPTY_COLUMN_KEY) || header !== 'Status') return;
+          const values = new Set(transformedData.map(row => String(row[header] || '')));
+          uniqueVals[header] = [...Array.from(values).filter(v => v).sort()];
+        });
+        setColumnUniqueValues(uniqueVals);
+      }
+    });
+  };
+
+  const handleFilterChange = (header: string, value: string) => {
+    if (header === 'Status') {
+        setStatusFilter(value);
+    }
+  };
+
+  const handleDateFormatChange = (header: string, format: string) => {
+    if (format === 'origin' || format === 'jam' || format === 'report') {
+      setDateFormats(prev => ({ ...prev, [header]: format as DateFormat }));
+    }
+  };
+
+  const filteredData = useMemo(() => {
+    if (!processedData) return [];
+    return processedData.filter(row => {
+      if (statusFilter === ALL_ITEMS_VALUE) return true;
+      const cellValue = String(row['Status'] || '');
+      return cellValue.toLowerCase() === statusFilter.toLowerCase();
+    });
+  }, [processedData, statusFilter]);
+
+  const TableSkeleton = () => (
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-8 w-1/2" />
+        <Skeleton className="h-4 w-3/4" />
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const InitialState = () => (
+    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px]">
+        <FileSpreadsheet className="w-16 h-16 text-muted-foreground mb-4" />
+        <CardTitle>Your Daily Report Awaits</CardTitle>
+        <CardDescription className="mt-2">
+            Enter a Google Sheet link above to get started.
+        </CardDescription>
+    </Card>
+  );
+
+  const ErrorAlert = ({ message }: { message: string }) => (
+    <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{message}</AlertDescription>
+    </Alert>
+  );
+
+  return (
+    <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <header className="text-center">
+          <h1 className="text-4xl font-bold tracking-tight text-primary font-headline">Report Harian</h1>
+          <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
+            Instantly turn your Google Sheets into a daily report, filtered by status.
+          </p>
+        </header>
+
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle>1. Enter Google Sheet Link</CardTitle>
+            <CardDescription>
+              Paste the share link of your Google Sheet. Make sure it's accessible to "Anyone with the link".
+            </CardDescription>
+          </CardHeader>
+          <form onSubmit={handleFetch}>
+            <CardContent>
+              <div className="flex w-full items-center space-x-2">
+                <div className="relative flex-grow">
+                    <FileSpreadsheet className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                        type="url"
+                        placeholder="e.g., https://docs.google.com/spreadsheets/d/..."
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        required
+                        className="pl-10"
+                        aria-label="Google Sheet URL"
+                    />
+                </div>
+                <Button type="submit" disabled={isPending || !url} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                  {isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Fetching...
+                    </>
+                  ) : (
+                    "Fetch Data"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </form>
+        </Card>
+
+        <div className="min-h-[400px]">
+            {isPending && <TableSkeleton />}
+            {error && <ErrorAlert message={error} />}
+            {!isPending && !error && !data && <InitialState />}
+            {!isPending && !error && data && processedData && (
+                <Card className="shadow-lg">
+                    <CardHeader>
+                        <CardTitle>2. Your Report is Ready</CardTitle>
+                        <CardDescription>
+                            Your data is ready. Use the dropdown on the 'Status' column to filter the report.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
+                           <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
+                        </div>
+                        <div ref={tableScrollRef} className="w-full overflow-x-auto">
+                            <Table ref={tableRef}>
+                                <TableHeader>
+                                    <TableRow>
+                                        {displayHeaders.map(header => (
+                                            <TableHead key={header} className="font-bold whitespace-nowrap">
+                                                {header.startsWith(EMPTY_COLUMN_KEY) ? "" : (
+                                                    (header === 'Created At' || header === 'Solved At') ? (
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" className="pl-0">
+                                                                    <span className="flex items-center gap-2">
+                                                                      {header}
+                                                                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                                                                    </span>
+                                                                    <ChevronsUpDown className="ml-2 h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent>
+                                                                <DropdownMenuLabel>Date Format</DropdownMenuLabel>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuRadioGroup value={dateFormats[header]} onValueChange={(value) => handleDateFormatChange(header, value)}>
+                                                                    <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="jam">Jam</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
+                                                                </DropdownMenuRadioGroup>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    ) : header
+                                                )}
+                                            </TableHead>
+                                        ))}
+                                    </TableRow>
+                                    <TableRow className="bg-muted/50">
+                                        {displayHeaders.map(header => (
+                                            <TableHead key={`${header}-filter`}>
+                                                {header === 'Status' ? (
+                                                  <Select
+                                                    value={statusFilter}
+                                                    onValueChange={(value) => handleFilterChange(header, value)}
+                                                  >
+                                                    <SelectTrigger>
+                                                      <SelectValue placeholder="Filter by Status..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      <SelectItem value={ALL_ITEMS_VALUE}>All Statuses</SelectItem>
+                                                      {(columnUniqueValues[header] || []).map(value => (
+                                                        <SelectItem key={value} value={value}>{value}</SelectItem>
+                                                      ))}
+                                                    </SelectContent>
+                                                  </Select>
+                                                ) : <div></div>}
+                                            </TableHead>
+                                        ))}
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredData.length > 0 ? (
+                                        filteredData.map((row, index) => (
+                                            <TableRow key={index} className="hover:bg-muted/50">
+                                                {displayHeaders.map(header => (
+                                                    <TableCell key={`${header}-${index}`} className="whitespace-nowrap">
+                                                        {(header === 'Created At' || header === 'Solved At')
+                                                          ? formatDateTime(row[header], dateFormats[header])
+                                                          : String(row[header] || '')}
+                                                    </TableCell>
+                                                ))}
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={displayHeaders.length} className="h-24 text-center">
+                                                No results found. Try adjusting your filters.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {processedData.length} rows.</p>
+                    </CardFooter>
+                </Card>
+            )}
+        </div>
+      </div>
+    </div>
+  );
+}
