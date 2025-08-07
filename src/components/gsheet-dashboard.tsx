@@ -275,8 +275,8 @@ export function GsheetDashboard() {
                                                           ? (() => {
                                                                 const value = row[header];
                                                                 if (!value || typeof value !== 'string') return '';
-                                                                const timeMatch = value.match(/(\d{1,2}:\d{2})\s*(AM|PM)?/);
-                                                                return timeMatch ? timeMatch[1] : '';
+                                                                const timeMatch = value.match(/(\d{1,2}:\d{2})/);
+                                                                return timeMatch ? timeMatch[0] : '';
                                                             })()
                                                           : String(row[header] || '')}
                                                     </TableCell>
