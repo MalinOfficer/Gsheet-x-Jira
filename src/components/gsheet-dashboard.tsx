@@ -7,11 +7,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { AlertCircle, FileSpreadsheet, Loader2, ChevronsUpDown } from 'lucide-react';
 import { fetchSheetData } from '@/app/actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
 
 type DataRow = Record<string, string | number>;
+type DateFormat = 'origin' | 'jam' | 'report';
+
 const ALL_ITEMS_VALUE = "__ALL__";
 const EMPTY_COLUMN_KEY = "__EMPTY__";
 
@@ -28,56 +32,55 @@ const desiredHeadersConfig = [
   'Solved At'
 ];
 
-const formatDateTime = (value: any): string => {
-    if (!value || typeof value !== 'string') {
-        return '';
-    }
+const formatDateTime = (value: any, format: DateFormat): string => {
+    if (!value || typeof value !== 'string') return '';
+    if (format === 'origin') return value;
 
     try {
-        // Handle common English date format like "August 7, 2025, 3:26 PM"
-        const dateParts = value.match(/([A-Z][a-z]+)\s(\d{1,2}),\s(\d{4}),\s(\d{1,2}):(\d{2})\s(AM|PM)/);
-
-        if (dateParts) {
-            const [_, monthName, day, year, hourStr, minuteStr, ampm] = dateParts;
-            const monthMap: { [key: string]: string } = {
-                'January': '01', 'February': '02', 'March': '03', 'April': '04',
-                'May': '05', 'June': '06', 'July': '07', 'August': '08',
-                'September': '09', 'October': '10', 'November': '11', 'December': '12',
-            };
-
-            const month = monthMap[monthName];
-            if (!month) return value; // Return original value if month is not found
-
-            const dayPadded = day.padStart(2, '0');
-            
-            let hours = parseInt(hourStr, 10);
-            if (ampm === 'PM' && hours < 12) {
-                hours += 12;
-            } else if (ampm === 'AM' && hours === 12) {
-                hours = 0; // Midnight case
-            }
-            const hoursPadded = String(hours).padStart(2, '0');
-            const minutesPadded = minuteStr.padStart(2, '0');
-
-            return `${year}-${month}-${dayPadded} ${hoursPadded}:${minutesPadded}`;
-        }
-
-        // Fallback for other standard formats that new Date() can parse
         const date = new Date(value);
         if (isNaN(date.getTime())) {
-            return value; // Return original value if date is invalid
+            // If standard parsing fails, try regex for "Month Day, Year, H:M AM/PM"
+            const dateParts = value.match(/([A-Z][a-z]+)\s(\d{1,2}),\s(\d{4}),\s(\d{1,2}):(\d{2})\s(AM|PM)/);
+            if (!dateParts) return ''; // Return empty if it doesn't match
+
+            const [_, monthName, day, year, hourStr, minuteStr, ampm] = dateParts;
+             const monthMap: { [key: string]: number } = {
+                'January': 0, 'February': 1, 'March': 2, 'April': 3,
+                'May': 4, 'June': 5, 'July': 6, 'August': 7,
+                'September': 8, 'October': 9, 'November': 10, 'December': 11,
+            };
+
+            let hours = parseInt(hourStr, 10);
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+
+            const parsedDate = new Date(parseInt(year), monthMap[monthName], parseInt(day), hours, parseInt(minuteStr));
+            if (isNaN(parsedDate.getTime())) return '';
+            return formatDateTime(parsedDate.toISOString(), format); // Recurse with a standard format
         }
 
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
+        if (format === 'report') {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}`;
+        }
 
-        return `${year}-${month}-${day} ${hours}:${minutes}`;
-    } catch (e) {
-        // In case of any unexpected error during parsing, return original value
+        if (format === 'jam') {
+            let hours = date.getHours();
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            const hoursPadded = String(hours).padStart(2, '0');
+            return `${hoursPadded}:${minutes} ${ampm}`;
+        }
+
         return value;
+    } catch (e) {
+        return '';
     }
 };
 
@@ -90,6 +93,10 @@ export function GsheetDashboard() {
   const [columnUniqueValues, setColumnUniqueValues] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [dateFormats, setDateFormats] = useState<Record<string, DateFormat>>({
+    'Created At': 'report',
+    'Solved At': 'report',
+  });
 
   const topScrollRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
@@ -175,6 +182,12 @@ export function GsheetDashboard() {
         }
         return newFilters;
     });
+  };
+
+  const handleDateFormatChange = (header: string, format: string) => {
+    if (format === 'origin' || format === 'jam' || format === 'report') {
+      setDateFormats(prev => ({ ...prev, [header]: format as DateFormat }));
+    }
   };
 
   const filteredData = useMemo(() => {
@@ -278,7 +291,7 @@ export function GsheetDashboard() {
                     <CardHeader>
                         <CardTitle>3. Your Table is Ready</CardTitle>
                         <CardDescription>
-                            Your data is ready. Use the dropdowns below each column header to instantly filter the table.
+                            Your data is ready. Use the dropdowns to filter or change date formats.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -291,7 +304,27 @@ export function GsheetDashboard() {
                                     <TableRow>
                                         {displayHeaders.map(header => (
                                             <TableHead key={header} className="font-bold whitespace-nowrap">
-                                                {header.startsWith(EMPTY_COLUMN_KEY) ? "" : header}
+                                                {header.startsWith(EMPTY_COLUMN_KEY) ? "" : (
+                                                    (header === 'Created At' || header === 'Solved At') ? (
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" className="pl-0">
+                                                                    {header}
+                                                                    <ChevronsUpDown className="ml-2 h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent>
+                                                                <DropdownMenuLabel>Date Format</DropdownMenuLabel>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuRadioGroup value={dateFormats[header]} onValueChange={(value) => handleDateFormatChange(header, value)}>
+                                                                    <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="jam">Jam</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
+                                                                </DropdownMenuRadioGroup>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    ) : header
+                                                )}
                                             </TableHead>
                                         ))}
                                     </TableRow>
@@ -325,7 +358,7 @@ export function GsheetDashboard() {
                                                 {displayHeaders.map(header => (
                                                     <TableCell key={`${header}-${index}`} className="whitespace-nowrap">
                                                         {(header === 'Created At' || header === 'Solved At')
-                                                          ? formatDateTime(row[header])
+                                                          ? formatDateTime(row[header], dateFormats[header])
                                                           : String(row[header] || '')}
                                                     </TableCell>
                                                 ))}
