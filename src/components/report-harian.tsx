@@ -70,11 +70,11 @@ export function ReportHarian() {
 
     const notResolvedCases = rows
       .filter(r => r.Status !== 'Resolved' && r.Title)
-      .map(r => r.Title as string);
+      .map(r => ({ customerName: r['Customer Name'], title: r.Title as string }));
 
     const solvedCases = rows
       .filter(r => r.Status === 'Resolved' && r.Title)
-      .map(r => r.Title as string);
+      .map(r => ({ customerName: r['Customer Name'], title: r.Title as string }));
 
     const latestEntryTime = rows.reduce((latest, row) => {
         const createdAt = row['Created At'];
@@ -191,23 +191,23 @@ export function ReportHarian() {
                   </div>
                   <div className="space-y-4">
                       <h3 className="font-semibold">Summary detail case yang belum Resolved:</h3>
-                      <ul className="list-disc list-inside text-sm space-y-1">
+                      <ol className="list-decimal list-inside text-sm space-y-1">
                           {reportStats.notResolvedCases.length > 0 ? (
-                              reportStats.notResolvedCases.map((title, i) => <li key={i}>{title}</li>)
+                              reportStats.notResolvedCases.map((item, i) => <li key={i}>{item.customerName} - {item.title}</li>)
                           ) : (
                               <li>No unresolved cases.</li>
                           )}
-                      </ul>
+                      </ol>
                   </div>
                   <div className="space-y-4">
                       <h3 className="font-semibold">Case yang solved:</h3>
-                      <ul className="list-disc list-inside text-sm space-y-1">
+                      <ol className="list-decimal list-inside text-sm space-y-1">
                           {reportStats.solvedCases.length > 0 ? (
-                              reportStats.solvedCases.map((title, i) => <li key={i}>{title}</li>)
+                              reportStats.solvedCases.map((item, i) => <li key={i}>{item.customerName} - {item.title}</li>)
                           ) : (
                               <li>No solved cases yet.</li>
                           )}
-                      </ul>
+                      </ol>
                   </div>
               </CardContent>
           </Card>
