@@ -1,22 +1,79 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save } from 'lucide-react';
+import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save, Pencil, ChevronsUpDown } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 type TableData = {
     headers: string[];
     rows: Record<string, any>[];
 };
 
+type DateFormat = 'origin' | 'jam' | 'report';
+
 const LOCAL_STORAGE_KEY = 'jsonConverterHeaderTemplate';
+
+const formatDateTime = (value: any, format: DateFormat): string => {
+    if (!value || typeof value !== 'string') return '';
+    if (format === 'origin') return value;
+
+    try {
+        const dateParts = value.match(/([A-Z][a-z]+)\s(\d{1,2}),\s(\d{4}),\s(\d{1,2}):(\d{2})\s(AM|PM)/);
+        let date: Date;
+
+        if (dateParts) {
+             const [_, monthName, day, year, hourStr, minuteStr, ampm] = dateParts;
+             const monthMap: { [key: string]: number } = {
+                'January': 0, 'February': 1, 'March': 2, 'April': 3,
+                'May': 4, 'June': 5, 'July': 6, 'August': 7,
+                'September': 8, 'October': 9, 'November': 10, 'December': 11,
+            };
+
+            let hours = parseInt(hourStr, 10);
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+
+            date = new Date(parseInt(year), monthMap[monthName], parseInt(day), hours, parseInt(minuteStr));
+        } else {
+            date = new Date(value);
+        }
+
+        if (isNaN(date.getTime())) {
+            return value; // Return original if parsing fails
+        }
+        
+        if (format === 'report') {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}`;
+        }
+
+        if (format === 'jam') {
+            let hours = date.getHours();
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            const hoursPadded = String(hours).padStart(2, '0');
+            return `${hoursPadded}:${minutes} ${ampm}`;
+        }
+
+        return value;
+    } catch (e) {
+        return value; // Return original on any error
+    }
+};
 
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
@@ -26,6 +83,10 @@ export function JsonConverter() {
     const [isCopied, setIsCopied] = useState(false);
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [dateFormats, setDateFormats] = useState<Record<string, DateFormat>>({
+        'Created At': 'report',
+        'Solved At': 'report',
+    });
 
     useEffect(() => {
         const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -130,7 +191,10 @@ export function JsonConverter() {
         const tsv = [
             headers.join('\t'),
             ...rows.map(row => headers.map(header => {
-                const value = row[header];
+                let value = row[header];
+                if (header === 'Created At' || header === 'Solved At') {
+                    value = formatDateTime(value, dateFormats[header]);
+                }
                 if (value === null || value === undefined) return '';
                 let stringValue = String(value);
                 if (stringValue.includes('\t') || stringValue.includes('\n') || stringValue.includes('"')) {
@@ -192,6 +256,12 @@ export function JsonConverter() {
                 title: "Failed to save template",
                 description: "Could not save template to local storage.",
             });
+        }
+    };
+
+    const handleDateFormatChange = (header: string, format: string) => {
+        if (format === 'origin' || format === 'jam' || format === 'report') {
+          setDateFormats(prev => ({ ...prev, [header]: format as DateFormat }));
         }
     };
     
@@ -305,7 +375,30 @@ export function JsonConverter() {
                                     <TableHeader>
                                         <TableRow>
                                             {tableData.headers.map((header, index) => (
-                                                <TableHead key={`${header}-${index}`} className="font-bold whitespace-nowrap bg-muted/50">{header}</TableHead>
+                                                <TableHead key={`${header}-${index}`} className="font-bold whitespace-nowrap bg-muted/50">
+                                                    {(header === 'Created At' || header === 'Solved At') ? (
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" className="pl-0">
+                                                                    <span className="flex items-center gap-2">
+                                                                      {header}
+                                                                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                                                                    </span>
+                                                                    <ChevronsUpDown className="ml-2 h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent>
+                                                                <DropdownMenuLabel>Date Format</DropdownMenuLabel>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuRadioGroup value={dateFormats[header]} onValueChange={(value) => handleDateFormatChange(header, value)}>
+                                                                    <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="jam">Jam</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
+                                                                </DropdownMenuRadioGroup>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    ) : header}
+                                                </TableHead>
                                             ))}
                                         </TableRow>
                                     </TableHeader>
@@ -314,7 +407,9 @@ export function JsonConverter() {
                                             <TableRow key={index} className="hover:bg-muted/50">
                                                 {tableData.headers.map((header, headerIndex) => (
                                                     <TableCell key={`${header}-${headerIndex}-${index}`}>
-                                                        {String(row[header] ?? '')}
+                                                        {(header === 'Created At' || header === 'Solved At')
+                                                          ? formatDateTime(row[header], dateFormats[header])
+                                                          : String(row[header] ?? '')}
                                                     </TableCell>
                                                 ))}
                                             </TableRow>
