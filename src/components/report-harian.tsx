@@ -76,6 +76,26 @@ export function ReportHarian() {
       .filter(r => r.Status === 'Resolved' && r.Title)
       .map(r => ({ clientName: r['Client Name'], title: r.Title as string }));
 
+    const getMostFrequent = (field: string) => {
+      const frequency: Record<string, number> = {};
+      let maxCount = 0;
+      let mostFrequent = 'N/A';
+      rows.forEach(row => {
+        const value = row[field];
+        if (value) {
+          frequency[value] = (frequency[value] || 0) + 1;
+          if (frequency[value] > maxCount) {
+            maxCount = frequency[value];
+            mostFrequent = value;
+          }
+        }
+      });
+      return mostFrequent;
+    };
+    
+    const trendingClient = getMostFrequent('Client Name');
+    const trendingCase = getMostFrequent('Detail Module');
+
     const latestEntryTime = rows.reduce((latest, row) => {
         const createdAt = row['Created At'];
         if (createdAt && typeof createdAt === 'string') {
@@ -107,6 +127,8 @@ export function ReportHarian() {
       notResolvedCases,
       solvedCases,
       formattedLatestTime,
+      trendingClient,
+      trendingCase,
     };
   }, [tableData]);
 
@@ -187,6 +209,8 @@ export function ReportHarian() {
                           <p>Escalated L3: <span className="font-medium">{reportStats.escalatedL3}</span></p>
                           <p>Pending: <span className="font-medium">{reportStats.pending}</span></p>
                           <p>Solved: <span className="font-medium">{reportStats.solved}</span></p>
+                          <p>Tren Client: <span className="font-medium">{reportStats.trendingClient}</span></p>
+                          <p>Tren Case: <span className="font-medium">{reportStats.trendingCase}</span></p>
                       </div>
                   </div>
                   <div className="space-y-4">
