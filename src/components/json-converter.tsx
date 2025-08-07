@@ -15,7 +15,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenu
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { TableDataContext, type TableData } from '@/store/table-data-context';
 
-const LOCAL_STORAGE_KEY = 'jsonConverterHeaderTemplate';
+const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
+const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
 
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
@@ -30,9 +31,15 @@ export function JsonConverter() {
 
 
     useEffect(() => {
-        const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY);
+        const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE);
         if (savedTemplate) {
             setTemplateInput(savedTemplate);
+        }
+
+        const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
+        if (savedJson) {
+            setJsonInput(savedJson);
+            handleConvert(savedJson, true); // Don't show toast on initial load
         }
     }, []);
 
@@ -72,13 +79,13 @@ export function JsonConverter() {
     };
 
 
-    const handleConvert = (jsonString: string) => {
+    const handleConvert = (jsonString: string, silent = false) => {
         setError(null);
         setTableData(null);
         setIsCopied(false);
 
         if (!jsonString.trim()) {
-            setError("JSON input cannot be empty.");
+            if (!silent) setError("JSON input cannot be empty.");
             return;
         }
 
@@ -89,7 +96,7 @@ export function JsonConverter() {
             }
 
             if (data.length === 0) {
-                setError("JSON array is empty.");
+                if (!silent) setError("JSON array is empty.");
                 return;
             }
 
@@ -115,10 +122,15 @@ export function JsonConverter() {
             });
             
             setTableData({ headers, rows: processedRows });
-            toast({
-                title: "Conversion Successful",
-                description: "Your JSON has been converted to a table.",
-            });
+            
+            localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, jsonString);
+
+            if (!silent) {
+                toast({
+                    title: "Conversion Successful",
+                    description: "Your JSON has been converted to a table.",
+                });
+            }
 
         } catch (e) {
             setError(e instanceof Error ? `Invalid JSON: ${e.message}` : "An unknown error occurred during conversion.");
@@ -188,15 +200,16 @@ export function JsonConverter() {
         setJsonInput('');
         setTableData(null);
         setError(null);
+        localStorage.removeItem(LOCAL_STORAGE_KEY_INPUT);
         toast({
             title: "Input Cleared",
-            description: "The JSON input has been cleared.",
+            description: "The JSON input and saved data have been cleared.",
         });
     };
 
     const handleSaveTemplate = () => {
         try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, templateInput);
+            localStorage.setItem(LOCAL_STORAGE_KEY_TEMPLATE, templateInput);
             toast({
                 title: "Template Saved",
                 description: "Your header template has been saved in your browser.",
