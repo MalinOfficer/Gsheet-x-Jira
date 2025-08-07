@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 
 type TableData = {
     headers: string[];
-    rows: Record<string, string | number | boolean | null>[];
+    rows: Record<string, any>[];
 };
 
 const LOCAL_STORAGE_KEY = 'jsonConverterHeaderTemplate';
@@ -34,49 +34,42 @@ export function JsonConverter() {
         }
     }, []);
 
-    const processItem = (item: any): Record<string, any> => {
-        const flattened: Record<string, any> = {};
-
-        function flatten(obj: any, path: string = '') {
-            if (obj === null || typeof obj !== 'object') {
-                if(path) flattened[path] = obj;
-                return;
-            }
-
-            if (Array.isArray(obj)) {
-                 if(path) flattened[path] = JSON.stringify(obj);
-                 return;
-            }
-            
-            Object.keys(obj).forEach(key => {
-                const newPath = path ? `${path}.${key}` : key;
-                const value = obj[key];
-
-                if (typeof value === 'string') {
-                    try {
-                        const parsed = JSON.parse(value);
-                        // If we can parse the string and it's an object, we flatten it.
-                        // We merge the custom fields into the top-level object by passing an empty path.
-                        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-                             flatten(parsed, '');
-                        } else {
-                            flattened[newPath] = value;
-                        }
-                    } catch (e) {
-                        // Not a JSON string, so just assign it.
-                        flattened[newPath] = value;
-                    }
-                } else if (typeof value === 'object' && value !== null) {
-                    flatten(value, newPath);
-                } else {
-                    flattened[newPath] = value;
-                }
-            });
+    const flattenObject = (obj: any, path: string = '', res: Record<string, any> = {}): Record<string, any> => {
+        if (obj === null || typeof obj !== 'object') {
+            if (path) res[path] = obj;
+            return res;
+        }
+    
+        if (Array.isArray(obj)) {
+            if (path) res[path] = JSON.stringify(obj);
+            return res;
         }
 
-        flatten(item);
-        return flattened;
+        for (const key of Object.keys(obj)) {
+            const newPath = path ? `${path}.${key}` : key;
+            const value = obj[key];
+
+            if (typeof value === 'string') {
+                try {
+                    const parsed = JSON.parse(value);
+                    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+                        // If we can parse the string and it's a nested object, flatten it without a prefix.
+                        flattenObject(parsed, '', res); 
+                    } else {
+                        res[newPath] = value;
+                    }
+                } catch (e) {
+                    res[newPath] = value;
+                }
+            } else if (typeof value === 'object' && value !== null) {
+                flattenObject(value, newPath, res);
+            } else {
+                res[newPath] = value;
+            }
+        }
+        return res;
     };
+
 
     const handleConvert = (jsonString: string) => {
         setError(null);
@@ -99,7 +92,7 @@ export function JsonConverter() {
                 return;
             }
 
-            const flattenedData = data.map((item: any) => processItem(item));
+            const flattenedData = data.map((item: any) => flattenObject(item));
             
             let headers: string[];
             if (templateInput.trim()) {
@@ -111,11 +104,11 @@ export function JsonConverter() {
                 });
                 headers = Array.from(headersSet).sort();
             }
-
+            
             const processedRows = flattenedData.map(row => {
                 const newRow: Record<string, any> = {};
                 headers.forEach(header => {
-                    newRow[header] = row[header] !== undefined ? row[header] : null;
+                    newRow[header] = row[header] !== undefined ? row[header] : '';
                 });
                 return newRow;
             });
@@ -173,8 +166,7 @@ export function JsonConverter() {
             const text = e.target?.result;
             if (typeof text === 'string') {
                 setJsonInput(text);
-                setError(null);
-                setTableData(null);
+                handleConvert(text);
             }
         };
         reader.onerror = () => {
@@ -313,16 +305,16 @@ export function JsonConverter() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            {tableData.headers.map(header => (
-                                                <TableHead key={header} className="font-bold whitespace-nowrap bg-muted/50">{header}</TableHead>
+                                            {tableData.headers.map((header, index) => (
+                                                <TableHead key={`${header}-${index}`} className="font-bold whitespace-nowrap bg-muted/50">{header}</TableHead>
                                             ))}
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {tableData.rows.map((row, index) => (
                                             <TableRow key={index} className="hover:bg-muted/50">
-                                                {tableData.headers.map(header => (
-                                                    <TableCell key={`${header}-${index}`}>
+                                                {tableData.headers.map((header, headerIndex) => (
+                                                    <TableCell key={`${header}-${headerIndex}-${index}`}>
                                                         {String(row[header] ?? '')}
                                                     </TableCell>
                                                 ))}
