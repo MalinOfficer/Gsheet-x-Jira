@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight } from 'lucide-react';
+import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,8 @@ type TableData = {
     rows: Record<string, string | number | boolean | null>[];
 };
 
+const LOCAL_STORAGE_KEY = 'jsonConverterHeaderTemplate';
+
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
     const [templateInput, setTemplateInput] = useState('');
@@ -24,6 +26,13 @@ export function JsonConverter() {
     const [isCopied, setIsCopied] = useState(false);
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (savedTemplate) {
+            setTemplateInput(savedTemplate);
+        }
+    }, []);
 
     const flattenObject = (obj: any, parentKey = '', res: Record<string, any> = {}) => {
         for (const key in obj) {
@@ -87,7 +96,15 @@ export function JsonConverter() {
                 headers = Array.from(headersSet).sort();
             }
 
-            setTableData({ headers, rows: flattenedData });
+            const processedRows = flattenedData.map(row => {
+                const newRow: Record<string, any> = {};
+                headers.forEach(header => {
+                    newRow[header] = row[header] !== undefined ? row[header] : '';
+                });
+                return newRow;
+            });
+
+            setTableData({ headers, rows: processedRows });
             toast({
                 title: "Conversion Successful",
                 description: "Your JSON has been converted to a table.",
@@ -153,6 +170,22 @@ export function JsonConverter() {
 
     const handleImportClick = () => {
         fileInputRef.current?.click();
+    };
+
+    const handleSaveTemplate = () => {
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, templateInput);
+            toast({
+                title: "Template Saved",
+                description: "Your header template has been saved in your browser.",
+            });
+        } catch (error) {
+            toast({
+                variant: "destructive",
+                title: "Failed to save template",
+                description: "Could not save template to local storage.",
+            });
+        }
     };
     
     const ErrorAlert = ({ message }: { message: string }) => (
@@ -220,8 +253,14 @@ export function JsonConverter() {
                                     className="font-mono"
                                     aria-label="Convert To Headers"
                                 />
+                                <div className="flex gap-2">
+                                    <Button onClick={handleSaveTemplate} variant="outline" className="w-fit">
+                                        <Save className="mr-2 h-4 w-4" />
+                                        Save Template
+                                    </Button>
+                                </div>
                                 <p className="text-xs text-muted-foreground">
-                                    Provide a comma-separated list of headers to use for the table.
+                                    Provide a comma-separated list of headers to use for the table. Saved in browser.
                                 </p>
                             </div>
                         </div>

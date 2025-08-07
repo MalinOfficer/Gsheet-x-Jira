@@ -31,20 +31,20 @@ export default function RootLayout({
                 href="/"
                 className="flex items-center gap-2 text-lg font-semibold md:text-base"
               >
-                <FileSpreadsheet className="h-6 w-6" />
-                <span className="sr-only">GSheet Dashboard</span>
+                <Braces className="h-6 w-6" />
+                <span className="sr-only">JSON Tools</span>
               </Link>
               <Link
                 href="/"
                 className="text-foreground transition-colors hover:text-foreground"
               >
-                GSheet Dashboard
+                JSON to Table
               </Link>
               <Link
                 href="/json-converter"
                 className="text-muted-foreground transition-colors hover:text-foreground"
               >
-                JSON to Table
+                GSheet Dashboard
               </Link>
             </nav>
             <Sheet>
@@ -64,17 +64,17 @@ export default function RootLayout({
                     href="/"
                     className="flex items-center gap-2 text-lg font-semibold"
                   >
-                    <FileSpreadsheet className="h-6 w-6" />
-                    <span className="sr-only">GSheet Tools</span>
+                    <Braces className="h-6 w-6" />
+                    <span className="sr-only">JSON Tools</span>
                   </Link>
                   <Link href="/" className="hover:text-foreground">
-                    GSheet Dashboard
+                    JSON to Table
                   </Link>
                   <Link
                     href="/json-converter"
                     className="text-muted-foreground hover:text-foreground"
                   >
-                    JSON to Table
+                    GSheet Dashboard
                   </Link>
                 </nav>
               </SheetContent>
