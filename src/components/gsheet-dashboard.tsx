@@ -34,32 +34,38 @@ const formatDateTime = (value: any): string => {
     }
 
     try {
+        // First, try to parse common English date format like "August 7, 2025, 3:26 PM"
+        const dateParts = value.match(/([A-Z][a-z]+)\s(\d{1,2}),\s(\d{4}),\s(\d{1,2}):(\d{2})\s(AM|PM)/);
+
+        if (dateParts) {
+            const [_, monthName, day, year, hourStr, minuteStr, ampm] = dateParts;
+            const monthMap: { [key: string]: string } = {
+                'January': '01', 'February': '02', 'March': '03', 'April': '04',
+                'May': '05', 'June': '06', 'July': '07', 'August': '08',
+                'September': '09', 'October': '10', 'November': '11', 'December': '12',
+            };
+
+            const month = monthMap[monthName];
+            if (!month) return ''; // Invalid month name
+
+            const dayPadded = day.padStart(2, '0');
+            
+            let hours = parseInt(hourStr, 10);
+            if (ampm === 'PM' && hours < 12) {
+                hours += 12;
+            } else if (ampm === 'AM' && hours === 12) {
+                hours = 0; // Midnight case
+            }
+            const hoursPadded = String(hours).padStart(2, '0');
+            const minutesPadded = minuteStr.padStart(2, '0');
+
+            return `${year}-${month}-${dayPadded} ${hoursPadded}:${minutesPadded}`;
+        }
+
+        // Fallback for other standard formats that new Date() can parse
         const date = new Date(value);
         if (isNaN(date.getTime())) {
-            // If standard parsing fails, try the specific format
-            const dateParts = value.match(/([A-Z][a-z]+)\s(\d{1,2}),\s(\d{4}),\s(\d{1,2}):(\d{2})\s(AM|PM)/);
-            if (dateParts) {
-                const [_, monthName, day, year, hourStr, minuteStr, ampm] = dateParts;
-                const monthMap: { [key: string]: string } = {
-                    'January': '01', 'February': '02', 'March': '03', 'April': '04',
-                    'May': '05', 'June': '06', 'July': '07', 'August': '08',
-                    'September': '09', 'October': '10', 'November': '11', 'December': '12',
-                };
-
-                const month = monthMap[monthName] || '';
-                const dayPadded = day.padStart(2, '0');
-                
-                let hours = parseInt(hourStr, 10);
-                if (ampm === 'PM' && hours < 12) {
-                    hours += 12;
-                } else if (ampm === 'AM' && hours === 12) {
-                    hours = 0; // Midnight case
-                }
-                const hoursPadded = String(hours).padStart(2, '0');
-
-                return `${year}-${month}-${dayPadded} ${hoursPadded}:${minuteStr}`;
-            }
-            return ''; // Return empty if all parsing fails
+            return ''; // Return empty string if date is invalid
         }
 
         const year = date.getFullYear();
@@ -67,9 +73,10 @@ const formatDateTime = (value: any): string => {
         const day = String(date.getDate()).padStart(2, '0');
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
-        
+
         return `${year}-${month}-${day} ${hours}:${minutes}`;
     } catch (e) {
+        // In case of any unexpected error during parsing
         return '';
     }
 };
@@ -345,5 +352,3 @@ export function GsheetDashboard() {
     </div>
   );
 }
-
-    
