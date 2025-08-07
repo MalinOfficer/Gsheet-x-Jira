@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, FileSpreadsheet, Loader2, ChevronsUpDown } from 'lucide-react';
+import { AlertCircle, FileSpreadsheet, Loader2, ChevronsUpDown, Edit } from 'lucide-react';
 import { fetchSheetData } from '@/app/actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -37,13 +37,11 @@ const formatDateTime = (value: any, format: DateFormat): string => {
     if (format === 'origin') return value;
 
     try {
-        const date = new Date(value);
-        if (isNaN(date.getTime())) {
-            // If standard parsing fails, try regex for "Month Day, Year, H:M AM/PM"
-            const dateParts = value.match(/([A-Z][a-z]+)\s(\d{1,2}),\s(\d{4}),\s(\d{1,2}):(\d{2})\s(AM|PM)/);
-            if (!dateParts) return ''; // Return empty if it doesn't match
+        const dateParts = value.match(/([A-Z][a-z]+)\s(\d{1,2}),\s(\d{4}),\s(\d{1,2}):(\d{2})\s(AM|PM)/);
+        let date: Date;
 
-            const [_, monthName, day, year, hourStr, minuteStr, ampm] = dateParts;
+        if (dateParts) {
+             const [_, monthName, day, year, hourStr, minuteStr, ampm] = dateParts;
              const monthMap: { [key: string]: number } = {
                 'January': 0, 'February': 1, 'March': 2, 'April': 3,
                 'May': 4, 'June': 5, 'July': 6, 'August': 7,
@@ -54,11 +52,15 @@ const formatDateTime = (value: any, format: DateFormat): string => {
             if (ampm === 'PM' && hours < 12) hours += 12;
             if (ampm === 'AM' && hours === 12) hours = 0;
 
-            const parsedDate = new Date(parseInt(year), monthMap[monthName], parseInt(day), hours, parseInt(minuteStr));
-            if (isNaN(parsedDate.getTime())) return '';
-            return formatDateTime(parsedDate.toISOString(), format); // Recurse with a standard format
+            date = new Date(parseInt(year), monthMap[monthName], parseInt(day), hours, parseInt(minuteStr));
+        } else {
+            date = new Date(value);
         }
 
+        if (isNaN(date.getTime())) {
+            return value; // Return original if parsing fails
+        }
+        
         if (format === 'report') {
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -80,7 +82,7 @@ const formatDateTime = (value: any, format: DateFormat): string => {
 
         return value;
     } catch (e) {
-        return '';
+        return value; // Return original on any error
     }
 };
 
@@ -309,7 +311,10 @@ export function GsheetDashboard() {
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button variant="ghost" className="pl-0">
-                                                                    {header}
+                                                                    <span className="flex items-center gap-2">
+                                                                      {header}
+                                                                      <Edit className="h-3 w-3 text-muted-foreground" />
+                                                                    </span>
                                                                     <ChevronsUpDown className="ml-2 h-4 w-4" />
                                                                 </Button>
                                                             </DropdownMenuTrigger>
