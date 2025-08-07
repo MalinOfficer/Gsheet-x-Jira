@@ -94,7 +94,7 @@ export function ReportHarian() {
 
 
   useEffect(() => {
-    if (!tableData) {
+    if (!tableData?.rows) {
         return;
     }
 
