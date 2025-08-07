@@ -167,7 +167,7 @@ export function JsonConverter() {
                     <CardContent>
                         <div className="grid gap-4">
                             <Textarea
-                                placeholder='{ "name": "John Doe", "email": "john.doe@example.com" }'
+                                placeholder='[{"id": 1, "name": "John Doe", "address": {"city": "New York", "zip": "10001"}}, {"id": 2, "name": "Jane Doe", "address": {"city": "Los Angeles", "zip": "90001"}}]'
                                 value={jsonInput}
                                 onChange={(e) => {
                                     setJsonInput(e.target.value);
@@ -179,14 +179,13 @@ export function JsonConverter() {
                                 aria-label="JSON Input"
                             />
                             <div className="flex flex-wrap items-center gap-2">
-                                <Button onClick={() => handleConvert(jsonInput)} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!jsonInput}>
-                                    <Braces className="mr-2 h-4 w-4" />
-                                    Convert from Text
-                                </Button>
-                                <span className="text-sm text-muted-foreground">or</span>
                                 <Button onClick={handleImportClick} variant="outline">
                                     <Upload className="mr-2 h-4 w-4" />
-                                    Import & Convert File
+                                    Import File
+                                </Button>
+                                <Button onClick={() => handleConvert(jsonInput)} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!jsonInput}>
+                                    <Braces className="mr-2 h-4 w-4" />
+                                    Convert
                                 </Button>
                                 <Input
                                     type="file"
