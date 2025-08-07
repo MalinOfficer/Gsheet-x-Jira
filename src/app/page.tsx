@@ -1,7 +1,7 @@
-import { GsheetDashboard } from '@/components/gsheet-dashboard';
+import { JsonConverter } from '@/components/json-converter';
 
 export default function Home() {
   return (
-    <GsheetDashboard />
+    <JsonConverter />
   );
 }
