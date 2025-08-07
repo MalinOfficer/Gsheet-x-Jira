@@ -272,7 +272,7 @@ export function GsheetDashboard() {
             {!isPending && !error && data && processedData && (
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>2. Your Table is Ready</CardTitle>
+                        <CardTitle>2. Tabel L3</CardTitle>
                         <CardDescription>
                             Your data is ready. Use the dropdowns to filter or change date formats.
                         </CardDescription>
