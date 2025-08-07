@@ -12,6 +12,7 @@ import { fetchSheetData } from '@/app/actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
+import { cn } from '@/lib/utils';
 
 type DataRow = Record<string, string | number>;
 
@@ -210,7 +211,7 @@ export function GsheetDashboard() {
 
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>1. Enter Google Sheet Link</CardTitle>
+            <CardTitle>Enter Google Sheet Link</CardTitle>
             <CardDescription>
               Paste the share link of your Google Sheet. Make sure it's accessible to "Anyone with the link".
             </CardDescription>
@@ -258,7 +259,7 @@ export function GsheetDashboard() {
                     <CardHeader>
                         <CardTitle>Tabel L3</CardTitle>
                         <CardDescription>
-                            Your data is ready. Use the dropdowns to filter or change date formats.
+                           Your data is ready. Use the dropdowns to filter or change date formats.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -270,7 +271,14 @@ export function GsheetDashboard() {
                                 <TableHeader>
                                     <TableRow>
                                         {displayHeaders.map(header => (
-                                            <TableHead key={header} className="font-bold whitespace-nowrap">
+                                            <TableHead 
+                                                key={header} 
+                                                className={cn(
+                                                    "font-bold whitespace-nowrap",
+                                                    header.toLowerCase() === 'no' && "w-[50px]",
+                                                    header.toLowerCase().includes('date') && "w-[150px]"
+                                                )}
+                                            >
                                                 {(header === 'Created At' || header === 'Solved At') ? (
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
@@ -322,7 +330,14 @@ export function GsheetDashboard() {
                                         filteredData.map((row, index) => (
                                             <TableRow key={index} className="hover:bg-muted/50">
                                                 {displayHeaders.map(header => (
-                                                    <TableCell key={`${header}-${index}`} className="whitespace-nowrap">
+                                                    <TableCell 
+                                                        key={`${header}-${index}`} 
+                                                        className={cn(
+                                                            "whitespace-nowrap",
+                                                            header.toLowerCase() === 'no' && "w-[50px]",
+                                                            header.toLowerCase().includes('date') && "w-[150px]"
+                                                        )}
+                                                    >
                                                         {(header === 'Created At' || header === 'Solved At')
                                                           ? formatDateTime(row[header], dateFormats[header])
                                                           : String(row[header] || '')}
