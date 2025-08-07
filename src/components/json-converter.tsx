@@ -6,9 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, Braces, Copy, Check, Upload } from 'lucide-react';
+import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type TableData = {
     headers: string[];
@@ -17,6 +18,7 @@ type TableData = {
 
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
+    const [templateInput, setTemplateInput] = useState('');
     const [tableData, setTableData] = useState<TableData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isCopied, setIsCopied] = useState(false);
@@ -31,10 +33,8 @@ export function JsonConverter() {
 
                 if (typeof value === 'string') {
                     try {
-                        // Check if the string is a JSON object or array
                         const parsed = JSON.parse(value);
                         if (typeof parsed === 'object' && parsed !== null) {
-                            // If it is, flatten it recursively
                             flattenObject(parsed, propName, res);
                             continue;
                         }
@@ -52,7 +52,6 @@ export function JsonConverter() {
         }
         return res;
     };
-
 
     const handleConvert = (jsonString: string) => {
         setError(null);
@@ -76,13 +75,17 @@ export function JsonConverter() {
             }
 
             const flattenedData = data.map((item: any) => flattenObject(item));
-
-            const headersSet = new Set<string>();
-            flattenedData.forEach((row: any) => {
-                Object.keys(row).forEach(key => headersSet.add(key));
-            });
             
-            const headers = Array.from(headersSet).sort();
+            let headers: string[];
+            if (templateInput.trim()) {
+                headers = templateInput.split(',').map(h => h.trim());
+            } else {
+                const headersSet = new Set<string>();
+                flattenedData.forEach((row: any) => {
+                    Object.keys(row).forEach(key => headersSet.add(key));
+                });
+                headers = Array.from(headersSet).sort();
+            }
 
             setTableData({ headers, rows: flattenedData });
             toast({
@@ -94,7 +97,7 @@ export function JsonConverter() {
             setError(e instanceof Error ? `Invalid JSON: ${e.message}` : "An unknown error occurred during conversion.");
         }
     };
-
+    
     const handleCopyToClipboard = () => {
         if (!tableData) return;
 
@@ -104,7 +107,6 @@ export function JsonConverter() {
             ...rows.map(row => headers.map(header => {
                 const value = row[header];
                 if (value === null || value === undefined) return '';
-                // For values containing tabs or newlines, enclose in quotes for better compatibility
                 let stringValue = String(value);
                 if (stringValue.includes('\t') || stringValue.includes('\n')) {
                     stringValue = `"${stringValue.replace(/"/g, '""')}"`;
@@ -140,15 +142,12 @@ export function JsonConverter() {
                 setJsonInput(text);
                 setError(null);
                 setTableData(null);
-                // Automatically convert after file is read
-                handleConvert(text);
             }
         };
         reader.onerror = () => {
             setError("Failed to read file.");
         };
         reader.readAsText(file);
-        // Reset file input to allow selecting the same file again
         event.target.value = '';
     };
 
@@ -170,39 +169,37 @@ export function JsonConverter() {
                 <header className="text-center">
                     <h1 className="text-4xl font-bold tracking-tight text-primary font-headline">JSON to Table Converter</h1>
                     <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-                        Paste your JSON data to convert it into a table, ready to be copied into Google Sheets or Excel.
+                        Paste your JSON data, provide an optional header template, and convert it into a table ready to be copied.
                     </p>
                 </header>
                 
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>1. Input Your JSON</CardTitle>
+                        <CardTitle>1. Provide Your Data</CardTitle>
                         <CardDescription>
-                            Paste your JSON in the text area and click "Convert", or simply import a JSON file to have it converted automatically.
+                            Paste your JSON, import a file, and optionally provide a comma-separated list of headers for the output.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid gap-4">
-                            <Textarea
-                                placeholder='[{"id": 1, "name": "John Doe", "details": "{\\"city\\":\\"New York\\",\\"zip\\":\\"10001\\"}"}]'
-                                value={jsonInput}
-                                onChange={(e) => {
-                                    setJsonInput(e.target.value);
-                                    setTableData(null);
-                                    setError(null);
-                                }}
-                                rows={10}
-                                className="font-mono"
-                                aria-label="JSON Input"
-                            />
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Button onClick={handleImportClick} variant="outline">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                            <div className="grid gap-2">
+                                <Label htmlFor="json-input">JSON Input</Label>
+                                <Textarea
+                                    id="json-input"
+                                    placeholder='[{"id": 1, "name": "John"}]'
+                                    value={jsonInput}
+                                    onChange={(e) => {
+                                        setJsonInput(e.target.value);
+                                        setTableData(null);
+                                        setError(null);
+                                    }}
+                                    rows={10}
+                                    className="font-mono"
+                                    aria-label="JSON Input"
+                                />
+                                <Button onClick={handleImportClick} variant="outline" className="w-fit">
                                     <Upload className="mr-2 h-4 w-4" />
-                                    Import File
-                                </Button>
-                                <Button onClick={() => handleConvert(jsonInput)} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!jsonInput}>
-                                    <Braces className="mr-2 h-4 w-4" />
-                                    Convert
+                                    Import JSON File
                                 </Button>
                                 <Input
                                     type="file"
@@ -212,8 +209,31 @@ export function JsonConverter() {
                                     accept="application/json,.json"
                                 />
                             </div>
-                             {error && <ErrorAlert message={error} />}
+                             <div className="grid gap-2">
+                                <Label htmlFor="template-input">"Convert To" Headers (Optional)</Label>
+                                <Textarea
+                                    id="template-input"
+                                    placeholder="e.g., id,name,email"
+                                    value={templateInput}
+                                    onChange={(e) => setTemplateInput(e.target.value)}
+                                    rows={10}
+                                    className="font-mono"
+                                    aria-label="Convert To Headers"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Provide a comma-separated list of headers to use for the table.
+                                </p>
+                            </div>
                         </div>
+
+                        <div className="mt-6">
+                            <Button onClick={() => handleConvert(jsonInput)} className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!jsonInput}>
+                                <Braces className="mr-2 h-4 w-4" />
+                                Convert to Table
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </div>
+                        {error && <div className="mt-4"><ErrorAlert message={error} /></div>}
                     </CardContent>
                 </Card>
 
