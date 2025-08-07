@@ -41,11 +41,14 @@ export function GsheetDashboard() {
   const tableRef = useRef<HTMLTableElement>(null);
   
   const processAndSetData = (resultData: DataRow[], resultHeaders: string[]) => {
+      const columnsToExclude = ['PENANGANAN CASE', 'CHECK OUT', 'PIC L2 DURASI'];
+      const filteredHeaders = resultHeaders.filter(header => !columnsToExclude.includes(header));
+      
       setData(resultData);
-      setDisplayHeaders(resultHeaders);
+      setDisplayHeaders(filteredHeaders);
 
       const uniqueVals: Record<string, string[]> = {};
-      resultHeaders.forEach(header => {
+      filteredHeaders.forEach(header => {
         const values = new Set(resultData.map(row => String(row[header] || '')));
         uniqueVals[header] = [...Array.from(values).filter(v => v).sort()];
       });
