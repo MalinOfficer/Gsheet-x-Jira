@@ -12,6 +12,7 @@ import { fetchSheetData } from '@/app/actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type DataRow = Record<string, string | number>;
+const ALL_ITEMS_VALUE = "__ALL__";
 
 export function GsheetDashboard() {
   const [url, setUrl] = useState('');
@@ -49,7 +50,15 @@ export function GsheetDashboard() {
   };
 
   const handleFilterChange = (header: string, value: string) => {
-    setFilters(prev => ({ ...prev, [header]: value }));
+    setFilters(prev => {
+        const newFilters = { ...prev };
+        if (value === ALL_ITEMS_VALUE) {
+            delete newFilters[header];
+        } else {
+            newFilters[header] = value;
+        }
+        return newFilters;
+    });
   };
 
   const filteredData = useMemo(() => {
@@ -169,14 +178,14 @@ export function GsheetDashboard() {
                                         {headers.map(header => (
                                             <TableHead key={`${header}-filter`}>
                                                 <Select
-                                                  value={filters[header] || ''}
+                                                  value={filters[header] || ALL_ITEMS_VALUE}
                                                   onValueChange={(value) => handleFilterChange(header, value)}
                                                 >
                                                   <SelectTrigger className="h-9">
                                                     <SelectValue placeholder="Filter..." />
                                                   </SelectTrigger>
                                                   <SelectContent>
-                                                    <SelectItem value="">All</SelectItem>
+                                                    <SelectItem value={ALL_ITEMS_VALUE}>All</SelectItem>
                                                     {(columnUniqueValues[header] || []).map(value => (
                                                       <SelectItem key={value} value={value}>{value}</SelectItem>
                                                     ))}
