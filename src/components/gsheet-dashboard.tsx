@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, FileSpreadsheet, Loader2, Search } from 'lucide-react';
+import { AlertCircle, FileSpreadsheet, Loader2, ChevronDown } from 'lucide-react';
 import { fetchSheetData } from '@/app/actions';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type DataRow = Record<string, string | number>;
 
@@ -17,6 +18,7 @@ export function GsheetDashboard() {
   const [data, setData] = useState<DataRow[] | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   const [filters, setFilters] = useState<Record<string, string>>({});
+  const [columnUniqueValues, setColumnUniqueValues] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -26,20 +28,28 @@ export function GsheetDashboard() {
     setData(null);
     setHeaders([]);
     setFilters({});
+    setColumnUniqueValues({});
 
     startTransition(async () => {
       const result = await fetchSheetData(url);
       if (result.error) {
         setError(result.error);
-      } else if (result.data) {
+      } else if (result.data && result.headers) {
         setData(result.data);
-        setHeaders(result.headers || []);
+        setHeaders(result.headers);
+
+        const uniqueVals: Record<string, string[]> = {};
+        result.headers.forEach(header => {
+          const values = new Set(result.data.map(row => String(row[header] || '')));
+          uniqueVals[header] = ['', ...Array.from(values).sort()];
+        });
+        setColumnUniqueValues(uniqueVals);
       }
     });
   };
 
   const handleFilterChange = (header: string, value: string) => {
-    setFilters(prev => ({ ...prev, [header]: value }));
+    setFilters(prev => ({ ...prev, [header]: value === 'all' ? '' : value }));
   };
 
   const filteredData = useMemo(() => {
@@ -47,8 +57,9 @@ export function GsheetDashboard() {
     return data.filter(row => {
       return headers.every(header => {
         const filterValue = filters[header]?.toLowerCase() || '';
+        if (filterValue === '') return true;
         const cellValue = String(row[header] || '').toLowerCase();
-        return cellValue.includes(filterValue);
+        return cellValue === filterValue;
       });
     });
   }, [data, filters, headers]);
@@ -143,7 +154,7 @@ export function GsheetDashboard() {
                     <CardHeader>
                         <CardTitle>2. Filter Your Data</CardTitle>
                         <CardDescription>
-                            Your data is ready. Use the search boxes below each column header to instantly filter the table.
+                            Your data is ready. Use the dropdowns below each column header to instantly filter the table.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -158,16 +169,20 @@ export function GsheetDashboard() {
                                     <TableRow className="bg-muted/50">
                                         {headers.map(header => (
                                             <TableHead key={`${header}-filter`}>
-                                                <div className="relative">
-                                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                    <Input 
-                                                        placeholder={`Filter...`} 
-                                                        value={filters[header] || ''}
-                                                        onChange={e => handleFilterChange(header, e.target.value)}
-                                                        className="h-9 pl-8"
-                                                        aria-label={`Filter by ${header}`}
-                                                    />
-                                                </div>
+                                                <Select
+                                                  value={filters[header] || ''}
+                                                  onValueChange={(value) => handleFilterChange(header, value)}
+                                                >
+                                                  <SelectTrigger className="h-9">
+                                                    <SelectValue placeholder="Filter..." />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    <SelectItem value="">All</SelectItem>
+                                                    {(columnUniqueValues[header] || []).map(value => (
+                                                      value && <SelectItem key={value} value={value}>{value}</SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
                                             </TableHead>
                                         ))}
                                     </TableRow>
