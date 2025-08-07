@@ -17,10 +17,11 @@ import { TableDataContext, type TableData } from '@/store/table-data-context';
 
 const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
 const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
+const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,Ticket Category,Module,Detail Module,Created At,Title,Resolved At';
 
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
-    const [templateInput, setTemplateInput] = useState('Customer Name,Status,,Ticket Category,Module,Detail Module,Created At,Title,,Resolved At');
+    const [templateInput, setTemplateInput] = useState(DEFAULT_TEMPLATE);
     const { tableData, setTableData } = useContext(TableDataContext);
     const [error, setError] = useState<string | null>(null);
     const [isCopied, setIsCopied] = useState(false);
@@ -37,6 +38,8 @@ export function JsonConverter() {
         const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE);
         if (savedTemplate) {
             setTemplateInput(savedTemplate);
+        } else {
+            setTemplateInput(DEFAULT_TEMPLATE);
         }
 
         const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
@@ -212,10 +215,12 @@ export function JsonConverter() {
 
     const handleSaveTemplate = () => {
         try {
-            localStorage.setItem(LOCAL_STORAGE_KEY_TEMPLATE, templateInput);
+            const newTemplate = DEFAULT_TEMPLATE;
+            setTemplateInput(newTemplate);
+            localStorage.setItem(LOCAL_STORAGE_KEY_TEMPLATE, newTemplate);
             toast({
-                title: "Template Saved",
-                description: "Your header template has been saved in your browser.",
+                title: "Default Template Saved",
+                description: "The default header template has been saved in your browser.",
             });
         } catch (error) {
             toast({
@@ -310,7 +315,7 @@ export function JsonConverter() {
                                 <div className="flex gap-2">
                                     <Button onClick={handleSaveTemplate} variant="outline" className="w-fit">
                                         <Save className="mr-2 h-4 w-4" />
-                                        Save Template
+                                        Save as Default
                                     </Button>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
@@ -407,5 +412,3 @@ export function JsonConverter() {
         </div>
     );
 }
-
-    
