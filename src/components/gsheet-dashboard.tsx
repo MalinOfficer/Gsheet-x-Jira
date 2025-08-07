@@ -129,7 +129,9 @@ export function GsheetDashboard() {
     try {
       const date = new Date(value);
       if (isNaN(date.getTime())) return value;
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
     } catch {
       return value;
     }
