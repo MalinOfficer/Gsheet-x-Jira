@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, FileSpreadsheet, Loader2, ChevronsUpDown, Edit } from 'lucide-react';
+import { AlertCircle, FileSpreadsheet, Loader2, ChevronsUpDown, Pencil } from 'lucide-react';
 import { fetchSheetData } from '@/app/actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -291,7 +291,7 @@ export function GsheetDashboard() {
             {!isPending && !error && data && processedData && (
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>3. Your Table is Ready</CardTitle>
+                        <CardTitle>2. Your Table is Ready</CardTitle>
                         <CardDescription>
                             Your data is ready. Use the dropdowns to filter or change date formats.
                         </CardDescription>
@@ -313,7 +313,7 @@ export function GsheetDashboard() {
                                                                 <Button variant="ghost" className="pl-0">
                                                                     <span className="flex items-center gap-2">
                                                                       {header}
-                                                                      <Edit className="h-3 w-3 text-muted-foreground" />
+                                                                      <Pencil className="h-3 w-3 text-muted-foreground" />
                                                                     </span>
                                                                     <ChevronsUpDown className="ml-2 h-4 w-4" />
                                                                 </Button>
