@@ -35,6 +35,11 @@ export function JsonConverter() {
     }, []);
 
     const flattenObject = (obj: any, parentKey = '', res: Record<string, any> = {}) => {
+        if (obj === null || typeof obj !== 'object') {
+            res[parentKey] = obj;
+            return res;
+        }
+
         for (const key in obj) {
             if (Object.prototype.hasOwnProperty.call(obj, key)) {
                 const propName = parentKey ? `${parentKey}.${key}` : key;
@@ -42,17 +47,13 @@ export function JsonConverter() {
 
                 if (typeof value === 'string') {
                     try {
-                        // Attempt to parse the string to see if it's a nested JSON object
                         const parsed = JSON.parse(value);
-                        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-                            // If it's an object, flatten it.
+                        if (typeof parsed === 'object' && parsed !== null) {
                             flattenObject(parsed, propName, res);
                         } else {
-                            // Otherwise, it's just a string that happens to be valid JSON (e.g., '"hello"'), so treat it as a normal string.
                             res[propName] = value;
                         }
                     } catch (e) {
-                        // Not a JSON string, so treat it as a regular string value.
                         res[propName] = value;
                     }
                 } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
@@ -64,6 +65,7 @@ export function JsonConverter() {
         }
         return res;
     };
+
 
     const handleConvert = (jsonString: string) => {
         setError(null);
@@ -102,11 +104,11 @@ export function JsonConverter() {
             const processedRows = flattenedData.map(row => {
                 const newRow: Record<string, any> = {};
                 headers.forEach(header => {
-                    newRow[header] = row[header] !== undefined ? row[header] : '';
+                    newRow[header] = row[header] !== undefined ? row[header] : null;
                 });
                 return newRow;
             });
-
+            
             setTableData({ headers, rows: processedRows });
             toast({
                 title: "Conversion Successful",
