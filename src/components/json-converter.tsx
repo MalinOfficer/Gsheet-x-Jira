@@ -11,69 +11,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 
 type TableData = {
     headers: string[];
     rows: Record<string, any>[];
 };
 
-type DateFormat = 'origin' | 'jam' | 'report';
-
 const LOCAL_STORAGE_KEY = 'jsonConverterHeaderTemplate';
-
-const formatDateTime = (value: any, format: DateFormat): string => {
-    if (!value || typeof value !== 'string') return '';
-    if (format === 'origin') return value;
-
-    try {
-        const dateParts = value.match(/([A-Z][a-z]+)\s(\d{1,2}),\s(\d{4}),\s(\d{1,2}):(\d{2})\s(AM|PM)/);
-        let date: Date;
-
-        if (dateParts) {
-             const [_, monthName, day, year, hourStr, minuteStr, ampm] = dateParts;
-             const monthMap: { [key: string]: number } = {
-                'January': 0, 'February': 1, 'March': 2, 'April': 3,
-                'May': 4, 'June': 5, 'July': 6, 'August': 7,
-                'September': 8, 'October': 9, 'November': 10, 'December': 11,
-            };
-
-            let hours = parseInt(hourStr, 10);
-            if (ampm === 'PM' && hours < 12) hours += 12;
-            if (ampm === 'AM' && hours === 12) hours = 0;
-
-            date = new Date(parseInt(year), monthMap[monthName], parseInt(day), hours, parseInt(minuteStr));
-        } else {
-            date = new Date(value);
-        }
-
-        if (isNaN(date.getTime())) {
-            return value; // Return original if parsing fails
-        }
-        
-        if (format === 'report') {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            return `${year}-${month}-${day} ${hours}:${minutes}`;
-        }
-
-        if (format === 'jam') {
-            let hours = date.getHours();
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12;
-            hours = hours ? hours : 12; // the hour '0' should be '12'
-            const hoursPadded = String(hours).padStart(2, '0');
-            return `${hoursPadded}:${minutes} ${ampm}`;
-        }
-
-        return value;
-    } catch (e) {
-        return value; // Return original on any error
-    }
-};
 
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
@@ -190,7 +135,7 @@ export function JsonConverter() {
             headers.join('\t'),
             ...rows.map(row => headers.map(header => {
                 let value = row[header];
-                if (header === 'Created At' || header === 'Resolved At') {
+                 if (header === 'Created At' || header === 'Resolved At') {
                     value = formatDateTime(value, dateFormat);
                 }
                 if (value === null || value === undefined) return '';
