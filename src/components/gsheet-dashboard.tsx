@@ -236,7 +236,7 @@ export function GsheetDashboard() {
                                                     value={filters[header] || ALL_ITEMS_VALUE}
                                                     onValueChange={(value) => handleFilterChange(header, value)}
                                                   >
-                                                    <SelectTrigger className="h-9 min-w-[150px]">
+                                                    <SelectTrigger>
                                                       <SelectValue placeholder="Filter..." />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -246,7 +246,7 @@ export function GsheetDashboard() {
                                                       ))}
                                                     </SelectContent>
                                                   </Select>
-                                                ) : <div className="h-9 min-w-[150px]"></div>}
+                                                ) : <div></div>}
                                             </TableHead>
                                         ))}
                                     </TableRow>
