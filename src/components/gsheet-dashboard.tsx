@@ -123,6 +123,17 @@ export function GsheetDashboard() {
         return newFilters;
     });
   };
+  
+  const formatTimeValue = (value: any) => {
+    if (!value || typeof value !== 'string') return '';
+    try {
+      const date = new Date(value);
+      if (isNaN(date.getTime())) return value;
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    } catch {
+      return value;
+    }
+  };
 
   const filteredData = useMemo(() => {
     if (!processedData) return [];
@@ -271,7 +282,9 @@ export function GsheetDashboard() {
                                             <TableRow key={index} className="hover:bg-muted/50">
                                                 {displayHeaders.map(header => (
                                                     <TableCell key={`${header}-${index}`} className="whitespace-nowrap">
-                                                        {String(row[header] || '')}
+                                                        {(header === 'Created At' || header === 'Solved At')
+                                                          ? formatTimeValue(row[header])
+                                                          : String(row[header] || '')}
                                                     </TableCell>
                                                 ))}
                                             </TableRow>
