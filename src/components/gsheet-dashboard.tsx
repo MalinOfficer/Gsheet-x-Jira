@@ -83,6 +83,7 @@ export function GsheetDashboard() {
         executeFetch(savedUrl);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMounted]);
 
   useEffect(() => {
@@ -146,9 +147,17 @@ export function GsheetDashboard() {
 
   const filteredData = useMemo(() => {
     if (!data) return [];
-    return data.filter(row => {
+    
+    // First, filter by the hardcoded "L3" status
+    const l3Filtered = data.filter(row => {
+        const status = String(row['Status'] || '').toLowerCase();
+        return status === 'l3';
+    });
+    
+    // Then, apply the user-selected filters from the dropdowns
+    return l3Filtered.filter(row => {
       return Object.entries(filters).every(([header, filterValue]) => {
-        if (!filterValue) return true;
+        if (!filterValue || filterValue === ALL_ITEMS_VALUE) return true;
         const cellValue = String(row[header] || '');
         return cellValue.toLowerCase() === filterValue.toLowerCase();
       });
@@ -348,7 +357,7 @@ export function GsheetDashboard() {
                                     ) : (
                                         <TableRow>
                                             <TableCell colSpan={displayHeaders.length} className="h-24 text-center">
-                                                No results found. Try adjusting your filters.
+                                                No results found. Try adjusting your filters or check if there are any 'L3' status cases.
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -357,7 +366,7 @@ export function GsheetDashboard() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {data?.length || 0} rows.</p>
+                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {data?.length || 0} total rows (filtered for L3 status).</p>
                     </CardFooter>
                 </Card>
             )}
