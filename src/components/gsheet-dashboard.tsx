@@ -128,29 +128,15 @@ export function GsheetDashboard() {
     if (!value || typeof value !== 'string') {
         return '';
     }
-    
-    // First, try to parse it as a date
-    const date = new Date(value);
-    
-    // If the date is valid, format it
-    if (!isNaN(date.getTime())) {
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${hours}:${minutes}`;
-    }
-
-    // If parsing fails, use a regex to find a time-like pattern (e.g., "3:26 PM" or "15:26")
-    const timeMatch = value.match(/(\d{1,2}:\d{2})\s*(AM|PM)?/);
+    // Regex to find a time pattern like HH:MM, HH:MM AM/PM, or H:MM
+    const timeMatch = value.match(/(\d{1,2}:\d{2})/);
     if (timeMatch && timeMatch[1]) {
-        // We have a match like "3:26" or "15:26".
-        // This part is simplified and might not need AM/PM conversion if the goal is just HH:MM.
-        // Let's just return the matched time part.
         return timeMatch[1];
     }
-    
-    // If all else fails, return the original string (or an empty one)
+    // Fallback to returning the original string if no match is found
     return value;
   };
+
 
   const filteredData = useMemo(() => {
     if (!processedData) return [];
@@ -327,5 +313,3 @@ export function GsheetDashboard() {
     </div>
   );
 }
-
-    
