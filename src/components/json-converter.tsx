@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save, Pencil, ChevronsUpDown, BarChart } from 'lucide-react';
+import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save, Pencil, ChevronsUpDown, BarChart, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -184,6 +184,16 @@ export function JsonConverter() {
         fileInputRef.current?.click();
     };
 
+    const handleDelete = () => {
+        setJsonInput('');
+        setTableData(null);
+        setError(null);
+        toast({
+            title: "Input Cleared",
+            description: "The JSON input has been cleared.",
+        });
+    };
+
     const handleSaveTemplate = () => {
         try {
             localStorage.setItem(LOCAL_STORAGE_KEY, templateInput);
@@ -248,10 +258,16 @@ export function JsonConverter() {
                                     className="font-mono"
                                     aria-label="JSON Input"
                                 />
-                                <Button onClick={handleImportClick} variant="outline" className="w-fit">
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    Import JSON File
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button onClick={handleImportClick} variant="outline" className="w-fit">
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Import JSON File
+                                    </Button>
+                                     <Button onClick={handleDelete} variant="destructive" className="w-fit">
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete
+                                    </Button>
+                                </div>
                                 <Input
                                     type="file"
                                     ref={fileInputRef}
