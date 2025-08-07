@@ -125,35 +125,19 @@ export function GsheetDashboard() {
   };
   
   const formatTimeValue = (value: any) => {
-    if (!value || typeof value !== 'string') return '';
+    if (!value || typeof value !== 'string') {
+        return '';
+    }
     try {
-      const date = new Date(value);
-      if (isNaN(date.getTime())) {
-          // Fallback for strings that new Date() can't parse directly
-          const parts = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s*(\d{1,2}):(\d{1,2}):(\d{1,2})\s*(AM|PM)?/i);
-          if (parts) {
-              let hours = parseInt(parts[4], 10);
-              const minutes = parseInt(parts[5], 10);
-              const ampm = parts[7];
-
-              if (ampm && ampm.toUpperCase() === 'PM' && hours < 12) {
-                  hours += 12;
-              }
-              if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) {
-                  hours = 0;
-              }
-              
-              const hoursStr = String(hours).padStart(2, '0');
-              const minutesStr = String(minutes).padStart(2, '0');
-              return `${hoursStr}:${minutesStr}`;
-          }
-          return value; // Return original value if parsing fails
-      }
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      return `${hours}:${minutes}`;
-    } catch {
-      return value;
+        const date = new Date(value);
+        if (isNaN(date.getTime())) {
+            return value; // Return original value if parsing fails
+        }
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    } catch (e) {
+        return value; // Return original value on error
     }
   };
 
