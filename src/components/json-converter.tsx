@@ -83,10 +83,8 @@ export function JsonConverter() {
     const [isCopied, setIsCopied] = useState(false);
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [dateFormats, setDateFormats] = useState<Record<string, DateFormat>>({
-        'Created At': 'report',
-        'Solved At': 'report',
-    });
+    const [dateFormat, setDateFormat] = useState<DateFormat>('report');
+
 
     useEffect(() => {
         const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -193,7 +191,7 @@ export function JsonConverter() {
             ...rows.map(row => headers.map(header => {
                 let value = row[header];
                 if (header === 'Created At' || header === 'Solved At') {
-                    value = formatDateTime(value, dateFormats[header]);
+                    value = formatDateTime(value, dateFormat);
                 }
                 if (value === null || value === undefined) return '';
                 let stringValue = String(value);
@@ -259,9 +257,9 @@ export function JsonConverter() {
         }
     };
 
-    const handleDateFormatChange = (header: string, format: string) => {
+    const handleDateFormatChange = (format: string) => {
         if (format === 'origin' || format === 'jam' || format === 'report') {
-          setDateFormats(prev => ({ ...prev, [header]: format as DateFormat }));
+          setDateFormat(format as DateFormat);
         }
     };
     
@@ -390,7 +388,7 @@ export function JsonConverter() {
                                                             <DropdownMenuContent>
                                                                 <DropdownMenuLabel>Date Format</DropdownMenuLabel>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuRadioGroup value={dateFormats[header]} onValueChange={(value) => handleDateFormatChange(header, value)}>
+                                                                <DropdownMenuRadioGroup value={dateFormat} onValueChange={handleDateFormatChange}>
                                                                     <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
                                                                     <DropdownMenuRadioItem value="jam">Jam</DropdownMenuRadioItem>
                                                                     <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
@@ -408,7 +406,7 @@ export function JsonConverter() {
                                                 {tableData.headers.map((header, headerIndex) => (
                                                     <TableCell key={`${header}-${headerIndex}-${index}`} className="whitespace-nowrap">
                                                         {(header === 'Created At' || header === 'Solved At')
-                                                          ? formatDateTime(row[header], dateFormats[header])
+                                                          ? formatDateTime(row[header], dateFormat)
                                                           : String(row[header] ?? '')}
                                                     </TableCell>
                                                 ))}
