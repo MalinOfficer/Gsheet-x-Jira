@@ -41,7 +41,7 @@ export function GsheetDashboard() {
         const uniqueVals: Record<string, string[]> = {};
         result.headers.forEach(header => {
           const values = new Set(result.data.map(row => String(row[header] || '')));
-          uniqueVals[header] = ['', ...Array.from(values).sort()];
+          uniqueVals[header] = [...Array.from(values).filter(v => v).sort()];
         });
         setColumnUniqueValues(uniqueVals);
       }
@@ -49,20 +49,19 @@ export function GsheetDashboard() {
   };
 
   const handleFilterChange = (header: string, value: string) => {
-    setFilters(prev => ({ ...prev, [header]: value === 'all' ? '' : value }));
+    setFilters(prev => ({ ...prev, [header]: value }));
   };
 
   const filteredData = useMemo(() => {
     if (!data) return [];
     return data.filter(row => {
-      return headers.every(header => {
-        const filterValue = filters[header]?.toLowerCase() || '';
-        if (filterValue === '') return true;
-        const cellValue = String(row[header] || '').toLowerCase();
-        return cellValue === filterValue;
+      return Object.entries(filters).every(([header, filterValue]) => {
+        if (!filterValue) return true;
+        const cellValue = String(row[header] || '');
+        return cellValue.toLowerCase() === filterValue.toLowerCase();
       });
     });
-  }, [data, filters, headers]);
+  }, [data, filters]);
 
   const TableSkeleton = () => (
     <Card>
@@ -179,7 +178,7 @@ export function GsheetDashboard() {
                                                   <SelectContent>
                                                     <SelectItem value="">All</SelectItem>
                                                     {(columnUniqueValues[header] || []).map(value => (
-                                                      value && <SelectItem key={value} value={value}>{value}</SelectItem>
+                                                      <SelectItem key={value} value={value}>{value}</SelectItem>
                                                     ))}
                                                   </SelectContent>
                                                 </Select>
