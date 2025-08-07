@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useMemo, useTransition } from 'react';
+import { useState, useMemo, useTransition, useRef, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, FileSpreadsheet, Loader2, ChevronDown } from 'lucide-react';
+import { AlertCircle, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { fetchSheetData } from '@/app/actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -22,6 +22,36 @@ export function GsheetDashboard() {
   const [columnUniqueValues, setColumnUniqueValues] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  useEffect(() => {
+    const topDiv = topScrollRef.current;
+    const tableDiv = tableScrollRef.current;
+
+    if (!topDiv || !tableDiv) return;
+
+    const syncScroll = (source: HTMLDivElement, target: HTMLDivElement) => {
+        return () => {
+            if (target.scrollLeft !== source.scrollLeft) {
+                target.scrollLeft = source.scrollLeft;
+            }
+        };
+    };
+
+    const topSync = syncScroll(topDiv, tableDiv);
+    const tableSync = syncScroll(tableDiv, topDiv);
+
+    topDiv.addEventListener('scroll', topSync);
+    tableDiv.addEventListener('scroll', tableSync);
+
+    return () => {
+        topDiv.removeEventListener('scroll', topSync);
+        tableDiv.removeEventListener('scroll', tableSync);
+    };
+  }, [data]);
 
   const handleFetch = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -166,8 +196,11 @@ export function GsheetDashboard() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="w-full overflow-x-auto">
-                            <Table>
+                        <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
+                           <div style={{ width: tableRef.current?.clientWidth, height: '1px' }}></div>
+                        </div>
+                        <div ref={tableScrollRef} className="w-full overflow-x-auto">
+                            <Table ref={tableRef}>
                                 <TableHeader>
                                     <TableRow>
                                         {headers.map(header => (
@@ -181,7 +214,7 @@ export function GsheetDashboard() {
                                                   value={filters[header] || ALL_ITEMS_VALUE}
                                                   onValueChange={(value) => handleFilterChange(header, value)}
                                                 >
-                                                  <SelectTrigger className="h-9">
+                                                  <SelectTrigger className="h-9 min-w-[150px]">
                                                     <SelectValue placeholder="Filter..." />
                                                   </SelectTrigger>
                                                   <SelectContent>
