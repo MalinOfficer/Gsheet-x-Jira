@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, FileSpreadsheet, Loader2, ChevronsUpDown, Pencil } from 'lucide-react';
+import { AlertCircle, FileSpreadsheet, Loader2, ChevronsUpDown, Pencil, RefreshCw } from 'lucide-react';
 import { fetchSheetData } from '@/app/actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -119,6 +119,16 @@ export function GsheetDashboard() {
     });
   };
 
+  const handleReset = () => {
+    setUrl('');
+    setData(null);
+    setProcessedData(null);
+    setDisplayHeaders([]);
+    setFilters({});
+    setColumnUniqueValues({});
+    setError(null);
+  };
+
   const handleFilterChange = (header: string, value: string) => {
     setFilters(prev => {
         const newFilters = { ...prev };
@@ -223,6 +233,10 @@ export function GsheetDashboard() {
                   ) : (
                     "Fetch Data"
                   )}
+                </Button>
+                <Button type="button" variant="destructive" onClick={handleReset}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Return
                 </Button>
               </div>
             </CardContent>
