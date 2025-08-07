@@ -19,6 +19,8 @@ type DataRow = Record<string, string | number>;
 
 const ALL_ITEMS_VALUE = "__ALL__";
 const LOCAL_STORAGE_KEY_URL = 'gsheetDashboardUrl';
+const STATUS_COLUMN_NAME = 'STATUS CASE'; 
+const STATUS_FILTER_VALUE = 'l3';
 
 export function GsheetDashboard() {
   const [url, setUrl] = useState('');
@@ -148,8 +150,14 @@ export function GsheetDashboard() {
   const filteredData = useMemo(() => {
     if (!data) return [];
     
-    // Apply the user-selected filters from the dropdowns
-    return data.filter(row => {
+    // First, apply the default L3 filter
+    const baseData = data.filter(row => {
+      const statusValue = String(row[STATUS_COLUMN_NAME] || '').toLowerCase();
+      return statusValue === STATUS_FILTER_VALUE;
+    });
+
+    // Then, apply the user-selected filters from the dropdowns
+    return baseData.filter(row => {
       return Object.entries(filters).every(([header, filterValue]) => {
         if (!filterValue || filterValue === ALL_ITEMS_VALUE) return true;
         const cellValue = String(row[header] || '');
@@ -260,9 +268,9 @@ export function GsheetDashboard() {
             {!isPending && !error && data && (
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>GSheet Table</CardTitle>
+                        <CardTitle>Tabel L3</CardTitle>
                         <CardDescription>
-                           Your data is ready. Use the dropdowns to filter or change date formats.
+                           Showing default cases with status L3. Use dropdowns to filter further.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -351,7 +359,7 @@ export function GsheetDashboard() {
                                     ) : (
                                         <TableRow>
                                             <TableCell colSpan={displayHeaders.length} className="h-24 text-center">
-                                                No results found. Try adjusting your filters.
+                                                No results found for "L3" status. Try adjusting your filters or checking the sheet.
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -360,7 +368,7 @@ export function GsheetDashboard() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {data?.length || 0} total rows.</p>
+                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {data?.length || 0} total rows (filtered by L3 status).</p>
                     </CardFooter>
                 </Card>
             )}
@@ -369,3 +377,5 @@ export function GsheetDashboard() {
     </div>
   );
 }
+
+    
