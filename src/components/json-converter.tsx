@@ -20,7 +20,7 @@ const LOCAL_STORAGE_KEY = 'jsonConverterHeaderTemplate';
 
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
-    const [templateInput, setTemplateInput] = useState('');
+    const [templateInput, setTemplateInput] = useState('Customer Name,Status,,Ticket Category,Module,Detail Module,Created At,Title,,Solved At');
     const [tableData, setTableData] = useState<TableData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isCopied, setIsCopied] = useState(false);
@@ -39,34 +39,40 @@ export function JsonConverter() {
             if (path) res[path] = obj;
             return res;
         }
-    
+
         if (Array.isArray(obj)) {
             if (path) res[path] = JSON.stringify(obj);
             return res;
         }
 
-        for (const key of Object.keys(obj)) {
-            const newPath = path ? `${path}.${key}` : key;
+        Object.keys(obj).forEach(key => {
             const value = obj[key];
+            const newPath = path ? `${path}.${key}` : key;
 
             if (typeof value === 'string') {
                 try {
                     const parsed = JSON.parse(value);
-                    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-                        // If we can parse the string and it's a nested object, flatten it without a prefix.
-                        flattenObject(parsed, '', res); 
+                    if (typeof parsed === 'object' && parsed !== null) {
+                         // It's a JSON string, flatten its content into the main result object
+                         // without creating a new path for the parent key.
+                        flattenObject(parsed, '', res);
                     } else {
+                        // Not an object, treat as a normal string value.
                         res[newPath] = value;
                     }
                 } catch (e) {
+                    // Not a valid JSON string, treat as a normal string value.
                     res[newPath] = value;
                 }
             } else if (typeof value === 'object' && value !== null) {
+                // It's already an object, flatten it.
                 flattenObject(value, newPath, res);
             } else {
+                // It's a primitive value (number, boolean, etc.).
                 res[newPath] = value;
             }
-        }
+        });
+
         return res;
     };
 
