@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useRef, useEffect, useContext } from 'react';
@@ -29,6 +30,59 @@ export function ReportHarian() {
   const topScrollRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+
+  const reportStats = useMemo(() => {
+    if (!tableData?.rows) {
+      return null;
+    }
+
+    const rows = tableData.rows;
+    const totalCases = rows.length;
+    const escalatedL1 = rows.filter(r => r.Status === 'L1').length;
+    const escalatedL2 = rows.filter(r => r.Status === 'L2').length;
+    const escalatedL3 = rows.filter(r => r.Status === 'L3').length;
+    const pending = rows.filter(r => r.Status === 'Pending').length;
+    const solved = rows.filter(r => r.Status === 'Resolved').length;
+
+    const notResolvedCases = rows
+      .filter(r => r.Status !== 'Resolved' && r.Title)
+      .map(r => r.Title);
+
+    const solvedCases = rows
+      .filter(r => r.Status === 'Resolved' && r.Title)
+      .map(r => r.Title);
+
+    const latestEntryTime = rows.reduce((latest, row) => {
+        const createdAt = row['Created At'];
+        if (createdAt) {
+            const currentDate = new Date(createdAt);
+            if (!isNaN(currentDate.getTime())) {
+                if (!latest || currentDate > latest) {
+                    return currentDate;
+                }
+            }
+        }
+        return latest;
+    }, null as Date | null);
+
+
+    const formattedLatestTime = latestEntryTime 
+        ? formatDateTime(latestEntryTime.toISOString(), 'jam')
+        : 'N/A';
+
+    return {
+      totalCases,
+      escalatedL1,
+      escalatedL2,
+      escalatedL3,
+      pending,
+      solved,
+      notResolvedCases,
+      solvedCases,
+      formattedLatestTime,
+    };
+  }, [tableData]);
+
 
   useEffect(() => {
     if (!tableData) {
@@ -118,6 +172,48 @@ export function ReportHarian() {
 
         <div className="min-h-[400px]">
             {!tableData ? <InitialState /> : (
+              <>
+                {reportStats && (
+                    <Card className="shadow-lg mb-8">
+                        <CardHeader>
+                            <CardTitle>Reporting cases TT (update jam masuk terakhir {reportStats.formattedLatestTime})</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                             <div className="space-y-4">
+                                <h3 className="font-semibold">Case Statistics</h3>
+                                <div className="text-sm space-y-2">
+                                    <p>Total cases: <span className="font-medium">{reportStats.totalCases}</span></p>
+                                    <p>Escalated L1: <span className="font-medium">{reportStats.escalatedL1}</span></p>
+                                    <p>Escalated L2: <span className="font-medium">{reportStats.escalatedL2}</span></p>
+                                    <p>Escalated L3: <span className="font-medium">{reportStats.escalatedL3}</span></p>
+                                    <p>Pending: <span className="font-medium">{reportStats.pending}</span></p>
+                                    <p>Solved: <span className="font-medium">{reportStats.solved}</span></p>
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <h3 className="font-semibold">Summary detail case yang belum Resolved:</h3>
+                                <ul className="list-disc list-inside text-sm space-y-1">
+                                    {reportStats.notResolvedCases.length > 0 ? (
+                                        reportStats.notResolvedCases.map((title, i) => <li key={i}>{title}</li>)
+                                    ) : (
+                                        <li>No unresolved cases.</li>
+                                    )}
+                                </ul>
+                            </div>
+                            <div className="space-y-4">
+                                <h3 className="font-semibold">Case yang solved:</h3>
+                                <ul className="list-disc list-inside text-sm space-y-1">
+                                    {reportStats.solvedCases.length > 0 ? (
+                                        reportStats.solvedCases.map((title, i) => <li key={i}>{title}</li>)
+                                    ) : (
+                                        <li>No solved cases yet.</li>
+                                    )}
+                                </ul>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
                 <Card className="shadow-lg">
                     <CardHeader>
                         <CardTitle>Filtered Report</CardTitle>
@@ -213,6 +309,7 @@ export function ReportHarian() {
                         <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {tableData.rows.length} rows.</p>
                     </CardFooter>
                 </Card>
+              </>
             )}
         </div>
       </div>
