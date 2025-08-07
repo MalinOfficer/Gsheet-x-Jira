@@ -48,6 +48,12 @@ export default function RootLayout({
                   >
                     Report Harian
                   </Link>
+                  <Link
+                    href="/update-case-l3"
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Update case L3
+                  </Link>
                 </nav>
                 <Sheet>
                   <SheetTrigger asChild>
@@ -77,6 +83,12 @@ export default function RootLayout({
                         className="text-muted-foreground hover:text-foreground"
                       >
                         Report Harian
+                      </Link>
+                      <Link
+                        href="/update-case-l3"
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        Update case L3
                       </Link>
                     </nav>
                   </SheetContent>
