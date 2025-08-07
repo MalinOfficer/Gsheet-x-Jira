@@ -51,13 +51,15 @@ export function GsheetDashboard() {
   const tableRef = useRef<HTMLTableElement>(null);
   
   const processAndSetData = (resultData: DataRow[]) => {
-      setData(resultData);
+      const filteredResultData = resultData.filter(row => row['STATUS CASE'] === 'L3');
+      setData(filteredResultData);
+
       const headersWithUniqueKeys = desiredHeadersConfig.map((h, i) => 
           h === EMPTY_COLUMN_KEY ? `${EMPTY_COLUMN_KEY}_${i}` : h
       );
       setDisplayHeaders(headersWithUniqueKeys);
 
-      const transformedData = resultData.map(originalRow => {
+      const transformedData = filteredResultData.map(originalRow => {
           const newRow: DataRow = {};
           headersWithUniqueKeys.forEach(headerKey => {
               if (headerKey.startsWith(EMPTY_COLUMN_KEY)) {
@@ -272,7 +274,7 @@ export function GsheetDashboard() {
             {!isPending && !error && data && processedData && (
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>2. Tabel L3</CardTitle>
+                        <CardTitle>Tabel L3</CardTitle>
                         <CardDescription>
                             Your data is ready. Use the dropdowns to filter or change date formats.
                         </CardDescription>
@@ -362,7 +364,7 @@ export function GsheetDashboard() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {processedData.length} rows.</p>
+                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {processedData?.length || 0} rows.</p>
                     </CardFooter>
                 </Card>
             )}
