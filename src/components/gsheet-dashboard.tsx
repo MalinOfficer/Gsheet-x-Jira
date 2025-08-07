@@ -37,13 +37,12 @@ export function GsheetDashboard() {
   const tableRef = useRef<HTMLTableElement>(null);
   
   const processAndSetData = (resultData: DataRow[], resultHeaders: string[]) => {
-      const filteredResultData = resultData.filter(row => row['Status'] === 'L3');
-      setData(filteredResultData);
+      setData(resultData);
       setDisplayHeaders(resultHeaders);
 
       const uniqueVals: Record<string, string[]> = {};
       resultHeaders.forEach(header => {
-        const values = new Set(filteredResultData.map(row => String(row[header] || '')));
+        const values = new Set(resultData.map(row => String(row[header] || '')));
         uniqueVals[header] = [...Array.from(values).filter(v => v).sort()];
       });
       setColumnUniqueValues(uniqueVals);
