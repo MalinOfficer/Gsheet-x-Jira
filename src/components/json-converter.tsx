@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, Braces, Copy, Check } from 'lucide-react';
+import { AlertCircle, Braces, Copy, Check, Upload } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { Input } from '@/components/ui/input';
 
 type TableData = {
     headers: string[];
@@ -20,6 +21,7 @@ export function JsonConverter() {
     const [error, setError] = useState<string | null>(null);
     const [isCopied, setIsCopied] = useState(false);
     const { toast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const flattenObject = (obj: any, parentKey = '', res: Record<string, any> = {}) => {
         for (const key in obj) {
@@ -100,6 +102,29 @@ export function JsonConverter() {
             });
         });
     };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target?.result;
+            if (typeof text === 'string') {
+                setJsonInput(text);
+                setError(null);
+                setTableData(null);
+            }
+        };
+        reader.onerror = () => {
+            setError("Failed to read file.");
+        };
+        reader.readAsText(file);
+    };
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
     
     const ErrorAlert = ({ message }: { message: string }) => (
         <Alert variant="destructive" className="mt-4">
@@ -121,9 +146,9 @@ export function JsonConverter() {
                 
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>1. Paste Your JSON</CardTitle>
+                        <CardTitle>1. Paste or Import Your JSON</CardTitle>
                         <CardDescription>
-                            Enter your JSON content in the text area below. It can be a single object or an array of objects.
+                            Enter your JSON in the text area, or import a JSON file. It can be a single object or an array of objects.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -135,10 +160,23 @@ export function JsonConverter() {
                             className="font-code"
                         />
                          {error && <ErrorAlert message={error} />}
-                        <Button onClick={handleConvert} className="mt-4 bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!jsonInput}>
-                            <Braces className="mr-2 h-4 w-4" />
-                            Convert
-                        </Button>
+                        <div className="mt-4 flex gap-2">
+                             <Button onClick={handleConvert} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!jsonInput}>
+                                <Braces className="mr-2 h-4 w-4" />
+                                Convert
+                            </Button>
+                            <Button onClick={handleImportClick} variant="outline">
+                                <Upload className="mr-2 h-4 w-4" />
+                                Import File
+                            </Button>
+                            <Input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                className="hidden"
+                                accept="application/json"
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -188,4 +226,3 @@ export function JsonConverter() {
         </div>
     );
 }
-
