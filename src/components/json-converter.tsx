@@ -77,7 +77,7 @@ const formatDateTime = (value: any, format: DateFormat): string => {
 
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
-    const [templateInput, setTemplateInput] = useState('Customer Name,Status,,Ticket Category,Module,Detail Module,Created At,Title,,Solved At');
+    const [templateInput, setTemplateInput] = useState('Customer Name,Status,,Ticket Category,Module,Detail Module,Created At,Title,,Resolved At');
     const [tableData, setTableData] = useState<TableData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isCopied, setIsCopied] = useState(false);
@@ -190,7 +190,7 @@ export function JsonConverter() {
             headers.join('\t'),
             ...rows.map(row => headers.map(header => {
                 let value = row[header];
-                if (header === 'Created At' || header === 'Solved At') {
+                if (header === 'Created At' || header === 'Resolved At') {
                     value = formatDateTime(value, dateFormat);
                 }
                 if (value === null || value === undefined) return '';
@@ -374,7 +374,7 @@ export function JsonConverter() {
                                         <TableRow>
                                             {tableData.headers.map((header, index) => (
                                                 <TableHead key={`${header}-${index}`} className="font-bold whitespace-nowrap bg-muted/50">
-                                                    {(header === 'Created At' || header === 'Solved At') ? (
+                                                    {(header === 'Created At' || header === 'Resolved At') ? (
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button variant="ghost" className="pl-0">
@@ -405,7 +405,7 @@ export function JsonConverter() {
                                             <TableRow key={index} className="hover:bg-muted/50">
                                                 {tableData.headers.map((header, headerIndex) => (
                                                     <TableCell key={`${header}-${headerIndex}-${index}`} className="whitespace-nowrap">
-                                                        {(header === 'Created At' || header === 'Solved At')
+                                                        {(header === 'Created At' || header === 'Resolved At')
                                                           ? formatDateTime(row[header], dateFormat)
                                                           : String(row[header] ?? '')}
                                                     </TableCell>
