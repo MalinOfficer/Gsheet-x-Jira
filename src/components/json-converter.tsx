@@ -406,7 +406,7 @@ export function JsonConverter() {
                                         {tableData.rows.map((row, index) => (
                                             <TableRow key={index} className="hover:bg-muted/50">
                                                 {tableData.headers.map((header, headerIndex) => (
-                                                    <TableCell key={`${header}-${headerIndex}-${index}`}>
+                                                    <TableCell key={`${header}-${headerIndex}-${index}`} className="whitespace-nowrap">
                                                         {(header === 'Created At' || header === 'Solved At')
                                                           ? formatDateTime(row[header], dateFormats[header])
                                                           : String(row[header] ?? '')}
