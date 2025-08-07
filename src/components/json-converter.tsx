@@ -37,18 +37,18 @@ export function JsonConverter() {
         return res;
     };
 
-    const handleConvert = () => {
+    const handleConvert = (jsonString: string) => {
         setError(null);
         setTableData(null);
         setIsCopied(false);
 
-        if (!jsonInput.trim()) {
+        if (!jsonString.trim()) {
             setError("JSON input cannot be empty.");
             return;
         }
 
         try {
-            let data = JSON.parse(jsonInput);
+            let data = JSON.parse(jsonString);
             if (!Array.isArray(data)) {
                 data = [data];
             }
@@ -114,6 +114,7 @@ export function JsonConverter() {
                 setJsonInput(text);
                 setError(null);
                 setTableData(null);
+                handleConvert(text);
             }
         };
         reader.onerror = () => {
@@ -152,30 +153,36 @@ export function JsonConverter() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Textarea
-                            placeholder='{ "name": "John Doe", "email": "john.doe@example.com" }'
-                            value={jsonInput}
-                            onChange={(e) => setJsonInput(e.target.value)}
-                            rows={10}
-                            className="font-code"
-                        />
-                         {error && <ErrorAlert message={error} />}
-                        <div className="mt-4 flex gap-2">
-                             <Button onClick={handleConvert} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!jsonInput}>
-                                <Braces className="mr-2 h-4 w-4" />
-                                Convert
-                            </Button>
-                            <Button onClick={handleImportClick} variant="outline">
-                                <Upload className="mr-2 h-4 w-4" />
-                                Import File
-                            </Button>
-                            <Input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                                accept="application/json"
+                        <div className="grid gap-4">
+                            <Textarea
+                                placeholder='{ "name": "John Doe", "email": "john.doe@example.com" }'
+                                value={jsonInput}
+                                onChange={(e) => {
+                                    setJsonInput(e.target.value);
+                                    setTableData(null);
+                                    setError(null);
+                                }}
+                                rows={10}
+                                className="font-mono"
                             />
+                            <div className="flex flex-wrap gap-2">
+                                <Button onClick={() => handleConvert(jsonInput)} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!jsonInput}>
+                                    <Braces className="mr-2 h-4 w-4" />
+                                    Convert
+                                </Button>
+                                <Button onClick={handleImportClick} variant="outline">
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    Import & Convert File
+                                </Button>
+                                <Input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    accept="application/json,.json"
+                                />
+                            </div>
+                             {error && <ErrorAlert message={error} />}
                         </div>
                     </CardContent>
                 </Card>
@@ -197,18 +204,18 @@ export function JsonConverter() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="w-full overflow-x-auto">
+                            <div className="w-full overflow-x-auto rounded-md border">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
                                             {tableData.headers.map(header => (
-                                                <TableHead key={header} className="font-bold whitespace-nowrap">{header}</TableHead>
+                                                <TableHead key={header} className="font-bold whitespace-nowrap bg-muted/50">{header}</TableHead>
                                             ))}
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {tableData.rows.map((row, index) => (
-                                            <TableRow key={index}>
+                                            <TableRow key={index} className="hover:bg-muted/50">
                                                 {tableData.headers.map(header => (
                                                     <TableCell key={`${header}-${index}`}>
                                                         {String(row[header] ?? '')}
