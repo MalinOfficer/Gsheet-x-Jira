@@ -34,7 +34,7 @@ const formatDateTime = (value: any): string => {
     }
 
     try {
-        // First, try to parse common English date format like "August 7, 2025, 3:26 PM"
+        // Handle common English date format like "August 7, 2025, 3:26 PM"
         const dateParts = value.match(/([A-Z][a-z]+)\s(\d{1,2}),\s(\d{4}),\s(\d{1,2}):(\d{2})\s(AM|PM)/);
 
         if (dateParts) {
@@ -46,7 +46,7 @@ const formatDateTime = (value: any): string => {
             };
 
             const month = monthMap[monthName];
-            if (!month) return ''; // Invalid month name
+            if (!month) return value; // Return original value if month is not found
 
             const dayPadded = day.padStart(2, '0');
             
@@ -65,7 +65,7 @@ const formatDateTime = (value: any): string => {
         // Fallback for other standard formats that new Date() can parse
         const date = new Date(value);
         if (isNaN(date.getTime())) {
-            return ''; // Return empty string if date is invalid
+            return value; // Return original value if date is invalid
         }
 
         const year = date.getFullYear();
@@ -76,8 +76,8 @@ const formatDateTime = (value: any): string => {
 
         return `${year}-${month}-${day} ${hours}:${minutes}`;
     } catch (e) {
-        // In case of any unexpected error during parsing
-        return '';
+        // In case of any unexpected error during parsing, return original value
+        return value;
     }
 };
 
