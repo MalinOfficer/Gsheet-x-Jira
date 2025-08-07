@@ -15,7 +15,7 @@ type DataRow = Record<string, string | number>;
 const ALL_ITEMS_VALUE = "__ALL__";
 const EMPTY_COLUMN_KEY = "__EMPTY__";
 
-const desiredHeaders = [
+const desiredHeadersConfig = [
   'Customer Name',
   'Status',
   EMPTY_COLUMN_KEY,
@@ -31,7 +31,8 @@ const desiredHeaders = [
 export function GsheetDashboard() {
   const [url, setUrl] = useState('');
   const [data, setData] = useState<DataRow[] | null>(null);
-  const [headers, setHeaders] = useState<string[]>([]);
+  const [processedData, setProcessedData] = useState<DataRow[] | null>(null);
+  const [displayHeaders, setDisplayHeaders] = useState<string[]>([]);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [columnUniqueValues, setColumnUniqueValues] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
@@ -65,13 +66,14 @@ export function GsheetDashboard() {
         topDiv.removeEventListener('scroll', topSync);
         tableDiv.removeEventListener('scroll', tableSync);
     };
-  }, [data]);
+  }, [processedData]);
 
   const handleFetch = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     setData(null);
-    setHeaders([]);
+    setProcessedData(null);
+    setDisplayHeaders([]);
     setFilters({});
     setColumnUniqueValues({});
 
@@ -79,18 +81,30 @@ export function GsheetDashboard() {
       const result = await fetchSheetData(url);
       if (result.error) {
         setError(result.error);
-      } else if (result.data && result.headers) {
+      } else if (result.data) {
         setData(result.data);
-        
-        const finalHeaders = desiredHeaders.map((h, i) => 
+        const headersWithUniqueKeys = desiredHeadersConfig.map((h, i) => 
             h === EMPTY_COLUMN_KEY ? `${EMPTY_COLUMN_KEY}_${i}` : h
         );
-        setHeaders(finalHeaders);
+        setDisplayHeaders(headersWithUniqueKeys);
+
+        const transformedData = result.data.map(originalRow => {
+            const newRow: DataRow = {};
+            headersWithUniqueKeys.forEach(headerKey => {
+                if (headerKey.startsWith(EMPTY_COLUMN_KEY)) {
+                    newRow[headerKey] = '';
+                } else {
+                    newRow[headerKey] = originalRow[headerKey] || '';
+                }
+            });
+            return newRow;
+        });
+        setProcessedData(transformedData);
 
         const uniqueVals: Record<string, string[]> = {};
-        finalHeaders.forEach(header => {
+        headersWithUniqueKeys.forEach(header => {
           if (header.startsWith(EMPTY_COLUMN_KEY)) return;
-          const values = new Set(result.data.map(row => String(row[header] || '')));
+          const values = new Set(transformedData.map(row => String(row[header] || '')));
           uniqueVals[header] = [...Array.from(values).filter(v => v).sort()];
         });
         setColumnUniqueValues(uniqueVals);
@@ -111,15 +125,15 @@ export function GsheetDashboard() {
   };
 
   const filteredData = useMemo(() => {
-    if (!data) return [];
-    return data.filter(row => {
+    if (!processedData) return [];
+    return processedData.filter(row => {
       return Object.entries(filters).every(([header, filterValue]) => {
         if (!filterValue) return true;
         const cellValue = String(row[header] || '');
         return cellValue.toLowerCase() === filterValue.toLowerCase();
       });
     });
-  }, [data, filters]);
+  }, [processedData, filters]);
 
   const TableSkeleton = () => (
     <Card>
@@ -206,7 +220,7 @@ export function GsheetDashboard() {
             {isPending && <TableSkeleton />}
             {error && <ErrorAlert message={error} />}
             {!isPending && !error && !data && <InitialState />}
-            {!isPending && !error && data && (
+            {!isPending && !error && data && processedData && (
                 <Card className="shadow-lg">
                     <CardHeader>
                         <CardTitle>2. Filter Your Data</CardTitle>
@@ -222,14 +236,14 @@ export function GsheetDashboard() {
                             <Table ref={tableRef}>
                                 <TableHeader>
                                     <TableRow>
-                                        {headers.map(header => (
+                                        {displayHeaders.map(header => (
                                             <TableHead key={header} className="font-bold whitespace-nowrap">
                                                 {header.startsWith(EMPTY_COLUMN_KEY) ? "" : header}
                                             </TableHead>
                                         ))}
                                     </TableRow>
                                     <TableRow className="bg-muted/50">
-                                        {headers.map(header => (
+                                        {displayHeaders.map(header => (
                                             <TableHead key={`${header}-filter`}>
                                                 {!header.startsWith(EMPTY_COLUMN_KEY) ? (
                                                   <Select
@@ -255,16 +269,16 @@ export function GsheetDashboard() {
                                     {filteredData.length > 0 ? (
                                         filteredData.map((row, index) => (
                                             <TableRow key={index} className="hover:bg-muted/50">
-                                                {headers.map(header => (
+                                                {displayHeaders.map(header => (
                                                     <TableCell key={`${header}-${index}`}>
-                                                        {header.startsWith(EMPTY_COLUMN_KEY) ? '' : String(row[header] || '')}
+                                                        {String(row[header] || '')}
                                                     </TableCell>
                                                 ))}
                                             </TableRow>
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={headers.length} className="h-24 text-center">
+                                            <TableCell colSpan={displayHeaders.length} className="h-24 text-center">
                                                 No results found. Try adjusting your filters.
                                             </TableCell>
                                         </TableRow>
