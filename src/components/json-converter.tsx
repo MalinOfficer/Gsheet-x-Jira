@@ -48,8 +48,9 @@ export function JsonConverter() {
                 if (typeof value === 'string') {
                     try {
                         const parsed = JSON.parse(value);
-                        if (typeof parsed === 'object' && parsed !== null) {
-                            flattenObject(parsed, propName, res);
+                        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+                            // If we parse a string into an object, flatten it without the parent key
+                            flattenObject(parsed, parentKey, res);
                         } else {
                             res[propName] = value;
                         }
@@ -65,6 +66,95 @@ export function JsonConverter() {
         }
         return res;
     };
+    
+    const processItem = (item: any) => {
+        const flatObject: Record<string, any> = {};
+
+        function recurse(current: any, prop: string) {
+            if (Object(current) !== current) {
+                flatObject[prop] = current;
+            } else if (Array.isArray(current)) {
+                flatObject[prop] = JSON.stringify(current);
+            } else {
+                let isEmpty = true;
+                for (const p in current) {
+                    isEmpty = false;
+                    // Try to parse stringified JSON
+                    if(typeof current[p] === 'string') {
+                        try {
+                            const parsed = JSON.parse(current[p]);
+                            if (Object(parsed) === parsed && !Array.isArray(parsed)) {
+                                recurse(parsed, prop ? `${prop}.${p}` : p);
+                                // if we successfully parsed and recursed, we merge it, so we don't want to add the original field
+                                if(p === "Custom Fields" || p === "custom_fields" || p === "custom-fields") {
+                                  // This is a special case. If we parse Custom Fields, we want to merge it to the top level.
+                                  Object.assign(flatObject, parsed);
+                                  continue;
+                                }
+                            }
+                        } catch(e) {
+                            // not a json string
+                        }
+                    }
+                    recurse(current[p], prop ? `${prop}.${p}` : p);
+                }
+                if (isEmpty && prop) {
+                    flatObject[prop] = {};
+                }
+            }
+        }
+        
+        // First pass to flatten everything, including stringified JSON
+        const initialFlatten = (obj: any): Record<string, any> => {
+            const result: Record<string, any> = {};
+
+            function recurse(current: any, property: string) {
+                if (Object(current) !== current) {
+                    result[property] = current;
+                } else if (Array.isArray(current)) {
+                     result[property] = JSON.stringify(current);
+                } else {
+                    let isEmpty = true;
+                    for (const p in current) {
+                        isEmpty = false;
+                        recurse(current[p], property ? `${property}.${p}` : p);
+                    }
+                    if (isEmpty && property) {
+                        result[property] = {};
+                    }
+                }
+            }
+
+            recurse(obj, "");
+            return result;
+        };
+
+        const partiallyFlattened = initialFlatten(item);
+        
+        const finalFlattened: Record<string, any> = {};
+
+        for(const key in partiallyFlattened) {
+            const value = partiallyFlattened[key];
+            if(typeof value === 'string') {
+                try {
+                    const parsed = JSON.parse(value);
+                    if (Object(parsed) === parsed && !Array.isArray(parsed)) {
+                        for(const innerKey in parsed) {
+                             finalFlattened[innerKey] = parsed[innerKey];
+                        }
+                    } else {
+                        finalFlattened[key] = value;
+                    }
+                } catch(e) {
+                    finalFlattened[key] = value;
+                }
+            } else {
+                finalFlattened[key] = value;
+            }
+        }
+
+        return finalFlattened;
+    }
 
 
     const handleConvert = (jsonString: string) => {
@@ -88,7 +178,7 @@ export function JsonConverter() {
                 return;
             }
 
-            const flattenedData = data.map((item: any) => flattenObject(item));
+            const flattenedData = data.map((item: any) => processItem(item));
             
             let headers: string[];
             if (templateInput.trim()) {
