@@ -13,6 +13,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type DataRow = Record<string, string | number>;
 const ALL_ITEMS_VALUE = "__ALL__";
+const EMPTY_COLUMN_KEY = "__EMPTY__";
+
+const desiredHeaders = [
+  'Customer Name',
+  'Status',
+  EMPTY_COLUMN_KEY,
+  'Ticket Category',
+  'Module',
+  'Detail Module',
+  'Created At',
+  'Title',
+  EMPTY_COLUMN_KEY,
+  'Solved At'
+];
 
 export function GsheetDashboard() {
   const [url, setUrl] = useState('');
@@ -67,10 +81,21 @@ export function GsheetDashboard() {
         setError(result.error);
       } else if (result.data && result.headers) {
         setData(result.data);
-        setHeaders(result.headers);
+        
+        // Filter and order headers based on desiredHeaders
+        const availableSheetHeaders = new Set(result.headers);
+        const finalHeaders = desiredHeaders.map((h, i) => {
+            if (h === EMPTY_COLUMN_KEY) {
+                return `${EMPTY_COLUMN_KEY}_${i}`; // Ensure unique key for empty columns
+            }
+            return availableSheetHeaders.has(h) ? h : null;
+        }).filter((h): h is string => h !== null);
+
+        setHeaders(finalHeaders);
 
         const uniqueVals: Record<string, string[]> = {};
-        result.headers.forEach(header => {
+        finalHeaders.forEach(header => {
+          if (header.startsWith(EMPTY_COLUMN_KEY)) return;
           const values = new Set(result.data.map(row => String(row[header] || '')));
           uniqueVals[header] = [...Array.from(values).filter(v => v).sort()];
         });
@@ -204,26 +229,30 @@ export function GsheetDashboard() {
                                 <TableHeader>
                                     <TableRow>
                                         {headers.map(header => (
-                                            <TableHead key={header} className="font-bold whitespace-nowrap">{header}</TableHead>
+                                            <TableHead key={header} className="font-bold whitespace-nowrap">
+                                                {header.startsWith(EMPTY_COLUMN_KEY) ? "" : header}
+                                            </TableHead>
                                         ))}
                                     </TableRow>
                                     <TableRow className="bg-muted/50">
                                         {headers.map(header => (
                                             <TableHead key={`${header}-filter`}>
-                                                <Select
-                                                  value={filters[header] || ALL_ITEMS_VALUE}
-                                                  onValueChange={(value) => handleFilterChange(header, value)}
-                                                >
-                                                  <SelectTrigger className="h-9 min-w-[150px]">
-                                                    <SelectValue placeholder="Filter..." />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    <SelectItem value={ALL_ITEMS_VALUE}>All</SelectItem>
-                                                    {(columnUniqueValues[header] || []).map(value => (
-                                                      <SelectItem key={value} value={value}>{value}</SelectItem>
-                                                    ))}
-                                                  </SelectContent>
-                                                </Select>
+                                                {!header.startsWith(EMPTY_COLUMN_KEY) ? (
+                                                  <Select
+                                                    value={filters[header] || ALL_ITEMS_VALUE}
+                                                    onValueChange={(value) => handleFilterChange(header, value)}
+                                                  >
+                                                    <SelectTrigger className="h-9 min-w-[150px]">
+                                                      <SelectValue placeholder="Filter..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      <SelectItem value={ALL_ITEMS_VALUE}>All</SelectItem>
+                                                      {(columnUniqueValues[header] || []).map(value => (
+                                                        <SelectItem key={value} value={value}>{value}</SelectItem>
+                                                      ))}
+                                                    </SelectContent>
+                                                  </Select>
+                                                ) : <div className="h-9 min-w-[150px]"></div>}
                                             </TableHead>
                                         ))}
                                     </TableRow>
@@ -233,7 +262,9 @@ export function GsheetDashboard() {
                                         filteredData.map((row, index) => (
                                             <TableRow key={index} className="hover:bg-muted/50">
                                                 {headers.map(header => (
-                                                    <TableCell key={`${header}-${index}`}>{String(row[header] || '')}</TableCell>
+                                                    <TableCell key={`${header}-${index}`}>
+                                                        {header.startsWith(EMPTY_COLUMN_KEY) ? '' : String(row[header] || '')}
+                                                    </TableCell>
                                                 ))}
                                             </TableRow>
                                         ))
