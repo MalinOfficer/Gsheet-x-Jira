@@ -28,6 +28,52 @@ const desiredHeadersConfig = [
   'Solved At'
 ];
 
+const formatDateTime = (value: any): string => {
+    if (!value || typeof value !== 'string') {
+        return '';
+    }
+
+    try {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) {
+            // If standard parsing fails, try the specific format
+            const dateParts = value.match(/([A-Z][a-z]+)\s(\d{1,2}),\s(\d{4}),\s(\d{1,2}):(\d{2})\s(AM|PM)/);
+            if (dateParts) {
+                const [_, monthName, day, year, hourStr, minuteStr, ampm] = dateParts;
+                const monthMap: { [key: string]: string } = {
+                    'January': '01', 'February': '02', 'March': '03', 'April': '04',
+                    'May': '05', 'June': '06', 'July': '07', 'August': '08',
+                    'September': '09', 'October': '10', 'November': '11', 'December': '12',
+                };
+
+                const month = monthMap[monthName] || '';
+                const dayPadded = day.padStart(2, '0');
+                
+                let hours = parseInt(hourStr, 10);
+                if (ampm === 'PM' && hours < 12) {
+                    hours += 12;
+                } else if (ampm === 'AM' && hours === 12) {
+                    hours = 0; // Midnight case
+                }
+                const hoursPadded = String(hours).padStart(2, '0');
+
+                return `${year}-${month}-${dayPadded} ${hoursPadded}:${minuteStr}`;
+            }
+            return ''; // Return empty if all parsing fails
+        }
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+    } catch (e) {
+        return '';
+    }
+};
+
 export function GsheetDashboard() {
   const [url, setUrl] = useState('');
   const [data, setData] = useState<DataRow[] | null>(null);
@@ -272,12 +318,7 @@ export function GsheetDashboard() {
                                                 {displayHeaders.map(header => (
                                                     <TableCell key={`${header}-${index}`} className="whitespace-nowrap">
                                                         {(header === 'Created At' || header === 'Solved At')
-                                                          ? (() => {
-                                                                const value = row[header];
-                                                                if (!value || typeof value !== 'string') return '';
-                                                                const timeMatch = value.match(/(\d{1,2}:\d{2})/);
-                                                                return timeMatch ? timeMatch[0] : '';
-                                                            })()
+                                                          ? formatDateTime(row[header])
                                                           : String(row[header] || '')}
                                                     </TableCell>
                                                 ))}
@@ -304,3 +345,5 @@ export function GsheetDashboard() {
     </div>
   );
 }
+
+    
