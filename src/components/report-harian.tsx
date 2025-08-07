@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, ChevronsUpDown, Pencil, BarChart, ArrowLeft } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -15,9 +14,25 @@ import { TableDataContext } from '@/store/table-data-context';
 
 const ALL_ITEMS_VALUE = "__ALL__";
 
+const InitialState = () => {
+  const router = useRouter();
+  return (
+    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px]">
+        <BarChart className="w-16 h-16 text-muted-foreground mb-4" />
+        <CardTitle>No Report Data Found</CardTitle>
+        <CardDescription className="mt-2 mb-4">
+            Go back to the JSON to Table page to convert your data first.
+        </CardDescription>
+        <Button onClick={() => router.push('/')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Converter
+        </Button>
+    </Card>
+  );
+};
+
 export function ReportHarian() {
   const { tableData } = useContext(TableDataContext);
-  const router = useRouter();
 
   const [statusFilter, setStatusFilter] = useState<string>(ALL_ITEMS_VALUE);
   const [columnUniqueValues, setColumnUniqueValues] = useState<Record<string, string[]>>({});
@@ -55,25 +70,28 @@ export function ReportHarian() {
 
     const notResolvedCases = rows
       .filter(r => r.Status !== 'Resolved' && r.Title)
-      .map(r => r.Title);
+      .map(r => r.Title as string);
 
     const solvedCases = rows
       .filter(r => r.Status === 'Resolved' && r.Title)
-      .map(r => r.Title);
+      .map(r => r.Title as string);
 
     const latestEntryTime = rows.reduce((latest, row) => {
         const createdAt = row['Created At'];
-        if (createdAt) {
-            const currentDate = new Date(createdAt);
-            if (!isNaN(currentDate.getTime())) {
-                if (!latest || currentDate > latest) {
-                    return currentDate;
+        if (createdAt && typeof createdAt === 'string') {
+            try {
+                const currentDate = new Date(createdAt);
+                if (!isNaN(currentDate.getTime())) {
+                    if (!latest || currentDate > latest) {
+                        return currentDate;
+                    }
                 }
+            } catch (e) {
+                // Ignore invalid date strings
             }
         }
         return latest;
     }, null as Date | null);
-
 
     const formattedLatestTime = latestEntryTime 
         ? formatDateTime(latestEntryTime.toISOString(), 'jam')
@@ -92,19 +110,16 @@ export function ReportHarian() {
     };
   }, [tableData]);
 
-
   useEffect(() => {
-    if (!tableData?.rows) {
-        return;
+    if (tableData?.rows) {
+      const uniqueVals: Record<string, string[]> = {};
+      const statusHeader = 'Status';
+      if (tableData.headers.includes(statusHeader)) {
+          const values = new Set(tableData.rows.map(row => String(row[statusHeader] || '')));
+          uniqueVals[statusHeader] = [...Array.from(values).filter(v => v).sort()];
+      }
+      setColumnUniqueValues(uniqueVals);
     }
-
-    const uniqueVals: Record<string, string[]> = {};
-    const statusHeader = 'Status';
-    if (tableData.headers.includes(statusHeader)) {
-        const values = new Set(tableData.rows.map(row => String(row[statusHeader] || '')));
-        uniqueVals[statusHeader] = [...Array.from(values).filter(v => v).sort()];
-    }
-    setColumnUniqueValues(uniqueVals);
   }, [tableData]);
 
   useEffect(() => {
@@ -155,18 +170,147 @@ export function ReportHarian() {
     });
   }, [tableData, statusFilter]);
   
-  const InitialState = () => (
-    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px]">
-        <BarChart className="w-16 h-16 text-muted-foreground mb-4" />
-        <CardTitle>No Report Data Found</CardTitle>
-        <CardDescription className="mt-2 mb-4">
-            Go back to the JSON to Table page to convert your data first.
-        </CardDescription>
-        <Button onClick={() => router.push('/')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Converter
-        </Button>
-    </Card>
+  const MainContent = () => (
+    <>
+      {reportStats && (
+          <Card className="shadow-lg mb-8">
+              <CardHeader>
+                  <CardTitle>Reporting cases {todayDate} (update jam masuk terakhir {reportStats.formattedLatestTime})</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                   <div className="space-y-4">
+                      <h3 className="font-semibold">Case Statistics</h3>
+                      <div className="text-sm space-y-2">
+                          <p>Total cases: <span className="font-medium">{reportStats.totalCases}</span></p>
+                          <p>Escalated L1: <span className="font-medium">{reportStats.escalatedL1}</span></p>
+                          <p>Escalated L2: <span className="font-medium">{reportStats.escalatedL2}</span></p>
+                          <p>Escalated L3: <span className="font-medium">{reportStats.escalatedL3}</span></p>
+                          <p>Pending: <span className="font-medium">{reportStats.pending}</span></p>
+                          <p>Solved: <span className="font-medium">{reportStats.solved}</span></p>
+                      </div>
+                  </div>
+                  <div className="space-y-4">
+                      <h3 className="font-semibold">Summary detail case yang belum Resolved:</h3>
+                      <ul className="list-disc list-inside text-sm space-y-1">
+                          {reportStats.notResolvedCases.length > 0 ? (
+                              reportStats.notResolvedCases.map((title, i) => <li key={i}>{title}</li>)
+                          ) : (
+                              <li>No unresolved cases.</li>
+                          )}
+                      </ul>
+                  </div>
+                  <div className="space-y-4">
+                      <h3 className="font-semibold">Case yang solved:</h3>
+                      <ul className="list-disc list-inside text-sm space-y-1">
+                          {reportStats.solvedCases.length > 0 ? (
+                              reportStats.solvedCases.map((title, i) => <li key={i}>{title}</li>)
+                          ) : (
+                              <li>No solved cases yet.</li>
+                          )}
+                      </ul>
+                  </div>
+              </CardContent>
+          </Card>
+      )}
+
+      {tableData && (
+          <Card className="shadow-lg">
+              <CardHeader>
+                  <CardTitle>Filtered Report</CardTitle>
+                  <CardDescription>
+                      Your data is ready. Use the dropdown on the 'Status' column to filter the report.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
+                     <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
+                  </div>
+                  <div ref={tableScrollRef} className="w-full overflow-x-auto">
+                      <Table ref={tableRef}>
+                          <TableHeader>
+                              <TableRow>
+                                  {tableData.headers.map(header => (
+                                      <TableHead key={header} className="font-bold whitespace-nowrap">
+                                          {header.startsWith("__EMPTY__") ? "" : (
+                                              (header === 'Created At' || header === 'Solved At' || header === 'Resolved At') ? (
+                                                  <DropdownMenu>
+                                                      <DropdownMenuTrigger asChild>
+                                                          <Button variant="ghost" className="pl-0">
+                                                              <span className="flex items-center gap-2">
+                                                                {header}
+                                                                <Pencil className="h-3 w-3 text-muted-foreground" />
+                                                              </span>
+                                                              <ChevronsUpDown className="ml-2 h-4 w-4" />
+                                                          </Button>
+                                                      </DropdownMenuTrigger>
+                                                      <DropdownMenuContent>
+                                                          <DropdownMenuLabel>Date Format</DropdownMenuLabel>
+                                                          <DropdownMenuSeparator />
+                                                          <DropdownMenuRadioGroup value={dateFormats[header] || 'report'} onValueChange={(value) => handleDateFormatChange(header, value)}>
+                                                              <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
+                                                              <DropdownMenuRadioItem value="jam">Jam</DropdownMenuRadioItem>
+                                                              <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
+                                                          </DropdownMenuRadioGroup>
+                                                      </DropdownMenuContent>
+                                                  </DropdownMenu>
+                                              ) : header
+                                          )}
+                                      </TableHead>
+                                  ))}
+                              </TableRow>
+                              <TableRow className="bg-muted/50">
+                                  {tableData.headers.map(header => (
+                                      <TableHead key={`${header}-filter`}>
+                                          {header === 'Status' ? (
+                                            <Select
+                                              value={statusFilter}
+                                              onValueChange={(value) => handleFilterChange(header, value)}
+                                            >
+                                              <SelectTrigger>
+                                                <SelectValue placeholder="Filter by Status..." />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value={ALL_ITEMS_VALUE}>All Statuses</SelectItem>
+                                                {(columnUniqueValues[header] || []).map(value => (
+                                                  <SelectItem key={value} value={value}>{value}</SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          ) : <div></div>}
+                                      </TableHead>
+                                  ))}
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {filteredData.length > 0 ? (
+                                  filteredData.map((row, index) => (
+                                      <TableRow key={index} className="hover:bg-muted/50">
+                                          {tableData.headers.map(header => (
+                                              <TableCell key={`${header}-${index}`} className="whitespace-nowrap">
+                                                  {(header === 'Created At' || header === 'Solved At' || header === 'Resolved At')
+                                                    ? formatDateTime(row[header], dateFormats[header] || 'report')
+                                                    : String(row[header] || '')}
+                                              </TableCell>
+                                          ))}
+                                      </TableRow>
+                                  ))
+                              ) : (
+                                  <TableRow>
+                                      <TableCell colSpan={tableData.headers.length} className="h-24 text-center">
+                                          No results found. Try adjusting your filters.
+                                      </TableCell>
+                                  </TableRow>
+                              )}
+                          </TableBody>
+                      </Table>
+                  </div>
+              </CardContent>
+              <CardFooter>
+                  <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {tableData.rows.length} rows.</p>
+              </CardFooter>
+          </Card>
+      )}
+    </>
   );
 
   return (
@@ -180,146 +324,7 @@ export function ReportHarian() {
         </header>
 
         <div className="min-h-[400px]">
-            {!tableData ? <InitialState /> : (
-              <>
-                {reportStats && (
-                    <Card className="shadow-lg mb-8">
-                        <CardHeader>
-                            <CardTitle>Reporting cases {todayDate} (update jam masuk terakhir {reportStats.formattedLatestTime})</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                             <div className="space-y-4">
-                                <h3 className="font-semibold">Case Statistics</h3>
-                                <div className="text-sm space-y-2">
-                                    <p>Total cases: <span className="font-medium">{reportStats.totalCases}</span></p>
-                                    <p>Escalated L1: <span className="font-medium">{reportStats.escalatedL1}</span></p>
-                                    <p>Escalated L2: <span className="font-medium">{reportStats.escalatedL2}</span></p>
-                                    <p>Escalated L3: <span className="font-medium">{reportStats.escalatedL3}</span></p>
-                                    <p>Pending: <span className="font-medium">{reportStats.pending}</span></p>
-                                    <p>Solved: <span className="font-medium">{reportStats.solved}</span></p>
-                                </div>
-                            </div>
-                            <div className="space-y-4">
-                                <h3 className="font-semibold">Summary detail case yang belum Resolved:</h3>
-                                <ul className="list-disc list-inside text-sm space-y-1">
-                                    {reportStats.notResolvedCases.length > 0 ? (
-                                        reportStats.notResolvedCases.map((title, i) => <li key={i}>{title}</li>)
-                                    ) : (
-                                        <li>No unresolved cases.</li>
-                                    )}
-                                </ul>
-                            </div>
-                            <div className="space-y-4">
-                                <h3 className="font-semibold">Case yang solved:</h3>
-                                <ul className="list-disc list-inside text-sm space-y-1">
-                                    {reportStats.solvedCases.length > 0 ? (
-                                        reportStats.solvedCases.map((title, i) => <li key={i}>{title}</li>)
-                                    ) : (
-                                        <li>No solved cases yet.</li>
-                                    )}
-                                </ul>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
-                <Card className="shadow-lg">
-                    <CardHeader>
-                        <CardTitle>Filtered Report</CardTitle>
-                        <CardDescription>
-                            Your data is ready. Use the dropdown on the 'Status' column to filter the report.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
-                           <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
-                        </div>
-                        <div ref={tableScrollRef} className="w-full overflow-x-auto">
-                            <Table ref={tableRef}>
-                                <TableHeader>
-                                    <TableRow>
-                                        {tableData.headers.map(header => (
-                                            <TableHead key={header} className="font-bold whitespace-nowrap">
-                                                {header.startsWith("__EMPTY__") ? "" : (
-                                                    (header === 'Created At' || header === 'Solved At' || header === 'Resolved At') ? (
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" className="pl-0">
-                                                                    <span className="flex items-center gap-2">
-                                                                      {header}
-                                                                      <Pencil className="h-3 w-3 text-muted-foreground" />
-                                                                    </span>
-                                                                    <ChevronsUpDown className="ml-2 h-4 w-4" />
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent>
-                                                                <DropdownMenuLabel>Date Format</DropdownMenuLabel>
-                                                                <DropdownMenuSeparator />
-                                                                <DropdownMenuRadioGroup value={dateFormats[header] || 'report'} onValueChange={(value) => handleDateFormatChange(header, value)}>
-                                                                    <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
-                                                                    <DropdownMenuRadioItem value="jam">Jam</DropdownMenuRadioItem>
-                                                                    <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
-                                                                </DropdownMenuRadioGroup>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    ) : header
-                                                )}
-                                            </TableHead>
-                                        ))}
-                                    </TableRow>
-                                    <TableRow className="bg-muted/50">
-                                        {tableData.headers.map(header => (
-                                            <TableHead key={`${header}-filter`}>
-                                                {header === 'Status' ? (
-                                                  <Select
-                                                    value={statusFilter}
-                                                    onValueChange={(value) => handleFilterChange(header, value)}
-                                                  >
-                                                    <SelectTrigger>
-                                                      <SelectValue placeholder="Filter by Status..." />
-                                                    </Trigger>
-                                                    <SelectContent>
-                                                      <SelectItem value={ALL_ITEMS_VALUE}>All Statuses</SelectItem>
-                                                      {(columnUniqueValues[header] || []).map(value => (
-                                                        <SelectItem key={value} value={value}>{value}</SelectItem>
-                                                      ))}
-                                                    </SelectContent>
-                                                  </Select>
-                                                ) : <div></div>}
-                                            </TableHead>
-                                        ))}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredData.length > 0 ? (
-                                        filteredData.map((row, index) => (
-                                            <TableRow key={index} className="hover:bg-muted/50">
-                                                {tableData.headers.map(header => (
-                                                    <TableCell key={`${header}-${index}`} className="whitespace-nowrap">
-                                                        {(header === 'Created At' || header === 'Solved At' || header === 'Resolved At')
-                                                          ? formatDateTime(row[header], dateFormats[header] || 'report')
-                                                          : String(row[header] || '')}
-                                                    </TableCell>
-                                                ))}
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={tableData.headers.length} className="h-24 text-center">
-                                                No results found. Try adjusting your filters.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
-                    <CardFooter>
-                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {tableData.rows.length} rows.</p>
-                    </CardFooter>
-                </Card>
-              </>
-            )}
+          {!tableData ? <InitialState /> : <MainContent />}
         </div>
       </div>
     </div>
