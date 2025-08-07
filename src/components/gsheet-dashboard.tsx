@@ -148,14 +148,8 @@ export function GsheetDashboard() {
   const filteredData = useMemo(() => {
     if (!data) return [];
     
-    // First, filter by the hardcoded "L3" status
-    const l3Filtered = data.filter(row => {
-        const status = String(row['Status'] || '').toLowerCase();
-        return status === 'l3';
-    });
-    
-    // Then, apply the user-selected filters from the dropdowns
-    return l3Filtered.filter(row => {
+    // Apply the user-selected filters from the dropdowns
+    return data.filter(row => {
       return Object.entries(filters).every(([header, filterValue]) => {
         if (!filterValue || filterValue === ALL_ITEMS_VALUE) return true;
         const cellValue = String(row[header] || '');
@@ -266,7 +260,7 @@ export function GsheetDashboard() {
             {!isPending && !error && data && (
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>Tabel L3</CardTitle>
+                        <CardTitle>GSheet Table</CardTitle>
                         <CardDescription>
                            Your data is ready. Use the dropdowns to filter or change date formats.
                         </CardDescription>
@@ -357,7 +351,7 @@ export function GsheetDashboard() {
                                     ) : (
                                         <TableRow>
                                             <TableCell colSpan={displayHeaders.length} className="h-24 text-center">
-                                                No results found. Try adjusting your filters or check if there are any 'L3' status cases.
+                                                No results found. Try adjusting your filters.
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -366,7 +360,7 @@ export function GsheetDashboard() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {data?.length || 0} total rows (filtered for L3 status).</p>
+                        <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {data?.length || 0} total rows.</p>
                     </CardFooter>
                 </Card>
             )}
