@@ -26,10 +26,19 @@ export function ReportHarian() {
     'Solved At': 'report',
     'Resolved At': 'report',
   });
+  const [todayDate, setTodayDate] = useState('');
 
   const topScrollRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+
+  useEffect(() => {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    setTodayDate(`${day}/${month}/${year}`);
+  }, []);
 
   const reportStats = useMemo(() => {
     if (!tableData?.rows) {
@@ -176,7 +185,7 @@ export function ReportHarian() {
                 {reportStats && (
                     <Card className="shadow-lg mb-8">
                         <CardHeader>
-                            <CardTitle>Reporting cases TT (update jam masuk terakhir {reportStats.formattedLatestTime})</CardTitle>
+                            <CardTitle>Reporting cases {todayDate} (update jam masuk terakhir {reportStats.formattedLatestTime})</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                              <div className="space-y-4">
@@ -268,7 +277,7 @@ export function ReportHarian() {
                                                   >
                                                     <SelectTrigger>
                                                       <SelectValue placeholder="Filter by Status..." />
-                                                    </SelectTrigger>
+                                                    </Trigger>
                                                     <SelectContent>
                                                       <SelectItem value={ALL_ITEMS_VALUE}>All Statuses</SelectItem>
                                                       {(columnUniqueValues[header] || []).map(value => (
