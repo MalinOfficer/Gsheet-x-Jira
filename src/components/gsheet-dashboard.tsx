@@ -124,29 +124,32 @@ export function GsheetDashboard() {
     });
   };
   
-  const formatTimeValue = (value: any) => {
+  const formatTimeValue = (value: any): string => {
     if (!value || typeof value !== 'string') {
         return '';
     }
     
-    // Attempt to create a date object. This is more robust.
+    // First, try to parse it as a date
     const date = new Date(value);
     
-    // Check if the date is valid. If so, format it.
+    // If the date is valid, format it
     if (!isNaN(date.getTime())) {
-        const hours = date.getHours();
-        const minutes = date.getMinutes();
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
     }
 
-    // Fallback for strings like "August 7, 2025, 3:26 PM" if new Date() fails.
-    // This is a more direct way to get the time.
+    // If parsing fails, use a regex to find a time-like pattern (e.g., "3:26 PM" or "15:26")
     const timeMatch = value.match(/(\d{1,2}:\d{2})\s*(AM|PM)?/);
     if (timeMatch && timeMatch[1]) {
+        // We have a match like "3:26" or "15:26".
+        // This part is simplified and might not need AM/PM conversion if the goal is just HH:MM.
+        // Let's just return the matched time part.
         return timeMatch[1];
     }
     
-    return value; // Return original value if no time part is found
+    // If all else fails, return the original string (or an empty one)
+    return value;
   };
 
   const filteredData = useMemo(() => {
@@ -324,3 +327,5 @@ export function GsheetDashboard() {
     </div>
   );
 }
+
+    
