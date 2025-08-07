@@ -42,17 +42,20 @@ export function JsonConverter() {
 
                 if (typeof value === 'string') {
                     try {
+                        // Attempt to parse the string to see if it's a nested JSON object
                         const parsed = JSON.parse(value);
-                        if (typeof parsed === 'object' && parsed !== null) {
+                        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+                            // If it's an object, flatten it.
                             flattenObject(parsed, propName, res);
-                            continue;
+                        } else {
+                            // Otherwise, it's just a string that happens to be valid JSON (e.g., '"hello"'), so treat it as a normal string.
+                            res[propName] = value;
                         }
                     } catch (e) {
-                        // Not a JSON string, treat as a normal string
+                        // Not a JSON string, so treat it as a regular string value.
+                        res[propName] = value;
                     }
-                }
-
-                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
                     flattenObject(value, propName, res);
                 } else {
                     res[propName] = value;
