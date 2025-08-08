@@ -124,7 +124,27 @@ export function JsonConverter() {
             const processedRows = flattenedData.map(row => {
                 const newRow: Record<string, any> = {};
                 headers.forEach(header => {
-                    newRow[header] = row[header] !== undefined ? row[header] : '';
+                    let value = row[header];
+                    if (header === 'Status' && typeof value === 'string') {
+                        const lowerCaseValue = value.toLowerCase();
+                        switch (lowerCaseValue) {
+                            case 'resolved':
+                                value = 'Solved';
+                                break;
+                            case 'open':
+                                value = 'L2';
+                                break;
+                            case 'pending':
+                                value = 'L1';
+                                break;
+                            case 'on hold':
+                                value = 'L3';
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    newRow[header] = value !== undefined ? value : '';
                 });
                 return newRow;
             });
@@ -439,4 +459,5 @@ export function JsonConverter() {
     );
 }
 
+    
     
