@@ -60,7 +60,9 @@ export function JsonConverter() {
         }
 
         if (Array.isArray(obj)) {
-             if (path) res[path] = JSON.stringify(obj);
+             if (path !== 'custom_fields' && path) {
+                res[path] = JSON.stringify(obj);
+             }
              return res;
         }
 
@@ -68,12 +70,12 @@ export function JsonConverter() {
             const newPath = path ? `${path}.${key}` : key;
             const value = obj[key];
             
-            // Special handling for 'custom_fields' to extract 'Client Name'
             if (key === 'custom_fields' && Array.isArray(value)) {
-                const clientNameField = value.find(f => f.name === 'Client Name');
-                if (clientNameField) {
-                    res['Client Name'] = clientNameField.value;
-                }
+                value.forEach(field => {
+                    if (field && typeof field.name === 'string') {
+                        res[field.name] = field.value;
+                    }
+                });
             } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
                 flattenJson(value, newPath, res);
             } else {
@@ -113,6 +115,11 @@ export function JsonConverter() {
                 const newRow: Record<string, any> = {};
                 
                 headers.forEach(header => {
+                    if (header.toLowerCase().startsWith('kolom kosong')) {
+                        newRow[header] = '';
+                        return;
+                    }
+
                     // Find a matching key in the flattened JSON, case-insensitive
                     const matchingKey = Object.keys(flatRow).find(
                         k => k.toLowerCase() === header.toLowerCase()
@@ -155,7 +162,7 @@ export function JsonConverter() {
 
             processedRows.sort((a, b) => {
                 const numA = extractTicketNumber(a.Title);
-                const numB = extractTicketNumber(a.Title);
+                const numB = extractTicketNumber(b.Title);
 
                 if (numA === null && numB === null) return 0;
                 if (numA === null) return 1;
