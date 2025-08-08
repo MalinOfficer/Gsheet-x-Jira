@@ -66,14 +66,14 @@ export function ReportHarian() {
     const escalatedL2 = rows.filter(r => r.Status === 'L2').length;
     const escalatedL3 = rows.filter(r => r.Status === 'L3').length;
     const pending = rows.filter(r => r.Status === 'Pending').length;
-    const solved = rows.filter(r => r.Status === 'Resolved').length;
+    const solved = rows.filter(r => r.Status === 'Solved').length;
 
     const notResolvedCases = rows
-      .filter(r => r.Status !== 'Resolved' && r.Title)
+      .filter(r => ['L1', 'L2', 'L3'].includes(r.Status) && r.Title)
       .map(r => ({ clientName: r['Client Name'], title: r.Title as string }));
 
     const solvedCases = rows
-      .filter(r => r.Status === 'Resolved' && r.Title)
+      .filter(r => r.Status === 'Solved' && r.Title)
       .map(r => ({ clientName: r['Client Name'], title: r.Title as string }));
 
     const getMostFrequent = (data: typeof rows, field: string) => {
