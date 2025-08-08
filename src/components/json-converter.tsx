@@ -113,12 +113,15 @@ export function JsonConverter() {
             let processedRows = flattenedData.map(row => {
                 const newRow: Record<string, any> = {};
                 headers.forEach(header => {
+                    // Start with an empty value for all defined headers
                     newRow[header] = '';
                     
+                    // Find a key in the flattened row that matches the header (case-insensitive)
                     const matchingKey = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase());
 
                     let value = matchingKey ? row[matchingKey] : undefined;
 
+                    // Apply status transformations
                     if (header === 'Status' && typeof value === 'string') {
                         const lowerCaseValue = value.toLowerCase();
                         switch (lowerCaseValue) {
@@ -138,6 +141,8 @@ export function JsonConverter() {
                                 break;
                         }
                     }
+
+                    // Assign the value if it exists
                     if (value !== undefined) {
                         newRow[header] = value;
                     }
@@ -469,4 +474,5 @@ export function JsonConverter() {
     );
 }
 
+    
     
