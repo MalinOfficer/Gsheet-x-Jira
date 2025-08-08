@@ -62,19 +62,19 @@ export function ReportHarian() {
 
     const rows = tableData.rows;
     const totalCases = rows.length;
-    const escalatedL1 = rows.filter(r => r.Status === 'L1').length;
-    const escalatedL2 = rows.filter(r => r.Status === 'L2').length;
-    const escalatedL3 = rows.filter(r => r.Status === 'L3').length;
-    const pending = rows.filter(r => r.Status === 'Pending').length;
-    const solved = rows.filter(r => r.Status === 'Solved').length;
+    const escalatedL1 = rows.filter(r => String(r.Status).toLowerCase() === 'l1').length;
+    const escalatedL2 = rows.filter(r => String(r.Status).toLowerCase() === 'l2').length;
+    const escalatedL3 = rows.filter(r => String(r.Status).toLowerCase() === 'l3').length;
+    const pending = rows.filter(r => String(r.Status).toLowerCase() === 'pending').length;
+    const solved = rows.filter(r => String(r.Status).toLowerCase() === 'solved').length;
 
     const notResolvedCases = rows
-      .filter(r => ['L1', 'L2', 'L3'].includes(r.Status) && r.Title)
-      .map(r => ({ clientName: r['Client Name'], title: r.Title as string }));
+      .filter(r => ['l1', 'l2', 'l3'].includes(String(r.Status).toLowerCase()) && r.Title)
+      .map(r => ({ clientName: r['Customer Name'], title: r.Title as string }));
 
     const solvedCases = rows
-      .filter(r => r.Status === 'Solved' && r.Title)
-      .map(r => ({ clientName: r['Client Name'], title: r.Title as string }));
+      .filter(r => String(r.Status).toLowerCase() === 'solved' && r.Title)
+      .map(r => ({ clientName: r['Customer Name'], title: r.Title as string }));
 
     const getMostFrequent = (data: typeof rows, field: string) => {
       const frequency: Record<string, number> = {};
@@ -93,9 +93,9 @@ export function ReportHarian() {
       return mostFrequent;
     };
     
-    const trendingClient = getMostFrequent(rows, 'Client Name');
+    const trendingClient = getMostFrequent(rows, 'Customer Name');
     
-    const clientSpecificRows = rows.filter(row => row['Client Name'] === trendingClient);
+    const clientSpecificRows = rows.filter(row => row['Customer Name'] === trendingClient);
     const trendingCase = getMostFrequent(clientSpecificRows, 'Detail Module');
 
     const latestEntryTime = rows.reduce((latest, row) => {
