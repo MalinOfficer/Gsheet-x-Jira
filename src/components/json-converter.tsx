@@ -66,8 +66,6 @@ export function JsonConverter() {
             const newPath = path ? `${path}.${key}` : key;
             const value = obj[key];
             
-            // This is the key change: we no longer try to parse strings that might be JSON.
-            // We treat all nested objects as objects to be flattened, and everything else as a value.
             if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
                 flattenAndProcessJson(value, newPath, res);
             } else {
@@ -115,10 +113,8 @@ export function JsonConverter() {
             let processedRows = flattenedData.map(row => {
                 const newRow: Record<string, any> = {};
                 headers.forEach(header => {
-                    // Start by assuming the value is empty, for columns like "Kolom kosong"
                     newRow[header] = '';
                     
-                    // Find a key in the flattened row that matches the header, case-insensitively
                     const matchingKey = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase());
 
                     let value = matchingKey ? row[matchingKey] : undefined;
@@ -160,7 +156,7 @@ export function JsonConverter() {
                 const numB = extractTicketNumber(b.Title);
 
                 if (numA === null && numB === null) return 0;
-                if (numA === null) return 1; // Put rows without ticket number at the end
+                if (numA === null) return 1;
                 if (numB === null) return -1;
 
                 return numA - numB;
@@ -253,12 +249,10 @@ export function JsonConverter() {
 
     const handleSaveTemplate = () => {
         try {
-            const newTemplate = DEFAULT_TEMPLATE;
-            setTemplateInput(newTemplate);
-            localStorage.setItem(LOCAL_STORAGE_KEY_TEMPLATE, newTemplate);
+            localStorage.setItem(LOCAL_STORAGE_KEY_TEMPLATE, templateInput);
             toast({
-                title: "Default Template Saved",
-                description: "The default header template has been saved in your browser.",
+                title: "Template Saved",
+                description: "Your current header template has been saved as the default.",
             });
         } catch (error) {
             toast({
@@ -475,6 +469,4 @@ export function JsonConverter() {
     );
 }
 
-    
-    
     
