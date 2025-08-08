@@ -113,17 +113,12 @@ export function JsonConverter() {
                 const newRow: Record<string, any> = {};
                 
                 headers.forEach(header => {
-                    const findKey = (searchHeader: string) => {
-                        // First, try a direct match (case-sensitive)
-                        if (flatRow[searchHeader] !== undefined) return searchHeader;
-                        // Then, try a case-insensitive match
-                        const lowerCaseHeader = searchHeader.toLowerCase();
-                        return Object.keys(flatRow).find(k => k.toLowerCase() === lowerCaseHeader);
-                    };
-
-                    const matchingKey = findKey(header);
+                    // Find a matching key in the flattened JSON, case-insensitive
+                    const matchingKey = Object.keys(flatRow).find(
+                        k => k.toLowerCase() === header.toLowerCase()
+                    );
+                    
                     let value = matchingKey ? flatRow[matchingKey] : '';
-
 
                     // Apply status transformations
                     if (header.toLowerCase() === 'status' && typeof value === 'string') {
@@ -160,7 +155,7 @@ export function JsonConverter() {
 
             processedRows.sort((a, b) => {
                 const numA = extractTicketNumber(a.Title);
-                const numB = extractTicketNumber(b.Title);
+                const numB = extractTicketNumber(a.Title);
 
                 if (numA === null && numB === null) return 0;
                 if (numA === null) return 1;
@@ -475,5 +470,3 @@ export function JsonConverter() {
         </div>
     );
 }
-
-    
