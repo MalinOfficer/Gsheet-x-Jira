@@ -416,8 +416,7 @@ export function JsonConverter() {
                                                                     <SelectItem value="L2">L2</SelectItem>
                                                                     <SelectItem value="L3">L3</SelectItem>
                                                                     <SelectItem value="On hold">On hold</SelectItem>
-                                                                    <SelectItem value="Open">Open</SelectItem>
-                                                                    <SelectItem value="Resolved">Resolved</SelectItem>
+                                                                    <SelectItem value="Solved">Solved</SelectItem>
                                                                 </SelectContent>
                                                             </Select>
                                                         ) : (header === 'Created At' || header === 'Resolved At') ? (
