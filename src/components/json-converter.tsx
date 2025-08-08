@@ -68,8 +68,13 @@ export function JsonConverter() {
             const newPath = path ? `${path}.${key}` : key;
             const value = obj[key];
             
-            // Do not flatten further if it is a complex object within certain known parent keys
-            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            // Special handling for 'custom_fields' to extract 'Client Name'
+            if (key === 'custom_fields' && Array.isArray(value)) {
+                const clientNameField = value.find(f => f.name === 'Client Name');
+                if (clientNameField) {
+                    res['Client Name'] = clientNameField.value;
+                }
+            } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
                 flattenJson(value, newPath, res);
             } else {
                 res[newPath] = value;
@@ -108,11 +113,17 @@ export function JsonConverter() {
                 const newRow: Record<string, any> = {};
                 
                 headers.forEach(header => {
-                    // Find a key in the flattened row that matches the header (case-insensitive)
-                    // This finds the original key from the JSON to get the value
-                    const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
+                    const findKey = (searchHeader: string) => {
+                        // First, try a direct match (case-sensitive)
+                        if (flatRow[searchHeader] !== undefined) return searchHeader;
+                        // Then, try a case-insensitive match
+                        const lowerCaseHeader = searchHeader.toLowerCase();
+                        return Object.keys(flatRow).find(k => k.toLowerCase() === lowerCaseHeader);
+                    };
 
+                    const matchingKey = findKey(header);
                     let value = matchingKey ? flatRow[matchingKey] : '';
+
 
                     // Apply status transformations
                     if (header.toLowerCase() === 'status' && typeof value === 'string') {
