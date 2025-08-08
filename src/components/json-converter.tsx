@@ -46,28 +46,31 @@ export function JsonConverter() {
 
         const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
         if (savedJson) {
-            setJsonInput(savedJson);
-            handleConvert(savedJson, true); // Don't show toast on initial load
+            // Use a temporary variable for the template to avoid state update issues on initial load
+            const initialTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE) || DEFAULT_TEMPLATE;
+            handleConvert(savedJson, initialTemplate, true);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const flattenAndProcessJson = (obj: any, path: string = '', res: Record<string, any> = {}): Record<string, any> => {
+    const flattenJson = (obj: any, path: string = '', res: Record<string, any> = {}): Record<string, any> => {
         if (obj === null || typeof obj !== 'object') {
             if (path) res[path] = obj;
             return res;
         }
 
         if (Array.isArray(obj)) {
-            if (path) res[path] = JSON.stringify(obj);
-            return res;
+             if (path) res[path] = JSON.stringify(obj);
+             return res;
         }
-        
+
         Object.keys(obj).forEach(key => {
             const newPath = path ? `${path}.${key}` : key;
             const value = obj[key];
             
+            // Do not flatten further if it is a complex object within certain known parent keys
             if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                flattenAndProcessJson(value, newPath, res);
+                flattenJson(value, newPath, res);
             } else {
                 res[newPath] = value;
             }
@@ -76,7 +79,7 @@ export function JsonConverter() {
     };
 
 
-    const handleConvert = (jsonString: string, silent = false) => {
+    const handleConvert = (jsonString: string, currentTemplate: string, silent = false) => {
         setError(null);
         setTableData(null);
         setIsCopied(false);
@@ -97,29 +100,19 @@ export function JsonConverter() {
                 return;
             }
 
-            const flattenedData = data.map((item: any) => flattenAndProcessJson(item));
+            const flattenedData = data.map((item: any) => flattenJson(item));
             
-            let headers: string[];
-            if (templateInput.trim()) {
-                headers = templateInput.split(',').map(h => h.trim());
-            } else {
-                const headersSet = new Set<string>();
-                flattenedData.forEach((row: any) => {
-                    Object.keys(row).forEach(key => headersSet.add(key));
-                });
-                headers = Array.from(headersSet).sort();
-            }
+            const headers = currentTemplate.split(',').map(h => h.trim());
             
-            let processedRows = flattenedData.map(row => {
+            let processedRows = flattenedData.map(flatRow => {
                 const newRow: Record<string, any> = {};
+                
                 headers.forEach(header => {
-                    // Start with an empty value for all defined headers
-                    newRow[header] = '';
-                    
                     // Find a key in the flattened row that matches the header (case-insensitive)
-                    const matchingKey = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase());
+                    // This finds the original key from the JSON to get the value
+                    const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
 
-                    let value = matchingKey ? row[matchingKey] : undefined;
+                    let value = matchingKey ? flatRow[matchingKey] : '';
 
                     // Apply status transformations
                     if (header.toLowerCase() === 'status' && typeof value === 'string') {
@@ -141,11 +134,9 @@ export function JsonConverter() {
                                 break;
                         }
                     }
-
-                    // Assign the value if it exists
-                    if (value !== undefined) {
-                        newRow[header] = value;
-                    }
+                    
+                    // Assign the value to the header key, maintaining the order from the template
+                    newRow[header] = value;
                 });
                 return newRow;
             });
@@ -227,7 +218,7 @@ export function JsonConverter() {
             const text = e.target?.result;
             if (typeof text === 'string') {
                 setJsonInput(text);
-                handleConvert(text);
+                handleConvert(text, templateInput);
             }
         };
         reader.onerror = () => {
@@ -369,7 +360,7 @@ export function JsonConverter() {
                         </div>
 
                         <div className="mt-6">
-                            <Button onClick={() => handleConvert(jsonInput)} className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!jsonInput}>
+                            <Button onClick={() => handleConvert(jsonInput, templateInput)} className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!jsonInput}>
                                 <Braces className="mr-2 h-4 w-4" />
                                 Convert to Table
                                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -473,3 +464,5 @@ export function JsonConverter() {
         </div>
     );
 }
+
+    
