@@ -65,19 +65,10 @@ export function JsonConverter() {
         Object.keys(obj).forEach(key => {
             const newPath = path ? `${path}.${key}` : key;
             const value = obj[key];
-
-            if (typeof value === 'string') {
-                try {
-                    const parsedValue = JSON.parse(value);
-                    if (typeof parsedValue === 'object' && parsedValue !== null) {
-                        flattenAndProcessJson(parsedValue, '', res); 
-                    } else {
-                        res[newPath] = value;
-                    }
-                } catch (e) {
-                    res[newPath] = value;
-                }
-            } else if (typeof value === 'object' && value !== null) {
+            
+            // This is the key change: we no longer try to parse strings that might be JSON.
+            // We treat all nested objects as objects to be flattened, and everything else as a value.
+            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
                 flattenAndProcessJson(value, newPath, res);
             } else {
                 res[newPath] = value;
@@ -124,7 +115,14 @@ export function JsonConverter() {
             let processedRows = flattenedData.map(row => {
                 const newRow: Record<string, any> = {};
                 headers.forEach(header => {
-                    let value = row[header];
+                    // Start by assuming the value is empty, for columns like "Kolom kosong"
+                    newRow[header] = '';
+                    
+                    // Find a key in the flattened row that matches the header, case-insensitively
+                    const matchingKey = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase());
+
+                    let value = matchingKey ? row[matchingKey] : undefined;
+
                     if (header === 'Status' && typeof value === 'string') {
                         const lowerCaseValue = value.toLowerCase();
                         switch (lowerCaseValue) {
@@ -144,7 +142,9 @@ export function JsonConverter() {
                                 break;
                         }
                     }
-                    newRow[header] = value !== undefined ? value : '';
+                    if (value !== undefined) {
+                        newRow[header] = value;
+                    }
                 });
                 return newRow;
             });
@@ -475,5 +475,6 @@ export function JsonConverter() {
     );
 }
 
+    
     
     
