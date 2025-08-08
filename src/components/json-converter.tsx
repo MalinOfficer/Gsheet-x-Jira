@@ -121,7 +121,7 @@ export function JsonConverter() {
                 headers = Array.from(headersSet).sort();
             }
             
-            const processedRows = flattenedData.map(row => {
+            let processedRows = flattenedData.map(row => {
                 const newRow: Record<string, any> = {};
                 headers.forEach(header => {
                     let value = row[header];
@@ -148,6 +148,23 @@ export function JsonConverter() {
                 });
                 return newRow;
             });
+
+            const extractTicketNumber = (title: string) => {
+                if (typeof title !== 'string') return null;
+                const match = title.match(/#(\d+)/);
+                return match ? parseInt(match[1], 10) : null;
+            };
+
+            processedRows.sort((a, b) => {
+                const numA = extractTicketNumber(a.Title);
+                const numB = extractTicketNumber(b.Title);
+
+                if (numA === null && numB === null) return 0;
+                if (numA === null) return 1; // Put rows without ticket number at the end
+                if (numB === null) return -1;
+
+                return numA - numB;
+            });
             
             setTableData({ headers, rows: processedRows });
             
@@ -156,7 +173,7 @@ export function JsonConverter() {
             if (!silent) {
                 toast({
                     title: "Conversion Successful",
-                    description: "Your JSON has been converted to a table.",
+                    description: "Your JSON has been converted and sorted.",
                 });
             }
 
