@@ -122,7 +122,7 @@ export function JsonConverter() {
                     let value = matchingKey ? row[matchingKey] : undefined;
 
                     // Apply status transformations
-                    if (header === 'Status' && typeof value === 'string') {
+                    if (header.toLowerCase() === 'status' && typeof value === 'string') {
                         const lowerCaseValue = value.toLowerCase();
                         switch (lowerCaseValue) {
                             case 'resolved':
@@ -473,6 +473,3 @@ export function JsonConverter() {
         </div>
     );
 }
-
-    
-    
