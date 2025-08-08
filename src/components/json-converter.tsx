@@ -55,21 +55,45 @@ export function JsonConverter() {
 
     const flattenJson = (obj: any, path: string = '', res: Record<string, any> = {}): Record<string, any> => {
         if (obj === null || typeof obj !== 'object') {
-            if (path) res[path] = obj;
+            if (path) {
+                // Check if the value is a stringified JSON and parse it
+                if (typeof obj === 'string' && (obj.startsWith('{') || obj.startsWith('['))) {
+                    try {
+                        const parsedJson = JSON.parse(obj);
+                        // If it's an object, flatten it further without a prefix
+                        if (typeof parsedJson === 'object' && !Array.isArray(parsedJson)) {
+                           return flattenJson(parsedJson, '', res);
+                        }
+                    } catch (e) {
+                        // Not a valid JSON string, treat as regular string
+                    }
+                }
+                res[path] = obj;
+            }
             return res;
         }
 
         if (Array.isArray(obj)) {
-             if (path !== 'custom_fields' && path) {
+            // Special handling for custom_fields array
+            if (path === 'custom_fields') {
+                 value.forEach(field => {
+                    if (field && typeof field.name === 'string') {
+                        res[field.name] = field.value;
+                    }
+                });
+                return res;
+            }
+
+            if (path) {
                 res[path] = JSON.stringify(obj);
-             }
-             return res;
+            }
+            return res;
         }
 
         Object.keys(obj).forEach(key => {
             const newPath = path ? `${path}.${key}` : key;
             const value = obj[key];
-            
+
             if (key === 'custom_fields' && Array.isArray(value)) {
                 value.forEach(field => {
                     if (field && typeof field.name === 'string') {
@@ -79,6 +103,17 @@ export function JsonConverter() {
             } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
                 flattenJson(value, newPath, res);
             } else {
+                // Check for stringified JSON in any field
+                if (typeof value === 'string' && (value.startsWith('{') && value.endsWith('}'))) {
+                    try {
+                        const parsedJson = JSON.parse(value);
+                        // Flatten the parsed JSON object into the main result
+                        Object.assign(res, flattenJson(parsedJson));
+                        return; // Avoid adding the original stringified field
+                    } catch (e) {
+                        // Not a valid JSON, so treat it as a regular string below
+                    }
+                }
                 res[newPath] = value;
             }
         });
