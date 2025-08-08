@@ -187,7 +187,6 @@ export function JsonConverter() {
 
         const { headers, rows } = tableData;
         const tsv = [
-            headers.join('\t'),
             ...rows.map(row => headers.map(header => {
                 let value = row[header];
                  if (header === 'Created At' || header === 'Resolved At') {
@@ -475,6 +474,3 @@ export function JsonConverter() {
         </div>
     );
 }
-
-    
-    
