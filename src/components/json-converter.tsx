@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { TableDataContext, type TableData } from '@/store/table-data-context';
 
@@ -241,6 +242,13 @@ export function JsonConverter() {
         }
     };
     
+    const handleStatusChange = (rowIndex: number, newStatus: string) => {
+        if (!tableData) return;
+        const newRows = [...tableData.rows];
+        newRows[rowIndex]['Status'] = newStatus;
+        setTableData({ ...tableData, rows: newRows });
+    };
+
     const ErrorAlert = ({ message }: { message: string }) => (
         <Alert variant="destructive" className="mt-4">
             <AlertCircle className="h-4 w-4" />
@@ -391,13 +399,31 @@ export function JsonConverter() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {tableData.rows.map((row, index) => (
-                                            <TableRow key={index} className="hover:bg-muted/50">
+                                        {tableData.rows.map((row, rowIndex) => (
+                                            <TableRow key={rowIndex} className="hover:bg-muted/50">
                                                 {tableData.headers.map((header, headerIndex) => (
-                                                    <TableCell key={`${header}-${headerIndex}-${index}`} className="whitespace-nowrap">
-                                                        {(header === 'Created At' || header === 'Resolved At')
-                                                          ? formatDateTime(row[header], dateFormats[header] || 'report')
-                                                          : String(row[header] ?? '')}
+                                                    <TableCell key={`${header}-${headerIndex}-${rowIndex}`} className="whitespace-nowrap">
+                                                        {header === 'Status' ? (
+                                                            <Select
+                                                                value={String(row[header] ?? '')}
+                                                                onValueChange={(newStatus) => handleStatusChange(rowIndex, newStatus)}
+                                                            >
+                                                                <SelectTrigger className="w-[120px] h-8 text-xs">
+                                                                    <SelectValue placeholder="Select status" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="Pending">Pending</SelectItem>
+                                                                    <SelectItem value="L1">L1</SelectItem>
+                                                                    <SelectItem value="L2">L2</SelectItem>
+                                                                    <SelectItem value="L3">L3</SelectItem>
+                                                                    <SelectItem value="Resolved">Resolved</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        ) : (header === 'Created At' || header === 'Resolved At') ? (
+                                                            formatDateTime(row[header], dateFormats[header] || 'report')
+                                                        ) : (
+                                                            String(row[header] ?? '')
+                                                        )}
                                                     </TableCell>
                                                 ))}
                                             </TableRow>
