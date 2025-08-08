@@ -5,11 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Braces, Table, BarChart, GanttChartSquare } from "lucide-react";
+import { Menu, Braces, Home, BarChart, GanttChartSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-    { href: "/", label: "JSON to Table", icon: Table },
+    { href: "/", label: "Home", icon: Home },
     { href: "/report-harian", label: "Report Harian", icon: BarChart },
     { href: "/update-case-l3", label: "Update case L3", icon: GanttChartSquare },
 ];
