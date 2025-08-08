@@ -19,7 +19,7 @@ import { TableDataContext, type TableData } from '@/store/table-data-context';
 
 const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
 const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
-const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,Ticket Category,Module,Detail Module,Created At,Title,Resolved At';
+const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,Ticket Category,Module,Detail Module,Created At,Title,Resolved At,Kolom kosong1,Kolom kosong2';
 
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
