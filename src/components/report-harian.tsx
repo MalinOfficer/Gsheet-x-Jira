@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { TableDataContext } from '@/store/table-data-context';
+import { cn } from '@/lib/utils';
 
 const ALL_ITEMS_VALUE = "__ALL__";
 
@@ -43,6 +44,10 @@ export function ReportHarian() {
   });
   const [todayDate, setTodayDate] = useState('');
 
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+
   useEffect(() => {
     const today = new Date();
     const day = String(today.getDate()).padStart(2, '0');
@@ -50,6 +55,52 @@ export function ReportHarian() {
     const year = today.getFullYear();
     setTodayDate(`${day}/${month}/${year}`);
   }, []);
+
+  useEffect(() => {
+    const topDiv = topScrollRef.current;
+    const tableContainerDiv = tableContainerRef.current;
+    if (!topDiv || !tableContainerDiv || !tableRef.current) return;
+    
+    const topWidth = tableRef.current.offsetWidth;
+    const topScrollChild = topDiv.firstElementChild as HTMLDivElement | null;
+    if (topScrollChild) {
+      topScrollChild.style.width = `${topWidth}px`;
+    }
+
+    let isSyncing = false;
+    const handleTopScroll = () => {
+        if (!isSyncing) {
+            isSyncing = true;
+            tableContainerDiv.scrollLeft = topDiv.scrollLeft;
+            isSyncing = false;
+        }
+    };
+    const handleTableScroll = () => {
+        if (!isSyncing) {
+            isSyncing = true;
+            topDiv.scrollLeft = tableContainerDiv.scrollLeft;
+            isSyncing = false;
+        }
+    };
+    
+    topDiv.addEventListener('scroll', handleTopScroll);
+    tableContainerDiv.addEventListener('scroll', handleTableScroll);
+
+    const resizeObserver = new ResizeObserver(() => {
+        const newWidth = tableRef.current?.offsetWidth || 0;
+         if (topScrollChild) {
+            topScrollChild.style.width = `${newWidth}px`;
+         }
+    });
+
+    resizeObserver.observe(tableRef.current);
+
+    return () => {
+        topDiv.removeEventListener('scroll', handleTopScroll);
+        tableContainerDiv.removeEventListener('scroll', handleTableScroll);
+        resizeObserver.disconnect();
+    };
+  }, [tableData]);
 
   const reportStats = useMemo(() => {
     if (!tableData?.rows) {
@@ -177,7 +228,8 @@ export function ReportHarian() {
   }, [tableData, statusFilter]);
 
   
-  const MainContent = () => (
+  function MainContent() {
+    return (
     <>
       {reportStats && (
           <Card className="shadow-lg mb-8">
@@ -231,8 +283,11 @@ export function ReportHarian() {
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                  <div style={{ overflowX: 'auto' }} className="rounded-md border">
-                      <Table>
+                  <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
+                    <div style={{ height: '1px' }}></div>
+                  </div>
+                  <div ref={tableContainerRef} className="w-full overflow-x-auto rounded-md border">
+                      <Table ref={tableRef}>
                           <TableHeader>
                               <TableRow>
                                   {tableData.headers.map(header => (
@@ -317,7 +372,8 @@ export function ReportHarian() {
           </Card>
       )}
     </>
-  );
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">
