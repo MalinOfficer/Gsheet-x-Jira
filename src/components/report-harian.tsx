@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useContext, useRef } from 'react';
+import { useState, useMemo, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { TableDataContext } from '@/store/table-data-context';
-import { cn } from '@/lib/utils';
 
 const ALL_ITEMS_VALUE = "__ALL__";
 
@@ -66,13 +65,13 @@ export function ReportHarian() {
     const solved = rows.filter(r => String(r.Status).toLowerCase() === 'solved').length;
     
     const notResolvedCases = rows
-      .filter(r => ['l1', 'l2', 'l3', 'pending', 'on hold'].includes(String(r.Status).toLowerCase()) && r.Title)
+      .filter(r => ['l1', 'l2', 'l3', 'pending', 'on hold'].includes(String(r.Status).toLowerCase()) && r['Client Name'] && r.Title)
       .map(r => ({ clientName: r['Client Name'], title: r.Title as string }));
 
     const solvedCases = rows
-      .filter(r => String(r.Status).toLowerCase() === 'solved' && r.Title)
+      .filter(r => String(r.Status).toLowerCase() === 'solved' && r['Client Name'] && r.Title)
       .map(r => ({ clientName: r['Client Name'], title: r.Title as string }));
-
+    
     const getMostFrequent = (data: typeof rows, field: string) => {
       const frequency: Record<string, number> = {};
       let maxCount = 0;
@@ -232,7 +231,7 @@ export function ReportHarian() {
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                  <div className="overflow-x-auto">
+                  <div className="w-full overflow-x-auto rounded-md border">
                       <Table>
                           <TableHeader>
                               <TableRow>
@@ -337,3 +336,5 @@ export function ReportHarian() {
     </div>
   );
 }
+
+    
