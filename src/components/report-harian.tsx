@@ -1,18 +1,16 @@
 
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useContext } from 'react';
+import { useState, useMemo, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, ChevronsUpDown, Pencil, BarChart, ArrowLeft } from 'lucide-react';
+import { ChevronsUpDown, Pencil, BarChart, ArrowLeft } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { TableDataContext } from '@/store/table-data-context';
-import { cn } from '@/lib/utils';
-
 
 const ALL_ITEMS_VALUE = "__ALL__";
 
@@ -118,7 +116,8 @@ export function ReportHarian() {
         : 'N/A';
     
     const formatTitle = (clientName: string, title: string) => {
-        return `${clientName} ${title}`.trim();
+      if (!clientName || !title) return title || clientName || '';
+      return `${clientName} ${title}`.trim();
     };
     
     return {
@@ -227,7 +226,7 @@ export function ReportHarian() {
               <CardContent>
                     <div className="w-full overflow-x-auto rounded-md border">
                       <Table>
-                          <TableHeader className="sticky top-0 z-10 bg-background">
+                          <TableHeader>
                               <TableRow>
                                   {tableData.headers.map(header => (
                                       <TableHead key={header} className="font-bold whitespace-nowrap">
