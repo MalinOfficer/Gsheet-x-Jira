@@ -150,7 +150,7 @@ export function ReportHarian() {
     const topDiv = topScrollRef.current;
     const tableDiv = tableScrollRef.current;
 
-    if (!topDiv || !tableDiv) return;
+    if (!topDiv || !tableDiv || !tableData) return;
 
     const syncScroll = (source: HTMLDivElement, target: HTMLDivElement) => {
         return () => {
@@ -219,7 +219,7 @@ export function ReportHarian() {
                       <h3 className="font-semibold">Summary detail case yang belum Resolved:</h3>
                       <ol className="list-decimal list-inside text-sm space-y-1">
                           {reportStats.notResolvedCases.length > 0 ? (
-                              reportStats.notResolvedCases.map((item, i) => <li key={i}>{item.clientName} {item.title}</li>)
+                              reportStats.notResolvedCases.map((item, i) => <li key={i}>{item.title}</li>)
                           ) : (
                               <li>No unresolved cases.</li>
                           )}
@@ -229,7 +229,7 @@ export function ReportHarian() {
                       <h3 className="font-semibold">Case yang solved:</h3>
                       <ol className="list-decimal list-inside text-sm space-y-1">
                           {reportStats.solvedCases.length > 0 ? (
-                              reportStats.solvedCases.map((item, i) => <li key={i}>{item.clientName} {item.title}</li>)
+                              reportStats.solvedCases.map((item, i) => <li key={i}>{item.title}</li>)
                           ) : (
                               <li>No solved cases yet.</li>
                           )}
@@ -356,3 +356,5 @@ export function ReportHarian() {
     </div>
   );
 }
+
+    
