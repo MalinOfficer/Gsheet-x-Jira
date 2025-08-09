@@ -59,15 +59,16 @@ export function ReportHarian() {
   useEffect(() => {
     const topDiv = topScrollRef.current;
     const tableContainerDiv = tableContainerRef.current;
+
     if (!topDiv || !tableContainerDiv || !tableRef.current) return;
-    
-    const topWidth = tableRef.current.offsetWidth;
-    const topScrollChild = topDiv.firstElementChild as HTMLDivElement | null;
+
+    const topScrollChild = topDiv.firstElementChild as HTMLDivElement;
     if (topScrollChild) {
-      topScrollChild.style.width = `${topWidth}px`;
+        topScrollChild.style.width = `${tableRef.current.offsetWidth}px`;
     }
 
     let isSyncing = false;
+
     const handleTopScroll = () => {
         if (!isSyncing) {
             isSyncing = true;
@@ -75,6 +76,7 @@ export function ReportHarian() {
             isSyncing = false;
         }
     };
+
     const handleTableScroll = () => {
         if (!isSyncing) {
             isSyncing = true;
@@ -82,15 +84,14 @@ export function ReportHarian() {
             isSyncing = false;
         }
     };
-    
+
     topDiv.addEventListener('scroll', handleTopScroll);
     tableContainerDiv.addEventListener('scroll', handleTableScroll);
 
     const resizeObserver = new ResizeObserver(() => {
-        const newWidth = tableRef.current?.offsetWidth || 0;
-         if (topScrollChild) {
-            topScrollChild.style.width = `${newWidth}px`;
-         }
+        if (tableRef.current && topScrollChild) {
+            topScrollChild.style.width = `${tableRef.current.offsetWidth}px`;
+        }
     });
 
     resizeObserver.observe(tableRef.current);
@@ -101,6 +102,7 @@ export function ReportHarian() {
         resizeObserver.disconnect();
     };
   }, [tableData]);
+
 
   const reportStats = useMemo(() => {
     if (!tableData?.rows) {
@@ -229,6 +231,7 @@ export function ReportHarian() {
 
   
   function MainContent() {
+    if (!tableData) return null;
     return (
     <>
       {reportStats && (
@@ -392,3 +395,5 @@ export function ReportHarian() {
     </div>
   );
 }
+
+    
