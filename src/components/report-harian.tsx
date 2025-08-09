@@ -45,10 +45,6 @@ export function ReportHarian() {
   });
   const [todayDate, setTodayDate] = useState('');
 
-  const topScrollRef = useRef<HTMLDivElement>(null);
-  const tableScrollRef = useRef<HTMLDivElement>(null);
-  const tableRef = useRef<HTMLTableElement>(null);
-  
   useEffect(() => {
     const today = new Date();
     const day = String(today.getDate()).padStart(2, '0');
@@ -122,8 +118,7 @@ export function ReportHarian() {
         : 'N/A';
     
     const formatTitle = (clientName: string, title: string) => {
-        const clientNamePart = clientName.split(' ')[0];
-        return `${clientNamePart} ${title}`.trim();
+        return `${clientName} ${title}`.trim();
     };
     
     return {
@@ -153,32 +148,6 @@ export function ReportHarian() {
     }
   }, [tableData]);
   
-  useEffect(() => {
-    const topDiv = topScrollRef.current;
-    const tableDiv = tableScrollRef.current;
-
-    if (!topDiv || !tableDiv) return;
-
-    const syncScroll = (source: HTMLDivElement, target: HTMLDivElement) => {
-        return () => {
-            if (target.scrollLeft !== source.scrollLeft) {
-                target.scrollLeft = source.scrollLeft;
-            }
-        };
-    };
-
-    const topSync = syncScroll(topDiv, tableDiv);
-    const tableSync = syncScroll(tableDiv, topDiv);
-
-    topDiv.addEventListener('scroll', topSync);
-    tableDiv.addEventListener('scroll', tableSync);
-
-    return () => {
-        topDiv.removeEventListener('scroll', topSync);
-        tableDiv.removeEventListener('scroll', tableSync);
-    };
-  }, [tableData]);
-
 
   const handleFilterChange = (header: string, value: string) => {
     if (header === 'Status') {
@@ -256,11 +225,8 @@ export function ReportHarian() {
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                    <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
-                       <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
-                    </div>
-                    <div ref={tableScrollRef} className="w-full overflow-x-auto rounded-md border">
-                      <Table ref={tableRef}>
+                    <div className="w-full overflow-x-auto rounded-md border">
+                      <Table>
                           <TableHeader className="sticky top-0 z-10 bg-background">
                               <TableRow>
                                   {tableData.headers.map(header => (
