@@ -35,6 +35,10 @@ export function JsonConverter() {
     });
     const router = useRouter();
 
+    const topScrollRef = useRef<HTMLDivElement>(null);
+    const tableScrollRef = useRef<HTMLDivElement>(null);
+    const tableRef = useRef<HTMLTableElement>(null);
+
 
     useEffect(() => {
         const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE);
@@ -53,39 +57,53 @@ export function JsonConverter() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    useEffect(() => {
+        const topDiv = topScrollRef.current;
+        const tableDiv = tableScrollRef.current;
+
+        if (!topDiv || !tableDiv) return;
+
+        const syncScroll = (source: HTMLDivElement, target: HTMLDivElement) => {
+            return () => {
+                if (target.scrollLeft !== source.scrollLeft) {
+                    target.scrollLeft = source.scrollLeft;
+                }
+            };
+        };
+
+        const topSync = syncScroll(topDiv, tableDiv);
+        const tableSync = syncScroll(tableDiv, topDiv);
+
+        topDiv.addEventListener('scroll', topSync);
+        tableDiv.addEventListener('scroll', tableSync);
+
+        return () => {
+            topDiv.removeEventListener('scroll', topSync);
+            tableDiv.removeEventListener('scroll', tableSync);
+        };
+    }, [tableData]);
+
+
     const flattenJson = (obj: any, path: string = '', res: Record<string, any> = {}): Record<string, any> => {
         if (obj === null || typeof obj !== 'object') {
             if (path) {
-                // Check if the value is a stringified JSON and parse it
-                if (typeof obj === 'string' && (obj.startsWith('{') || obj.startsWith('['))) {
-                    try {
-                        const parsedJson = JSON.parse(obj);
-                        // If it's an object, flatten it further without a prefix
-                        if (typeof parsedJson === 'object' && !Array.isArray(parsedJson)) {
-                           return flattenJson(parsedJson, '', res);
-                        }
-                    } catch (e) {
-                        // Not a valid JSON string, treat as regular string
-                    }
-                }
                 res[path] = obj;
             }
             return res;
         }
 
         if (Array.isArray(obj)) {
-            // Special handling for custom_fields array
-            if (path === 'custom_fields') {
-                 value.forEach(field => {
-                    if (field && typeof field.name === 'string') {
-                        res[field.name] = field.value;
-                    }
-                });
-                return res;
-            }
-
             if (path) {
-                res[path] = JSON.stringify(obj);
+                // Handle custom_fields specifically
+                if (path.endsWith('custom_fields')) {
+                    obj.forEach(field => {
+                        if (field && typeof field.name === 'string' && field.value !== undefined) {
+                            res[field.name] = field.value;
+                        }
+                    });
+                } else {
+                    res[path] = JSON.stringify(obj);
+                }
             }
             return res;
         }
@@ -94,26 +112,22 @@ export function JsonConverter() {
             const newPath = path ? `${path}.${key}` : key;
             const value = obj[key];
 
-            if (key === 'custom_fields' && Array.isArray(value)) {
-                value.forEach(field => {
-                    if (field && typeof field.name === 'string') {
-                        res[field.name] = field.value;
-                    }
-                });
-            } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            if (typeof value === 'object' && value !== null) {
                 flattenJson(value, newPath, res);
-            } else {
-                // Check for stringified JSON in any field
-                if (typeof value === 'string' && (value.startsWith('{') && value.endsWith('}'))) {
-                    try {
-                        const parsedJson = JSON.parse(value);
-                        // Flatten the parsed JSON object into the main result
-                        Object.assign(res, flattenJson(parsedJson));
-                        return; // Avoid adding the original stringified field
-                    } catch (e) {
-                        // Not a valid JSON, so treat it as a regular string below
+            } else if (typeof value === 'string' && value.startsWith('{') && value.endsWith('}')) {
+                 try {
+                    const parsedJson = JSON.parse(value);
+                    if (typeof parsedJson === 'object' && parsedJson !== null) {
+                        // Instead of calling flattenJson again, directly merge the keys
+                        Object.keys(parsedJson).forEach(innerKey => {
+                             res[innerKey] = parsedJson[innerKey];
+                        });
                     }
+                } catch (e) {
+                   res[newPath] = value; // Not a valid JSON, so treat it as a regular string
                 }
+            }
+            else {
                 res[newPath] = value;
             }
         });
@@ -155,14 +169,12 @@ export function JsonConverter() {
                         return;
                     }
 
-                    // Find a matching key in the flattened JSON, case-insensitive
                     const matchingKey = Object.keys(flatRow).find(
                         k => k.toLowerCase() === header.toLowerCase()
                     );
                     
                     let value = matchingKey ? flatRow[matchingKey] : '';
 
-                    // Apply status transformations
                     if (header.toLowerCase() === 'status' && typeof value === 'string') {
                         const lowerCaseValue = value.toLowerCase();
                         switch (lowerCaseValue) {
@@ -183,7 +195,6 @@ export function JsonConverter() {
                         }
                     }
                     
-                    // Assign the value to the header key, maintaining the order from the template
                     newRow[header] = value;
                 });
                 return newRow;
@@ -441,8 +452,11 @@ export function JsonConverter() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="w-full overflow-x-auto rounded-md border">
-                                <Table>
+                            <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
+                               <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
+                            </div>
+                            <div ref={tableScrollRef} className="w-full overflow-x-auto rounded-md border">
+                                <Table ref={tableRef}>
                                     <TableHeader>
                                         <TableRow>
                                             {tableData.headers.map((header, index) => (
@@ -512,3 +526,5 @@ export function JsonConverter() {
         </div>
     );
 }
+
+    
