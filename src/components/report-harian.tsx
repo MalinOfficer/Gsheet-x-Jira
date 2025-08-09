@@ -251,7 +251,7 @@ export function ReportHarian() {
                   <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
                      <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
                   </div>
-                  <div ref={tableScrollRef} className="w-full overflow-x-auto">
+                  <div ref={tableScrollRef} className="w-full overflow-x-auto rounded-md border">
                       <Table ref={tableRef}>
                           <TableHeader>
                               <TableRow>
@@ -356,3 +356,5 @@ export function ReportHarian() {
     </div>
   );
 }
+
+    
