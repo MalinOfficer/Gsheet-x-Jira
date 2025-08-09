@@ -122,6 +122,8 @@ export function JsonConverter() {
                         Object.keys(parsedJson).forEach(innerKey => {
                              res[innerKey] = parsedJson[innerKey];
                         });
+                    } else {
+                       res[newPath] = value;
                     }
                 } catch (e) {
                    res[newPath] = value; // Not a valid JSON, so treat it as a regular string
