@@ -121,8 +121,7 @@ export function ReportHarian() {
         : 'N/A';
     
     const formatTitle = (clientName: string, title: string) => {
-      if (typeof title !== 'string') return '';
-      return `${clientName || ''} ${title}`;
+        return `${clientName || ''} ${title || ''}`.trim();
     };
 
     return {
@@ -155,24 +154,34 @@ export function ReportHarian() {
   useEffect(() => {
     const topDiv = topScrollRef.current;
     const tableDiv = tableScrollRef.current;
+    if (!topDiv || !tableDiv || !tableRef.current) return;
 
-    if (!topDiv || !tableDiv) return;
-
-    const syncScroll = (source: EventTarget, target: HTMLElement) => {
-      if (source instanceof HTMLElement) {
-        target.scrollLeft = source.scrollLeft;
+    const syncWidth = () => {
+      const tableWidth = tableRef.current?.offsetWidth;
+      if (tableWidth) {
+        (topDiv.firstChild as HTMLElement).style.width = `${tableWidth}px`;
       }
     };
     
-    const handleTopScroll = (e: Event) => syncScroll(e.currentTarget!, tableDiv);
-    const handleTableScroll = (e: Event) => syncScroll(e.currentTarget!, topDiv);
+    const syncScrollTop = () => {
+      if (tableDiv) tableDiv.scrollLeft = topDiv.scrollLeft;
+    };
+    
+    const syncScrollTable = () => {
+      if (topDiv) topDiv.scrollLeft = tableDiv.scrollLeft;
+    };
 
-    topDiv.addEventListener('scroll', handleTopScroll);
-    tableDiv.addEventListener('scroll', handleTableScroll);
+    syncWidth();
+    topDiv.addEventListener('scroll', syncScrollTop);
+    tableDiv.addEventListener('scroll', syncScrollTable);
 
+    const resizeObserver = new ResizeObserver(syncWidth);
+    resizeObserver.observe(tableRef.current);
+    
     return () => {
-        topDiv.removeEventListener('scroll', handleTopScroll);
-        tableDiv.removeEventListener('scroll', handleTableScroll);
+        topDiv.removeEventListener('scroll', syncScrollTop);
+        tableDiv.removeEventListener('scroll', syncScrollTable);
+        resizeObserver.disconnect();
     };
   }, [tableData]);
 
@@ -253,7 +262,7 @@ export function ReportHarian() {
               </CardHeader>
               <CardContent>
                   <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
-                     <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
+                     <div style={{ height: '1px' }}></div>
                   </div>
                   <div ref={tableScrollRef} className="w-full overflow-x-auto rounded-md border">
                       <Table ref={tableRef}>
