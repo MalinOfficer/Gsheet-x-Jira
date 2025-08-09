@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenu
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { TableDataContext } from '@/store/table-data-context';
 import { cn } from '@/lib/utils';
-import { useVirtualizer } from '@tanstack/react-virtual';
+
 
 const ALL_ITEMS_VALUE = "__ALL__";
 
@@ -45,7 +45,9 @@ export function ReportHarian() {
   });
   const [todayDate, setTodayDate] = useState('');
 
-  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
   
   useEffect(() => {
     const today = new Date();
@@ -69,7 +71,7 @@ export function ReportHarian() {
     const solved = rows.filter(r => String(r.Status).toLowerCase() === 'solved').length;
 
     const notResolvedCases = rows
-      .filter(r => ['l1', 'l2', 'l3'].includes(String(r.Status).toLowerCase()) && r.Title)
+      .filter(r => ['l1', 'l2', 'l3', 'pending'].includes(String(r.Status).toLowerCase()) && r.Title)
       .map(r => ({ clientName: r['Client Name'], title: r.Title as string }));
 
     const solvedCases = rows
@@ -120,9 +122,10 @@ export function ReportHarian() {
         : 'N/A';
     
     const formatTitle = (clientName: string, title: string) => {
-        return `${clientName} ${title}`.trim();
+        const clientNamePart = clientName.split(' ')[0];
+        return `${clientNamePart} ${title}`.trim();
     };
-
+    
     return {
       totalCases,
       escalatedL1,
@@ -149,6 +152,33 @@ export function ReportHarian() {
       setColumnUniqueValues(uniqueVals);
     }
   }, [tableData]);
+  
+  useEffect(() => {
+    const topDiv = topScrollRef.current;
+    const tableDiv = tableScrollRef.current;
+
+    if (!topDiv || !tableDiv) return;
+
+    const syncScroll = (source: HTMLDivElement, target: HTMLDivElement) => {
+        return () => {
+            if (target.scrollLeft !== source.scrollLeft) {
+                target.scrollLeft = source.scrollLeft;
+            }
+        };
+    };
+
+    const topSync = syncScroll(topDiv, tableDiv);
+    const tableSync = syncScroll(tableDiv, topDiv);
+
+    topDiv.addEventListener('scroll', topSync);
+    tableDiv.addEventListener('scroll', tableSync);
+
+    return () => {
+        topDiv.removeEventListener('scroll', topSync);
+        tableDiv.removeEventListener('scroll', tableSync);
+    };
+  }, [tableData]);
+
 
   const handleFilterChange = (header: string, value: string) => {
     if (header === 'Status') {
@@ -171,12 +201,6 @@ export function ReportHarian() {
     });
   }, [tableData, statusFilter]);
 
-  const rowVirtualizer = useVirtualizer({
-    count: filteredData.length,
-    getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 53, // Estimate row height, adjust if needed
-    overscan: 5,
-  });
   
   const MainContent = () => (
     <>
@@ -232,8 +256,11 @@ export function ReportHarian() {
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                   <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border" style={{ maxHeight: '600px' }}>
-                      <Table style={{ width: '100%' }}>
+                    <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
+                       <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
+                    </div>
+                    <div ref={tableScrollRef} className="w-full overflow-x-auto rounded-md border">
+                      <Table ref={tableRef}>
                           <TableHeader className="sticky top-0 z-10 bg-background">
                               <TableRow>
                                   {tableData.headers.map(header => (
@@ -288,33 +315,19 @@ export function ReportHarian() {
                                   ))}
                               </TableRow>
                           </TableHeader>
-                          <TableBody style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
-                              {rowVirtualizer.getVirtualItems().length > 0 ? (
-                                  rowVirtualizer.getVirtualItems().map(virtualItem => {
-                                      const row = filteredData[virtualItem.index];
-                                      return (
-                                          <TableRow 
-                                              key={virtualItem.key}
-                                              style={{
-                                                  position: 'absolute',
-                                                  top: 0,
-                                                  left: 0,
-                                                  width: '100%',
-                                                  height: `${virtualItem.size}px`,
-                                                  transform: `translateY(${virtualItem.start}px)`,
-                                              }}
-                                              className="hover:bg-muted/50"
-                                          >
-                                              {tableData.headers.map(header => (
-                                                  <TableCell key={`${header}-${virtualItem.index}`} className="whitespace-nowrap">
-                                                      {(header === 'Created At' || header === 'Solved At' || header === 'Resolved At')
-                                                        ? formatDateTime(row[header], dateFormats[header] || 'report')
-                                                        : String(row[header] || '')}
-                                                  </TableCell>
-                                              ))}
-                                          </TableRow>
-                                      );
-                                  })
+                          <TableBody>
+                              {filteredData.length > 0 ? (
+                                  filteredData.map((row, index) => (
+                                      <TableRow key={index} className="hover:bg-muted/50">
+                                          {tableData.headers.map(header => (
+                                              <TableCell key={`${header}-${index}`} className="whitespace-nowrap">
+                                                  {(header === 'Created At' || header === 'Solved At' || header === 'Resolved At')
+                                                    ? formatDateTime(row[header], dateFormats[header] || 'report')
+                                                    : String(row[header] || '')}
+                                              </TableCell>
+                                          ))}
+                                      </TableRow>
+                                  ))
                               ) : (
                                   <TableRow>
                                       <TableCell colSpan={tableData.headers.length} className="h-24 text-center">
