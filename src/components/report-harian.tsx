@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useContext } from 'react';
+import { useState, useMemo, useEffect, useContext, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { TableDataContext } from '@/store/table-data-context';
+import { cn } from '@/lib/utils';
 
 const ALL_ITEMS_VALUE = "__ALL__";
 
@@ -61,11 +62,11 @@ export function ReportHarian() {
     const escalatedL1 = rows.filter(r => String(r.Status).toLowerCase() === 'l1').length;
     const escalatedL2 = rows.filter(r => String(r.Status).toLowerCase() === 'l2').length;
     const escalatedL3 = rows.filter(r => String(r.Status).toLowerCase() === 'l3').length;
-    const pending = rows.filter(r => String(r.Status).toLowerCase() === 'pending').length;
+    const pending = rows.filter(r => ['pending', 'on hold'].includes(String(r.Status).toLowerCase())).length;
     const solved = rows.filter(r => String(r.Status).toLowerCase() === 'solved').length;
-
+    
     const notResolvedCases = rows
-      .filter(r => ['l1', 'l2', 'l3', 'pending'].includes(String(r.Status).toLowerCase()) && r.Title)
+      .filter(r => ['l1', 'l2', 'l3', 'pending', 'on hold'].includes(String(r.Status).toLowerCase()) && r.Title)
       .map(r => ({ clientName: r['Client Name'], title: r.Title as string }));
 
     const solvedCases = rows
@@ -76,16 +77,23 @@ export function ReportHarian() {
       const frequency: Record<string, number> = {};
       let maxCount = 0;
       let mostFrequent = 'N/A';
-      data.forEach(row => {
+      
+      const filteredData = data.filter(row => row[field]);
+
+      if (filteredData.length === 0) return 'N/A';
+      
+      filteredData.forEach(row => {
         const value = row[field];
-        if (value) {
-          frequency[value] = (frequency[value] || 0) + 1;
-          if (frequency[value] > maxCount) {
-            maxCount = frequency[value];
-            mostFrequent = value;
-          }
-        }
+        frequency[value] = (frequency[value] || 0) + 1;
       });
+
+      Object.entries(frequency).forEach(([value, count]) => {
+          if (count > maxCount) {
+              maxCount = count;
+              mostFrequent = value;
+          }
+      });
+
       return mostFrequent;
     };
     
@@ -117,6 +125,10 @@ export function ReportHarian() {
     
     const formatTitle = (clientName: string, title: string) => {
       if (!clientName || !title) return title || clientName || '';
+      // Check if clientName is already in the title
+      if (typeof title === 'string' && title.includes(clientName)) {
+        return title.trim();
+      }
       return `${clientName} ${title}`.trim();
     };
     
@@ -224,7 +236,7 @@ export function ReportHarian() {
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                    <div className="w-full overflow-x-auto rounded-md border">
+                  <div className="overflow-x-auto">
                       <Table>
                           <TableHeader>
                               <TableRow>
