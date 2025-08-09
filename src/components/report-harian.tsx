@@ -16,7 +16,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 const ALL_ITEMS_VALUE = "__ALL__";
 
-const InitialState = () => {
+function InitialState() {
   const router = useRouter();
   return (
     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px]">
@@ -24,7 +24,7 @@ const InitialState = () => {
         <CardTitle>No Report Data Found</CardTitle>
         <CardDescription className="mt-2 mb-4">
             Go back to the JSON to Table page to convert your data first.
-        </Description>
+        </CardDescription>
         <Button onClick={() => router.push('/')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Converter
