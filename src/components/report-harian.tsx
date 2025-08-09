@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useContext } from 'react';
+import { useState, useMemo, useEffect, useContext, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -231,7 +231,7 @@ export function ReportHarian() {
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                  <div className="w-full overflow-x-auto rounded-md border">
+                  <div style={{ overflowX: 'auto' }} className="rounded-md border">
                       <Table>
                           <TableHeader>
                               <TableRow>
@@ -336,5 +336,3 @@ export function ReportHarian() {
     </div>
   );
 }
-
-    
