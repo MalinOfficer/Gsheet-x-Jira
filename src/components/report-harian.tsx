@@ -125,10 +125,6 @@ export function ReportHarian() {
     
     const formatTitle = (clientName: string, title: string) => {
       if (!clientName || !title) return title || clientName || '';
-      // Check if clientName is already in the title
-      if (typeof title === 'string' && title.includes(clientName)) {
-        return title.trim();
-      }
       return `${clientName} ${title}`.trim();
     };
     
@@ -271,7 +267,7 @@ export function ReportHarian() {
                               </TableRow>
                               <TableRow className="bg-muted/50">
                                   {tableData.headers.map(header => (
-                                      <TableHead key={`${header}-filter`}>
+                                      <TableHead key={`${header}-filter`} className="whitespace-nowrap">
                                           {header === 'Status' ? (
                                             <Select
                                               value={statusFilter}
