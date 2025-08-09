@@ -174,7 +174,7 @@ export function ReportHarian() {
   const rowVirtualizer = useVirtualizer({
     count: filteredData.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 53, // Estimate row height
+    estimateSize: () => 53, // Estimate row height, adjust if needed
     overscan: 5,
   });
   
@@ -232,7 +232,7 @@ export function ReportHarian() {
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                  <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border" style={{ maxHeight: '600px' }}>
+                   <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border" style={{ maxHeight: '600px' }}>
                       <Table style={{ width: '100%' }}>
                           <TableHeader className="sticky top-0 z-10 bg-background">
                               <TableRow>
@@ -283,7 +283,7 @@ export function ReportHarian() {
                                                 ))}
                                               </SelectContent>
                                             </Select>
-                                          ) : <div></div>}
+                                          ) : <div style={{ height: '40px' }}></div>}
                                       </TableHead>
                                   ))}
                               </TableRow>
@@ -295,7 +295,6 @@ export function ReportHarian() {
                                       return (
                                           <TableRow 
                                               key={virtualItem.key}
-                                              data-index={virtualItem.index}
                                               style={{
                                                   position: 'absolute',
                                                   top: 0,
