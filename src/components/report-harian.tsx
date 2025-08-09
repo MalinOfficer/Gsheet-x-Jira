@@ -122,14 +122,7 @@ export function ReportHarian() {
     
     const formatTitle = (clientName: string, title: string) => {
       if (typeof title !== 'string') return '';
-      const ticketRegex = /#\d+/;
-      const match = title.match(ticketRegex);
-      if (match) {
-        // If pattern like "#4300" is found, combine clientName with the title part after the match
-        const ticketNumberAndRest = title.substring(match.index || 0);
-        return `${clientName} ${ticketNumberAndRest}`;
-      }
-      return `${clientName} ${title}`;
+      return `${clientName || ''} ${title}`;
     };
 
     return {
@@ -162,45 +155,24 @@ export function ReportHarian() {
   useEffect(() => {
     const topDiv = topScrollRef.current;
     const tableDiv = tableScrollRef.current;
-    let isTopScrolling = false;
-    let isTableScrolling = false;
 
     if (!topDiv || !tableDiv) return;
 
-    const handleTopScroll = () => {
-        if (!isTableScrolling) {
-            isTopScrolling = true;
-            tableDiv.scrollLeft = topDiv.scrollLeft;
-        }
+    const syncScroll = (source: EventTarget, target: HTMLElement) => {
+      if (source instanceof HTMLElement) {
+        target.scrollLeft = source.scrollLeft;
+      }
     };
-
-    const handleTableScroll = () => {
-        if (!isTopScrolling) {
-            isTableScrolling = true;
-            topDiv.scrollLeft = tableDiv.scrollLeft;
-        }
-    };
-
-    const handleScrollEnd = () => {
-        isTopScrolling = false;
-        isTableScrolling = false;
-    };
+    
+    const handleTopScroll = (e: Event) => syncScroll(e.currentTarget!, tableDiv);
+    const handleTableScroll = (e: Event) => syncScroll(e.currentTarget!, topDiv);
 
     topDiv.addEventListener('scroll', handleTopScroll);
     tableDiv.addEventListener('scroll', handleTableScroll);
-    topDiv.addEventListener('mouseup', handleScrollEnd);
-    tableDiv.addEventListener('mouseup', handleScrollEnd);
-    topDiv.addEventListener('mouseleave', handleScrollEnd);
-    tableDiv.addEventListener('mouseleave', handleScrollEnd);
-
 
     return () => {
         topDiv.removeEventListener('scroll', handleTopScroll);
         tableDiv.removeEventListener('scroll', handleTableScroll);
-        topDiv.removeEventListener('mouseup', handleScrollEnd);
-        tableDiv.removeEventListener('mouseup', handleScrollEnd);
-        topDiv.removeEventListener('mouseleave', handleScrollEnd);
-        tableDiv.removeEventListener('mouseleave', handleScrollEnd);
     };
   }, [tableData]);
 
