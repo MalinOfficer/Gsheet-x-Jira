@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { TableDataContext } from '@/store/table-data-context';
+import { cn } from '@/lib/utils';
 
 const ALL_ITEMS_VALUE = "__ALL__";
 
@@ -118,6 +119,18 @@ export function ReportHarian() {
     const formattedLatestTime = latestEntryTime 
         ? formatDateTime(latestEntryTime.toISOString(), 'jam')
         : 'N/A';
+    
+    const formatTitle = (clientName: string, title: string) => {
+      if (typeof title !== 'string') return '';
+      const ticketRegex = /#\d+/;
+      const match = title.match(ticketRegex);
+      if (match) {
+        // If pattern like "#4300" is found, combine clientName with the title part after the match
+        const ticketNumberAndRest = title.substring(match.index || 0);
+        return `${clientName} ${ticketNumberAndRest}`;
+      }
+      return `${clientName} ${title}`;
+    };
 
     return {
       totalCases,
@@ -126,8 +139,8 @@ export function ReportHarian() {
       escalatedL3,
       pending,
       solved,
-      notResolvedCases,
-      solvedCases,
+      notResolvedCases: notResolvedCases.map(item => formatTitle(item.clientName, item.title)),
+      solvedCases: solvedCases.map(item => formatTitle(item.clientName, item.title)),
       formattedLatestTime,
       trendingClient,
       trendingCase,
@@ -149,26 +162,45 @@ export function ReportHarian() {
   useEffect(() => {
     const topDiv = topScrollRef.current;
     const tableDiv = tableScrollRef.current;
+    let isTopScrolling = false;
+    let isTableScrolling = false;
 
-    if (!topDiv || !tableDiv || !tableData) return;
+    if (!topDiv || !tableDiv) return;
 
-    const syncScroll = (source: HTMLDivElement, target: HTMLDivElement) => {
-        return () => {
-            if (target.scrollLeft !== source.scrollLeft) {
-                target.scrollLeft = source.scrollLeft;
-            }
-        };
+    const handleTopScroll = () => {
+        if (!isTableScrolling) {
+            isTopScrolling = true;
+            tableDiv.scrollLeft = topDiv.scrollLeft;
+        }
     };
 
-    const topSync = syncScroll(topDiv, tableDiv);
-    const tableSync = syncScroll(tableDiv, topDiv);
+    const handleTableScroll = () => {
+        if (!isTopScrolling) {
+            isTableScrolling = true;
+            topDiv.scrollLeft = tableDiv.scrollLeft;
+        }
+    };
 
-    topDiv.addEventListener('scroll', topSync);
-    tableDiv.addEventListener('scroll', tableSync);
+    const handleScrollEnd = () => {
+        isTopScrolling = false;
+        isTableScrolling = false;
+    };
+
+    topDiv.addEventListener('scroll', handleTopScroll);
+    tableDiv.addEventListener('scroll', handleTableScroll);
+    topDiv.addEventListener('mouseup', handleScrollEnd);
+    tableDiv.addEventListener('mouseup', handleScrollEnd);
+    topDiv.addEventListener('mouseleave', handleScrollEnd);
+    tableDiv.addEventListener('mouseleave', handleScrollEnd);
+
 
     return () => {
-        if(topDiv) topDiv.removeEventListener('scroll', topSync);
-        if(tableDiv) tableDiv.removeEventListener('scroll', tableSync);
+        topDiv.removeEventListener('scroll', handleTopScroll);
+        tableDiv.removeEventListener('scroll', handleTableScroll);
+        topDiv.removeEventListener('mouseup', handleScrollEnd);
+        tableDiv.removeEventListener('mouseup', handleScrollEnd);
+        topDiv.removeEventListener('mouseleave', handleScrollEnd);
+        tableDiv.removeEventListener('mouseleave', handleScrollEnd);
     };
   }, [tableData]);
 
@@ -219,7 +251,7 @@ export function ReportHarian() {
                       <h3 className="font-semibold">Summary detail case yang belum Resolved:</h3>
                       <ol className="list-decimal list-inside text-sm space-y-1">
                           {reportStats.notResolvedCases.length > 0 ? (
-                              reportStats.notResolvedCases.map((item, i) => <li key={i}>{`${item.clientName || ''} ${item.title}`}</li>)
+                              reportStats.notResolvedCases.map((item, i) => <li key={i}>{item}</li>)
                           ) : (
                               <li>No unresolved cases.</li>
                           )}
@@ -229,7 +261,7 @@ export function ReportHarian() {
                       <h3 className="font-semibold">Case yang solved:</h3>
                       <ol className="list-decimal list-inside text-sm space-y-1">
                           {reportStats.solvedCases.length > 0 ? (
-                              reportStats.solvedCases.map((item, i) => <li key={i}>{`${item.clientName || ''} ${item.title}`}</li>)
+                              reportStats.solvedCases.map((item, i) => <li key={i}>{item}</li>)
                           ) : (
                               <li>No solved cases yet.</li>
                           )}
