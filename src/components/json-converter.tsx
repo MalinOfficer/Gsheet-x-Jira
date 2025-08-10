@@ -190,6 +190,7 @@ export function JsonConverter() {
                                 value = 'L1';
                                 break;
                             case 'on hold':
+                            case 'on-hold':
                                 value = 'L3';
                                 break;
                             default:
@@ -528,3 +529,5 @@ export function JsonConverter() {
         </div>
     );
 }
+
+    
