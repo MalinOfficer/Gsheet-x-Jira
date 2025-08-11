@@ -14,20 +14,38 @@ import { fetchExampleData, type Todo } from '../api-actions';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import type { DateRange } from 'react-day-picker';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 
 // Komponen untuk menampilkan data yang berhasil diambil
 function DataDisplay({ data }: { data: Todo }) {
     return (
-        <Card className="mt-4 bg-muted/50">
+        <Card className="mt-4">
             <CardHeader>
                 <CardTitle>Success!</CardTitle>
                 <CardDescription>Data successfully fetched from the API.</CardDescription>
             </CardHeader>
             <CardContent>
-                <pre className="p-4 bg-background rounded-md overflow-x-auto text-sm">
-                    {JSON.stringify(data, null, 2)}
-                </pre>
+                 <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>User ID</TableHead>
+                                <TableHead>ID</TableHead>
+                                <TableHead>Title</TableHead>
+                                <TableHead>Completed</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow>
+                                <TableCell>{data.userId}</TableCell>
+                                <TableCell>{data.id}</TableCell>
+                                <TableCell>{data.title}</TableCell>
+                                <TableCell>{String(data.completed)}</TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </div>
             </CardContent>
         </Card>
     );
