@@ -235,7 +235,7 @@ export function ReportHarian() {
     navigator.clipboard.writeText(text).then(() => {
         toast({
             title: "Copied to clipboard!",
-            description: `${sectionName} summary has been copied.`,
+            description: `${sectionName} has been copied.`,
         });
         setCopiedSection(sectionName);
         setTimeout(() => setCopiedSection(null), 2000);
@@ -246,6 +246,30 @@ export function ReportHarian() {
             description: "Could not copy data to clipboard.",
         });
     });
+  };
+
+  const handleCopyAll = () => {
+    if (!reportStats) return;
+
+    const fullReport = `Reporting cases ${todayDate} (update jam masuk terakhir ${reportStats.formattedLatestTime})
+
+Total cases: ${reportStats.totalCases}
+Escalated L1: ${reportStats.escalatedL1}
+Escalated L2: ${reportStats.escalatedL2}
+Escalated L3: ${reportStats.escalatedL3}
+Pending: ${reportStats.pending}
+Solved: ${reportStats.solved}
+Tren Client: ${reportStats.trendingClient}
+Tren Case: ${reportStats.trendingCase}
+
+Summary detail case yang belum Resolved:
+${reportStats.notResolvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'No unresolved cases.'}
+
+Case yang solved:
+${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'No solved cases yet.'}
+`;
+    
+    handleCopy(fullReport.trim(), 'Full report');
   };
 
   const filteredData = useMemo(() => {
@@ -265,7 +289,13 @@ export function ReportHarian() {
       {reportStats && (
           <Card className="shadow-lg mb-8">
               <CardHeader>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <CardTitle>Reporting cases {todayDate} (update jam masuk terakhir {reportStats.formattedLatestTime})</CardTitle>
+                  <Button onClick={handleCopyAll} variant="outline">
+                    {copiedSection === 'Full report' ? <Check className="text-green-500" /> : <Copy />}
+                    {copiedSection === 'Full report' ? 'Copied!' : 'Copy Full Report'}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                    <div className="space-y-4">
@@ -287,10 +317,10 @@ export function ReportHarian() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            onClick={() => handleCopy(reportStats.notResolvedCases.join('\n'), 'Unresolved cases')}
+                            onClick={() => handleCopy(reportStats.notResolvedCases.join('\n'), 'Unresolved cases summary')}
                             className="h-7 w-7"
                           >
-                            {copiedSection === 'Unresolved cases' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                            {copiedSection === 'Unresolved cases summary' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                             <span className="sr-only">Copy unresolved cases</span>
                           </Button>
                       </div>
@@ -308,10 +338,10 @@ export function ReportHarian() {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          onClick={() => handleCopy(reportStats.solvedCases.join('\n'), 'Solved cases')}
+                          onClick={() => handleCopy(reportStats.solvedCases.join('\n'), 'Solved cases summary')}
                           className="h-7 w-7"
                         >
-                          {copiedSection === 'Solved cases' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                          {copiedSection === 'Solved cases summary' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                           <span className="sr-only">Copy solved cases</span>
                         </Button>
                       </div>
@@ -445,7 +475,3 @@ export function ReportHarian() {
     </div>
   );
 }
-
-    
-
-    
