@@ -6,11 +6,12 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronsUpDown, Pencil, BarChart, ArrowLeft } from 'lucide-react';
+import { ChevronsUpDown, Pencil, BarChart, ArrowLeft, Copy, Check } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { TableDataContext } from '@/store/table-data-context';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 const ALL_ITEMS_VALUE = "__ALL__";
@@ -34,6 +35,8 @@ function InitialState() {
 
 export function ReportHarian() {
   const { tableData } = useContext(TableDataContext);
+  const { toast } = useToast();
+  const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
   const [statusFilter, setStatusFilter] = useState<string>(ALL_ITEMS_VALUE);
   const [columnUniqueValues, setColumnUniqueValues] = useState<Record<string, string[]>>({});
@@ -220,6 +223,31 @@ export function ReportHarian() {
     }
   };
 
+  const handleCopy = (text: string, sectionName: string) => {
+    if (!text) {
+        toast({
+            variant: "destructive",
+            title: "Nothing to copy",
+            description: "The section is empty.",
+        });
+        return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+        toast({
+            title: "Copied to clipboard!",
+            description: `${sectionName} summary has been copied.`,
+        });
+        setCopiedSection(sectionName);
+        setTimeout(() => setCopiedSection(null), 2000);
+    }, () => {
+        toast({
+            variant: "destructive",
+            title: "Failed to copy",
+            description: "Could not copy data to clipboard.",
+        });
+    });
+  };
+
   const filteredData = useMemo(() => {
     if (!tableData?.rows) return [];
     return tableData.rows.filter(row => {
@@ -254,7 +282,18 @@ export function ReportHarian() {
                       </div>
                   </div>
                   <div className="space-y-4">
-                      <h3 className="font-semibold">Summary detail case yang belum Resolved:</h3>
+                      <div className="flex items-center justify-between">
+                          <h3 className="font-semibold">Summary detail case yang belum Resolved:</h3>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleCopy(reportStats.notResolvedCases.join('\n'), 'Unresolved cases')}
+                            className="h-7 w-7"
+                          >
+                            {copiedSection === 'Unresolved cases' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                            <span className="sr-only">Copy unresolved cases</span>
+                          </Button>
+                      </div>
                       <ol className="list-decimal list-inside text-sm space-y-1">
                           {reportStats.notResolvedCases.length > 0 ? (
                               reportStats.notResolvedCases.map((item, i) => <li key={i}>{item}</li>)
@@ -264,7 +303,18 @@ export function ReportHarian() {
                       </ol>
                   </div>
                   <div className="space-y-4">
-                      <h3 className="font-semibold">Case yang solved:</h3>
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold">Case yang solved:</h3>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleCopy(reportStats.solvedCases.join('\n'), 'Solved cases')}
+                          className="h-7 w-7"
+                        >
+                          {copiedSection === 'Solved cases' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                          <span className="sr-only">Copy solved cases</span>
+                        </Button>
+                      </div>
                       <ol className="list-decimal list-inside text-sm space-y-1">
                           {reportStats.solvedCases.length > 0 ? (
                               reportStats.solvedCases.map((item, i) => <li key={i}>{item}</li>)
@@ -395,5 +445,7 @@ export function ReportHarian() {
     </div>
   );
 }
+
+    
 
     
