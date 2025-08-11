@@ -271,7 +271,7 @@ export function GsheetDashboard() {
             {!isPending && !error && data && (
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>Tabel L3</CardTitle>
+                        <CardTitle>Update Cases</CardTitle>
                         <CardDescription>
                            Showing default cases with status L3. Use dropdowns to filter further.
                         </CardDescription>

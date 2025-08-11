@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
     { href: "/", label: "Json Converter", icon: Braces },
     { href: "/report-harian", label: "Report Harian", icon: BarChart },
-    { href: "/update-case-l3", label: "Update case L3", icon: GanttChartSquare },
+    { href: "/update-case-l3", label: "Update Cases", icon: GanttChartSquare },
 ];
 
 function NavLinks() {
