@@ -20,15 +20,27 @@ interface FetchResult {
 
 /**
  * Mengambil data contoh dari API JSONPlaceholder.
- * Fungsi ini berjalan di server.
+ * Fungsi ini berjalan di server dan menggunakan API Token dari environment variables.
  * @returns {Promise<FetchResult>} Hasil yang berisi data atau pesan error.
  */
 export async function fetchExampleData(): Promise<FetchResult> {
   try {
-    const response = await fetch('https://jsonplaceholder.typicode.com/todos/1');
+    const apiToken = process.env.EXAMPLE_API_TOKEN;
+
+    if (!apiToken) {
+        throw new Error("API Token is not configured. Please check your .env.local file.");
+    }
+
+    const response = await fetch('https://jsonplaceholder.typicode.com/todos/1', {
+        headers: {
+            // Ini adalah contoh bagaimana Anda akan menggunakan token tersebut.
+            // API yang sebenarnya mungkin memerlukan skema yang berbeda, seperti 'Bearer <token>'.
+            'Authorization': `Token ${apiToken}`
+        }
+    });
 
     if (!response.ok) {
-      // Tangani respons HTTP yang tidak berhasil (misalnya, 404, 500)
+      // Tangani respons HTTP yang tidak berhasil (misalnya, 401 Unauthorized, 404, 500)
       throw new Error(`Failed to fetch data. Status: ${response.status}`);
     }
 
