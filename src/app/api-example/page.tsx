@@ -4,12 +4,12 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, AlertCircle, Server, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, AlertCircle, Server, Calendar as CalendarIcon, Download } from 'lucide-react';
 import { fetchExampleData, type Todo } from '../api-actions';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 // Komponen untuk menampilkan data yang berhasil diambil
 function DataDisplay({ data }: { data: Todo }) {
+    const handleDownloadJson = () => {
+        if (!data) return;
+
+        const jsonString = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'data.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <Card className="mt-4">
             <CardHeader>
@@ -47,6 +64,12 @@ function DataDisplay({ data }: { data: Todo }) {
                     </Table>
                 </div>
             </CardContent>
+            <CardFooter>
+                 <Button onClick={handleDownloadJson} variant="outline">
+                    <Download className="mr-2 h-4 w-4" />
+                    Download JSON
+                </Button>
+            </CardFooter>
         </Card>
     );
 }
