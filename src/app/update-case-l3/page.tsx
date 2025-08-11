@@ -1,6 +1,6 @@
 import { GsheetDashboard } from "@/components/gsheet-dashboard";
 
-export default function UpdateCaseL3Page() {
+export default function UpdateCasesPage() {
     return (
         <GsheetDashboard />
     );

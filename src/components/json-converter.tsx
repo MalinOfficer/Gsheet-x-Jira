@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save, Pencil, ChevronsUpDown, BarChart, Trash2 } from 'lucide-react';
+import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save, Pencil, ChevronsUpDown, BarChart, Trash2, GanttChartSquare } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -439,7 +439,7 @@ export function JsonConverter() {
                                 <div>
                                     <CardTitle>2. Your Table is Ready</CardTitle>
                                     <CardDescription>
-                                        The JSON has been converted. You can now copy it or view it as a report.
+                                        The JSON has been converted. You can now copy it or move to the next step.
                                     </CardDescription>
                                 </div>
                                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -450,6 +450,10 @@ export function JsonConverter() {
                                     <Button onClick={() => router.push('/report-harian')} variant="default" className="w-full sm:w-auto">
                                         <BarChart className="mr-2 h-4 w-4" />
                                         View as Report
+                                    </Button>
+                                    <Button onClick={() => router.push('/update-case-l3')} variant="default" className="w-full sm:w-auto bg-green-600 hover:bg-green-700">
+                                        <GanttChartSquare className="mr-2 h-4 w-4" />
+                                        Go to Import Page
                                     </Button>
                                 </div>
                             </div>
