@@ -5,13 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Braces, BarChart, GanttChartSquare } from "lucide-react";
+import { Menu, Braces, BarChart, GanttChartSquare, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
     { href: "/", label: "Json Converter", icon: Braces },
     { href: "/report-harian", label: "Report Harian", icon: BarChart },
     { href: "/update-case-l3", label: "Update case L3", icon: GanttChartSquare },
+    { href: "/api-example", label: "API Example", icon: Server },
 ];
 
 function NavLinks() {
