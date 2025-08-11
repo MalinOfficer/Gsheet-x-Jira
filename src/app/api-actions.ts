@@ -21,9 +21,11 @@ interface FetchResult {
 /**
  * Mengambil data contoh dari API JSONPlaceholder.
  * Fungsi ini berjalan di server dan menggunakan API Token dari environment variables.
+ * @param {string | undefined} date - Tanggal opsional untuk pengambilan data.
  * @returns {Promise<FetchResult>} Hasil yang berisi data atau pesan error.
  */
-export async function fetchExampleData(): Promise<FetchResult> {
+export async function fetchExampleData(date?: string): Promise<FetchResult> {
+  console.log('Fetching data for date:', date);
   try {
     const apiToken = process.env.EXAMPLE_API_TOKEN;
 
@@ -31,10 +33,14 @@ export async function fetchExampleData(): Promise<FetchResult> {
         throw new Error("API Token is not configured. Please check your .env.local file.");
     }
 
-    const response = await fetch('https://jsonplaceholder.typicode.com/todos/1', {
+    // Catatan: API ini tidak mendukung filter tanggal.
+    // URL ini akan tetap sama terlepas dari tanggal yang diberikan.
+    // Untuk API yang sebenarnya, Anda akan memasukkan tanggal ke dalam URL.
+    // Contoh: `https://api.example.com/data?date=${date}`
+    const apiUrl = 'https://jsonplaceholder.typicode.com/todos/1';
+
+    const response = await fetch(apiUrl, {
         headers: {
-            // Ini adalah contoh bagaimana Anda akan menggunakan token tersebut.
-            // API yang sebenarnya mungkin memerlukan skema yang berbeda, seperti 'Bearer <token>'.
             'Authorization': `Token ${apiToken}`
         }
     });
