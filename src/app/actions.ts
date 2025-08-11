@@ -1,6 +1,7 @@
 "use server";
 
 import { unstable_cache } from 'next/cache';
+import { google } from 'googleapis';
 
 const getSheetData = unstable_cache(
     async (url: string) => {
@@ -60,4 +61,60 @@ const getSheetData = unstable_cache(
 
 export async function fetchSheetData(url: string) {
     return getSheetData(url);
+}
+
+
+export async function importToSheet(
+    data: { headers: string[], rows: Record<string, any>[] },
+    sheetUrl: string,
+    clientEmail: string,
+    privateKey: string,
+    sheetName: string = 'Sheet1'
+) {
+    if (!clientEmail || !privateKey) {
+        return { error: 'Google Cloud credentials (GCP_CLIENT_EMAIL, GCP_PRIVATE_KEY) are not set in .env.local.' };
+    }
+
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const match = sheetUrl.match(sheetIdRegex);
+    if (!match || !match[1]) {
+        return { error: 'Invalid Google Sheets URL format.' };
+    }
+    const spreadsheetId = match[1];
+
+    try {
+        const auth = new google.auth.GoogleAuth({
+            credentials: {
+                client_email: clientEmail,
+                private_key: privateKey.replace(/\\n/g, '\n'),
+            },
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        // 1. Clear the existing data
+        await sheets.spreadsheets.values.clear({
+            spreadsheetId,
+            range: `${sheetName}!A1:Z`, // Clear a large range
+        });
+        
+        // 2. Write new data (headers + rows)
+        const values = [data.headers, ...data.rows.map(row => data.headers.map(header => row[header]))];
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `${sheetName}!A1`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: {
+                values,
+            },
+        });
+
+        return { success: true, message: `Successfully imported ${data.rows.length} rows.` };
+
+    } catch (error: any) {
+        console.error('Failed to import to sheet:', error);
+        return { error: error.message || 'An unknown error occurred during sheet import.' };
+    }
 }

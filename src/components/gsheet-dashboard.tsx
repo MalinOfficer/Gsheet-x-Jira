@@ -8,33 +8,43 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, FileSpreadsheet, Loader2, ChevronsUpDown, Pencil, RefreshCw } from 'lucide-react';
-import { fetchSheetData } from '@/app/actions';
+import { AlertCircle, FileSpreadsheet, Loader2, ChevronsUpDown, Pencil, RefreshCw, Upload, KeyRound } from 'lucide-react';
+import { fetchSheetData, importToSheet } from '@/app/actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
 
 type DataRow = Record<string, string | number>;
 
 const ALL_ITEMS_VALUE = "__ALL__";
 const LOCAL_STORAGE_KEY_URL = 'gsheetDashboardUrl';
+const LOCAL_STORAGE_KEY_GCP_EMAIL = 'gsheetDashboardGcpEmail';
+const LOCAL_STORAGE_KEY_GCP_KEY = 'gsheetDashboardGcpKey';
 const STATUS_COLUMN_NAME = 'STATUS CASE'; 
 const STATUS_FILTER_VALUE = 'l3';
 
 export function GsheetDashboard() {
   const [url, setUrl] = useState('');
   const [data, setData] = useState<DataRow[] | null>(null);
+  const [headers, setHeaders] = useState<string[]>([]);
   const [displayHeaders, setDisplayHeaders] = useState<string[]>([]);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [columnUniqueValues, setColumnUniqueValues] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [isFetching, startFetching] = useTransition();
+  const [isImporting, startImporting] = useTransition();
   const [isMounted, setIsMounted] = useState(false);
   const [dateFormats, setDateFormats] = useState<Record<string, DateFormat>>({
     'Created At': 'report',
     'Solved At': 'report',
   });
+  const [gcpEmail, setGcpEmail] = useState('');
+  const [gcpKey, setGcpKey] = useState('');
+  const { toast } = useToast();
 
   const topScrollRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
@@ -45,6 +55,7 @@ export function GsheetDashboard() {
       const filteredHeaders = resultHeaders.filter(header => !columnsToExclude.includes(header));
       
       setData(resultData);
+      setHeaders(resultHeaders); // Store original headers
       setDisplayHeaders(filteredHeaders);
 
       const uniqueVals: Record<string, string[]> = {};
@@ -64,7 +75,7 @@ export function GsheetDashboard() {
     setFilters({});
     setColumnUniqueValues({});
 
-    startTransition(async () => {
+    startFetching(async () => {
       const result = await fetchSheetData(fetchUrl);
       if (result.error) {
         setError(result.error);
@@ -83,9 +94,18 @@ export function GsheetDashboard() {
   useEffect(() => {
     if (isMounted) {
       const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_URL);
+      const savedEmail = localStorage.getItem(LOCAL_STORAGE_KEY_GCP_EMAIL);
+      const savedKey = localStorage.getItem(LOCAL_STORAGE_KEY_GCP_KEY);
+
       if (savedUrl) {
         setUrl(savedUrl);
         executeFetch(savedUrl);
+      }
+      if (savedEmail) {
+        setGcpEmail(savedEmail);
+      }
+      if (savedKey) {
+        setGcpKey(savedKey);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -153,13 +173,11 @@ export function GsheetDashboard() {
   const filteredData = useMemo(() => {
     if (!data) return [];
     
-    // First, apply the default L3 filter
     const baseData = data.filter(row => {
       const statusValue = String(row[STATUS_COLUMN_NAME] || '').toLowerCase();
       return statusValue === STATUS_FILTER_VALUE;
     });
 
-    // Then, apply the user-selected filters from the dropdowns
     return baseData.filter(row => {
       return Object.entries(filters).every(([header, filterValue]) => {
         if (!filterValue || filterValue === ALL_ITEMS_VALUE) return true;
@@ -168,6 +186,38 @@ export function GsheetDashboard() {
       });
     });
   }, [data, filters]);
+
+  const handleImport = async () => {
+    if (!filteredData || !url) {
+      toast({
+        variant: "destructive",
+        title: "Import Failed",
+        description: "No data to import or sheet URL is missing.",
+      });
+      return;
+    }
+    
+    localStorage.setItem(LOCAL_STORAGE_KEY_GCP_EMAIL, gcpEmail);
+    localStorage.setItem(LOCAL_STORAGE_KEY_GCP_KEY, gcpKey);
+
+    startImporting(async () => {
+      const result = await importToSheet({ headers, rows: filteredData }, url, gcpEmail, gcpKey);
+
+      if (result.error) {
+        toast({
+          variant: "destructive",
+          title: "Import Error",
+          description: `Failed to import to sheet: ${result.error}`,
+        });
+      } else {
+        toast({
+          title: "Import Successful",
+          description: result.message,
+        });
+      }
+    });
+  };
+
 
   const TableSkeleton = () => (
     <Card>
@@ -245,8 +295,8 @@ export function GsheetDashboard() {
                         aria-label="Google Sheet URL"
                     />
                 </div>
-                <Button type="submit" disabled={isPending || !url} className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                  {isPending ? (
+                <Button type="submit" disabled={isFetching || !url} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                  {isFetching ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Fetching...
@@ -265,10 +315,11 @@ export function GsheetDashboard() {
         </Card>
 
         <div className="min-h-[400px]">
-            {isPending && <TableSkeleton />}
+            {isFetching && <TableSkeleton />}
             {error && <ErrorAlert message={error} />}
-            {!isPending && !error && !data && <InitialState />}
-            {!isPending && !error && data && (
+            {!isFetching && !error && !data && <InitialState />}
+            {!isFetching && !error && data && (
+              <>
                 <Card className="shadow-lg">
                     <CardHeader>
                         <CardTitle>Update Cases</CardTitle>
@@ -374,11 +425,60 @@ export function GsheetDashboard() {
                         <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {data?.length || 0} total rows (filtered by L3 status).</p>
                     </CardFooter>
                 </Card>
+
+                <Card className="shadow-lg mt-8">
+                  <CardHeader>
+                    <CardTitle>Import Destination</CardTitle>
+                    <CardDescription>
+                      Enter your Google Cloud Service Account credentials to import the filtered data into the Google Sheet.
+                      The sheet content will be overwritten.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="gcp-email">Service Account Email</Label>
+                      <div className="relative">
+                        <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          id="gcp-email"
+                          type="email"
+                          placeholder="your-service-account@your-project.iam.gserviceaccount.com"
+                          value={gcpEmail}
+                          onChange={(e) => setGcpEmail(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="gcp-key">Service Account Private Key</Label>
+                      <Textarea
+                        id="gcp-key"
+                        placeholder="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+                        value={gcpKey}
+                        onChange={(e) => setGcpKey(e.target.value)}
+                        rows={6}
+                        className="font-mono"
+                      />
+                    </div>
+                    <Button onClick={handleImport} disabled={isImporting || !gcpEmail || !gcpKey || !filteredData.length}>
+                      {isImporting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Import to GSheet
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </>
             )}
         </div>
       </div>
     </div>
   );
 }
-
-    
