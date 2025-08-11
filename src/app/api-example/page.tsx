@@ -13,6 +13,7 @@ import { Loader2, AlertCircle, Server, Calendar as CalendarIcon } from 'lucide-r
 import { fetchExampleData, type Todo } from '../api-actions';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import type { DateRange } from 'react-day-picker';
 
 
 // Komponen untuk menampilkan data yang berhasil diambil
@@ -48,23 +49,27 @@ export default function ApiExamplePage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchOption, setFetchOption] = useState<'today' | 'specific'>('today');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const handleFetchClick = async () => {
     setIsLoading(true);
     setError(null);
     setData(null);
 
-    let dateToFetch: string | undefined;
+    let fromDate: string | undefined;
+    let toDate: string | undefined;
 
     if (fetchOption === 'today') {
-      dateToFetch = format(new Date(), 'yyyy-MM-dd');
-    } else if (selectedDate) {
-      dateToFetch = format(selectedDate, 'yyyy-MM-dd');
+      const today = format(new Date(), 'yyyy-MM-dd');
+      fromDate = today;
+      toDate = today;
+    } else if (dateRange?.from) {
+      fromDate = format(dateRange.from, 'yyyy-MM-dd');
+      toDate = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromDate;
     }
 
     // Panggil Server Action dengan tanggal yang dipilih
-    const result = await fetchExampleData(dateToFetch);
+    const result = await fetchExampleData(fromDate, toDate);
 
     if (result.error) {
       setError(result.error);
@@ -75,7 +80,7 @@ export default function ApiExamplePage() {
     setIsLoading(false);
   };
   
-  const isButtonDisabled = isLoading || (fetchOption === 'specific' && !selectedDate);
+  const isButtonDisabled = isLoading || (fetchOption === 'specific' && !dateRange?.from);
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -107,7 +112,7 @@ export default function ApiExamplePage() {
                         </div>
                         <div className="flex items-center space-x-2">
                             <RadioGroupItem value="specific" id="r-specific" />
-                            <Label htmlFor="r-specific">Specific Date</Label>
+                            <Label htmlFor="r-specific">Specific Date Range</Label>
                         </div>
                     </RadioGroup>
 
@@ -117,19 +122,30 @@ export default function ApiExamplePage() {
                                 <Button
                                     variant={"outline"}
                                     className={cn(
-                                        "w-[280px] justify-start text-left font-normal",
-                                        !selectedDate && "text-muted-foreground"
+                                        "w-full sm:w-[320px] justify-start text-left font-normal",
+                                        !dateRange && "text-muted-foreground"
                                     )}
                                 >
                                     <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                                    {dateRange?.from ? (
+                                        dateRange.to ? (
+                                            <>
+                                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                                {format(dateRange.to, "LLL dd, y")}
+                                            </>
+                                        ) : (
+                                            format(dateRange.from, "LLL dd, y")
+                                        )
+                                    ) : (
+                                        <span>Pick a date range</span>
+                                    )}
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
                                 <Calendar
-                                    mode="single"
-                                    selected={selectedDate}
-                                    onSelect={setSelectedDate}
+                                    mode="range"
+                                    selected={dateRange}
+                                    onSelect={setDateRange}
                                     initialFocus
                                 />
                             </PopoverContent>
