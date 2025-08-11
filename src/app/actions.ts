@@ -1,3 +1,4 @@
+
 "use server";
 
 import { unstable_cache } from 'next/cache';
@@ -72,7 +73,7 @@ export async function importToSheet(
     sheetName: string = 'Sheet1'
 ) {
     if (!clientEmail || !privateKey) {
-        return { error: 'Google Cloud credentials (GCP_CLIENT_EMAIL, GCP_PRIVATE_KEY) are not set in .env.local.' };
+        return { error: 'Google Cloud credentials (client email, private key) are missing.' };
     }
 
     const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
@@ -83,10 +84,13 @@ export async function importToSheet(
     const spreadsheetId = match[1];
 
     try {
+        // This is the crucial part to fix the private key format.
+        const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+
         const auth = new google.auth.GoogleAuth({
             credentials: {
                 client_email: clientEmail,
-                private_key: privateKey.replace(/\\n/g, '\n'),
+                private_key: formattedPrivateKey,
             },
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
