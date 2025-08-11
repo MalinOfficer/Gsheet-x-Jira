@@ -312,18 +312,7 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                       </div>
                   </div>
                   <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                          <h3 className="font-semibold">Summary detail case yang belum Resolved:</h3>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleCopy(reportStats.notResolvedCases.join('\n'), 'Unresolved cases summary')}
-                            className="h-7 w-7"
-                          >
-                            {copiedSection === 'Unresolved cases summary' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                            <span className="sr-only">Copy unresolved cases</span>
-                          </Button>
-                      </div>
+                      <h3 className="font-semibold">Summary detail case yang belum Resolved:</h3>
                       <ol className="list-decimal list-inside text-sm space-y-1">
                           {reportStats.notResolvedCases.length > 0 ? (
                               reportStats.notResolvedCases.map((item, i) => <li key={i}>{item}</li>)
@@ -333,18 +322,7 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                       </ol>
                   </div>
                   <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold">Case yang solved:</h3>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleCopy(reportStats.solvedCases.join('\n'), 'Solved cases summary')}
-                          className="h-7 w-7"
-                        >
-                          {copiedSection === 'Solved cases summary' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                          <span className="sr-only">Copy solved cases</span>
-                        </Button>
-                      </div>
+                    <h3 className="font-semibold">Case yang solved:</h3>
                       <ol className="list-decimal list-inside text-sm space-y-1">
                           {reportStats.solvedCases.length > 0 ? (
                               reportStats.solvedCases.map((item, i) => <li key={i}>{item}</li>)
