@@ -3,6 +3,7 @@
 
 import { unstable_cache } from 'next/cache';
 import { google } from 'googleapis';
+import 'dotenv/config';
 
 const getSheetData = unstable_cache(
     async (url: string) => {
@@ -68,12 +69,13 @@ export async function fetchSheetData(url: string) {
 export async function importToSheet(
     data: { headers: string[], rows: Record<string, any>[] },
     sheetUrl: string,
-    clientEmail: string,
-    privateKey: string,
     sheetName: string = 'Sheet1'
 ) {
+    const clientEmail = process.env.GOOGLE_SHEETS_CLIENT_EMAIL;
+    const privateKey = process.env.GOOGLE_SHEETS_PRIVATE_KEY;
+    
     if (!clientEmail || !privateKey) {
-        return { error: 'Google Cloud credentials (client email, private key) are missing.' };
+        return { error: 'Google Cloud credentials are not configured on the server. Please set GOOGLE_SHEETS_CLIENT_EMAIL and GOOGLE_SHEETS_PRIVATE_KEY environment variables.' };
     }
 
     const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
@@ -84,13 +86,10 @@ export async function importToSheet(
     const spreadsheetId = match[1];
 
     try {
-        // This is the crucial part to fix the private key format.
-        const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
-
         const auth = new google.auth.GoogleAuth({
             credentials: {
                 client_email: clientEmail,
-                private_key: formattedPrivateKey,
+                private_key: privateKey,
             },
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
