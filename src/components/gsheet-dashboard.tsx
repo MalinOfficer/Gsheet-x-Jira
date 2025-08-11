@@ -135,53 +135,6 @@ export function GsheetDashboard() {
         ) : (
           <>
             <Card className="shadow-lg">
-                <CardHeader>
-                    <CardTitle>Preview Data for Import</CardTitle>
-                    <CardDescription>
-                        This is the data you converted. It will overwrite the content of the target sheet.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
-                       <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
-                    </div>
-                    <div ref={tableScrollRef} className="w-full overflow-x-auto rounded-md border">
-                        <Table ref={tableRef}>
-                            <TableHeader>
-                                <TableRow>
-                                    {tableData.headers.map(header => (
-                                        <TableHead 
-                                            key={header} 
-                                            className="font-bold whitespace-nowrap bg-muted/50"
-                                        >
-                                           {header}
-                                        </TableHead>
-                                    ))}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {tableData.rows.map((row, index) => (
-                                    <TableRow key={index} className="hover:bg-muted/50">
-                                        {tableData.headers.map(header => (
-                                            <TableCell 
-                                                key={`${header}-${index}`} 
-                                                className="whitespace-nowrap"
-                                            >
-                                                {String(row[header] || '')}
-                                            </TableCell>
-                                        ))}
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-                <CardFooter>
-                    <p className="text-sm text-muted-foreground">Showing {tableData.rows.length} rows to be imported.</p>
-                </CardFooter>
-            </Card>
-
-            <Card className="shadow-lg mt-8">
               <CardHeader>
                 <div className="flex justify-between items-center">
                     <div>
@@ -254,6 +207,53 @@ export function GsheetDashboard() {
                   )}
                 </Button>
               </CardContent>
+            </Card>
+
+            <Card className="shadow-lg mt-8">
+                <CardHeader>
+                    <CardTitle>Preview Data for Import</CardTitle>
+                    <CardDescription>
+                        This is the data you converted. It will overwrite the content of the target sheet.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
+                       <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
+                    </div>
+                    <div ref={tableScrollRef} className="w-full overflow-x-auto rounded-md border">
+                        <Table ref={tableRef}>
+                            <TableHeader>
+                                <TableRow>
+                                    {tableData.headers.map(header => (
+                                        <TableHead 
+                                            key={header} 
+                                            className="font-bold whitespace-nowrap bg-muted/50"
+                                        >
+                                           {header}
+                                        </TableHead>
+                                    ))}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {tableData.rows.map((row, index) => (
+                                    <TableRow key={index} className="hover:bg-muted/50">
+                                        {tableData.headers.map(header => (
+                                            <TableCell 
+                                                key={`${header}-${index}`} 
+                                                className="whitespace-nowrap"
+                                            >
+                                                {String(row[header] || '')}
+                                            </TableCell>
+                                        ))}
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <p className="text-sm text-muted-foreground">Showing {tableData.rows.length} rows to be imported.</p>
+                </CardFooter>
             </Card>
           </>
         )}
