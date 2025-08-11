@@ -1,20 +1,18 @@
 
 "use client";
 
-import { useState, useMemo, useTransition, useRef, useEffect, useContext } from 'react';
+import { useState, useTransition, useRef, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, Upload, KeyRound, ArrowLeft, Import } from 'lucide-react';
+import { Loader2, Upload, KeyRound, ArrowLeft, Import, Pencil } from 'lucide-react';
 import { importToSheet } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { TableDataContext } from '@/store/table-data-context';
-import { cn } from '@/lib/utils';
 
 const LOCAL_STORAGE_KEY_GCP_EMAIL = 'gsheetDashboardGcpEmail';
 const LOCAL_STORAGE_KEY_GCP_KEY = 'gsheetDashboardGcpKey';
@@ -26,6 +24,7 @@ export function GsheetDashboard() {
   const [gcpEmail, setGcpEmail] = useState('');
   const [gcpKey, setGcpKey] = useState('');
   const [sheetUrl, setSheetUrl] = useState('');
+  const [showCredentials, setShowCredentials] = useState(false);
   const [isImporting, startImporting] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
@@ -39,7 +38,12 @@ export function GsheetDashboard() {
     const savedKey = localStorage.getItem(LOCAL_STORAGE_KEY_GCP_KEY);
     const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
     if (savedEmail) setGcpEmail(savedEmail);
-    if (savedKey) setGcpKey(savedKey);
+    if (savedKey) {
+      setGcpKey(savedKey);
+      setShowCredentials(false); // Hide if key exists
+    } else {
+      setShowCredentials(true); // Show if no key
+    }
     if (savedUrl) setSheetUrl(savedUrl);
   }, []);
 
@@ -179,10 +183,20 @@ export function GsheetDashboard() {
 
             <Card className="shadow-lg mt-8">
               <CardHeader>
-                <CardTitle>Import Destination</CardTitle>
-                <CardDescription>
-                  Enter your Google Sheet URL and Service Account credentials. The sheet content will be overwritten.
-                </CardDescription>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle>Import Destination</CardTitle>
+                        <CardDescription>
+                          Enter your Google Sheet URL and Service Account credentials. The sheet content will be overwritten.
+                        </CardDescription>
+                    </div>
+                    {!showCredentials && (
+                        <Button variant="outline" size="sm" onClick={() => setShowCredentials(true)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit Credentials
+                        </Button>
+                    )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                  <div className="grid gap-2">
@@ -195,31 +209,37 @@ export function GsheetDashboard() {
                       onChange={(e) => setSheetUrl(e.target.value)}
                     />
                   </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="gcp-email">Service Account Email</Label>
-                  <div className="relative">
-                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input
-                      id="gcp-email"
-                      type="email"
-                      placeholder="your-service-account@your-project.iam.gserviceaccount.com"
-                      value={gcpEmail}
-                      onChange={(e) => setGcpEmail(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="gcp-key">Service Account Private Key</Label>
-                  <Textarea
-                    id="gcp-key"
-                    placeholder="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-                    value={gcpKey}
-                    onChange={(e) => setGcpKey(e.target.value)}
-                    rows={6}
-                    className="font-mono"
-                  />
-                </div>
+                
+                {showCredentials && (
+                    <div className="space-y-4 animate-in fade-in-0 duration-300">
+                        <div className="grid gap-2">
+                          <Label htmlFor="gcp-email">Service Account Email</Label>
+                          <div className="relative">
+                            <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                            <Input
+                              id="gcp-email"
+                              type="email"
+                              placeholder="your-service-account@your-project.iam.gserviceaccount.com"
+                              value={gcpEmail}
+                              onChange={(e) => setGcpEmail(e.target.value)}
+                              className="pl-10"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="gcp-key">Service Account Private Key</Label>
+                          <Textarea
+                            id="gcp-key"
+                            placeholder="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+                            value={gcpKey}
+                            onChange={(e) => setGcpKey(e.target.value)}
+                            rows={6}
+                            className="font-mono"
+                          />
+                        </div>
+                    </div>
+                )}
+                
                 <Button onClick={handleImport} disabled={isImporting || !gcpEmail || !gcpKey || !sheetUrl}>
                   {isImporting ? (
                     <>
