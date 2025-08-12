@@ -114,7 +114,6 @@ export async function updateSheetStatus(
     try {
         const sheets = getGoogleSheetsClient();
 
-        // 1. Fetch current data from the sheet (column M for Detail Case)
         const rangeToRead = `${sheetName}!M:M`;
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
@@ -126,26 +125,24 @@ export async function updateSheetStatus(
             return { error: 'Could not find any data in the target sheet.' };
         }
 
-        // 2. Create a map of ticket numbers to their row index
         const ticketNumberRegex = /#(\d+)/;
         const rowMap: Record<string, number> = {};
         sheetRows.forEach((row, index) => {
-            const detailCase = row[0]; // Column M is the first column in our range
+            const detailCase = row[0];
             if (typeof detailCase === 'string') {
                 const match = detailCase.match(ticketNumberRegex);
                 if (match && match[1]) {
                     const ticketNumber = match[1];
-                    rowMap[ticketNumber] = index + 1; // Sheets rows are 1-based
+                    rowMap[ticketNumber] = index + 1;
                 }
             }
         });
 
-        // 3. Prepare batch update requests
         const updateRequests = [];
-        const updatedTitles: string[] = [];
+        const updatedRows: { title: string, status: string }[] = [];
         
         for (const appRow of data.rows) {
-            const detailCase = appRow['Title']; // As per component logic
+            const detailCase = appRow['Title'];
             const newStatus = appRow['Status'];
 
             if (typeof detailCase === 'string' && newStatus) {
@@ -159,17 +156,16 @@ export async function updateSheetStatus(
                             range: `${sheetName}!G${rowToUpdate}`,
                             values: [[newStatus]],
                         });
-                        updatedTitles.push(detailCase);
+                        updatedRows.push({ title: detailCase, status: newStatus });
                     }
                 }
             }
         }
         
         if (updateRequests.length === 0) {
-            return { success: true, message: 'No matching tickets found to update.', updatedTitles: [] };
+            return { success: true, message: 'No matching tickets found to update.', updatedRows: [] };
         }
         
-        // 4. Execute batch update
         await sheets.spreadsheets.values.batchUpdate({
             spreadsheetId,
             requestBody: {
@@ -178,7 +174,7 @@ export async function updateSheetStatus(
             },
         });
         
-        return { success: true, message: `Successfully updated ${updatedTitles.length} rows.`, updatedTitles };
+        return { success: true, message: `Successfully updated ${updatedRows.length} rows.`, updatedRows };
 
     } catch (error: any) {
         console.error('Failed to update sheet status:', error.message);
@@ -204,7 +200,6 @@ export async function importToSheet(
         
         const sheetName = 'All Case';
 
-        // Prepare rows without headers for appending, and add 4 empty columns at the beginning of each row
         const values = data.rows.map(row => {
             const rowValues = data.headers.map(header => row[header]);
             return ['', '', '', '', ...rowValues];
@@ -212,7 +207,7 @@ export async function importToSheet(
 
         await sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: `${sheetName}!A1`, // Append to the whole sheet, letting it find the first empty row
+            range: `${sheetName}!A1`, 
             valueInputOption: 'USER_ENTERED',
             insertDataOption: 'INSERT_ROWS',
             requestBody: {
@@ -224,7 +219,6 @@ export async function importToSheet(
 
     } catch (error: any) {
         console.error('Failed to import to sheet:', error.message);
-        // Provide more detailed error messages from the API if available
         const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred during sheet import.';
         return { error: apiError };
     }

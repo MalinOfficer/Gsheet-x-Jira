@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save } from 'lucide-react';
+import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, Check } from 'lucide-react';
 import { importToSheet, updateSheetStatus } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
@@ -85,12 +85,12 @@ export function GsheetDashboard() {
           description: (
             <div>
               <p className="mb-2">{result.message}</p>
-              {result.updatedTitles && result.updatedTitles.length > 0 && (
+              {result.updatedRows && result.updatedRows.length > 0 && (
                 <div className="mt-2 text-xs">
                   <p className="font-bold">Updated Cases:</p>
                   <ul className="list-disc pl-5">
-                    {result.updatedTitles.map((title: string, index: number) => (
-                      <li key={index}>{title}</li>
+                    {result.updatedRows.map((item: { title: string, status: string }, index: number) => (
+                      <li key={index}>{item.title} -&gt; <strong>{item.status}</strong></li>
                     ))}
                   </ul>
                 </div>
