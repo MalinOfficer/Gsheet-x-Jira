@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { TableDataContext } from '@/store/table-data-context';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 
@@ -81,7 +82,21 @@ export function GsheetDashboard() {
       } else {
         toast({
           title: "Update Successful",
-          description: result.message,
+          description: (
+            <div>
+              <p className="mb-2">{result.message}</p>
+              {result.updatedTitles && result.updatedTitles.length > 0 && (
+                <div className="mt-2 text-xs">
+                  <p className="font-bold">Updated Cases:</p>
+                  <ul className="list-disc pl-5">
+                    {result.updatedTitles.map((title: string, index: number) => (
+                      <li key={index}>{title}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ),
         });
       }
     });
@@ -178,7 +193,10 @@ export function GsheetDashboard() {
                         </>
                       )}
                     </Button>
-                    <Button onClick={handleUpdate} variant="outline" disabled={isUpdating || isImporting || !sheetUrl}>
+                    <Button 
+                        onClick={handleUpdate} 
+                        className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                        disabled={isUpdating || isImporting || !sheetUrl}>
                         {isUpdating ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

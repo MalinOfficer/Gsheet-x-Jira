@@ -142,7 +142,7 @@ export async function updateSheetStatus(
 
         // 3. Prepare batch update requests
         const updateRequests = [];
-        let updatedCount = 0;
+        const updatedTitles: string[] = [];
         
         for (const appRow of data.rows) {
             const detailCase = appRow['Title']; // As per component logic
@@ -159,14 +159,14 @@ export async function updateSheetStatus(
                             range: `${sheetName}!G${rowToUpdate}`,
                             values: [[newStatus]],
                         });
-                        updatedCount++;
+                        updatedTitles.push(detailCase);
                     }
                 }
             }
         }
         
         if (updateRequests.length === 0) {
-            return { success: true, message: 'No matching tickets found to update.' };
+            return { success: true, message: 'No matching tickets found to update.', updatedTitles: [] };
         }
         
         // 4. Execute batch update
@@ -178,7 +178,7 @@ export async function updateSheetStatus(
             },
         });
         
-        return { success: true, message: `Successfully updated ${updatedCount} rows.` };
+        return { success: true, message: `Successfully updated ${updatedTitles.length} rows.`, updatedTitles };
 
     } catch (error: any) {
         console.error('Failed to update sheet status:', error.message);
