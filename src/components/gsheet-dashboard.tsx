@@ -88,7 +88,7 @@ export function GsheetDashboard() {
               {result.updatedRows && result.updatedRows.length > 0 && (
                 <div className="mt-2 text-xs">
                   <p className="font-bold">Updated Cases:</p>
-                  <ul className="list-disc pl-5">
+                  <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
                     {result.updatedRows.map((item: { title: string, status: string }, index: number) => (
                       <li key={index}>{item.title} -&gt; <strong>{item.status}</strong></li>
                     ))}
@@ -133,7 +133,7 @@ export function GsheetDashboard() {
                         {result.duplicateCount > 0 && (
                             <div className="mt-2 text-xs">
                                 <p className="font-bold">{result.duplicateCount} duplicate rows found and skipped:</p>
-                                <ul className="list-disc pl-5 max-h-20 overflow-y-auto">
+                                <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
                                     {(result.duplicates ?? []).map((item, index) => (
                                         <li key={index}>{item}</li>
                                     ))}
@@ -327,3 +327,5 @@ export function GsheetDashboard() {
     </div>
   );
 }
+
+    
