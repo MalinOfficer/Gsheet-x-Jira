@@ -4,13 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Braces, BarChart, GanttChartSquare } from "lucide-react";
+import { Menu, Braces, BarChart, GanttChartSquare, Settings, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/use-theme";
 
 const navItems = [
-    { href: "/", label: "Json Converter", icon: Braces },
+    { href: "/", label: "Home", icon: Home },
+    { href: "/json-converter", label: "Json Converter", icon: Braces },
     { href: "/report-harian", label: "Report Harian", icon: BarChart },
     { href: "/update-case-l3", label: "Update Cases", icon: GanttChartSquare },
+];
+
+const bottomNavItems = [
+    { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 function NavLinks() {
@@ -22,8 +28,29 @@ function NavLinks() {
                     key={item.label}
                     href={item.href}
                     className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                        pathname === item.href && "bg-muted text-primary"
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        pathname === item.href && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                    )}
+                >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                </Link>
+            ))}
+        </>
+    );
+}
+
+function BottomNavLinks() {
+    const pathname = usePathname();
+    return (
+        <>
+            {bottomNavItems.map((item) => (
+                <Link
+                    key={item.label}
+                    href={item.href}
+                    className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        pathname === item.href && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
                     )}
                 >
                     <item.icon className="h-4 w-4" />
@@ -36,48 +63,58 @@ function NavLinks() {
 
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
+    const { theme } = useTheme();
+
     return (
-        <div className="flex min-h-screen w-full flex-col">
-          <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-50">
-            <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
-              <Link
-                href="/"
-                className="flex items-center gap-2 text-lg font-semibold md:text-base mr-4"
-              >
-                <Braces className="h-6 w-6 text-primary" />
-                <span className="sr-only">JSON Tools</span>
-              </Link>
-              <NavLinks />
-            </nav>
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0 md:hidden"
-                >
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">Toggle navigation menu</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left">
-                <nav className="grid gap-6 text-lg font-medium">
-                  <Link
-                    href="/"
-                    className="flex items-center gap-2 text-lg font-semibold"
-                  >
-                    <Braces className="h-6 w-6 text-primary" />
-                    <span className="sr-only">JSON Tools</span>
-                  </Link>
-                  <NavLinks />
+        <div className={cn("flex min-h-screen w-full", theme)}>
+            {/* Sidebar for Desktop */}
+            <aside className="hidden md:flex flex-col w-64 border-r bg-card">
+                <div className="flex h-16 items-center border-b px-6">
+                    <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
+                        <GanttChartSquare className="h-6 w-6" />
+                        <span>GSheet Tools</span>
+                    </Link>
+                </div>
+                <nav className="flex-1 flex flex-col gap-4 p-4 text-sm font-medium">
+                    <NavLinks />
+                    <div className="mt-auto">
+                        <BottomNavLinks />
+                    </div>
                 </nav>
-              </SheetContent>
-            </Sheet>
-            <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
-              {/* Future header elements can go here */}
+            </aside>
+
+            <div className="flex flex-col flex-1">
+                {/* Header for Mobile */}
+                <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-card px-4 md:px-6 md:hidden">
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button variant="outline" size="icon" className="shrink-0">
+                                <Menu className="h-5 w-5" />
+                                <span className="sr-only">Toggle navigation menu</span>
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="flex flex-col">
+                            <nav className="grid gap-2 text-lg font-medium">
+                                <Link
+                                    href="/"
+                                    className="flex items-center gap-2 text-lg font-semibold mb-4 text-primary"
+                                >
+                                    <GanttChartSquare className="h-6 w-6" />
+                                    <span>GSheet Tools</span>
+                                </Link>
+                                <NavLinks />
+                            </nav>
+                            <div className="mt-auto">
+                                <BottomNavLinks />
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+                    <div className="flex w-full items-center justify-end gap-4">
+                        {/* Mobile Header Right Side Content */}
+                    </div>
+                </header>
+                <main className="flex-1 flex flex-col bg-background">{children}</main>
             </div>
-          </header>
-          <main className="flex-1">{children}</main>
         </div>
     );
 }

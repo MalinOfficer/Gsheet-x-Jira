@@ -19,13 +19,13 @@ const ALL_ITEMS_VALUE = "__ALL__";
 function InitialState() {
   const router = useRouter();
   return (
-    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px]">
+    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
         <BarChart className="w-16 h-16 text-muted-foreground mb-4" />
         <CardTitle>No Report Data Found</CardTitle>
         <CardDescription className="mt-2 mb-4">
             Go back to the JSON to Table page to convert your data first.
         </CardDescription>
-        <Button onClick={() => router.push('/')}>
+        <Button onClick={() => router.push('/json-converter')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Converter
         </Button>
@@ -437,11 +437,11 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">
+    <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        <header className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-primary font-headline">Report Harian</h1>
-          <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
+        <header>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">Report Harian</h1>
+          <p className="text-muted-foreground mt-2">
             This report is generated from the data you converted. Use the dropdown to filter by status.
           </p>
         </header>

@@ -23,12 +23,15 @@ const DEFAULT_TEMPLATE = 'Customer Name,Client Name,Status,Kolom kosong1,Ticket 
 
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
+    
+    // Initialize templateInput from localStorage or use default
     const [templateInput, setTemplateInput] = useState(() => {
         if (typeof window !== 'undefined') {
             return localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE) || DEFAULT_TEMPLATE;
         }
         return DEFAULT_TEMPLATE;
     });
+
     const { tableData, setTableData } = useContext(TableDataContext);
     const [error, setError] = useState<string | null>(null);
     const [isCopied, setIsCopied] = useState(false);
@@ -39,48 +42,16 @@ export function JsonConverter() {
         'Resolved At': 'report',
     });
     const router = useRouter();
-
-    const topScrollRef = useRef<HTMLDivElement>(null);
-    const tableScrollRef = useRef<HTMLDivElement>(null);
-    const tableRef = useRef<HTMLTableElement>(null);
-
-
+    
+    // On initial mount, load saved JSON and convert it using the current template state
     useEffect(() => {
         const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
         if (savedJson) {
             setJsonInput(savedJson);
-            // We pass templateInput directly here, which is already initialized from localStorage
-            handleConvert(savedJson, templateInput, true);
+            handleConvert(savedJson, templateInput, true); // Pass current templateInput
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Only run on initial mount
-
-    useEffect(() => {
-        const topDiv = topScrollRef.current;
-        const tableDiv = tableScrollRef.current;
-
-        if (!topDiv || !tableDiv) return;
-
-        const syncScroll = (source: HTMLDivElement, target: HTMLDivElement) => {
-            return () => {
-                if (target.scrollLeft !== source.scrollLeft) {
-                    target.scrollLeft = source.scrollLeft;
-                }
-            };
-        };
-
-        const topSync = syncScroll(topDiv, tableDiv);
-        const tableSync = syncScroll(tableDiv, topDiv);
-
-        topDiv.addEventListener('scroll', topSync);
-        tableDiv.addEventListener('scroll', tableSync);
-
-        return () => {
-            topDiv.removeEventListener('scroll', topSync);
-            tableDiv.removeEventListener('scroll', tableSync);
-        };
-    }, [tableData]);
-
+    }, []); // Empty dependency array ensures this runs only once on mount
 
     const flattenJson = (obj: any, path: string = '', res: Record<string, any> = {}): Record<string, any> => {
         if (obj === null || typeof obj !== 'object') {
@@ -345,11 +316,11 @@ export function JsonConverter() {
     );
 
     return (
-        <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">
+        <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-8">
-                <header className="text-center">
-                    <h1 className="text-4xl font-bold tracking-tight text-primary font-headline">JSON to Table Converter</h1>
-                    <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
+                <header>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">JSON to Table Converter</h1>
+                    <p className="text-muted-foreground mt-2">
                         Paste your JSON data, provide an optional header template, and convert it into a table ready to be copied.
                     </p>
                 </header>
@@ -420,7 +391,7 @@ export function JsonConverter() {
                         </div>
 
                         <div className="mt-6">
-                            <Button onClick={() => handleConvert(jsonInput, templateInput)} className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!jsonInput}>
+                            <Button onClick={() => handleConvert(jsonInput, templateInput)} className="w-full md:w-auto" disabled={!jsonInput}>
                                 <Braces className="mr-2 h-4 w-4" />
                                 Convert to Table
                                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -445,11 +416,11 @@ export function JsonConverter() {
                                         {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
                                         {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
                                     </Button>
-                                    <Button onClick={() => router.push('/report-harian')} variant="default" className="w-full sm:w-auto">
+                                    <Button onClick={() => router.push('/report-harian')} variant="secondary" className="w-full sm:w-auto">
                                         <BarChart className="mr-2 h-4 w-4" />
                                         View as Report
                                     </Button>
-                                    <Button onClick={() => router.push('/update-case-l3')} variant="default" className="w-full sm:w-auto bg-green-600 hover:bg-green-700">
+                                    <Button onClick={() => router.push('/update-case-l3')} variant="default" className="w-full sm:w-auto">
                                         <GanttChartSquare className="mr-2 h-4 w-4" />
                                         Go to Import Page
                                     </Button>
@@ -457,11 +428,8 @@ export function JsonConverter() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
-                               <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
-                            </div>
-                            <div ref={tableScrollRef} className="relative w-full overflow-auto max-h-[600px] rounded-md border">
-                                <Table ref={tableRef}>
+                            <div className="relative max-h-[600px] overflow-auto rounded-md border">
+                                <Table>
                                     <TableHeader className="sticky top-0 z-10 bg-card">
                                         <TableRow>
                                             {tableData.headers.map((header, index) => (
@@ -531,5 +499,3 @@ export function JsonConverter() {
         </div>
     );
 }
-
-    
