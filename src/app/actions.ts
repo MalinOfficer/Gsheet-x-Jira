@@ -108,12 +108,15 @@ export async function importToSheet(
         
         const sheetName = 'All Case';
 
-        // Prepare rows without headers for appending
-        const values = data.rows.map(row => data.headers.map(header => row[header]));
+        // Prepare rows without headers for appending, and add 4 empty columns at the beginning of each row
+        const values = data.rows.map(row => {
+            const rowValues = data.headers.map(header => row[header]);
+            return ['', '', '', '', ...rowValues];
+        });
 
         await sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: `${sheetName}!E1`, // Append after the last row with data, starting from column E
+            range: `${sheetName}!A1`, // Append to the whole sheet, letting it find the first empty row
             valueInputOption: 'USER_ENTERED',
             insertDataOption: 'INSERT_ROWS',
             requestBody: {
