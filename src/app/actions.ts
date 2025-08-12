@@ -3,7 +3,8 @@
 
 import { unstable_cache } from 'next/cache';
 import { google } from 'googleapis';
-import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
 
 const getSheetData = unstable_cache(
     async (url: string) => {
@@ -71,11 +72,21 @@ export async function importToSheet(
     sheetUrl: string,
     sheetName: string = 'Sheet1'
 ) {
-    const clientEmail = process.env.GOOGLE_SHEETS_CLIENT_EMAIL;
-    const privateKey = process.env.GOOGLE_SHEETS_PRIVATE_KEY;
+    let credentials;
+    try {
+        const filePath = path.join(process.cwd(), 'src', 'lib', 'gcp-credentials.json');
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        credentials = JSON.parse(fileContent);
+    } catch (error) {
+        console.error('Error reading or parsing credentials file:', error);
+        return { error: 'Could not load Google Cloud credentials from the server. Please ensure src/lib/gcp-credentials.json exists and is valid.' };
+    }
     
+    const clientEmail = credentials.client_email;
+    const privateKey = credentials.private_key;
+
     if (!clientEmail || !privateKey) {
-        return { error: 'Google Cloud credentials are not configured on the server. Please set GOOGLE_SHEETS_CLIENT_EMAIL and GOOGLE_SHEETS_PRIVATE_KEY environment variables.' };
+        return { error: 'Google Cloud credentials are not configured correctly in gcp-credentials.json.' };
     }
 
     const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
@@ -89,7 +100,7 @@ export async function importToSheet(
         const auth = new google.auth.GoogleAuth({
             credentials: {
                 client_email: clientEmail,
-                private_key: privateKey,
+                private_key: privateKey.replace(/\\n/g, '\n'), // Ensure private key is correctly formatted
             },
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
@@ -117,7 +128,9 @@ export async function importToSheet(
         return { success: true, message: `Successfully imported ${data.rows.length} rows.` };
 
     } catch (error: any) {
-        console.error('Failed to import to sheet:', error);
-        return { error: error.message || 'An unknown error occurred during sheet import.' };
+        console.error('Failed to import to sheet:', error.message);
+        // Provide more detailed error messages from the API if available
+        const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred during sheet import.';
+        return { error: apiError };
     }
 }
