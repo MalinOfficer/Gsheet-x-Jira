@@ -66,11 +66,7 @@ export async function fetchSheetData(url: string) {
     return getSheetData(url);
 }
 
-
-export async function importToSheet(
-    data: { headers: string[], rows: Record<string, any>[] },
-    sheetUrl: string
-) {
+const getGoogleSheetsClient = () => {
     let credentials;
     try {
         const filePath = path.join(process.cwd(), 'src', 'lib', 'gcp-credentials.json');
@@ -78,16 +74,124 @@ export async function importToSheet(
         credentials = JSON.parse(fileContent);
     } catch (error) {
         console.error('Error reading or parsing credentials file:', error);
-        return { error: 'Could not load Google Cloud credentials from the server. Please ensure src/lib/gcp-credentials.json exists and is valid.' };
+        throw new Error('Could not load Google Cloud credentials from the server.');
     }
     
     const clientEmail = credentials.client_email;
     const privateKey = credentials.private_key;
 
     if (!clientEmail || !privateKey) {
-        return { error: 'Google Cloud credentials are not configured correctly in gcp-credentials.json.' };
+        throw new Error('Google Cloud credentials are not configured correctly in gcp-credentials.json.');
     }
 
+    const auth = new google.auth.GoogleAuth({
+        credentials: {
+            client_email: clientEmail,
+            private_key: privateKey.replace(/\\n/g, '\n'),
+        },
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    return google.sheets({ version: 'v4', auth });
+}
+
+export async function updateSheetStatus(
+    data: { rows: Record<string, any>[] },
+    sheetUrl: string
+) {
+     if (!data || data.rows.length === 0) {
+        return { error: 'No data provided to update.' };
+    }
+    
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const match = sheetUrl.match(sheetIdRegex);
+    if (!match || !match[1]) {
+        return { error: 'Invalid Google Sheets URL format.' };
+    }
+    const spreadsheetId = match[1];
+    const sheetName = 'All Case';
+
+    try {
+        const sheets = getGoogleSheetsClient();
+
+        // 1. Fetch current data from the sheet (columns E for Status and M for Detail Case)
+        const rangeToRead = `${sheetName}!M:M`;
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: rangeToRead,
+        });
+
+        const sheetRows = response.data.values;
+        if (!sheetRows || sheetRows.length === 0) {
+            return { error: 'Could not find any data in the target sheet.' };
+        }
+
+        // 2. Create a map of ticket numbers to their row index
+        const ticketNumberRegex = /#(\d+)/;
+        const rowMap: Record<string, number> = {};
+        sheetRows.forEach((row, index) => {
+            const detailCase = row[0]; // Column M is the first column in our range
+            if (typeof detailCase === 'string') {
+                const match = detailCase.match(ticketNumberRegex);
+                if (match && match[1]) {
+                    const ticketNumber = match[1];
+                    rowMap[ticketNumber] = index + 1; // Sheets rows are 1-based
+                }
+            }
+        });
+
+        // 3. Prepare batch update requests
+        const updateRequests = [];
+        let updatedCount = 0;
+        
+        for (const appRow of data.rows) {
+            const detailCase = appRow['Title']; // As per component logic
+            const newStatus = appRow['Status'];
+
+            if (typeof detailCase === 'string' && newStatus) {
+                const match = detailCase.match(ticketNumberRegex);
+                if (match && match[1]) {
+                    const ticketNumber = match[1];
+                    const rowToUpdate = rowMap[ticketNumber];
+                    
+                    if (rowToUpdate) {
+                        updateRequests.push({
+                            range: `${sheetName}!E${rowToUpdate}`,
+                            values: [[newStatus]],
+                        });
+                        updatedCount++;
+                    }
+                }
+            }
+        }
+        
+        if (updateRequests.length === 0) {
+            return { success: true, message: 'No matching tickets found to update.' };
+        }
+        
+        // 4. Execute batch update
+        await sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+                valueInputOption: 'USER_ENTERED',
+                data: updateRequests,
+            },
+        });
+        
+        return { success: true, message: `Successfully updated ${updatedCount} rows.` };
+
+    } catch (error: any) {
+        console.error('Failed to update sheet status:', error.message);
+        const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred during sheet update.';
+        return { error: apiError };
+    }
+}
+
+
+export async function importToSheet(
+    data: { headers: string[], rows: Record<string, any>[] },
+    sheetUrl: string
+) {
     const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
@@ -96,15 +200,7 @@ export async function importToSheet(
     const spreadsheetId = match[1];
 
     try {
-        const auth = new google.auth.GoogleAuth({
-            credentials: {
-                client_email: clientEmail,
-                private_key: privateKey.replace(/\\n/g, '\n'), // Ensure private key is correctly formatted
-            },
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        });
-
-        const sheets = google.sheets({ version: 'v4', auth });
+        const sheets = getGoogleSheetsClient();
         
         const sheetName = 'All Case';
 

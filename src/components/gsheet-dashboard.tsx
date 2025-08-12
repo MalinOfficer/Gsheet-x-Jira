@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, ArrowLeft, Import } from 'lucide-react';
-import { importToSheet } from '@/app/actions';
+import { Loader2, Upload, ArrowLeft, Import, DatabaseZap } from 'lucide-react';
+import { importToSheet, updateSheetStatus } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -20,6 +20,7 @@ export function GsheetDashboard() {
   const { tableData } = useContext(TableDataContext);
   const [sheetUrl, setSheetUrl] = useState('');
   const [isImporting, startImporting] = useTransition();
+  const [isUpdating, startUpdating] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -58,6 +59,34 @@ export function GsheetDashboard() {
     };
   }, [tableData]);
 
+  const handleUpdate = async () => {
+    if (!tableData || !sheetUrl) {
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "No data available to update or sheet URL is missing.",
+      });
+      return;
+    }
+    localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
+
+    startUpdating(async () => {
+      const result = await updateSheetStatus({ rows: tableData.rows }, sheetUrl);
+      if (result.error) {
+        toast({
+          variant: "destructive",
+          title: "Update Error",
+          description: `Failed to update sheet status: ${result.error}`,
+        });
+      } else {
+        toast({
+          title: "Update Successful",
+          description: result.message,
+        });
+      }
+    });
+  };
+
   const handleImport = async () => {
     if (!tableData || !sheetUrl) {
       toast({
@@ -71,7 +100,6 @@ export function GsheetDashboard() {
     localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
 
     startImporting(async () => {
-      // Pass only the necessary data; credentials are now read from a file on the server.
       const result = await importToSheet({ headers: tableData.headers, rows: tableData.rows }, sheetUrl);
 
       if (result.error) {
@@ -121,7 +149,7 @@ export function GsheetDashboard() {
               <CardHeader>
                 <CardTitle>Import Destination</CardTitle>
                 <CardDescription>
-                  Enter your Google Sheet URL. Service account credentials are configured on the server. The data will be imported into the "All Case" sheet starting at column E.
+                  Enter your Google Sheet URL. The data will be imported into the "All Case" sheet.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -136,19 +164,34 @@ export function GsheetDashboard() {
                     />
                   </div>
                 
-                <Button onClick={handleImport} disabled={isImporting || !sheetUrl}>
-                  {isImporting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Importing...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Import to GSheet
-                    </>
-                  )}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                    <Button onClick={handleImport} disabled={isImporting || isUpdating || !sheetUrl}>
+                      {isImporting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Import to GSheet
+                        </>
+                      )}
+                    </Button>
+                    <Button onClick={handleUpdate} variant="outline" disabled={isUpdating || isImporting || !sheetUrl}>
+                        {isUpdating ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Updating...
+                            </>
+                        ) : (
+                            <>
+                                <DatabaseZap className="mr-2 h-4 w-4" />
+                                Update Status
+                            </>
+                        )}
+                    </Button>
+                </div>
               </CardContent>
             </Card>
 
