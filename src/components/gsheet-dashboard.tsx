@@ -25,40 +25,10 @@ export function GsheetDashboard() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const topScrollRef = useRef<HTMLDivElement>(null);
-  const tableScrollRef = useRef<HTMLDivElement>(null);
-  const tableRef = useRef<HTMLTableElement>(null);
-
   useEffect(() => {
     const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
     if (savedUrl) setSheetUrl(savedUrl);
   }, []);
-
-  useEffect(() => {
-    const topDiv = topScrollRef.current;
-    const tableDiv = tableScrollRef.current;
-
-    if (!topDiv || !tableDiv) return;
-
-    const syncScroll = (source: HTMLDivElement, target: HTMLDivElement) => {
-        return () => {
-            if (target.scrollLeft !== source.scrollLeft) {
-                target.scrollLeft = source.scrollLeft;
-            }
-        };
-    };
-
-    const topSync = syncScroll(topDiv, tableDiv);
-    const tableSync = syncScroll(tableDiv, topDiv);
-
-    topDiv.addEventListener('scroll', topSync);
-    tableDiv.addEventListener('scroll', tableSync);
-
-    return () => {
-        topDiv.removeEventListener('scroll', topSync);
-        tableDiv.removeEventListener('scroll', tableSync);
-    };
-  }, [tableData]);
 
   const handleUpdate = async () => {
     if (!tableData || !sheetUrl) {
@@ -266,12 +236,9 @@ export function GsheetDashboard() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
-                       <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
-                    </div>
-                    <div ref={tableScrollRef} className="w-full overflow-x-auto rounded-md border">
-                        <Table ref={tableRef}>
-                            <TableHeader>
+                    <div className="relative max-h-[600px] overflow-auto rounded-md border">
+                        <Table>
+                            <TableHeader className="sticky top-0 z-10 bg-card">
                                 <TableRow>
                                     {tableData.headers.map(header => (
                                         <TableHead 
@@ -327,5 +294,3 @@ export function GsheetDashboard() {
     </div>
   );
 }
-
-    
