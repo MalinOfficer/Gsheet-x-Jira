@@ -114,7 +114,7 @@ export async function updateSheetStatus(
     try {
         const sheets = getGoogleSheetsClient();
 
-        // 1. Fetch current data from the sheet (columns E for Status and M for Detail Case)
+        // 1. Fetch current data from the sheet (column M for Detail Case)
         const rangeToRead = `${sheetName}!M:M`;
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
@@ -156,7 +156,7 @@ export async function updateSheetStatus(
                     
                     if (rowToUpdate) {
                         updateRequests.push({
-                            range: `${sheetName}!E${rowToUpdate}`,
+                            range: `${sheetName}!G${rowToUpdate}`,
                             values: [[newStatus]],
                         });
                         updatedCount++;
