@@ -23,7 +23,12 @@ const DEFAULT_TEMPLATE = 'Customer Name,Client Name,Status,Kolom kosong1,Ticket 
 
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
-    const [templateInput, setTemplateInput] = useState(DEFAULT_TEMPLATE);
+    const [templateInput, setTemplateInput] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE) || DEFAULT_TEMPLATE;
+        }
+        return DEFAULT_TEMPLATE;
+    });
     const { tableData, setTableData } = useContext(TableDataContext);
     const [error, setError] = useState<string | null>(null);
     const [isCopied, setIsCopied] = useState(false);
@@ -41,21 +46,14 @@ export function JsonConverter() {
 
 
     useEffect(() => {
-        const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE);
-        if (savedTemplate) {
-            setTemplateInput(savedTemplate);
-        } else {
-            setTemplateInput(DEFAULT_TEMPLATE);
-        }
-
         const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
         if (savedJson) {
-            // Use a temporary variable for the template to avoid state update issues on initial load
-            const initialTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE) || DEFAULT_TEMPLATE;
-            handleConvert(savedJson, initialTemplate, true);
+            setJsonInput(savedJson);
+            // We pass templateInput directly here, which is already initialized from localStorage
+            handleConvert(savedJson, templateInput, true);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, []); // Only run on initial mount
 
     useEffect(() => {
         const topDiv = topScrollRef.current;
