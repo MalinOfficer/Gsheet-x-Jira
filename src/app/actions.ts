@@ -69,8 +69,7 @@ export async function fetchSheetData(url: string) {
 
 export async function importToSheet(
     data: { headers: string[], rows: Record<string, any>[] },
-    sheetUrl: string,
-    sheetName: string = 'Sheet1'
+    sheetUrl: string
 ) {
     let credentials;
     try {
@@ -106,26 +105,22 @@ export async function importToSheet(
         });
 
         const sheets = google.sheets({ version: 'v4', auth });
-
-        // 1. Clear the existing data
-        await sheets.spreadsheets.values.clear({
-            spreadsheetId,
-            range: `${sheetName}!A1:Z`, // Clear a large range
-        });
         
-        // 2. Write new data (headers + rows)
+        const sheetName = 'All Case';
+
+        // Write new data starting from column E.
         const values = [data.headers, ...data.rows.map(row => data.headers.map(header => row[header]))];
 
         await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `${sheetName}!A1`,
+            range: `${sheetName}!E1`, // Start writing from cell E1
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values,
             },
         });
 
-        return { success: true, message: `Successfully imported ${data.rows.length} rows.` };
+        return { success: true, message: `Successfully imported ${data.rows.length} rows to '${sheetName}' sheet.` };
 
     } catch (error: any) {
         console.error('Failed to import to sheet:', error.message);

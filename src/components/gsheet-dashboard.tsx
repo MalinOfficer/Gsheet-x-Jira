@@ -71,7 +71,7 @@ export function GsheetDashboard() {
     localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
 
     startImporting(async () => {
-      // Credentials are now read from a file on the server
+      // Pass only the necessary data; credentials are now read from a file on the server.
       const result = await importToSheet({ headers: tableData.headers, rows: tableData.rows }, sheetUrl);
 
       if (result.error) {
@@ -121,7 +121,7 @@ export function GsheetDashboard() {
               <CardHeader>
                 <CardTitle>Import Destination</CardTitle>
                 <CardDescription>
-                  Enter your Google Sheet URL. Service account credentials are now configured on the server.
+                  Enter your Google Sheet URL. Service account credentials are configured on the server. The data will be imported into the "All Case" sheet starting at column E.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -156,7 +156,7 @@ export function GsheetDashboard() {
                 <CardHeader>
                     <CardTitle>Preview Data for Import</CardTitle>
                     <CardDescription>
-                        This is the data you converted. It will overwrite the content of the target sheet.
+                        This is the data you converted. It will be imported into the target sheet.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
