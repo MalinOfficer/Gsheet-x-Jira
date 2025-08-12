@@ -28,8 +28,8 @@ function NavLinks() {
                     key={item.label}
                     href={item.href}
                     className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                        pathname === item.href && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                        pathname === item.href && "bg-accent text-accent-foreground font-semibold"
                     )}
                 >
                     <item.icon className="h-4 w-4" />
@@ -49,8 +49,8 @@ function BottomNavLinks() {
                     key={item.label}
                     href={item.href}
                     className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                        pathname === item.href && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                        pathname === item.href && "bg-accent text-accent-foreground font-semibold"
                     )}
                 >
                     <item.icon className="h-4 w-4" />
@@ -68,16 +68,16 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className={cn("flex min-h-screen w-full", theme)}>
             {/* Sidebar for Desktop */}
-            <aside className="hidden md:flex flex-col w-64 border-r bg-card">
+            <aside className="hidden md:flex flex-col w-64 border-r bg-card text-card-foreground">
                 <div className="flex h-16 items-center border-b px-6">
                     <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                         <GanttChartSquare className="h-6 w-6" />
                         <span>GSheet Tools</span>
                     </Link>
                 </div>
-                <nav className="flex-1 flex flex-col gap-4 p-4 text-sm font-medium">
+                <nav className="flex-1 flex flex-col gap-1 p-4 text-sm font-medium">
                     <NavLinks />
-                    <div className="mt-auto">
+                    <div className="mt-auto flex flex-col gap-1">
                         <BottomNavLinks />
                     </div>
                 </nav>
@@ -109,8 +109,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                             </div>
                         </SheetContent>
                     </Sheet>
-                    <div className="flex w-full items-center justify-end gap-4">
-                        {/* Mobile Header Right Side Content */}
+                     <div className="flex w-full items-center justify-start gap-4">
+                        <Link href="/" className="flex items-center gap-2 font-semibold text-primary md:hidden">
+                            <GanttChartSquare className="h-6 w-6" />
+                            <span>GSheet Tools</span>
+                        </Link>
                     </div>
                 </header>
                 <main className="flex-1 flex flex-col bg-background">{children}</main>
