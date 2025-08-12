@@ -40,9 +40,7 @@ export function JsonConverter() {
     
     useEffect(() => {
         const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE);
-        if (savedTemplate) {
-            setTemplateInput(savedTemplate);
-        }
+        setTemplateInput(savedTemplate || DEFAULT_TEMPLATE);
         
         const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
         if (savedJson) {
@@ -374,7 +372,7 @@ export function JsonConverter() {
                                     placeholder="e.g., id,name,email"
                                     value={templateInput}
                                     onChange={(e) => setTemplateInput(e.target.value)}
-                                    rows={10}
+                                    rows={4}
                                     className="font-mono"
                                     aria-label="Convert To Headers"
                                 />
