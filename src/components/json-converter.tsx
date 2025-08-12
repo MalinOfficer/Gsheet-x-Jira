@@ -460,9 +460,9 @@ export function JsonConverter() {
                             <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
                                <div style={{ width: tableRef.current?.getBoundingClientRect().width, height: '1px' }}></div>
                             </div>
-                            <div ref={tableScrollRef} className="w-full overflow-x-auto rounded-md border">
+                            <div ref={tableScrollRef} className="relative w-full overflow-auto max-h-[600px] rounded-md border">
                                 <Table ref={tableRef}>
-                                    <TableHeader>
+                                    <TableHeader className="sticky top-0 z-10 bg-card">
                                         <TableRow>
                                             {tableData.headers.map((header, index) => (
                                                 <TableHead key={`${header}-${index}`} className="font-bold whitespace-nowrap bg-muted/50">
