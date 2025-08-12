@@ -12,13 +12,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { TableDataContext } from '@/store/table-data-context';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 
 
 export function GsheetDashboard() {
-  const { tableData } = useContext(TableDataContext);
+  const { tableData, setTableData } = useContext(TableDataContext);
   const [sheetUrl, setSheetUrl] = useState('');
   const [isImporting, startImporting] = useTransition();
   const [isUpdating, startUpdating] = useTransition();
@@ -115,6 +115,7 @@ export function GsheetDashboard() {
     localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
 
     startImporting(async () => {
+      if (!tableData) return;
       const result = await importToSheet({ headers: tableData.headers, rows: tableData.rows }, sheetUrl);
 
       if (result.error) {
@@ -130,6 +131,13 @@ export function GsheetDashboard() {
         });
       }
     });
+  };
+  
+  const handleStatusChange = (rowIndex: number, newStatus: string) => {
+    if (!tableData) return;
+    const newRows = [...tableData.rows];
+    newRows[rowIndex]['Status'] = newStatus;
+    setTableData({ ...tableData, rows: newRows });
   };
 
   const InitialState = () => (
@@ -239,14 +247,31 @@ export function GsheetDashboard() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {tableData.rows.map((row, index) => (
-                                    <TableRow key={index} className="hover:bg-muted/50">
-                                        {tableData.headers.map(header => (
+                                {tableData.rows.map((row, rowIndex) => (
+                                    <TableRow key={rowIndex} className="hover:bg-muted/50">
+                                        {tableData.headers.map((header, headerIndex) => (
                                             <TableCell 
-                                                key={`${header}-${index}`} 
+                                                key={`${header}-${headerIndex}-${rowIndex}`} 
                                                 className="whitespace-nowrap"
                                             >
-                                                {String(row[header] || '')}
+                                               {header === 'Status' ? (
+                                                    <Select
+                                                        value={String(row[header] ?? '')}
+                                                        onValueChange={(newStatus) => handleStatusChange(rowIndex, newStatus)}
+                                                    >
+                                                        <SelectTrigger className="w-[120px] h-8 text-xs">
+                                                            <SelectValue placeholder="Select status" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="L1">L1</SelectItem>
+                                                            <SelectItem value="L2">L2</SelectItem>
+                                                            <SelectItem value="L3">L3</SelectItem>
+                                                            <SelectItem value="Solved">Solved</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                ) : (
+                                                    String(row[header] || '')
+                                                )}
                                             </TableCell>
                                         ))}
                                     </TableRow>
