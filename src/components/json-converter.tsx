@@ -25,12 +25,7 @@ export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
     
     // Initialize templateInput from localStorage or use default
-    const [templateInput, setTemplateInput] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE) || DEFAULT_TEMPLATE;
-        }
-        return DEFAULT_TEMPLATE;
-    });
+    const [templateInput, setTemplateInput] = useState(DEFAULT_TEMPLATE);
 
     const { tableData, setTableData } = useContext(TableDataContext);
     const [error, setError] = useState<string | null>(null);
@@ -43,12 +38,17 @@ export function JsonConverter() {
     });
     const router = useRouter();
     
-    // On initial mount, load saved JSON and convert it using the current template state
     useEffect(() => {
+        const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE);
+        if (savedTemplate) {
+            setTemplateInput(savedTemplate);
+        }
+        
         const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
         if (savedJson) {
             setJsonInput(savedJson);
-            handleConvert(savedJson, templateInput, true); // Pass current templateInput
+            // Use the template that is in the state (which has been loaded from storage)
+            handleConvert(savedJson, savedTemplate || DEFAULT_TEMPLATE, true);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Empty dependency array ensures this runs only once on mount
@@ -416,7 +416,7 @@ export function JsonConverter() {
                                         {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
                                         {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
                                     </Button>
-                                    <Button onClick={() => router.push('/report-harian')} variant="secondary" className="w-full sm:w-auto">
+                                    <Button onClick={() => router.push('/report-harian')} className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
                                         <BarChart className="mr-2 h-4 w-4" />
                                         View as Report
                                     </Button>
