@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, ArrowLeft, Import, DatabaseZap } from 'lucide-react';
+import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save } from 'lucide-react';
 import { importToSheet, updateSheetStatus } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
@@ -132,6 +132,22 @@ export function GsheetDashboard() {
       }
     });
   };
+
+  const handleSaveUrlAsDefault = () => {
+    if (!sheetUrl) {
+        toast({
+            variant: "destructive",
+            title: "Cannot Save",
+            description: "Please enter a URL before setting it as default.",
+        });
+        return;
+    }
+    localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
+    toast({
+        title: "URL Saved",
+        description: "The Google Sheet URL has been saved as your default.",
+    });
+  };
   
   const handleStatusChange = (rowIndex: number, newStatus: string) => {
     if (!tableData) return;
@@ -178,13 +194,19 @@ export function GsheetDashboard() {
               <CardContent className="space-y-4">
                  <div className="grid gap-2">
                     <Label htmlFor="gsheet-url">Target Google Sheet URL</Label>
-                    <Input
-                      id="gsheet-url"
-                      type="url"
-                      placeholder="https://docs.google.com/spreadsheets/d/..."
-                      value={sheetUrl}
-                      onChange={(e) => setSheetUrl(e.target.value)}
-                    />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="gsheet-url"
+                        type="url"
+                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                        value={sheetUrl}
+                        onChange={(e) => setSheetUrl(e.target.value)}
+                        className="flex-grow"
+                      />
+                      <Button onClick={handleSaveUrlAsDefault} variant="outline" size="icon" aria-label="Set as default">
+                          <Save className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 
                 <div className="flex flex-wrap gap-2">
