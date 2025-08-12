@@ -108,13 +108,14 @@ export async function importToSheet(
         
         const sheetName = 'All Case';
 
-        // Write new data starting from column E.
-        const values = [data.headers, ...data.rows.map(row => data.headers.map(header => row[header]))];
+        // Prepare rows without headers for appending
+        const values = data.rows.map(row => data.headers.map(header => row[header]));
 
-        await sheets.spreadsheets.values.update({
+        await sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: `${sheetName}!E1`, // Start writing from cell E1
+            range: `${sheetName}!E1`, // Append after the last row with data, starting from column E
             valueInputOption: 'USER_ENTERED',
+            insertDataOption: 'INSERT_ROWS',
             requestBody: {
                 values,
             },
