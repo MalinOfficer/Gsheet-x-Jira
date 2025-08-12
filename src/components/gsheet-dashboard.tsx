@@ -104,32 +104,47 @@ export function GsheetDashboard() {
 
   const handleImport = async () => {
     if (!tableData || !sheetUrl) {
-      toast({
-        variant: "destructive",
-        title: "Import Failed",
-        description: "No data to import or sheet URL is missing.",
-      });
-      return;
+        toast({
+            variant: "destructive",
+            title: "Import Failed",
+            description: "No data to import or sheet URL is missing.",
+        });
+        return;
     }
     
     localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
 
     startImporting(async () => {
-      if (!tableData) return;
-      const result = await importToSheet({ headers: tableData.headers, rows: tableData.rows }, sheetUrl);
+        if (!tableData) return;
+        const result = await importToSheet({ headers: tableData.headers, rows: tableData.rows }, sheetUrl);
 
-      if (result.error) {
-        toast({
-          variant: "destructive",
-          title: "Import Error",
-          description: `Failed to import to sheet: ${result.error}`,
-        });
-      } else {
-        toast({
-          title: "Import Successful",
-          description: result.message,
-        });
-      }
+        if (result.error) {
+            toast({
+                variant: "destructive",
+                title: "Import Error",
+                description: `Failed to import to sheet: ${result.error}`,
+            });
+        } else {
+            toast({
+                title: "Import Complete",
+                description: (
+                    <div>
+                        {result.importedCount > 0 && <p>{result.importedCount} new rows imported.</p>}
+                        {result.duplicateCount > 0 && (
+                            <div className="mt-2 text-xs">
+                                <p className="font-bold">{result.duplicateCount} duplicate rows found and skipped:</p>
+                                <ul className="list-disc pl-5 max-h-20 overflow-y-auto">
+                                    {(result.duplicates ?? []).map((item, index) => (
+                                        <li key={index}>{item}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {!result.importedCount && !result.duplicateCount && <p>No new data was imported.</p>}
+                    </div>
+                ),
+            });
+        }
     });
   };
 

@@ -114,7 +114,8 @@ export async function updateSheetStatus(
     try {
         const sheets = getGoogleSheetsClient();
 
-        const rangeToRead = `${sheetName}!M:M`;
+        // Read the title column (M) to map ticket numbers to row indices
+        const rangeToRead = `${sheetName}!M:M`; 
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
             range: rangeToRead,
@@ -133,7 +134,7 @@ export async function updateSheetStatus(
                 const match = detailCase.match(ticketNumberRegex);
                 if (match && match[1]) {
                     const ticketNumber = match[1];
-                    rowMap[ticketNumber] = index + 1;
+                    rowMap[ticketNumber] = index + 1; // 1-based index for sheets
                 }
             }
         });
@@ -197,14 +198,47 @@ export async function importToSheet(
 
     try {
         const sheets = getGoogleSheetsClient();
-        
         const sheetName = 'All Case';
 
-        const values = data.rows.map(row => {
+        // 1. Get existing titles from the sheet to check for duplicates.
+        // The title is in column M.
+        const titleRange = `${sheetName}!M:M`;
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: titleRange,
+        });
+
+        const existingTitles = new Set(response.data.values ? response.data.values.flat() : []);
+
+        // 2. Filter out rows that are already in the sheet.
+        const newRows = [];
+        const duplicateRows = [];
+        for (const row of data.rows) {
+            const title = row['Title'];
+            if (title && !existingTitles.has(title)) {
+                newRows.push(row);
+            } else {
+                duplicateRows.push(title);
+            }
+        }
+        
+        if (newRows.length === 0) {
+            return {
+                success: true,
+                message: 'No new data to import.',
+                importedCount: 0,
+                duplicateCount: duplicateRows.length,
+                duplicates: duplicateRows
+            };
+        }
+
+        // 3. Prepare values for appending, adding empty columns for A-D.
+        const values = newRows.map(row => {
             const rowValues = data.headers.map(header => row[header]);
             return ['', '', '', '', ...rowValues];
         });
 
+        // 4. Append only the new rows.
         await sheets.spreadsheets.values.append({
             spreadsheetId,
             range: `${sheetName}!A1`, 
@@ -215,7 +249,13 @@ export async function importToSheet(
             },
         });
 
-        return { success: true, message: `Successfully imported ${data.rows.length} rows to '${sheetName}' sheet.` };
+        return {
+            success: true,
+            message: `Import complete.`,
+            importedCount: newRows.length,
+            duplicateCount: duplicateRows.length,
+            duplicates: duplicateRows
+        };
 
     } catch (error: any) {
         console.error('Failed to import to sheet:', error.message);
