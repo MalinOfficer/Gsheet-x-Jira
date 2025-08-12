@@ -114,8 +114,8 @@ export async function updateSheetStatus(
     try {
         const sheets = getGoogleSheetsClient();
 
-        // Read the title column (M) to map ticket numbers to row indices
-        const rangeToRead = `${sheetName}!M:M`; 
+        // Read the title (M) and status (G) columns to map ticket numbers to row indices and get current status
+        const rangeToRead = `${sheetName}!G:M`; 
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
             range: rangeToRead,
@@ -127,14 +127,19 @@ export async function updateSheetStatus(
         }
 
         const ticketNumberRegex = /#(\d+)/;
-        const rowMap: Record<string, number> = {};
+        // The G column is index 0, and M is index 6 in the response
+        const rowMap: Record<string, { rowIndex: number, currentStatus: string }> = {};
         sheetRows.forEach((row, index) => {
-            const detailCase = row[0];
+            const currentStatus = row[0] || '';
+            const detailCase = row[6]; // Column M
             if (typeof detailCase === 'string') {
                 const match = detailCase.match(ticketNumberRegex);
                 if (match && match[1]) {
                     const ticketNumber = match[1];
-                    rowMap[ticketNumber] = index + 1; // 1-based index for sheets
+                    rowMap[ticketNumber] = { 
+                        rowIndex: index + 1, // 1-based index for sheets
+                        currentStatus: currentStatus 
+                    };
                 }
             }
         });
@@ -150,11 +155,11 @@ export async function updateSheetStatus(
                 const match = detailCase.match(ticketNumberRegex);
                 if (match && match[1]) {
                     const ticketNumber = match[1];
-                    const rowToUpdate = rowMap[ticketNumber];
+                    const sheetRowInfo = rowMap[ticketNumber];
                     
-                    if (rowToUpdate) {
+                    if (sheetRowInfo && sheetRowInfo.currentStatus !== newStatus) {
                         updateRequests.push({
-                            range: `${sheetName}!G${rowToUpdate}`,
+                            range: `${sheetName}!G${sheetRowInfo.rowIndex}`,
                             values: [[newStatus]],
                         });
                         updatedRows.push({ title: detailCase, status: newStatus });
@@ -164,7 +169,7 @@ export async function updateSheetStatus(
         }
         
         if (updateRequests.length === 0) {
-            return { success: true, message: 'No matching tickets found to update.', updatedRows: [] };
+            return { success: true, message: 'No status changes detected. Everything is up-to-date.', updatedRows: [] };
         }
         
         await sheets.spreadsheets.values.batchUpdate({
