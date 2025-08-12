@@ -28,25 +28,26 @@ export function ThemeProvider({
   defaultTheme?: Theme;
   storageKey?: string;
 }) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme);
-
-  useEffect(() => {
-    const storedTheme = localStorage.getItem(storageKey) as Theme | null;
-    if (storedTheme) {
-      setTheme(storedTheme);
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') {
+      return defaultTheme;
     }
-  }, [storageKey]);
+    return (localStorage.getItem(storageKey) as Theme | null) || defaultTheme;
+  });
 
   useEffect(() => {
     const root = window.document.documentElement;
+    
     root.classList.remove('default', 'dark', 'forest');
-    
-    let effectiveTheme = theme;
+
     if (theme === 'system') {
-      effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default';
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+        .matches ? 'dark' : 'default'
+      root.classList.add(systemTheme)
+      return
     }
-    
-    root.classList.add(effectiveTheme);
+
+    root.classList.add(theme);
   }, [theme]);
 
   const value = {
