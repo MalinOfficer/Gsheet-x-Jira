@@ -9,8 +9,7 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 
 const navItems = [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/json-converter", label: "Json Converter", icon: Braces },
+    { href: "/", label: "Json Converter", icon: Braces },
     { href: "/report-harian", label: "Report Harian", icon: BarChart },
     { href: "/update-case-l3", label: "Update Cases", icon: GanttChartSquare },
 ];

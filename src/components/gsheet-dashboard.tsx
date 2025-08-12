@@ -60,7 +60,7 @@ export function GsheetDashboard() {
                   <p className="font-bold">Updated Cases:</p>
                   <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
                     {result.updatedRows.map((item: { title: string, status: string }, index: number) => (
-                      <li key={index}>{item.title} -&gt; <strong>{item.status}</strong></li>
+                      <li key={index}>{item.title} -> <strong>{item.status}</strong></li>
                     ))}
                   </ul>
                 </div>
@@ -148,7 +148,7 @@ export function GsheetDashboard() {
         <CardDescription className="mt-2 mb-4">
             First, convert your JSON data on the converter page.
         </CardDescription>
-        <Button onClick={() => router.push('/json-converter')}>
+        <Button onClick={() => router.push('/')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Converter
         </Button>

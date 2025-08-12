@@ -25,7 +25,7 @@ function InitialState() {
         <CardDescription className="mt-2 mb-4">
             Go back to the JSON to Table page to convert your data first.
         </CardDescription>
-        <Button onClick={() => router.push('/json-converter')}>
+        <Button onClick={() => router.push('/')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Converter
         </Button>
