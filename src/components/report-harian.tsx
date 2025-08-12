@@ -38,7 +38,7 @@ export function ReportHarian() {
   const { toast } = useToast();
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
-  const [statusFilter, setStatusFilter] = useState<string>(ALL_ITEMS_VALUE);
+  const [filters, setFilters] = useState<Record<string, string>>({});
   const [columnUniqueValues, setColumnUniqueValues] = useState<Record<string, string[]>>({});
   const [dateFormats, setDateFormats] = useState<Record<string, DateFormat>>({
     'Created At': 'report',
@@ -201,20 +201,25 @@ export function ReportHarian() {
   useEffect(() => {
     if (tableData?.rows) {
       const uniqueVals: Record<string, string[]> = {};
-      const statusHeader = 'Status';
-      if (tableData.headers.includes(statusHeader)) {
-          const values = new Set(tableData.rows.map(row => String(row[statusHeader] || '')));
-          uniqueVals[statusHeader] = [...Array.from(values).filter(v => v).sort()];
-      }
+      tableData.headers.forEach(header => {
+        const values = new Set(tableData.rows.map(row => String(row[header] || '')));
+        uniqueVals[header] = [...Array.from(values).filter(v => v).sort()];
+      });
       setColumnUniqueValues(uniqueVals);
     }
   }, [tableData]);
   
 
   const handleFilterChange = (header: string, value: string) => {
-    if (header === 'Status') {
-        setStatusFilter(value);
-    }
+    setFilters(prev => {
+        const newFilters = { ...prev };
+        if (value === ALL_ITEMS_VALUE) {
+            delete newFilters[header];
+        } else {
+            newFilters[header] = value;
+        }
+        return newFilters;
+    });
   };
 
   const handleDateFormatChange = (header: string, format: string) => {
@@ -274,12 +279,17 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
 
   const filteredData = useMemo(() => {
     if (!tableData?.rows) return [];
+    
+    const activeFilters = Object.entries(filters);
+    if (activeFilters.length === 0) return tableData.rows;
+
     return tableData.rows.filter(row => {
-      if (statusFilter === ALL_ITEMS_VALUE) return true;
-      const cellValue = String(row['Status'] || '');
-      return cellValue.toLowerCase() === statusFilter.toLowerCase();
+        return activeFilters.every(([header, value]) => {
+            const cellValue = String(row[header] || '');
+            return cellValue.toLowerCase() === value.toLowerCase();
+        });
     });
-  }, [tableData, statusFilter]);
+  }, [tableData, filters]);
 
   
   function MainContent() {
@@ -383,22 +393,22 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                               <TableRow className="bg-muted/50">
                                   {tableData.headers.map(header => (
                                       <TableHead key={`${header}-filter`} className="whitespace-nowrap">
-                                          {header === 'Status' ? (
+                                          {(columnUniqueValues[header] || []).length > 0 ? (
                                             <Select
-                                              value={statusFilter}
+                                              value={filters[header] || ALL_ITEMS_VALUE}
                                               onValueChange={(value) => handleFilterChange(header, value)}
                                             >
-                                              <SelectTrigger>
-                                                <SelectValue placeholder="Filter by Status..." />
+                                              <SelectTrigger className="text-xs h-8">
+                                                <SelectValue placeholder={`Filter ${header}...`} />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                <SelectItem value={ALL_ITEMS_VALUE}>All Statuses</SelectItem>
+                                                <SelectItem value={ALL_ITEMS_VALUE}>All</SelectItem>
                                                 {(columnUniqueValues[header] || []).map(value => (
                                                   <SelectItem key={value} value={value}>{value}</SelectItem>
                                                 ))}
                                               </SelectContent>
                                             </Select>
-                                          ) : <div style={{ height: '40px' }}></div>}
+                                          ) : <div style={{ height: '32px' }}></div>}
                                       </TableHead>
                                   ))}
                               </TableRow>
@@ -453,3 +463,5 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
     </div>
   );
 }
+
+    
