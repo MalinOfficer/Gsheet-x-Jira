@@ -156,11 +156,11 @@ export function GsheetDashboard() {
   );
 
   return (
-    <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="flex-1 bg-background text-foreground p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         <header>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">Update Cases</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Update Cases</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Review the data converted from JSON and import it into your target Google Sheet.
           </p>
         </header>
@@ -195,7 +195,7 @@ export function GsheetDashboard() {
                   </div>
                 
                 <div className="flex flex-wrap gap-2">
-                    <Button onClick={handleImport} disabled={isImporting || isUpdating || !sheetUrl}>
+                    <Button onClick={handleImport} size="sm" disabled={isImporting || isUpdating || !sheetUrl}>
                       {isImporting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -210,6 +210,7 @@ export function GsheetDashboard() {
                     </Button>
                     <Button 
                         onClick={handleUpdate} 
+                        size="sm"
                         className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950"
                         disabled={isUpdating || isImporting || !sheetUrl}>
                         {isUpdating ? (
@@ -228,7 +229,7 @@ export function GsheetDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-lg mt-8">
+            <Card className="shadow-lg mt-6">
                 <CardHeader>
                     <CardTitle>Preview Data for Import</CardTitle>
                     <CardDescription>
@@ -236,14 +237,14 @@ export function GsheetDashboard() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="relative max-h-[600px] overflow-auto rounded-md border">
+                    <div className="relative max-h-[500px] overflow-auto rounded-md border">
                         <Table>
                             <TableHeader className="sticky top-0 z-10 bg-card">
                                 <TableRow>
                                     {tableData.headers.map(header => (
                                         <TableHead 
                                             key={header} 
-                                            className="font-bold whitespace-nowrap bg-muted/50"
+                                            className="font-bold bg-muted/50"
                                         >
                                            {header}
                                         </TableHead>
@@ -256,7 +257,7 @@ export function GsheetDashboard() {
                                         {tableData.headers.map((header, headerIndex) => (
                                             <TableCell 
                                                 key={`${header}-${headerIndex}-${rowIndex}`} 
-                                                className="whitespace-nowrap"
+                                                className="break-words"
                                             >
                                                {header === 'Status' ? (
                                                     <Select
@@ -294,3 +295,5 @@ export function GsheetDashboard() {
     </div>
   );
 }
+
+    

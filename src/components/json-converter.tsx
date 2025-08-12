@@ -314,11 +314,11 @@ export function JsonConverter() {
     );
 
     return (
-        <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-            <div className="max-w-7xl mx-auto space-y-8">
+        <div className="flex-1 bg-background text-foreground p-4 sm:p-6">
+            <div className="max-w-7xl mx-auto space-y-6">
                 <header>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">JSON to Table Converter</h1>
-                    <p className="text-muted-foreground mt-2">
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">JSON to Table Converter</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
                         Paste your JSON data, provide an optional header template, and convert it into a table ready to be copied.
                     </p>
                 </header>
@@ -331,7 +331,7 @@ export function JsonConverter() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                             <div className="grid gap-2">
                                 <Label htmlFor="json-input">JSON Input</Label>
                                 <Textarea
@@ -343,16 +343,16 @@ export function JsonConverter() {
                                         setTableData(null);
                                         setError(null);
                                     }}
-                                    rows={10}
+                                    rows={8}
                                     className="font-mono"
                                     aria-label="JSON Input"
                                 />
                                 <div className="flex gap-2">
-                                    <Button onClick={handleImportClick} variant="outline" className="w-fit">
+                                    <Button onClick={handleImportClick} variant="outline" size="sm" className="w-fit">
                                         <Upload className="mr-2 h-4 w-4" />
                                         Import JSON File
                                     </Button>
-                                     <Button onClick={handleDelete} variant="destructive" className="w-fit">
+                                     <Button onClick={handleDelete} variant="destructive" size="sm" className="w-fit">
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         Delete
                                     </Button>
@@ -372,12 +372,12 @@ export function JsonConverter() {
                                     placeholder="e.g., id,name,email"
                                     value={templateInput}
                                     onChange={(e) => setTemplateInput(e.target.value)}
-                                    rows={4}
+                                    rows={3}
                                     className="font-mono"
                                     aria-label="Convert To Headers"
                                 />
                                 <div className="flex gap-2">
-                                    <Button onClick={handleSaveTemplate} variant="outline" className="w-fit">
+                                    <Button onClick={handleSaveTemplate} variant="outline" size="sm" className="w-fit">
                                         <Save className="mr-2 h-4 w-4" />
                                         Save as Default
                                     </Button>
@@ -388,8 +388,8 @@ export function JsonConverter() {
                             </div>
                         </div>
 
-                        <div className="mt-6">
-                            <Button onClick={() => handleConvert(jsonInput, templateInput)} className="w-full md:w-auto" disabled={!jsonInput}>
+                        <div className="mt-4">
+                            <Button onClick={() => handleConvert(jsonInput, templateInput)} size="sm" className="w-full md:w-auto" disabled={!jsonInput}>
                                 <Braces className="mr-2 h-4 w-4" />
                                 Convert to Table
                                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -402,7 +402,7 @@ export function JsonConverter() {
                 {tableData && (
                     <Card className="shadow-lg">
                         <CardHeader>
-                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                                 <div>
                                     <CardTitle>2. Your Table is Ready</CardTitle>
                                     <CardDescription>
@@ -410,15 +410,15 @@ export function JsonConverter() {
                                     </CardDescription>
                                 </div>
                                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                    <Button onClick={handleCopyToClipboard} variant="outline" className="w-full sm:w-auto">
+                                    <Button onClick={handleCopyToClipboard} variant="outline" size="sm" className="w-full sm:w-auto">
                                         {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
                                         {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
                                     </Button>
-                                    <Button onClick={() => router.push('/report-harian')} className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
+                                    <Button onClick={() => router.push('/report-harian')} size="sm" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
                                         <BarChart className="mr-2 h-4 w-4" />
                                         View as Report
                                     </Button>
-                                    <Button onClick={() => router.push('/update-case-l3')} variant="default" className="w-full sm:w-auto">
+                                    <Button onClick={() => router.push('/update-case-l3')} variant="default" size="sm" className="w-full sm:w-auto">
                                         <GanttChartSquare className="mr-2 h-4 w-4" />
                                         Go to Import Page
                                     </Button>
@@ -426,21 +426,20 @@ export function JsonConverter() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="relative max-h-[600px] overflow-auto rounded-md border">
+                            <div className="relative max-h-[500px] overflow-auto rounded-md border">
                                 <Table>
                                     <TableHeader className="sticky top-0 z-10 bg-card">
                                         <TableRow>
                                             {tableData.headers.map((header, index) => (
-                                                <TableHead key={`${header}-${index}`} className="font-bold whitespace-nowrap bg-muted/50">
+                                                <TableHead key={`${header}-${index}`} className="font-bold bg-muted/50">
                                                     {(header === 'Created At' || header === 'Resolved At') ? (
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" className="pl-0">
-                                                                    <span className="flex items-center gap-2">
+                                                                <Button variant="ghost" className="pl-0 text-xs text-left font-bold">
+                                                                    <span className="flex items-center gap-1">
                                                                       {header}
                                                                       <Pencil className="h-3 w-3 text-muted-foreground" />
                                                                     </span>
-                                                                    <ChevronsUpDown className="ml-2 h-4 w-4" />
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent>
@@ -462,7 +461,7 @@ export function JsonConverter() {
                                         {tableData.rows.map((row, rowIndex) => (
                                             <TableRow key={rowIndex} className="hover:bg-muted/50">
                                                 {tableData.headers.map((header, headerIndex) => (
-                                                    <TableCell key={`${header}-${headerIndex}-${rowIndex}`} className="whitespace-nowrap">
+                                                    <TableCell key={`${header}-${headerIndex}-${rowIndex}`} className="break-words">
                                                         {header === 'Status' ? (
                                                             <Select
                                                                 value={String(row[header] ?? '')}
@@ -497,3 +496,5 @@ export function JsonConverter() {
         </div>
     );
 }
+
+    

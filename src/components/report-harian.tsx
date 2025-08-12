@@ -297,20 +297,20 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
     return (
     <>
       {reportStats && (
-          <Card className="shadow-lg mb-8">
+          <Card className="shadow-lg mb-6">
               <CardHeader>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <CardTitle>Reporting cases {todayDate} (update jam masuk terakhir {reportStats.formattedLatestTime})</CardTitle>
-                  <Button onClick={handleCopyAll} variant="outline">
+                  <CardTitle className="text-xl">Reporting cases {todayDate} (update jam masuk terakhir {reportStats.formattedLatestTime})</CardTitle>
+                  <Button onClick={handleCopyAll} size="sm" variant="outline">
                     {copiedSection === 'Full report' ? <Check className="text-green-500" /> : <Copy />}
                     {copiedSection === 'Full report' ? 'Copied!' : 'Copy Full Report'}
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                   <div className="space-y-4">
+              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+                   <div className="space-y-2">
                       <h3 className="font-semibold">Case Statistics</h3>
-                      <div className="text-sm space-y-2">
+                      <div className="space-y-1">
                           <p>Total cases: <span className="font-medium">{reportStats.totalCases}</span></p>
                           <p>Escalated L1: <span className="font-medium">{reportStats.escalatedL1}</span></p>
                           <p>Escalated L2: <span className="font-medium">{reportStats.escalatedL2}</span></p>
@@ -321,9 +321,9 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                           <p>Tren Case: <span className="font-medium">{reportStats.trendingCase}</span></p>
                       </div>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                       <h3 className="font-semibold">Summary detail case yang belum Resolved:</h3>
-                      <ol className="list-decimal list-inside text-sm space-y-1">
+                      <ol className="list-decimal list-inside space-y-1">
                           {reportStats.notResolvedCases.length > 0 ? (
                               reportStats.notResolvedCases.map((item, i) => <li key={i}>{item}</li>)
                           ) : (
@@ -331,9 +331,9 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                           )}
                       </ol>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     <h3 className="font-semibold">Case yang solved:</h3>
-                      <ol className="list-decimal list-inside text-sm space-y-1">
+                      <ol className="list-decimal list-inside space-y-1">
                           {reportStats.solvedCases.length > 0 ? (
                               reportStats.solvedCases.map((item, i) => <li key={i}>{item}</li>)
                           ) : (
@@ -350,29 +350,28 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
               <CardHeader>
                   <CardTitle>Filtered Report</CardTitle>
                   <CardDescription>
-                      Your data is ready. Use the dropdown on the 'Status' column to filter the report.
+                      Your data is ready. Use the dropdown on the column headers to filter the report.
                   </CardDescription>
               </CardHeader>
               <CardContent>
                   <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
                     <div style={{ height: '1px' }}></div>
                   </div>
-                  <div ref={tableContainerRef} className="w-full overflow-x-auto rounded-md border">
+                  <div ref={tableContainerRef} className="w-full overflow-x-auto rounded-md border max-h-[500px]">
                       <Table ref={tableRef}>
-                          <TableHeader>
+                          <TableHeader className="sticky top-0 bg-card z-10">
                               <TableRow>
                                   {tableData.headers.map(header => (
-                                      <TableHead key={header} className="font-bold whitespace-nowrap">
+                                      <TableHead key={header} className="font-bold">
                                           {header.startsWith("__EMPTY__") ? "" : (
                                               (header === 'Created At' || header === 'Solved At' || header === 'Resolved At') ? (
                                                   <DropdownMenu>
                                                       <DropdownMenuTrigger asChild>
-                                                          <Button variant="ghost" className="pl-0">
-                                                              <span className="flex items-center gap-2">
+                                                          <Button variant="ghost" className="pl-0 text-xs text-left font-bold">
+                                                              <span className="flex items-center gap-1">
                                                                 {header}
                                                                 <Pencil className="h-3 w-3 text-muted-foreground" />
                                                               </span>
-                                                              <ChevronsUpDown className="ml-2 h-4 w-4" />
                                                           </Button>
                                                       </DropdownMenuTrigger>
                                                       <DropdownMenuContent>
@@ -392,8 +391,8 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                               </TableRow>
                               <TableRow className="bg-muted/50">
                                   {tableData.headers.map(header => (
-                                      <TableHead key={`${header}-filter`} className="whitespace-nowrap">
-                                          {(columnUniqueValues[header] || []).length > 0 ? (
+                                      <TableHead key={`${header}-filter`}>
+                                          {(columnUniqueValues[header] || []).length > 0 && !header.toLowerCase().startsWith('kolom kosong') ? (
                                             <Select
                                               value={filters[header] || ALL_ITEMS_VALUE}
                                               onValueChange={(value) => handleFilterChange(header, value)}
@@ -418,7 +417,7 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                                   filteredData.map((row, index) => (
                                       <TableRow key={index} className="hover:bg-muted/50">
                                           {tableData.headers.map(header => (
-                                              <TableCell key={`${header}-${index}`} className="whitespace-nowrap">
+                                              <TableCell key={`${header}-${index}`} className="break-words">
                                                   {(header === 'Created At' || header === 'Solved At' || header === 'Resolved At')
                                                     ? formatDateTime(row[header], dateFormats[header] || 'report')
                                                     : String(row[header] || '')}
@@ -447,11 +446,11 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
   }
 
   return (
-    <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="flex-1 bg-background text-foreground p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         <header>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">Report Harian</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Report Harian</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             This report is generated from the data you converted. Use the dropdown to filter by status.
           </p>
         </header>
