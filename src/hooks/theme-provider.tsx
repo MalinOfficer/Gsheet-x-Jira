@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useState, useEffect, useCallback } from 'react';
@@ -27,12 +28,14 @@ export function ThemeProvider({
   defaultTheme?: Theme;
   storageKey?: string;
 }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === 'undefined') {
-      return defaultTheme;
+  const [theme, setTheme] = useState<Theme>(defaultTheme);
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem(storageKey) as Theme | null;
+    if (storedTheme) {
+      setTheme(storedTheme);
     }
-    return (localStorage.getItem(storageKey) as Theme) || defaultTheme;
-  });
+  }, [storageKey]);
 
   useEffect(() => {
     const root = window.document.documentElement;
