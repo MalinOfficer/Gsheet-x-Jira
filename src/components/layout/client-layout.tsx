@@ -7,16 +7,11 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, Braces, BarChart, GanttChartSquare, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTheme } from "@/hooks/use-theme";
 
 const navItems = [
     { href: "/", label: "JSON Converter", icon: Braces },
     { href: "/report-harian", label: "Daily Report", icon: BarChart },
     { href: "/update-case-l3", label: "Update Cases", icon: GanttChartSquare },
-];
-
-const bottomNavItems = [
-    { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 function NavLinks() {
@@ -40,33 +35,10 @@ function NavLinks() {
     );
 }
 
-function BottomNavLinks() {
-    const pathname = usePathname();
-    return (
-        <>
-            {bottomNavItems.map((item) => (
-                <Link
-                    key={item.label}
-                    href={item.href}
-                    className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
-                        pathname === item.href && "bg-accent text-accent-foreground font-semibold"
-                    )}
-                >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                </Link>
-            ))}
-        </>
-    );
-}
-
-
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-    const { theme } = useTheme();
 
     return (
-        <div className={cn("flex min-h-screen w-full", theme)}>
+        <div className={cn("flex min-h-screen w-full")}>
             {/* Sidebar for Desktop */}
             <aside className="hidden md:flex flex-col w-64 border-r bg-card text-card-foreground">
                 <div className="flex h-16 items-center border-b px-6">
@@ -77,9 +49,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 </div>
                 <nav className="flex-1 flex flex-col gap-1 p-4 text-sm font-medium">
                     <NavLinks />
-                    <div className="mt-auto flex flex-col gap-1">
-                        <BottomNavLinks />
-                    </div>
                 </nav>
             </aside>
 
@@ -104,9 +73,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                 </Link>
                                 <NavLinks />
                             </nav>
-                            <div className="mt-auto">
-                                <BottomNavLinks />
-                            </div>
                         </SheetContent>
                     </Sheet>
                      <div className="flex w-full items-center justify-start gap-4">
