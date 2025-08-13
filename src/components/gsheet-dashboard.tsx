@@ -349,19 +349,19 @@ export function GsheetDashboard() {
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            <div className='mb-2'>Apakah Anda yakin ingin memperbarui status untuk {updatePreview.length} kasus di sheet <span className="font-bold text-foreground">"{sheetTitle.name}"</span>?</div>
-                            <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
-                                <p className="font-bold">Detail Perubahan:</p>
-                                <ul className="list-disc pl-5">
-                                    {updatePreview.map((item, index) => (
-                                      <li key={index} className='text-foreground'>
-                                        {item.title}: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> <ArrowRight className="inline h-3 w-3" /> <strong>{item.newStatus}</strong>
-                                      </li>
-                                    ))}
-                                </ul>
+                            <div className="text-sm text-muted-foreground">
+                                <p className='mb-2'>Apakah Anda yakin ingin memperbarui status untuk {updatePreview.length} kasus di sheet <span className="font-bold text-foreground">"{sheetTitle.name}"</span>?</p>
+                                <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
+                                    <p className="font-bold">Detail Perubahan:</p>
+                                    <ul className="list-disc pl-5">
+                                        {updatePreview.map((item, index) => (
+                                          <li key={index} className='text-foreground'>
+                                            {item.title}: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> <ArrowRight className="inline h-3 w-3" /> <strong>{item.newStatus}</strong>
+                                          </li>
+                                        ))}
+                                    </ul>
+                                </div>
                             </div>
-                          </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel onClick={() => setUpdatePreview([])}>Batal</AlertDialogCancel>
