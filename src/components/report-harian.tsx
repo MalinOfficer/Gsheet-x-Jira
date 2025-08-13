@@ -69,7 +69,7 @@ export function ReportHarian() {
     
     const notResolvedCases = rows
       .filter(r => ['l1', 'l2', 'l3', 'pending', 'on hold'].includes(String(r.Status).toLowerCase()) && r['Client Name'] && r.Title)
-      .map(r => ({ clientName: r['Client Name'], title: r.Title as string }));
+      .map(r => ({ clientName: r['Client Name'], title: r.Title as string, status: r.Status as string }));
 
     const solvedCases = rows
       .filter(r => String(r.Status).toLowerCase() === 'solved' && r['Client Name'] && r.Title)
@@ -123,15 +123,23 @@ export function ReportHarian() {
         ? formatDateTime(latestEntryTime.toISOString(), 'jam')
         : 'N/A';
     
-    const formatTitle = (clientName: string, title: string) => {
+    const formatSolvedCase = (clientName: string, title: string) => {
       if (!clientName || !title) return title || clientName || '';
       return `${clientName} ${title}`.trim();
     };
+
+    const formatUnresolvedCase = (clientName: string, title: string, status: string) => {
+      let caseDetail = '';
+      if (clientName) caseDetail += clientName;
+      if (title) caseDetail += ` ${title}`;
+      if (status) caseDetail += ` ${status}`;
+      return caseDetail.trim();
+    }
     
     return {
       totalCases, escalatedL1, escalatedL2, escalatedL3, pending, solved,
-      notResolvedCases: notResolvedCases.map(item => formatTitle(item.clientName, item.title)),
-      solvedCases: solvedCases.map(item => formatTitle(item.clientName, item.title)),
+      notResolvedCases: notResolvedCases.map(item => formatUnresolvedCase(item.clientName, item.title, item.status)),
+      solvedCases: solvedCases.map(item => formatSolvedCase(item.clientName, item.title)),
       formattedLatestTime, trendingClient, trendingCase,
     };
   }, [tableData]);
@@ -238,7 +246,7 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                   <CardTitle className="text-xl">Reporting cases {todayDate} (update jam masuk terakhir {reportStats.formattedLatestTime})</CardTitle>
                   <Button onClick={handleCopyAll} size="sm" variant="outline" className="w-full sm:w-auto">
                     <div className="flex items-center justify-center">
-                      {copiedSection === 'Full report' ? <Check className="text-green-500 mr-2" /> : <Copy className="mr-2" />}
+                      {copiedSection === 'Full report' ? <Check className="text-green-500 mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
                       {copiedSection === 'Full report' ? 'Copied!' : 'Copy Full Report'}
                     </div>
                   </Button>
@@ -380,7 +388,7 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
   }
 
   return (
-    <div className="flex-1 bg-background text-foreground p-4 sm:p-6">
+    <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <header>
           <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Report Harian</h1>
@@ -396,5 +404,3 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
     </div>
   );
 }
-
-    
