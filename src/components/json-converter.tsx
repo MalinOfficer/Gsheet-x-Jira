@@ -102,7 +102,7 @@ export function JsonConverter() {
         setIsCopied(false);
 
         if (!jsonString.trim()) {
-            if (!silent) setError("Input JSON tidak boleh kosong.");
+            if (!silent) setError("JSON input cannot be empty.");
             return;
         }
 
@@ -110,7 +110,7 @@ export function JsonConverter() {
             let data = JSON.parse(jsonString);
             if (!Array.isArray(data)) data = [data];
             if (data.length === 0) {
-                if (!silent) setError("Array JSON kosong.");
+                if (!silent) setError("JSON array is empty.");
                 return;
             }
 
@@ -162,13 +162,13 @@ export function JsonConverter() {
 
             if (!silent) {
                 toast({
-                    title: "Konversi Berhasil",
-                    description: "JSON Anda telah dikonversi dan diurutkan.",
+                    title: "Conversion Successful",
+                    description: "Your JSON has been converted and sorted.",
                 });
             }
 
         } catch (e) {
-            setError(e instanceof Error ? `JSON tidak valid: ${e.message}` : "Terjadi kesalahan yang tidak diketahui saat konversi.");
+            setError(e instanceof Error ? `Invalid JSON: ${e.message}` : "An unknown error occurred during conversion.");
         }
     };
     
@@ -194,15 +194,15 @@ export function JsonConverter() {
         navigator.clipboard.writeText(tsv).then(() => {
             setIsCopied(true);
             toast({
-                title: "Berhasil disalin ke clipboard!",
-                description: "Anda sekarang dapat menempelkan data ke Google Sheets, Excel, atau perangkat lunak spreadsheet lainnya.",
+                title: "Copied to clipboard!",
+                description: "You can now paste the data into Google Sheets, Excel, or other spreadsheet software.",
             });
             setTimeout(() => setIsCopied(false), 2000);
         }, () => {
             toast({
                 variant: "destructive",
-                title: "Gagal menyalin",
-                description: "Tidak dapat menyalin data ke clipboard. Silakan coba lagi.",
+                title: "Copy failed",
+                description: "Could not copy data to clipboard. Please try again.",
             });
         });
     };
@@ -219,7 +219,7 @@ export function JsonConverter() {
                 handleConvert(text, templateInput);
             }
         };
-        reader.onerror = () => setError("Gagal membaca file.");
+        reader.onerror = () => setError("Failed to read file.");
         reader.readAsText(file);
         event.target.value = '';
     };
@@ -232,8 +232,8 @@ export function JsonConverter() {
         setError(null);
         localStorage.removeItem(LOCAL_STORAGE_KEY_INPUT);
         toast({
-            title: "Input Dihapus",
-            description: "Input JSON dan data yang tersimpan telah dihapus.",
+            title: "Input Cleared",
+            description: "JSON input and stored data have been cleared.",
         });
     };
 
@@ -241,14 +241,14 @@ export function JsonConverter() {
         try {
             localStorage.setItem(LOCAL_STORAGE_KEY_TEMPLATE, templateInput);
             toast({
-                title: "Templat Disimpan",
-                description: "Templat header Anda saat ini telah disimpan sebagai default.",
+                title: "Template Saved",
+                description: "Your current header template has been saved as the default.",
             });
         } catch (error) {
             toast({
                 variant: "destructive",
-                title: "Gagal menyimpan templat",
-                description: "Tidak dapat menyimpan templat ke penyimpanan lokal.",
+                title: "Failed to save template",
+                description: "Could not save template to local storage.",
             });
         }
     };
@@ -273,7 +273,7 @@ export function JsonConverter() {
     const ErrorAlert = ({ message }: { message: string }) => (
         <Alert variant="destructive" className="mt-4">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Kesalahan</AlertTitle>
+            <AlertTitle>Error</AlertTitle>
             <AlertDescription>{message}</AlertDescription>
         </Alert>
     );
@@ -282,7 +282,7 @@ export function JsonConverter() {
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6">
             <div className="max-w-7xl mx-auto space-y-6">
                 <header>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Konverter JSON ke Tabel</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">JSON to Table Converter</h1>
                     <p className="text-sm text-muted-foreground mt-1">
                         Tempel data JSON Anda, sediakan templat header opsional, dan konversikan menjadi tabel yang siap disalin.
                     </p>
@@ -290,7 +290,7 @@ export function JsonConverter() {
                 
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>1. Sediakan Data Anda</CardTitle>
+                        <CardTitle>1. Provide Your Data</CardTitle>
                         <CardDescription>
                             Tempel JSON Anda, impor file, dan secara opsional berikan daftar header yang dipisahkan koma untuk output.
                         </CardDescription>
@@ -298,7 +298,7 @@ export function JsonConverter() {
                     <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                             <div className="grid gap-2">
-                                <Label htmlFor="json-input">Input JSON</Label>
+                                <Label htmlFor="json-input">JSON Input</Label>
                                 <Textarea
                                     id="json-input"
                                     placeholder='[{"id": 1, "name": "John"}]'
@@ -315,11 +315,11 @@ export function JsonConverter() {
                                 <div className="flex flex-wrap gap-2">
                                     <Button onClick={handleImportClick} variant="outline" size="sm" className="w-full sm:w-auto">
                                         <Upload className="mr-2 h-4 w-4" />
-                                        Impor File JSON
+                                        Import JSON File
                                     </Button>
                                      <Button onClick={handleDelete} variant="destructive" size="sm" className="w-full sm:w-auto">
                                         <Trash2 className="mr-2 h-4 w-4" />
-                                        Hapus
+                                        Delete
                                     </Button>
                                 </div>
                                 <Input
@@ -331,10 +331,10 @@ export function JsonConverter() {
                                 />
                             </div>
                              <div className="grid gap-2">
-                                <Label htmlFor="template-input">Header "Konversi Ke" (Opsional)</Label>
+                                <Label htmlFor="template-input">"Convert To" Headers (Optional)</Label>
                                 <Textarea
                                     id="template-input"
-                                    placeholder="contoh: id,nama,email"
+                                    placeholder="e.g., id,name,email"
                                     value={templateInput}
                                     onChange={(e) => setTemplateInput(e.target.value)}
                                     rows={4}
@@ -344,7 +344,7 @@ export function JsonConverter() {
                                 <div className="flex flex-wrap gap-2">
                                     <Button onClick={handleSaveTemplate} variant="outline" size="sm" className="w-full sm:w-auto">
                                         <Save className="mr-2 h-4 w-4" />
-                                        Simpan sebagai Default
+                                        Save as Default
                                     </Button>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
@@ -356,7 +356,7 @@ export function JsonConverter() {
                         <div className="mt-4">
                             <Button onClick={() => handleConvert(jsonInput, templateInput)} size="sm" className="w-full md:w-auto" disabled={!jsonInput}>
                                 <Braces className="mr-2 h-4 w-4" />
-                                Konversi ke Tabel
+                                Convert to Table
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         </div>
@@ -369,23 +369,23 @@ export function JsonConverter() {
                         <CardHeader>
                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                                 <div>
-                                    <CardTitle>2. Tabel Anda Siap</CardTitle>
+                                    <CardTitle>2. Your Table is Ready</CardTitle>
                                     <CardDescription>
-                                        JSON telah dikonversi. Anda sekarang dapat menyalinnya atau pindah ke langkah berikutnya.
+                                        The JSON has been converted. You can now copy it or move to the next step.
                                     </CardDescription>
                                 </div>
                                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                                     <Button onClick={handleCopyToClipboard} variant="outline" size="sm" className="w-full sm:w-auto">
                                         {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                                        {isCopied ? 'Tersalin!' : 'Salin untuk Sheets/Excel'}
+                                        {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
                                     </Button>
                                     <Button onClick={() => router.push('/report-harian')} size="sm" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
                                         <BarChart className="mr-2 h-4 w-4" />
-                                        Lihat sebagai Laporan
+                                        View as Report
                                     </Button>
                                     <Button onClick={() => router.push('/update-case-l3')} variant="default" size="sm" className="w-full sm:w-auto">
                                         <GanttChartSquare className="mr-2 h-4 w-4" />
-                                        Buka Halaman Impor
+                                        Go to Import Page
                                     </Button>
                                 </div>
                             </div>
@@ -408,12 +408,12 @@ export function JsonConverter() {
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent>
-                                                                <DropdownMenuLabel>Format Tanggal</DropdownMenuLabel>
+                                                                <DropdownMenuLabel>Date Format</DropdownMenuLabel>
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuRadioGroup value={dateFormats[header] || 'report'} onValueChange={(value) => handleDateFormatChange(header, value)}>
-                                                                    <DropdownMenuRadioItem value="origin">Asli</DropdownMenuRadioItem>
-                                                                    <DropdownMenuRadioItem value="jam">Jam</DropdownMenuRadioItem>
-                                                                    <DropdownMenuRadioItem value="report">Laporan</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="jam">Time</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
                                                                 </DropdownMenuRadioGroup>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
@@ -433,7 +433,7 @@ export function JsonConverter() {
                                                                 onValueChange={(newStatus) => handleStatusChange(rowIndex, newStatus)}
                                                             >
                                                                 <SelectTrigger className="w-[120px] h-8 text-xs">
-                                                                    <SelectValue placeholder="Pilih status" />
+                                                                    <SelectValue placeholder="Select status" />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
                                                                     <SelectItem value="L1">L1</SelectItem>

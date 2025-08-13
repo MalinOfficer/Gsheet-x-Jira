@@ -21,7 +21,7 @@ export default function SettingsPage() {
       <div className="max-w-4xl mx-auto space-y-8">
         <header>
           <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">
-            Pengaturan
+            Settings
           </h1>
           <p className="text-muted-foreground mt-2">
             Sesuaikan tampilan dan nuansa aplikasi sesuai preferensi Anda.
@@ -30,9 +30,9 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Tema</CardTitle>
+            <CardTitle>Theme</CardTitle>
             <CardDescription>
-              Pilih tema untuk aplikasi. Preferensi Anda akan disimpan di browser Anda.
+             Pilih tema untuk aplikasi. Preferensi Anda akan disimpan di browser Anda.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -87,7 +87,7 @@ export default function SettingsPage() {
                     <div className="h-2 w-full rounded-lg bg-stone-700" />
                   </div>
                 </div>
-                <p className="text-sm font-medium text-center mt-2">Gelap</p>
+                <p className="text-sm font-medium text-center mt-2">Dark</p>
               </div>
 
               <div className="cursor-pointer" onClick={() => setTheme('forest')}>
@@ -113,7 +113,7 @@ export default function SettingsPage() {
                     <div className="h-2 w-full rounded-lg bg-green-300" />
                   </div>
                 </div>
-                <p className="text-sm font-medium text-center mt-2">Hutan</p>
+                <p className="text-sm font-medium text-center mt-2">Forest</p>
               </div>
             </div>
           </CardContent>

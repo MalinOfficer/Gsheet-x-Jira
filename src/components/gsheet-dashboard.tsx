@@ -34,8 +34,8 @@ export function GsheetDashboard() {
     if (!tableData || !sheetUrl) {
       toast({
         variant: "destructive",
-        title: "Pembaruan Gagal",
-        description: "Tidak ada data untuk diperbarui atau URL sheet tidak ada.",
+        title: "Update Failed",
+        description: "No data to update or sheet URL is missing.",
       });
       return;
     }
@@ -46,18 +46,18 @@ export function GsheetDashboard() {
       if (result.error) {
         toast({
           variant: "destructive",
-          title: "Kesalahan Pembaruan",
-          description: `Gagal memperbarui status sheet: ${result.error}`,
+          title: "Update Error",
+          description: `Failed to update sheet status: ${result.error}`,
         });
       } else {
         toast({
-          title: "Pembaruan Berhasil",
+          title: "Update Successful",
           description: (
             <div>
               <p className="mb-2">{result.message}</p>
               {result.updatedRows && result.updatedRows.length > 0 && (
                 <div className="mt-2 text-xs">
-                  <p className="font-bold">Kasus yang Diperbarui:</p>
+                  <p className="font-bold">Updated Cases:</p>
                   <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
                     {result.updatedRows.map((item: { title: string, status: string }, index: number) => (
                       <li key={index}>{item.title} -> <strong>{item.status}</strong></li>
@@ -76,8 +76,8 @@ export function GsheetDashboard() {
     if (!tableData || !sheetUrl) {
         toast({
             variant: "destructive",
-            title: "Impor Gagal",
-            description: "Tidak ada data untuk diimpor atau URL sheet tidak ada.",
+            title: "Import Failed",
+            description: "No data to import or sheet URL is missing.",
         });
         return;
     }
@@ -91,18 +91,18 @@ export function GsheetDashboard() {
         if (result.error) {
             toast({
                 variant: "destructive",
-                title: "Kesalahan Impor",
-                description: `Gagal mengimpor ke sheet: ${result.error}`,
+                title: "Import Error",
+                description: `Failed to import to sheet: ${result.error}`,
             });
         } else {
             toast({
-                title: "Impor Selesai",
+                title: "Import Complete",
                 description: (
                     <div>
-                        {result.importedCount > 0 && <p>{result.importedCount} baris baru berhasil diimpor.</p>}
+                        {result.importedCount > 0 && <p>{result.importedCount} new rows imported successfully.</p>}
                         {result.duplicateCount > 0 && (
                             <div className="mt-2 text-xs">
-                                <p className="font-bold">{result.duplicateCount} baris duplikat ditemukan dan dilewati:</p>
+                                <p className="font-bold">{result.duplicateCount} duplicate rows found and skipped:</p>
                                 <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
                                     {(result.duplicates ?? []).map((item, index) => (
                                         <li key={index}>{item}</li>
@@ -110,7 +110,7 @@ export function GsheetDashboard() {
                                 </ul>
                             </div>
                         )}
-                        {!result.importedCount && !result.duplicateCount && <p>Tidak ada data baru yang diimpor.</p>}
+                        {!result.importedCount && !result.duplicateCount && <p>No new data to import.</p>}
                     </div>
                 ),
             });
@@ -122,15 +122,15 @@ export function GsheetDashboard() {
     if (!sheetUrl) {
         toast({
             variant: "destructive",
-            title: "Tidak Dapat Menyimpan",
-            description: "Silakan masukkan URL sebelum menyimpannya sebagai default.",
+            title: "Cannot Save",
+            description: "Please enter a URL before saving it as default.",
         });
         return;
     }
     localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
     toast({
-        title: "URL Disimpan",
-        description: "URL Google Sheet telah disimpan sebagai default Anda.",
+        title: "URL Saved",
+        description: "Google Sheet URL has been saved as your default.",
     });
   };
   
@@ -144,13 +144,13 @@ export function GsheetDashboard() {
   const InitialState = () => (
     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
         <Import className="w-16 h-16 text-muted-foreground mb-4" />
-        <CardTitle>Tidak Ada Data untuk Diimpor</CardTitle>
+        <CardTitle>No Data to Import</CardTitle>
         <CardDescription className="mt-2 mb-4">
-            Pertama, konversikan data JSON Anda di halaman konverter.
+            First, convert your JSON data on the converter page.
         </CardDescription>
         <Button onClick={() => router.push('/')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Kembali ke Konverter
+            Back to Converter
         </Button>
     </Card>
   );
@@ -159,7 +159,7 @@ export function GsheetDashboard() {
     <div className="flex-1 bg-background text-foreground p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <header>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Perbarui Kasus</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Update Cases</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Tinjau data yang dikonversi dari JSON dan impor ke Google Sheet target Anda.
           </p>
@@ -171,14 +171,14 @@ export function GsheetDashboard() {
           <>
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle>Tujuan Impor</CardTitle>
+                <CardTitle>Import Destination</CardTitle>
                 <CardDescription>
                   Masukkan URL Google Sheet Anda. Data akan diimpor ke sheet "All Case".
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                  <div className="grid gap-2">
-                    <Label htmlFor="gsheet-url">URL Google Sheet Target</Label>
+                    <Label htmlFor="gsheet-url">Target Google Sheet URL</Label>
                     <div className="flex flex-col sm:flex-row items-stretch gap-2">
                       <Input
                         id="gsheet-url"
@@ -189,7 +189,7 @@ export function GsheetDashboard() {
                         className="flex-grow"
                       />
                       <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto">
-                          <Save className="h-4 w-4 mr-2" /> Atur sebagai default
+                          <Save className="h-4 w-4 mr-2" /> Set as Default
                       </Button>
                     </div>
                   </div>
@@ -199,12 +199,12 @@ export function GsheetDashboard() {
                       {isImporting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Mengimpor...
+                          Importing...
                         </>
                       ) : (
                         <>
                           <Upload className="mr-2 h-4 w-4" />
-                          Impor ke GSheet
+                          Import to GSheet
                         </>
                       )}
                     </Button>
@@ -216,12 +216,12 @@ export function GsheetDashboard() {
                         {isUpdating ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Memperbarui...
+                                Updating...
                             </>
                         ) : (
                             <>
                                 <DatabaseZap className="mr-2 h-4 w-4" />
-                                Perbarui Status
+                                Update Status
                             </>
                         )}
                     </Button>
@@ -231,7 +231,7 @@ export function GsheetDashboard() {
 
             <Card className="shadow-lg mt-6">
                 <CardHeader>
-                    <CardTitle>Pratinjau Data untuk Impor</CardTitle>
+                    <CardTitle>Data Preview for Import</CardTitle>
                     <CardDescription>
                         Ini adalah data yang Anda konversi. Data ini akan diimpor ke sheet target.
                     </CardDescription>
@@ -265,7 +265,7 @@ export function GsheetDashboard() {
                                                         onValueChange={(newStatus) => handleStatusChange(rowIndex, newStatus)}
                                                     >
                                                         <SelectTrigger className="w-[120px] h-8 text-xs">
-                                                            <SelectValue placeholder="Pilih status" />
+                                                            <SelectValue placeholder="Select status" />
                                                         </SelectTrigger>
                                                         <SelectContent>
                                                             <SelectItem value="L1">L1</SelectItem>
@@ -286,7 +286,7 @@ export function GsheetDashboard() {
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <p className="text-sm text-muted-foreground">Menampilkan {tableData.rows.length} baris untuk diimpor.</p>
+                    <p className="text-sm text-muted-foreground">Showing {tableData.rows.length} rows to be imported.</p>
                 </CardFooter>
             </Card>
           </>
