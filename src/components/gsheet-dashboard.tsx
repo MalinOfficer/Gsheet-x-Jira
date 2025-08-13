@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, useTransition, useRef, useEffect, useContext } from 'react';
+import { useState, useTransition, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, Check } from 'lucide-react';
+import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save } from 'lucide-react';
 import { importToSheet, updateSheetStatus } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
@@ -179,7 +179,7 @@ export function GsheetDashboard() {
               <CardContent className="space-y-4">
                  <div className="grid gap-2">
                     <Label htmlFor="gsheet-url">Target Google Sheet URL</Label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch gap-2">
                       <Input
                         id="gsheet-url"
                         type="url"
@@ -188,13 +188,13 @@ export function GsheetDashboard() {
                         onChange={(e) => setSheetUrl(e.target.value)}
                         className="flex-grow"
                       />
-                      <Button onClick={handleSaveUrlAsDefault} variant="outline" size="icon" aria-label="Set as default">
-                          <Save className="h-4 w-4" />
+                      <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto">
+                          <Save className="h-4 w-4 mr-2" /> Set as default
                       </Button>
                     </div>
                   </div>
                 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                     <Button onClick={handleImport} size="sm" disabled={isImporting || isUpdating || !sheetUrl}>
                       {isImporting ? (
                         <>
@@ -244,7 +244,7 @@ export function GsheetDashboard() {
                                     {tableData.headers.map(header => (
                                         <TableHead 
                                             key={header} 
-                                            className="font-bold bg-muted/50"
+                                            className="font-bold bg-muted/50 whitespace-nowrap"
                                         >
                                            {header}
                                         </TableHead>
@@ -257,7 +257,7 @@ export function GsheetDashboard() {
                                         {tableData.headers.map((header, headerIndex) => (
                                             <TableCell 
                                                 key={`${header}-${headerIndex}-${rowIndex}`} 
-                                                className="break-words"
+                                                className="text-xs"
                                             >
                                                {header === 'Status' ? (
                                                     <Select

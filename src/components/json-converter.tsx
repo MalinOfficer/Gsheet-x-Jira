@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save, Pencil, ChevronsUpDown, BarChart, Trash2, GanttChartSquare } from 'lucide-react';
+import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save, Pencil, BarChart, Trash2, GanttChartSquare } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,7 +24,6 @@ const DEFAULT_TEMPLATE = 'Customer Name,Client Name,Status,Kolom kosong1,Ticket 
 export function JsonConverter() {
     const [jsonInput, setJsonInput] = useState('');
     
-    // Initialize templateInput from localStorage or use default
     const [templateInput, setTemplateInput] = useState(DEFAULT_TEMPLATE);
 
     const { tableData, setTableData } = useContext(TableDataContext);
@@ -45,32 +44,26 @@ export function JsonConverter() {
         const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
         if (savedJson) {
             setJsonInput(savedJson);
-            // Use the template that is in the state (which has been loaded from storage)
             handleConvert(savedJson, savedTemplate || DEFAULT_TEMPLATE, true);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Empty dependency array ensures this runs only once on mount
+    }, []);
 
     const flattenJson = (obj: any, path: string = '', res: Record<string, any> = {}): Record<string, any> => {
         if (obj === null || typeof obj !== 'object') {
-            if (path) {
-                res[path] = obj;
-            }
+            if (path) res[path] = obj;
             return res;
         }
 
         if (Array.isArray(obj)) {
-            if (path) {
-                // Handle custom_fields specifically
-                if (path.endsWith('custom_fields')) {
-                    obj.forEach(field => {
-                        if (field && typeof field.name === 'string' && field.value !== undefined) {
-                            res[field.name] = field.value;
-                        }
-                    });
-                } else {
-                    res[path] = JSON.stringify(obj);
-                }
+            if (path.endsWith('custom_fields')) {
+                obj.forEach(field => {
+                    if (field && typeof field.name === 'string' && field.value !== undefined) {
+                        res[field.name] = field.value;
+                    }
+                });
+            } else {
+                if (path) res[path] = JSON.stringify(obj);
             }
             return res;
         }
@@ -85,7 +78,6 @@ export function JsonConverter() {
                  try {
                     const parsedJson = JSON.parse(value);
                     if (typeof parsedJson === 'object' && parsedJson !== null) {
-                        // Instead of calling flattenJson again, directly merge the keys
                         Object.keys(parsedJson).forEach(innerKey => {
                              res[innerKey] = parsedJson[innerKey];
                         });
@@ -93,7 +85,7 @@ export function JsonConverter() {
                        res[newPath] = value;
                     }
                 } catch (e) {
-                   res[newPath] = value; // Not a valid JSON, so treat it as a regular string
+                   res[newPath] = value;
                 }
             }
             else {
@@ -116,55 +108,35 @@ export function JsonConverter() {
 
         try {
             let data = JSON.parse(jsonString);
-            if (!Array.isArray(data)) {
-                data = [data];
-            }
-
+            if (!Array.isArray(data)) data = [data];
             if (data.length === 0) {
                 if (!silent) setError("JSON array is empty.");
                 return;
             }
 
             const flattenedData = data.map((item: any) => flattenJson(item));
-            
             const headers = currentTemplate.split(',').map(h => h.trim());
             
             let processedRows = flattenedData.map(flatRow => {
                 const newRow: Record<string, any> = {};
-                
                 headers.forEach(header => {
                     if (header.toLowerCase().startsWith('kolom kosong')) {
                         newRow[header] = '';
                         return;
                     }
-
-                    const matchingKey = Object.keys(flatRow).find(
-                        k => k.toLowerCase() === header.toLowerCase()
-                    );
-                    
+                    const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
                     let value = matchingKey ? flatRow[matchingKey] : '';
 
                     if (header.toLowerCase() === 'status' && typeof value === 'string') {
                         const lowerCaseValue = value.toLowerCase();
                         switch (lowerCaseValue) {
-                            case 'resolved':
-                                value = 'Solved';
-                                break;
-                            case 'open':
-                                value = 'L2';
-                                break;
-                            case 'pending':
-                                value = 'L1';
-                                break;
-                            case 'on hold':
-                            case 'on-hold':
-                                value = 'L3';
-                                break;
-                            default:
-                                break;
+                            case 'resolved': value = 'Solved'; break;
+                            case 'open': value = 'L2'; break;
+                            case 'pending': value = 'L1'; break;
+                            case 'on hold': case 'on-hold': value = 'L3'; break;
+                            default: break;
                         }
                     }
-                    
                     newRow[header] = value;
                 });
                 return newRow;
@@ -179,16 +151,13 @@ export function JsonConverter() {
             processedRows.sort((a, b) => {
                 const numA = extractTicketNumber(a.Title);
                 const numB = extractTicketNumber(b.Title);
-
                 if (numA === null && numB === null) return 0;
                 if (numA === null) return 1;
                 if (numB === null) return -1;
-
                 return numA - numB;
             });
             
             setTableData({ headers, rows: processedRows });
-            
             localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, jsonString);
 
             if (!silent) {
@@ -250,16 +219,12 @@ export function JsonConverter() {
                 handleConvert(text, templateInput);
             }
         };
-        reader.onerror = () => {
-            setError("Failed to read file.");
-        };
+        reader.onerror = () => setError("Failed to read file.");
         reader.readAsText(file);
         event.target.value = '';
     };
 
-    const handleImportClick = () => {
-        fileInputRef.current?.click();
-    };
+    const handleImportClick = () => fileInputRef.current?.click();
 
     const handleDelete = () => {
         setJsonInput('');
@@ -344,10 +309,10 @@ export function JsonConverter() {
                                         setError(null);
                                     }}
                                     rows={8}
-                                    className="font-mono"
+                                    className="font-mono text-xs"
                                     aria-label="JSON Input"
                                 />
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap gap-2">
                                     <Button onClick={handleImportClick} variant="outline" size="sm" className="w-fit">
                                         <Upload className="mr-2 h-4 w-4" />
                                         Import JSON File
@@ -372,11 +337,11 @@ export function JsonConverter() {
                                     placeholder="e.g., id,name,email"
                                     value={templateInput}
                                     onChange={(e) => setTemplateInput(e.target.value)}
-                                    rows={3}
-                                    className="font-mono"
+                                    rows={4}
+                                    className="font-mono text-xs"
                                     aria-label="Convert To Headers"
                                 />
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap gap-2">
                                     <Button onClick={handleSaveTemplate} variant="outline" size="sm" className="w-fit">
                                         <Save className="mr-2 h-4 w-4" />
                                         Save as Default
@@ -431,7 +396,7 @@ export function JsonConverter() {
                                     <TableHeader className="sticky top-0 z-10 bg-card">
                                         <TableRow>
                                             {tableData.headers.map((header, index) => (
-                                                <TableHead key={`${header}-${index}`} className="font-bold bg-muted/50">
+                                                <TableHead key={`${header}-${index}`} className="font-bold bg-muted/50 whitespace-nowrap">
                                                     {(header === 'Created At' || header === 'Resolved At') ? (
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
@@ -461,7 +426,7 @@ export function JsonConverter() {
                                         {tableData.rows.map((row, rowIndex) => (
                                             <TableRow key={rowIndex} className="hover:bg-muted/50">
                                                 {tableData.headers.map((header, headerIndex) => (
-                                                    <TableCell key={`${header}-${headerIndex}-${rowIndex}`} className="break-words">
+                                                    <TableCell key={`${header}-${headerIndex}-${rowIndex}`} className="text-xs">
                                                         {header === 'Status' ? (
                                                             <Select
                                                                 value={String(row[header] ?? '')}

@@ -1,10 +1,11 @@
+
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Braces, BarChart, GanttChartSquare, Settings, Home } from "lucide-react";
+import { Menu, Braces, BarChart, GanttChartSquare, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 
@@ -84,7 +85,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
             <div className="flex flex-col flex-1">
                 {/* Header for Mobile */}
-                <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-card px-4 md:px-6 md:hidden">
+                <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-card px-4 md:hidden">
                     <Sheet>
                         <SheetTrigger asChild>
                             <Button variant="outline" size="icon" className="shrink-0">
@@ -109,9 +110,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         </SheetContent>
                     </Sheet>
                      <div className="flex w-full items-center justify-start gap-4">
-                        <Link href="/" className="flex items-center gap-2 font-semibold text-primary md:hidden">
+                        <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                             <GanttChartSquare className="h-6 w-6" />
-                            <span>GSheet Tools</span>
+                            <span className="text-base">GSheet Tools</span>
                         </Link>
                     </div>
                 </header>
@@ -120,3 +121,5 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         </div>
     );
 }
+
+    

@@ -6,13 +6,12 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronsUpDown, Pencil, BarChart, ArrowLeft, Copy, Check } from 'lucide-react';
+import { Pencil, BarChart, ArrowLeft, Copy, Check } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { TableDataContext } from '@/store/table-data-context';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 
 const ALL_ITEMS_VALUE = "__ALL__";
 
@@ -47,10 +46,6 @@ export function ReportHarian() {
   });
   const [todayDate, setTodayDate] = useState('');
 
-  const topScrollRef = useRef<HTMLDivElement>(null);
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const tableRef = useRef<HTMLTableElement>(null);
-
   useEffect(() => {
     const today = new Date();
     const day = String(today.getDate()).padStart(2, '0');
@@ -58,54 +53,6 @@ export function ReportHarian() {
     const year = today.getFullYear();
     setTodayDate(`${day}/${month}/${year}`);
   }, []);
-
-  useEffect(() => {
-    const topDiv = topScrollRef.current;
-    const tableContainerDiv = tableContainerRef.current;
-
-    if (!topDiv || !tableContainerDiv || !tableRef.current) return;
-
-    const topScrollChild = topDiv.firstElementChild as HTMLDivElement;
-    if (topScrollChild) {
-        topScrollChild.style.width = `${tableRef.current.offsetWidth}px`;
-    }
-
-    let isSyncing = false;
-
-    const handleTopScroll = () => {
-        if (!isSyncing) {
-            isSyncing = true;
-            tableContainerDiv.scrollLeft = topDiv.scrollLeft;
-            isSyncing = false;
-        }
-    };
-
-    const handleTableScroll = () => {
-        if (!isSyncing) {
-            isSyncing = true;
-            topDiv.scrollLeft = tableContainerDiv.scrollLeft;
-            isSyncing = false;
-        }
-    };
-
-    topDiv.addEventListener('scroll', handleTopScroll);
-    tableContainerDiv.addEventListener('scroll', handleTableScroll);
-
-    const resizeObserver = new ResizeObserver(() => {
-        if (tableRef.current && topScrollChild) {
-            topScrollChild.style.width = `${tableRef.current.offsetWidth}px`;
-        }
-    });
-
-    resizeObserver.observe(tableRef.current);
-
-    return () => {
-        topDiv.removeEventListener('scroll', handleTopScroll);
-        tableContainerDiv.removeEventListener('scroll', handleTableScroll);
-        resizeObserver.disconnect();
-    };
-  }, [tableData]);
-
 
   const reportStats = useMemo(() => {
     if (!tableData?.rows) {
@@ -167,9 +114,7 @@ export function ReportHarian() {
                         return currentDate;
                     }
                 }
-            } catch (e) {
-                // Ignore invalid date strings
-            }
+            } catch (e) { }
         }
         return latest;
     }, null as Date | null);
@@ -184,17 +129,10 @@ export function ReportHarian() {
     };
     
     return {
-      totalCases,
-      escalatedL1,
-      escalatedL2,
-      escalatedL3,
-      pending,
-      solved,
+      totalCases, escalatedL1, escalatedL2, escalatedL3, pending, solved,
       notResolvedCases: notResolvedCases.map(item => formatTitle(item.clientName, item.title)),
       solvedCases: solvedCases.map(item => formatTitle(item.clientName, item.title)),
-      formattedLatestTime,
-      trendingClient,
-      trendingCase,
+      formattedLatestTime, trendingClient, trendingCase,
     };
   }, [tableData]);
 
@@ -255,7 +193,6 @@ export function ReportHarian() {
 
   const handleCopyAll = () => {
     if (!reportStats) return;
-
     const fullReport = `Reporting cases ${todayDate} (update jam masuk terakhir ${reportStats.formattedLatestTime})
 
 Total cases: ${reportStats.totalCases}
@@ -273,7 +210,6 @@ ${reportStats.notResolvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') 
 Case yang solved:
 ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'No solved cases yet.'}
 `;
-    
     handleCopy(fullReport.trim(), 'Full report');
   };
 
@@ -290,7 +226,6 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
         });
     });
   }, [tableData, filters]);
-
   
   function MainContent() {
     if (!tableData) return null;
@@ -301,9 +236,11 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
               <CardHeader>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <CardTitle className="text-xl">Reporting cases {todayDate} (update jam masuk terakhir {reportStats.formattedLatestTime})</CardTitle>
-                  <Button onClick={handleCopyAll} size="sm" variant="outline">
-                    {copiedSection === 'Full report' ? <Check className="text-green-500" /> : <Copy />}
-                    {copiedSection === 'Full report' ? 'Copied!' : 'Copy Full Report'}
+                  <Button onClick={handleCopyAll} size="sm" variant="outline" className="w-full sm:w-auto">
+                    <div className="flex items-center justify-center">
+                      {copiedSection === 'Full report' ? <Check className="text-green-500 mr-2" /> : <Copy className="mr-2" />}
+                      {copiedSection === 'Full report' ? 'Copied!' : 'Copy Full Report'}
+                    </div>
                   </Button>
                 </div>
               </CardHeader>
@@ -354,15 +291,12 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                  <div ref={topScrollRef} className="w-full overflow-x-auto overflow-y-hidden">
-                    <div style={{ height: '1px' }}></div>
-                  </div>
-                  <div ref={tableContainerRef} className="w-full overflow-x-auto rounded-md border max-h-[500px]">
-                      <Table ref={tableRef}>
+                  <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
+                      <Table>
                           <TableHeader className="sticky top-0 bg-card z-10">
                               <TableRow>
                                   {tableData.headers.map(header => (
-                                      <TableHead key={header} className="font-bold">
+                                      <TableHead key={header} className="font-bold whitespace-nowrap">
                                           {header.startsWith("__EMPTY__") ? "" : (
                                               (header === 'Created At' || header === 'Solved At' || header === 'Resolved At') ? (
                                                   <DropdownMenu>
@@ -417,7 +351,7 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                                   filteredData.map((row, index) => (
                                       <TableRow key={index} className="hover:bg-muted/50">
                                           {tableData.headers.map(header => (
-                                              <TableCell key={`${header}-${index}`} className="break-words">
+                                              <TableCell key={`${header}-${index}`} className="text-xs">
                                                   {(header === 'Created At' || header === 'Solved At' || header === 'Resolved At')
                                                     ? formatDateTime(row[header], dateFormats[header] || 'report')
                                                     : String(row[header] || '')}
