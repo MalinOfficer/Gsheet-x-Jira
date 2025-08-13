@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -20,19 +21,18 @@ export default function SettingsPage() {
       <div className="max-w-4xl mx-auto space-y-8">
         <header>
           <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">
-            Settings
+            Pengaturan
           </h1>
           <p className="text-muted-foreground mt-2">
-            Customize the look and feel of the application to your preference.
+            Sesuaikan tampilan dan nuansa aplikasi sesuai preferensi Anda.
           </p>
         </header>
 
         <Card>
           <CardHeader>
-            <CardTitle>Theme</CardTitle>
+            <CardTitle>Tema</CardTitle>
             <CardDescription>
-              Select a theme for the application. Your preference will be saved
-              in your browser.
+              Pilih tema untuk aplikasi. Preferensi Anda akan disimpan di browser Anda.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -87,7 +87,7 @@ export default function SettingsPage() {
                     <div className="h-2 w-full rounded-lg bg-stone-700" />
                   </div>
                 </div>
-                <p className="text-sm font-medium text-center mt-2">Dark</p>
+                <p className="text-sm font-medium text-center mt-2">Gelap</p>
               </div>
 
               <div className="cursor-pointer" onClick={() => setTheme('forest')}>
@@ -113,7 +113,7 @@ export default function SettingsPage() {
                     <div className="h-2 w-full rounded-lg bg-green-300" />
                   </div>
                 </div>
-                <p className="text-sm font-medium text-center mt-2">Forest</p>
+                <p className="text-sm font-medium text-center mt-2">Hutan</p>
               </div>
             </div>
           </CardContent>

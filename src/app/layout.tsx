@@ -8,8 +8,8 @@ import { ThemeProvider } from "@/hooks/theme-provider";
 
 
 export const metadata: Metadata = {
-  title: "GSheet Dashboard & Tools",
-  description: "Instantly turn your Google Sheets into interactive dashboards and use other handy tools.",
+  title: "Dasbor & Alat GSheet",
+  description: "Ubah Google Sheets Anda menjadi dasbor interaktif secara instan dan gunakan alat praktis lainnya.",
 };
 
 export default function RootLayout({

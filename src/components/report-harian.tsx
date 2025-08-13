@@ -20,13 +20,13 @@ function InitialState() {
   return (
     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
         <BarChart className="w-16 h-16 text-muted-foreground mb-4" />
-        <CardTitle>No Report Data Found</CardTitle>
+        <CardTitle>Data Laporan Tidak Ditemukan</CardTitle>
         <CardDescription className="mt-2 mb-4">
-            Go back to the JSON to Table page to convert your data first.
+            Kembali ke halaman Konverter JSON untuk mengubah data Anda terlebih dahulu.
         </CardDescription>
         <Button onClick={() => router.push('/')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Converter
+            Kembali ke Konverter
         </Button>
     </Card>
   );
@@ -178,47 +178,47 @@ export function ReportHarian() {
     if (!text) {
         toast({
             variant: "destructive",
-            title: "Nothing to copy",
-            description: "The section is empty.",
+            title: "Tidak ada yang bisa disalin",
+            description: "Bagian ini kosong.",
         });
         return;
     }
     navigator.clipboard.writeText(text).then(() => {
         toast({
-            title: "Copied to clipboard!",
-            description: `${sectionName} has been copied.`,
+            title: "Disalin ke clipboard!",
+            description: `${sectionName} telah disalin.`,
         });
         setCopiedSection(sectionName);
         setTimeout(() => setCopiedSection(null), 2000);
     }, () => {
         toast({
             variant: "destructive",
-            title: "Failed to copy",
-            description: "Could not copy data to clipboard.",
+            title: "Gagal menyalin",
+            description: "Tidak dapat menyalin data ke clipboard.",
         });
     });
   };
 
   const handleCopyAll = () => {
     if (!reportStats) return;
-    const fullReport = `Reporting cases ${todayDate} (update jam masuk terakhir ${reportStats.formattedLatestTime})
+    const fullReport = `Pelaporan kasus ${todayDate} (update jam masuk terakhir ${reportStats.formattedLatestTime})
 
-Total cases: ${reportStats.totalCases}
-Escalated L1: ${reportStats.escalatedL1}
-Escalated L2: ${reportStats.escalatedL2}
-Escalated L3: ${reportStats.escalatedL3}
-Pending: ${reportStats.pending}
-Solved: ${reportStats.solved}
-Tren Client: ${reportStats.trendingClient}
-Tren Case: ${reportStats.trendingCase}
+Total kasus: ${reportStats.totalCases}
+Eskalasi L1: ${reportStats.escalatedL1}
+Eskalasi L2: ${reportStats.escalatedL2}
+Eskalasi L3: ${reportStats.escalatedL3}
+Tertunda: ${reportStats.pending}
+Selesai: ${reportStats.solved}
+Tren Klien: ${reportStats.trendingClient}
+Tren Kasus: ${reportStats.trendingCase}
 
-Summary detail case yang belum Resolved:
-${reportStats.notResolvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'No unresolved cases.'}
+Ringkasan detail kasus yang belum Selesai:
+${reportStats.notResolvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'Tidak ada kasus yang belum selesai.'}
 
-Case yang solved:
-${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'No solved cases yet.'}
+Kasus yang selesai:
+${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'Belum ada kasus yang selesai.'}
 `;
-    handleCopy(fullReport.trim(), 'Full report');
+    handleCopy(fullReport.trim(), 'Laporan Lengkap');
   };
 
   const filteredData = useMemo(() => {
@@ -243,46 +243,46 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
           <Card className="shadow-lg mb-6">
               <CardHeader>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <CardTitle className="text-xl">Reporting cases {todayDate} (update jam masuk terakhir {reportStats.formattedLatestTime})</CardTitle>
+                  <CardTitle className="text-xl">Pelaporan kasus {todayDate} (update jam masuk terakhir {reportStats.formattedLatestTime})</CardTitle>
                   <Button onClick={handleCopyAll} size="sm" variant="outline" className="w-full sm:w-auto">
                     <div className="flex items-center justify-center">
-                      {copiedSection === 'Full report' ? <Check className="text-green-500 mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
-                      {copiedSection === 'Full report' ? 'Copied!' : 'Copy Full Report'}
+                      {copiedSection === 'Laporan Lengkap' ? <Check className="text-green-500 mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+                      {copiedSection === 'Laporan Lengkap' ? 'Tersalin!' : 'Salin Laporan Lengkap'}
                     </div>
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm">
                    <div className="space-y-2">
-                      <h3 className="font-semibold">Case Statistics</h3>
+                      <h3 className="font-semibold">Statistik Kasus</h3>
                       <div className="space-y-1">
-                          <p>Total cases: <span className="font-medium">{reportStats.totalCases}</span></p>
-                          <p>Escalated L1: <span className="font-medium">{reportStats.escalatedL1}</span></p>
-                          <p>Escalated L2: <span className="font-medium">{reportStats.escalatedL2}</span></p>
-                          <p>Escalated L3: <span className="font-medium">{reportStats.escalatedL3}</span></p>
-                          <p>Pending: <span className="font-medium">{reportStats.pending}</span></p>
-                          <p>Solved: <span className="font-medium">{reportStats.solved}</span></p>
-                          <p>Tren Client: <span className="font-medium">{reportStats.trendingClient}</span></p>
-                          <p>Tren Case: <span className="font-medium">{reportStats.trendingCase}</span></p>
+                          <p>Total kasus: <span className="font-medium">{reportStats.totalCases}</span></p>
+                          <p>Eskalasi L1: <span className="font-medium">{reportStats.escalatedL1}</span></p>
+                          <p>Eskalasi L2: <span className="font-medium">{reportStats.escalatedL2}</span></p>
+                          <p>Eskalasi L3: <span className="font-medium">{reportStats.escalatedL3}</span></p>
+                          <p>Tertunda: <span className="font-medium">{reportStats.pending}</span></p>
+                          <p>Selesai: <span className="font-medium">{reportStats.solved}</span></p>
+                          <p>Tren Klien: <span className="font-medium">{reportStats.trendingClient}</span></p>
+                          <p>Tren Kasus: <span className="font-medium">{reportStats.trendingCase}</span></p>
                       </div>
                   </div>
                   <div className="space-y-2">
-                      <h3 className="font-semibold">Summary detail case yang belum Resolved:</h3>
+                      <h3 className="font-semibold">Ringkasan detail kasus yang belum Selesai:</h3>
                       <ol className="list-decimal list-inside space-y-1">
                           {reportStats.notResolvedCases.length > 0 ? (
                               reportStats.notResolvedCases.map((item, i) => <li key={i}>{item}</li>)
                           ) : (
-                              <li>No unresolved cases.</li>
+                              <li>Tidak ada kasus yang belum selesai.</li>
                           )}
                       </ol>
                   </div>
                   <div className="space-y-2">
-                    <h3 className="font-semibold">Case yang solved:</h3>
+                    <h3 className="font-semibold">Kasus yang selesai:</h3>
                       <ol className="list-decimal list-inside space-y-1">
                           {reportStats.solvedCases.length > 0 ? (
                               reportStats.solvedCases.map((item, i) => <li key={i}>{item}</li>)
                           ) : (
-                              <li>No solved cases yet.</li>
+                              <li>Belum ada kasus yang selesai.</li>
                           )}
                       </ol>
                   </div>
@@ -293,9 +293,9 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
       {tableData && (
           <Card className="shadow-lg">
               <CardHeader>
-                  <CardTitle>Filtered Report</CardTitle>
+                  <CardTitle>Laporan yang Difilter</CardTitle>
                   <CardDescription>
-                      Your data is ready. Use the dropdown on the column headers to filter the report.
+                      Data Anda sudah siap. Gunakan menu dropdown pada header kolom untuk memfilter laporan.
                   </CardDescription>
               </CardHeader>
               <CardContent>
@@ -317,12 +317,12 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                                                           </Button>
                                                       </DropdownMenuTrigger>
                                                       <DropdownMenuContent>
-                                                          <DropdownMenuLabel>Date Format</DropdownMenuLabel>
+                                                          <DropdownMenuLabel>Format Tanggal</DropdownMenuLabel>
                                                           <DropdownMenuSeparator />
                                                           <DropdownMenuRadioGroup value={dateFormats[header] || 'report'} onValueChange={(value) => handleDateFormatChange(header, value)}>
-                                                              <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
+                                                              <DropdownMenuRadioItem value="origin">Asli</DropdownMenuRadioItem>
                                                               <DropdownMenuRadioItem value="jam">Jam</DropdownMenuRadioItem>
-                                                              <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
+                                                              <DropdownMenuRadioItem value="report">Laporan</DropdownMenuRadioItem>
                                                           </DropdownMenuRadioGroup>
                                                       </DropdownMenuContent>
                                                   </DropdownMenu>
@@ -343,7 +343,7 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                                                 <SelectValue placeholder={`Filter ${header}...`} />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                <SelectItem value={ALL_ITEMS_VALUE}>All</SelectItem>
+                                                <SelectItem value={ALL_ITEMS_VALUE}>Semua</SelectItem>
                                                 {(columnUniqueValues[header] || []).map(value => (
                                                   <SelectItem key={value} value={value}>{value}</SelectItem>
                                                 ))}
@@ -370,7 +370,7 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                               ) : (
                                   <TableRow>
                                       <TableCell colSpan={tableData.headers.length} className="h-24 text-center">
-                                          No results found. Try adjusting your filters.
+                                          Tidak ada hasil yang ditemukan. Coba sesuaikan filter Anda.
                                       </TableCell>
                                   </TableRow>
                               )}
@@ -379,7 +379,7 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
                   </div>
               </CardContent>
               <CardFooter>
-                  <p className="text-sm text-muted-foreground">Showing {filteredData.length} of {tableData.rows.length} rows.</p>
+                  <p className="text-sm text-muted-foreground">Menampilkan {filteredData.length} dari {tableData.rows.length} baris.</p>
               </CardFooter>
           </Card>
       )}
@@ -391,9 +391,9 @@ ${reportStats.solvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') || 'N
     <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <header>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Report Harian</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Laporan Harian</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            This report is generated from the data you converted. Use the dropdown to filter by status.
+            Laporan ini dibuat dari data yang Anda konversi. Gunakan menu dropdown untuk memfilter berdasarkan status.
           </p>
         </header>
 

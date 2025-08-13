@@ -10,13 +10,13 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 
 const navItems = [
-    { href: "/", label: "Json Converter", icon: Braces },
-    { href: "/report-harian", label: "Report Harian", icon: BarChart },
-    { href: "/update-case-l3", label: "Update Cases", icon: GanttChartSquare },
+    { href: "/", label: "Konverter JSON", icon: Braces },
+    { href: "/report-harian", label: "Laporan Harian", icon: BarChart },
+    { href: "/update-case-l3", label: "Perbarui Kasus", icon: GanttChartSquare },
 ];
 
 const bottomNavItems = [
-    { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/settings", label: "Pengaturan", icon: Settings },
 ];
 
 function NavLinks() {
@@ -72,7 +72,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 <div className="flex h-16 items-center border-b px-6">
                     <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                         <GanttChartSquare className="h-6 w-6" />
-                        <span>GSheet Tools</span>
+                        <span>Alat GSheet</span>
                     </Link>
                 </div>
                 <nav className="flex-1 flex flex-col gap-1 p-4 text-sm font-medium">
@@ -90,7 +90,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         <SheetTrigger asChild>
                             <Button variant="outline" size="icon" className="shrink-0">
                                 <Menu className="h-5 w-5" />
-                                <span className="sr-only">Toggle navigation menu</span>
+                                <span className="sr-only">Buka menu navigasi</span>
                             </Button>
                         </SheetTrigger>
                         <SheetContent side="left" className="flex flex-col">
@@ -100,7 +100,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                     className="flex items-center gap-2 text-lg font-semibold mb-4 text-primary"
                                 >
                                     <GanttChartSquare className="h-6 w-6" />
-                                    <span>GSheet Tools</span>
+                                    <span>Alat GSheet</span>
                                 </Link>
                                 <NavLinks />
                             </nav>
@@ -112,7 +112,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                      <div className="flex w-full items-center justify-start gap-4">
                         <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                             <GanttChartSquare className="h-6 w-6" />
-                            <span className="text-base">GSheet Tools</span>
+                            <span className="text-base">Alat GSheet</span>
                         </Link>
                     </div>
                 </header>
@@ -121,5 +121,3 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         </div>
     );
 }
-
-    
