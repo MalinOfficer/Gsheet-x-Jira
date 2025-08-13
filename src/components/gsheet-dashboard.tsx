@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
+const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1aWpDRyFyl6a8bV0-e1ddYVkcfDK5WA498OHMU2Wv9iU/edit?gid=0#gid=0';
 
 type UpdatePreview = {
     title: string;
@@ -50,10 +51,10 @@ export function GsheetDashboard() {
 
   useEffect(() => {
     const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
-    if (savedUrl) {
-      setSheetUrl(savedUrl);
-      fetchTitle(savedUrl);
-    }
+    const initialUrl = savedUrl || DEFAULT_SHEET_URL;
+    setSheetUrl(initialUrl);
+    fetchTitle(initialUrl);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchTitle = useCallback(async (url: string) => {
