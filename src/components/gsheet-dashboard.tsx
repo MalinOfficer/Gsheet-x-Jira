@@ -69,13 +69,15 @@ export function GsheetDashboard() {
         setSheetTitle({ name: '', error: null, loading: false, sheetId: null });
         return;
     }
-    setSheetTitle(prev => ({ ...prev, loading: true, error: null }));
+    setSheetTitle(prev => ({ ...prev, loading: true, name: '', error: null, sheetId: null }));
     const result = await getSheetTitle(url);
-    if (result.title) {
-        setSheetTitle({ name: result.title, error: null, loading: false, sheetId: result.sheetId || null });
-    } else {
-        setSheetTitle({ name: '', error: result.error || 'Failed to fetch title.', loading: false, sheetId: null });
-    }
+    
+    setSheetTitle({
+        name: result.title || '',
+        error: result.error || null,
+        loading: false,
+        sheetId: result.sheetId || null,
+    });
   }, []);
 
   const debouncedFetchTitle = useDebouncedCallback(fetchTitle, 500);
@@ -331,7 +333,7 @@ export function GsheetDashboard() {
                                 {sheetTitle.error}
                             </p>
                         )}
-                        {sheetTitle.name && (
+                        {sheetTitle.name && !sheetTitle.error && (
                             <p className="flex items-center text-green-600 font-medium">
                                 <CheckCircle2 className="mr-2 h-4 w-4" />
                                 {sheetTitle.name}
@@ -383,7 +385,7 @@ export function GsheetDashboard() {
                             onClick={handleUpdatePreview} 
                             size="sm"
                             className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950"
-                            disabled={isUpdating || isImporting || !sheetUrl || isPreviewing || isUndoing}>
+                            disabled={isUpdating || isImporting || !sheetUrl || sheetTitle.loading || !!sheetTitle.error || isPreviewing || isUndoing}>
                             {isPreviewing ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -517,5 +519,3 @@ export function GsheetDashboard() {
     </div>
   );
 }
-
-    

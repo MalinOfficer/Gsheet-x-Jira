@@ -114,12 +114,18 @@ export async function getSheetTitle(url: string) {
       spreadsheetId,
       fields: 'properties.title,sheets.properties.sheetId,sheets.properties.title',
     });
+    
     const title = response.data.properties?.title;
     if (!title) {
         return { error: 'Could not retrieve the sheet title.' };
     }
-     const allCaseSheet = response.data.sheets?.find(s => s.properties?.title === 'All Case');
-    const sheetId = allCaseSheet?.properties?.sheetId;
+     
+    const allCaseSheet = response.data.sheets?.find(s => s.properties?.title === 'All Case');
+    if (!allCaseSheet?.properties?.sheetId) {
+        return { title, error: 'Target sheet named "All Case" was not found in this spreadsheet.' };
+    }
+    
+    const sheetId = allCaseSheet.properties.sheetId;
     
     return { title, sheetId };
   } catch (error: any) {
