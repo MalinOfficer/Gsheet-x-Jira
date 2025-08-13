@@ -89,10 +89,41 @@ const getGoogleSheetsClient = () => {
             client_email: clientEmail,
             private_key: privateKey.replace(/\\n/g, '\n'),
         },
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
     });
 
     return google.sheets({ version: 'v4', auth });
+}
+
+
+export async function getSheetTitle(url: string) {
+  if (!url) {
+    return { error: 'URL is required.' };
+  }
+
+  const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+  const match = url.match(sheetIdRegex);
+  if (!match || !match[1]) {
+    return { error: 'Invalid Google Sheets URL format.' };
+  }
+  const spreadsheetId = match[1];
+
+  try {
+    const sheets = getGoogleSheetsClient();
+    const response = await sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'properties.title',
+    });
+    const title = response.data.properties?.title;
+    if (!title) {
+        return { error: 'Could not retrieve the sheet title.' };
+    }
+    return { title };
+  } catch (error: any) {
+    console.error('Failed to get sheet title:', error.message);
+    const apiError = error.errors?.[0]?.message || 'Could not access the sheet. Please check the URL and sharing permissions.';
+    return { error: apiError };
+  }
 }
 
 export async function updateSheetStatus(

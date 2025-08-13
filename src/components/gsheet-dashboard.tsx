@@ -1,18 +1,19 @@
 
 "use client";
 
-import { useState, useTransition, useEffect, useContext } from 'react';
+import { useState, useTransition, useEffect, useContext, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save } from 'lucide-react';
-import { importToSheet, updateSheetStatus } from '@/app/actions';
+import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet } from 'lucide-react';
+import { importToSheet, updateSheetStatus, getSheetTitle } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { TableDataContext } from '@/store/table-data-context';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { useDebouncedCallback } from 'use-debounce';
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 
@@ -20,6 +21,8 @@ const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 export function GsheetDashboard() {
   const { tableData, setTableData } = useContext(TableDataContext);
   const [sheetUrl, setSheetUrl] = useState('');
+  const [sheetTitle, setSheetTitle] = useState<{ name: string; error: string | null; loading: boolean }>({ name: '', error: null, loading: false });
+
   const [isImporting, startImporting] = useTransition();
   const [isUpdating, startUpdating] = useTransition();
   const { toast } = useToast();
@@ -27,8 +30,34 @@ export function GsheetDashboard() {
 
   useEffect(() => {
     const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
-    if (savedUrl) setSheetUrl(savedUrl);
+    if (savedUrl) {
+      setSheetUrl(savedUrl);
+      fetchTitle(savedUrl);
+    }
   }, []);
+
+  const fetchTitle = useCallback(async (url: string) => {
+    if (!url || !url.includes('spreadsheets/d/')) {
+        setSheetTitle({ name: '', error: null, loading: false });
+        return;
+    }
+    setSheetTitle(prev => ({ ...prev, loading: true, error: null }));
+    const result = await getSheetTitle(url);
+    if (result.title) {
+        setSheetTitle({ name: result.title, error: null, loading: false });
+    } else {
+        setSheetTitle({ name: '', error: result.error || 'Failed to fetch title.', loading: false });
+    }
+  }, []);
+
+  const debouncedFetchTitle = useDebouncedCallback(fetchTitle, 500);
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newUrl = e.target.value;
+    setSheetUrl(newUrl);
+    debouncedFetchTitle(newUrl);
+  };
+
 
   const handleUpdate = async () => {
     if (!tableData || !sheetUrl) {
@@ -185,12 +214,38 @@ export function GsheetDashboard() {
                         type="url"
                         placeholder="https://docs.google.com/spreadsheets/d/..."
                         value={sheetUrl}
-                        onChange={(e) => setSheetUrl(e.target.value)}
+                        onChange={handleUrlChange}
                         className="flex-grow"
                       />
                       <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto">
                           <Save className="h-4 w-4 mr-2" /> Set as Default
                       </Button>
+                    </div>
+                     <div className="h-5 mt-2 text-xs">
+                        {sheetTitle.loading && (
+                            <p className="flex items-center text-muted-foreground">
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Fetching title...
+                            </p>
+                        )}
+                        {sheetTitle.error && (
+                            <p className="flex items-center text-destructive">
+                                <XCircle className="mr-2 h-4 w-4" />
+                                {sheetTitle.error}
+                            </p>
+                        )}
+                        {sheetTitle.name && (
+                            <p className="flex items-center text-green-600 font-medium">
+                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                {sheetTitle.name}
+                            </p>
+                        )}
+                         {!sheetTitle.loading && !sheetTitle.error && !sheetTitle.name && (
+                            <p className="flex items-center text-muted-foreground">
+                                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                Sheet title will appear here.
+                            </p>
+                         )}
                     </div>
                   </div>
                 
