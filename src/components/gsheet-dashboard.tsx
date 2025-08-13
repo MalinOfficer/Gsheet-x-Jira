@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet, ArrowRight, Undo } from 'lucide-react';
-import { importToSheet, updateSheetStatus, getSheetTitle, getUpdatePreview, undoLastAction } from '@/app/actions';
+import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet, ArrowRight, Undo, ListTree } from 'lucide-react';
+import { importToSheet, updateSheetStatus, getSheetTitle, getUpdatePreview, undoLastAction, getSheetNames } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -52,6 +52,7 @@ export function GsheetDashboard() {
   const [isUpdating, startUpdating] = useTransition();
   const [isPreviewing, startPreviewing] = useTransition();
   const [isUndoing, startUndoing] = useTransition();
+  const [isAnalyzing, startAnalyzing] = useTransition();
 
   const { toast } = useToast();
   const router = useRouter();
@@ -87,6 +88,40 @@ export function GsheetDashboard() {
     setSheetUrl(newUrl);
     debouncedFetchTitle(newUrl);
     setLastActionUndoData(null);
+  };
+  
+  const handleAnalyzeSheet = () => {
+    if (!sheetUrl) {
+        toast({
+            variant: "destructive",
+            title: "Analysis Failed",
+            description: "Please enter a Google Sheet URL first.",
+        });
+        return;
+    }
+    startAnalyzing(async () => {
+        const result = await getSheetNames(sheetUrl);
+        if (result.error) {
+            toast({
+                variant: "destructive",
+                title: "Analysis Error",
+                description: result.error,
+            });
+        } else if (result.success && result.sheetNames) {
+            toast({
+                title: "Sheet Analysis Complete",
+                description: (
+                    <div>
+                        <p>The following sheets were found:</p>
+                        <ul className="mt-2 list-disc list-inside text-xs">
+                            {result.sheetNames.map(name => <li key={name}>{name}</li>)}
+                        </ul>
+                    </div>
+                ),
+                duration: 10000,
+            });
+        }
+    });
   };
 
   const handleUpdatePreview = async () => {
@@ -316,6 +351,10 @@ export function GsheetDashboard() {
                         onChange={handleUrlChange}
                         className="flex-grow"
                       />
+                       <Button onClick={handleAnalyzeSheet} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isAnalyzing}>
+                           {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ListTree className="h-4 w-4 mr-2" />}
+                           Analyze Sheet
+                       </Button>
                       <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto">
                           <Save className="h-4 w-4 mr-2" /> Set as Default
                       </Button>
