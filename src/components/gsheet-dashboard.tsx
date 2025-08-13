@@ -14,6 +14,16 @@ import { Input } from './ui/input';
 import { TableDataContext } from '@/store/table-data-context';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useDebouncedCallback } from 'use-debounce';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 
@@ -250,19 +260,36 @@ export function GsheetDashboard() {
                   </div>
                 
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-                    <Button onClick={handleImport} size="sm" disabled={isImporting || isUpdating || !sheetUrl}>
-                      {isImporting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Importing...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Import to GSheet
-                        </>
-                      )}
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || sheetTitle.loading || !!sheetTitle.error}>
+                           <Upload className="mr-2 h-4 w-4" />
+                           Import to GSheet
+                         </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Konfirmasi Impor</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Apakah Anda yakin akan mengimpor {tableData.rows.length} baris ke Google Sheet <span className="font-bold text-foreground">"{sheetTitle.name}"</span>? Tindakan ini tidak dapat dibatalkan.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleImport}>
+                            {isImporting ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Mengimpor...
+                                </>
+                              ) : (
+                                "Ya, Lanjutkan Impor"
+                              )}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    
                     <Button 
                         onClick={handleUpdate} 
                         size="sm"
