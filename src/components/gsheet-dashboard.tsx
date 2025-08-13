@@ -350,7 +350,7 @@ export function GsheetDashboard() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
                           <AlertDialogDescription>
-                            <p className='mb-2'>Apakah Anda yakin ingin memperbarui status untuk {updatePreview.length} kasus di sheet <span className="font-bold text-foreground">"{sheetTitle.name}"</span>?</p>
+                            <div className='mb-2'>Apakah Anda yakin ingin memperbarui status untuk {updatePreview.length} kasus di sheet <span className="font-bold text-foreground">"{sheetTitle.name}"</span>?</div>
                             <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
                                 <p className="font-bold">Detail Perubahan:</p>
                                 <ul className="list-disc pl-5">
