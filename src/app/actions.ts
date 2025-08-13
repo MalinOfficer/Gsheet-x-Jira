@@ -112,13 +112,16 @@ export async function getSheetTitle(url: string) {
     const sheets = getGoogleSheetsClient();
     const response = await sheets.spreadsheets.get({
       spreadsheetId,
-      fields: 'properties.title',
+      fields: 'properties.title,sheets.properties.sheetId,sheets.properties.title',
     });
     const title = response.data.properties?.title;
     if (!title) {
         return { error: 'Could not retrieve the sheet title.' };
     }
-    return { title };
+     const allCaseSheet = response.data.sheets?.find(s => s.properties?.title === 'All Case');
+    const sheetId = allCaseSheet?.properties?.sheetId;
+    
+    return { title, sheetId };
   } catch (error: any) {
     console.error('Failed to get sheet title:', error.message);
     const apiError = error.errors?.[0]?.message || 'Could not access the sheet. Please check the URL and sharing permissions.';
@@ -233,7 +236,7 @@ export async function updateSheetStatus(
         const rowMap = await getSheetRowMap(sheets, spreadsheetId, sheetName);
 
         const updateRequests = [];
-        const updatedRows: { title: string, status: string }[] = [];
+        const updatedRows: { title: string, oldStatus: string, newStatus: string, rowIndex: number }[] = [];
         const ticketNumberRegex = /#(\d+)/;
         
         for (const appRow of data.rows) {
@@ -251,7 +254,7 @@ export async function updateSheetStatus(
                             range: `${sheetName}!G${sheetRowInfo.rowIndex}`,
                             values: [[newStatus]],
                         });
-                        updatedRows.push({ title: detailCase, status: newStatus });
+                        updatedRows.push({ title: detailCase, oldStatus: sheetRowInfo.currentStatus, newStatus, rowIndex: sheetRowInfo.rowIndex });
                     }
                 }
             }
@@ -269,7 +272,7 @@ export async function updateSheetStatus(
             },
         });
         
-        return { success: true, message: `Successfully updated ${updatedRows.length} rows.`, updatedRows };
+        return { success: true, message: `Successfully updated ${updatedRows.length} rows.`, updatedRows, operationType: 'UPDATE' };
 
     } catch (error: any) {
         console.error('Failed to update sheet status:', error.message);
@@ -281,7 +284,8 @@ export async function updateSheetStatus(
 
 export async function importToSheet(
     data: { headers: string[], rows: Record<string, any>[] },
-    sheetUrl: string
+    sheetUrl: string,
+    sheetId: number
 ) {
     const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
@@ -295,7 +299,6 @@ export async function importToSheet(
         const sheetName = 'All Case';
 
         // 1. Get existing titles from the sheet to check for duplicates.
-        // The title is in column M.
         const titleRange = `${sheetName}!M:M`;
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
@@ -303,6 +306,7 @@ export async function importToSheet(
         });
 
         const existingTitles = new Set(response.data.values ? response.data.values.flat() : []);
+        const lastRow = response.data.values?.length || 0;
 
         // 2. Filter out rows that are already in the sheet.
         const newRows = [];
@@ -342,18 +346,93 @@ export async function importToSheet(
                 values,
             },
         });
+        
+        const undoData = {
+            operationType: 'IMPORT',
+            spreadsheetId,
+            sheetId,
+            startIndex: lastRow,
+            count: newRows.length
+        };
 
         return {
             success: true,
             message: `Import complete.`,
             importedCount: newRows.length,
             duplicateCount: duplicateRows.length,
-            duplicates: duplicateRows
+            duplicates: duplicateRows,
+            undoData
         };
 
     } catch (error: any) {
         console.error('Failed to import to sheet:', error.message);
         const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred during sheet import.';
+        return { error: apiError };
+    }
+}
+
+
+export async function undoLastAction(
+    undoData: any,
+    sheetUrl: string,
+) {
+    if (!undoData) {
+        return { error: 'No undo data available.' };
+    }
+
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const match = sheetUrl.match(sheetIdRegex);
+    if (!match || !match[1]) {
+        return { error: 'Invalid Google Sheets URL format.' };
+    }
+    const spreadsheetId = match[1];
+    const sheetName = 'All Case';
+
+    try {
+        const sheets = getGoogleSheetsClient();
+
+        if (undoData.operationType === 'IMPORT') {
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId,
+                requestBody: {
+                    requests: [{
+                        deleteDimension: {
+                            range: {
+                                sheetId: undoData.sheetId,
+                                dimension: 'ROWS',
+                                startIndex: undoData.startIndex,
+                                endIndex: undoData.startIndex + undoData.count
+                            }
+                        }
+                    }]
+                }
+            });
+            return { success: true, message: `Successfully undone import of ${undoData.count} rows.` };
+        }
+
+        if (undoData.operationType === 'UPDATE') {
+             const updateRequests = undoData.updatedRows.map((row: { rowIndex: number, oldStatus: string }) => ({
+                range: `${sheetName}!G${row.rowIndex}`,
+                values: [[row.oldStatus]],
+            }));
+
+            if (updateRequests.length > 0) {
+                 await sheets.spreadsheets.values.batchUpdate({
+                    spreadsheetId,
+                    requestBody: {
+                        valueInputOption: 'USER_ENTERED',
+                        data: updateRequests,
+                    },
+                });
+            }
+            return { success: true, message: `Successfully undone update of ${undoData.updatedRows.length} rows.` };
+        }
+
+        return { error: 'Unknown operation type for undo.' };
+
+    } catch (error: any) {
+        console.error('Failed to undo last action:', error.message);
+        const apiError = error.errors?.[0]?.message || 'An unknown error occurred during undo operation.';
         return { error: apiError };
     }
 }

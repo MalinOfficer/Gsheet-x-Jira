@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet, ArrowRight } from 'lucide-react';
-import { importToSheet, updateSheetStatus, getSheetTitle, getUpdatePreview } from '@/app/actions';
+import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet, ArrowRight, Undo } from 'lucide-react';
+import { importToSheet, updateSheetStatus, getSheetTitle, getUpdatePreview, undoLastAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -23,7 +23,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
@@ -35,16 +34,23 @@ type UpdatePreview = {
     newStatus: string;
 };
 
+type LastActionUndoData = {
+    operationType: 'IMPORT' | 'UPDATE';
+    [key: string]: any;
+} | null;
+
 export function GsheetDashboard() {
   const { tableData, setTableData } = useContext(TableDataContext);
   const [sheetUrl, setSheetUrl] = useState('');
-  const [sheetTitle, setSheetTitle] = useState<{ name: string; error: string | null; loading: boolean }>({ name: '', error: null, loading: false });
+  const [sheetTitle, setSheetTitle] = useState<{ name: string; error: string | null; loading: boolean, sheetId: number | null }>({ name: '', error: null, loading: false, sheetId: null });
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
+  const [lastActionUndoData, setLastActionUndoData] = useState<LastActionUndoData>(null);
 
   const [isImporting, startImporting] = useTransition();
   const [isUpdating, startUpdating] = useTransition();
   const [isPreviewing, startPreviewing] = useTransition();
+  const [isUndoing, startUndoing] = useTransition();
 
   const { toast } = useToast();
   const router = useRouter();
@@ -59,15 +65,15 @@ export function GsheetDashboard() {
 
   const fetchTitle = useCallback(async (url: string) => {
     if (!url || !url.includes('spreadsheets/d/')) {
-        setSheetTitle({ name: '', error: null, loading: false });
+        setSheetTitle({ name: '', error: null, loading: false, sheetId: null });
         return;
     }
     setSheetTitle(prev => ({ ...prev, loading: true, error: null }));
     const result = await getSheetTitle(url);
     if (result.title) {
-        setSheetTitle({ name: result.title, error: null, loading: false });
+        setSheetTitle({ name: result.title, error: null, loading: false, sheetId: result.sheetId || null });
     } else {
-        setSheetTitle({ name: '', error: result.error || 'Failed to fetch title.', loading: false });
+        setSheetTitle({ name: '', error: result.error || 'Failed to fetch title.', loading: false, sheetId: null });
     }
   }, []);
 
@@ -77,6 +83,7 @@ export function GsheetDashboard() {
     const newUrl = e.target.value;
     setSheetUrl(newUrl);
     debouncedFetchTitle(newUrl);
+    setLastActionUndoData(null);
   };
 
   const handleUpdatePreview = async () => {
@@ -126,6 +133,7 @@ export function GsheetDashboard() {
           title: "Update Error",
           description: `Failed to update sheet status: ${result.error}`,
         });
+        setLastActionUndoData(null);
       } else {
         toast({
           title: "Update Successful",
@@ -136,8 +144,8 @@ export function GsheetDashboard() {
                 <div className="mt-2 text-xs">
                   <p className="font-bold">Updated Cases:</p>
                   <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
-                    {result.updatedRows.map((item: { title: string, status: string }, index: number) => (
-                      <li key={index}>{item.title} -> <strong>{item.status}</strong></li>
+                    {result.updatedRows.map((item: { title: string, newStatus: string }, index: number) => (
+                      <li key={index}>{item.title} -> <strong>{item.newStatus}</strong></li>
                     ))}
                   </ul>
                 </div>
@@ -145,16 +153,21 @@ export function GsheetDashboard() {
             </div>
           ),
         });
+        if (result.updatedRows && result.updatedRows.length > 0) {
+            setLastActionUndoData({ operationType: 'UPDATE', updatedRows: result.updatedRows });
+        } else {
+            setLastActionUndoData(null);
+        }
       }
     });
   };
 
   const handleImport = async () => {
-    if (!tableData || !sheetUrl) {
+    if (!tableData || !sheetUrl || !sheetTitle.sheetId) {
         toast({
             variant: "destructive",
             title: "Import Failed",
-            description: "No data to import or sheet URL is missing.",
+            description: "No data to import, sheet URL is missing, or sheet ID could not be determined.",
         });
         return;
     }
@@ -162,8 +175,8 @@ export function GsheetDashboard() {
     localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
 
     startImporting(async () => {
-        if (!tableData) return;
-        const result = await importToSheet({ headers: tableData.headers, rows: tableData.rows }, sheetUrl);
+        if (!tableData || !sheetTitle.sheetId) return;
+        const result = await importToSheet({ headers: tableData.headers, rows: tableData.rows }, sheetUrl, sheetTitle.sheetId);
 
         if (result.error) {
             toast({
@@ -171,6 +184,7 @@ export function GsheetDashboard() {
                 title: "Import Error",
                 description: `Failed to import to sheet: ${result.error}`,
             });
+            setLastActionUndoData(null);
         } else {
             toast({
                 title: "Import Complete",
@@ -191,7 +205,40 @@ export function GsheetDashboard() {
                     </div>
                 ),
             });
+            if (result.undoData) {
+                setLastActionUndoData(result.undoData);
+            } else {
+                setLastActionUndoData(null);
+            }
         }
+    });
+  };
+
+  const handleUndo = async () => {
+    if (!lastActionUndoData || !sheetUrl) {
+      toast({
+        variant: "destructive",
+        title: "Undo Failed",
+        description: "There is no action to undo.",
+      });
+      return;
+    }
+
+    startUndoing(async () => {
+      const result = await undoLastAction(lastActionUndoData, sheetUrl);
+      if (result.error) {
+        toast({
+          variant: "destructive",
+          title: "Undo Error",
+          description: result.error,
+        });
+      } else {
+        toast({
+          title: "Undo Successful",
+          description: result.message,
+        });
+        setLastActionUndoData(null); // Clear undo data after successful undo
+      }
     });
   };
 
@@ -216,6 +263,7 @@ export function GsheetDashboard() {
     const newRows = [...tableData.rows];
     newRows[rowIndex]['Status'] = newStatus;
     setTableData({ ...tableData, rows: newRows });
+    setLastActionUndoData(null); // Invalidate last action on data change
   };
 
   const InitialState = () => (
@@ -300,7 +348,7 @@ export function GsheetDashboard() {
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || sheetTitle.loading || !!sheetTitle.error || isPreviewing}>
+                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || sheetTitle.loading || !!sheetTitle.error || isPreviewing || isUndoing}>
                            <Upload className="mr-2 h-4 w-4" />
                            Import to GSheet
                          </Button>
@@ -314,7 +362,7 @@ export function GsheetDashboard() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Batal</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleImport}>
+                          <AlertDialogAction onClick={handleImport} disabled={isImporting}>
                             {isImporting ? (
                                 <>
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -329,11 +377,12 @@ export function GsheetDashboard() {
                     </AlertDialog>
                     
                     <AlertDialog open={isUpdateConfirmOpen} onOpenChange={setIsUpdateConfirmOpen}>
+                      <AlertDialogTrigger asChild>
                          <Button 
                             onClick={handleUpdatePreview} 
                             size="sm"
                             className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950"
-                            disabled={isUpdating || isImporting || !sheetUrl || isPreviewing}>
+                            disabled={isUpdating || isImporting || !sheetUrl || isPreviewing || isUndoing}>
                             {isPreviewing ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -346,10 +395,11 @@ export function GsheetDashboard() {
                                 </>
                             )}
                         </Button>
+                      </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
-                            <div className="text-sm text-muted-foreground">
+                           <div className="text-sm text-muted-foreground">
                                 <p className='mb-2'>Apakah Anda yakin ingin memperbarui status untuk {updatePreview.length} kasus di sheet <span className="font-bold text-foreground">"{sheetTitle.name}"</span>?</p>
                                 <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
                                     <p className="font-bold">Detail Perubahan:</p>
@@ -378,6 +428,24 @@ export function GsheetDashboard() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+
+                    <Button 
+                        onClick={handleUndo} 
+                        size="sm"
+                        variant="destructive"
+                        disabled={!lastActionUndoData || isUndoing || isImporting || isUpdating || isPreviewing}>
+                        {isUndoing ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Membatalkan...
+                            </>
+                        ) : (
+                            <>
+                                <Undo className="mr-2 h-4 w-4" />
+                                Undo Last Action
+                            </>
+                        )}
+                    </Button>
                 </div>
               </CardContent>
             </Card>
