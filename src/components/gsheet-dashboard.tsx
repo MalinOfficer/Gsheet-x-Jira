@@ -237,7 +237,7 @@ export function GsheetDashboard() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="relative max-h-[500px] overflow-auto rounded-md border">
+                    <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
                         <Table>
                             <TableHeader className="sticky top-0 z-10 bg-card">
                                 <TableRow>

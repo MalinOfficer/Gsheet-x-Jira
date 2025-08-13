@@ -313,11 +313,11 @@ export function JsonConverter() {
                                     aria-label="JSON Input"
                                 />
                                 <div className="flex flex-wrap gap-2">
-                                    <Button onClick={handleImportClick} variant="outline" size="sm" className="w-fit">
+                                    <Button onClick={handleImportClick} variant="outline" size="sm" className="w-full sm:w-auto">
                                         <Upload className="mr-2 h-4 w-4" />
                                         Import JSON File
                                     </Button>
-                                     <Button onClick={handleDelete} variant="destructive" size="sm" className="w-fit">
+                                     <Button onClick={handleDelete} variant="destructive" size="sm" className="w-full sm:w-auto">
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         Delete
                                     </Button>
@@ -342,7 +342,7 @@ export function JsonConverter() {
                                     aria-label="Convert To Headers"
                                 />
                                 <div className="flex flex-wrap gap-2">
-                                    <Button onClick={handleSaveTemplate} variant="outline" size="sm" className="w-fit">
+                                    <Button onClick={handleSaveTemplate} variant="outline" size="sm" className="w-full sm:w-auto">
                                         <Save className="mr-2 h-4 w-4" />
                                         Save as Default
                                     </Button>
@@ -391,7 +391,7 @@ export function JsonConverter() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="relative max-h-[500px] overflow-auto rounded-md border">
+                            <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
                                 <Table>
                                     <TableHeader className="sticky top-0 z-10 bg-card">
                                         <TableRow>
