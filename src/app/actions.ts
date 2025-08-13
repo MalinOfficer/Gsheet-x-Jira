@@ -304,7 +304,6 @@ export async function importToSheet(
         const sheets = getGoogleSheetsClient();
         const sheetName = 'All Case';
 
-        // 1. Get existing titles from the sheet to check for duplicates.
         const titleRange = `${sheetName}!M:M`;
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
@@ -313,8 +312,7 @@ export async function importToSheet(
 
         const existingTitles = new Set(response.data.values ? response.data.values.flat() : []);
         const lastRow = response.data.values?.length || 0;
-
-        // 2. Filter out rows that are already in the sheet.
+        
         const newRows = [];
         const duplicateRows = [];
         for (const row of data.rows) {
@@ -336,20 +334,21 @@ export async function importToSheet(
             };
         }
 
-        // 3. Prepare values for appending, adding empty columns for A-D.
         const values = newRows.map(row => {
             const rowValues = data.headers.map(header => row[header]);
             return ['', '', '', '', ...rowValues];
         });
+        
+        const updateRange = `${sheetName}!A${lastRow + 1}`;
 
-        // 4. Append only the new rows.
-        await sheets.spreadsheets.values.append({
+        await sheets.spreadsheets.values.batchUpdate({
             spreadsheetId,
-            range: `${sheetName}!A1`, 
-            valueInputOption: 'USER_ENTERED',
-            insertDataOption: 'INSERT_ROWS',
             requestBody: {
-                values,
+                valueInputOption: 'USER_ENTERED',
+                data: [{
+                    range: updateRange,
+                    values: values,
+                }],
             },
         });
         
@@ -442,3 +441,5 @@ export async function undoLastAction(
         return { error: apiError };
     }
 }
+
+    
