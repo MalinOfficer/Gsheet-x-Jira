@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet } from 'lucide-react';
-import { importToSheet, updateSheetStatus, getSheetTitle } from '@/app/actions';
+import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet, ArrowRight } from 'lucide-react';
+import { importToSheet, updateSheetStatus, getSheetTitle, getUpdatePreview } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -28,14 +28,23 @@ import {
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 
+type UpdatePreview = {
+    title: string;
+    oldStatus: string;
+    newStatus: string;
+};
 
 export function GsheetDashboard() {
   const { tableData, setTableData } = useContext(TableDataContext);
   const [sheetUrl, setSheetUrl] = useState('');
   const [sheetTitle, setSheetTitle] = useState<{ name: string; error: string | null; loading: boolean }>({ name: '', error: null, loading: false });
+  const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
+  const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
 
   const [isImporting, startImporting] = useTransition();
   const [isUpdating, startUpdating] = useTransition();
+  const [isPreviewing, startPreviewing] = useTransition();
+
   const { toast } = useToast();
   const router = useRouter();
 
@@ -69,16 +78,43 @@ export function GsheetDashboard() {
     debouncedFetchTitle(newUrl);
   };
 
-
-  const handleUpdate = async () => {
+  const handleUpdatePreview = async () => {
     if (!tableData || !sheetUrl) {
       toast({
         variant: "destructive",
-        title: "Update Failed",
-        description: "No data to update or sheet URL is missing.",
+        title: "Preview Failed",
+        description: "No data to preview or sheet URL is missing.",
       });
       return;
     }
+
+    startPreviewing(async () => {
+        const result = await getUpdatePreview({ rows: tableData.rows }, sheetUrl);
+        if (result.error) {
+            toast({
+                variant: "destructive",
+                title: "Preview Error",
+                description: `Failed to get update preview: ${result.error}`,
+            });
+            return;
+        }
+
+        if (result.changes && result.changes.length > 0) {
+            setUpdatePreview(result.changes);
+            setIsUpdateConfirmOpen(true);
+        } else {
+            toast({
+                title: "No Changes Detected",
+                description: "All statuses are already up-to-date in the Google Sheet.",
+            });
+        }
+    });
+  };
+
+  const handleConfirmUpdate = async () => {
+    if (!tableData || !sheetUrl) return;
+    setIsUpdateConfirmOpen(false);
+
     localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
 
     startUpdating(async () => {
@@ -263,7 +299,7 @@ export function GsheetDashboard() {
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || sheetTitle.loading || !!sheetTitle.error}>
+                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || sheetTitle.loading || !!sheetTitle.error || isPreviewing}>
                            <Upload className="mr-2 h-4 w-4" />
                            Import to GSheet
                          </Button>
@@ -291,23 +327,56 @@ export function GsheetDashboard() {
                       </AlertDialogContent>
                     </AlertDialog>
                     
-                    <Button 
-                        onClick={handleUpdate} 
-                        size="sm"
-                        className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950"
-                        disabled={isUpdating || isImporting || !sheetUrl}>
-                        {isUpdating ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Updating...
-                            </>
-                        ) : (
-                            <>
-                                <DatabaseZap className="mr-2 h-4 w-4" />
-                                Update Status
-                            </>
-                        )}
-                    </Button>
+                    <AlertDialog open={isUpdateConfirmOpen} onOpenChange={setIsUpdateConfirmOpen}>
+                         <Button 
+                            onClick={handleUpdatePreview} 
+                            size="sm"
+                            className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950"
+                            disabled={isUpdating || isImporting || !sheetUrl || isPreviewing}>
+                            {isPreviewing ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Mengecek...
+                                </>
+                            ) : (
+                                <>
+                                    <DatabaseZap className="mr-2 h-4 w-4" />
+                                    Update Status
+                                </>
+                            )}
+                        </Button>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            <p className='mb-2'>Apakah Anda yakin ingin memperbarui status untuk {updatePreview.length} kasus di sheet <span className="font-bold text-foreground">"{sheetTitle.name}"</span>?</p>
+                            <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
+                                <p className="font-bold">Detail Perubahan:</p>
+                                <ul className="list-disc pl-5">
+                                    {updatePreview.map((item, index) => (
+                                      <li key={index} className='text-foreground'>
+                                        {item.title}: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> <ArrowRight className="inline h-3 w-3" /> <strong>{item.newStatus}</strong>
+                                      </li>
+                                    ))}
+                                </ul>
+                            </div>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setUpdatePreview([])}>Batal</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleConfirmUpdate} disabled={isUpdating}>
+                            {isUpdating ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Memperbarui...
+                                </>
+                              ) : (
+                                "Ya, Lanjutkan Update"
+                              )}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                 </div>
               </CardContent>
             </Card>

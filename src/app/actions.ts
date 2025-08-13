@@ -89,7 +89,7 @@ const getGoogleSheetsClient = () => {
             client_email: clientEmail,
             private_key: privateKey.replace(/\\n/g, '\n'),
         },
-        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
     return google.sheets({ version: 'v4', auth });
@@ -126,6 +126,92 @@ export async function getSheetTitle(url: string) {
   }
 }
 
+async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: string) {
+    const rangeToRead = `${sheetName}!G:M`;
+    const response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: rangeToRead,
+    });
+
+    const sheetRows = response.data.values;
+    if (!sheetRows || sheetRows.length === 0) {
+        throw new Error('Could not find any data in the target sheet.');
+    }
+
+    const ticketNumberRegex = /#(\d+)/;
+    const rowMap: Record<string, { rowIndex: number, currentStatus: string, title: string }> = {};
+    sheetRows.forEach((row, index) => {
+        const currentStatus = row[0] || ''; // Column G
+        const detailCase = row[6]; // Column M
+        if (typeof detailCase === 'string') {
+            const match = detailCase.match(ticketNumberRegex);
+            if (match && match[1]) {
+                const ticketNumber = match[1];
+                rowMap[ticketNumber] = {
+                    rowIndex: index + 1, // 1-based index
+                    currentStatus: currentStatus,
+                    title: detailCase,
+                };
+            }
+        }
+    });
+    return rowMap;
+}
+
+export async function getUpdatePreview(
+    data: { rows: Record<string, any>[] },
+    sheetUrl: string
+) {
+    if (!data || data.rows.length === 0) {
+        return { error: 'No data provided to preview.' };
+    }
+
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const match = sheetUrl.match(sheetIdRegex);
+    if (!match || !match[1]) {
+        return { error: 'Invalid Google Sheets URL format.' };
+    }
+    const spreadsheetId = match[1];
+    const sheetName = 'All Case';
+
+    try {
+        const sheets = getGoogleSheetsClient();
+        const rowMap = await getSheetRowMap(sheets, spreadsheetId, sheetName);
+        
+        const changesToPreview: { title: string, oldStatus: string, newStatus: string }[] = [];
+        const ticketNumberRegex = /#(\d+)/;
+
+        for (const appRow of data.rows) {
+            const detailCase = appRow['Title'];
+            const newStatus = appRow['Status'];
+
+            if (typeof detailCase === 'string' && newStatus) {
+                const match = detailCase.match(ticketNumberRegex);
+                if (match && match[1]) {
+                    const ticketNumber = match[1];
+                    const sheetRowInfo = rowMap[ticketNumber];
+                    
+                    if (sheetRowInfo && sheetRowInfo.currentStatus !== newStatus) {
+                        changesToPreview.push({
+                            title: sheetRowInfo.title,
+                            oldStatus: sheetRowInfo.currentStatus,
+                            newStatus: newStatus
+                        });
+                    }
+                }
+            }
+        }
+        
+        return { success: true, changes: changesToPreview };
+
+    } catch (error: any) {
+        console.error('Failed to get update preview:', error.message);
+        const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred during preview generation.';
+        return { error: apiError };
+    }
+}
+
+
 export async function updateSheetStatus(
     data: { rows: Record<string, any>[] },
     sheetUrl: string
@@ -144,39 +230,11 @@ export async function updateSheetStatus(
 
     try {
         const sheets = getGoogleSheetsClient();
-
-        // Read the title (M) and status (G) columns to map ticket numbers to row indices and get current status
-        const rangeToRead = `${sheetName}!G:M`; 
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: rangeToRead,
-        });
-
-        const sheetRows = response.data.values;
-        if (!sheetRows || sheetRows.length === 0) {
-            return { error: 'Could not find any data in the target sheet.' };
-        }
-
-        const ticketNumberRegex = /#(\d+)/;
-        // The G column is index 0, and M is index 6 in the response
-        const rowMap: Record<string, { rowIndex: number, currentStatus: string }> = {};
-        sheetRows.forEach((row, index) => {
-            const currentStatus = row[0] || '';
-            const detailCase = row[6]; // Column M
-            if (typeof detailCase === 'string') {
-                const match = detailCase.match(ticketNumberRegex);
-                if (match && match[1]) {
-                    const ticketNumber = match[1];
-                    rowMap[ticketNumber] = { 
-                        rowIndex: index + 1, // 1-based index for sheets
-                        currentStatus: currentStatus 
-                    };
-                }
-            }
-        });
+        const rowMap = await getSheetRowMap(sheets, spreadsheetId, sheetName);
 
         const updateRequests = [];
         const updatedRows: { title: string, status: string }[] = [];
+        const ticketNumberRegex = /#(\d+)/;
         
         for (const appRow of data.rows) {
             const detailCase = appRow['Title'];
