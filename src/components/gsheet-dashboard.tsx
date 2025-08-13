@@ -201,11 +201,19 @@ export function GsheetDashboard() {
   };
 
   const handleImport = async () => {
-    if (!tableData || !sheetUrl || !sheetTitle.sheetId) {
+    if (!tableData || !sheetUrl) {
         toast({
             variant: "destructive",
             title: "Import Failed",
-            description: "No data to import, sheet URL is missing, or sheet ID could not be determined.",
+            description: "No data to import or sheet URL is missing.",
+        });
+        return;
+    }
+     if (!sheetTitle.sheetId) {
+        toast({
+            variant: "destructive",
+            title: "Import Failed",
+            description: "Could not find the target sheet 'All Case'. Please ensure it exists and the URL is correct.",
         });
         return;
     }
@@ -390,7 +398,7 @@ export function GsheetDashboard() {
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || sheetTitle.loading || !!sheetTitle.error || isPreviewing || isUndoing}>
+                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || sheetTitle.loading || isPreviewing || isUndoing}>
                            <Upload className="mr-2 h-4 w-4" />
                            Import to GSheet
                          </Button>
@@ -399,7 +407,7 @@ export function GsheetDashboard() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Konfirmasi Impor</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Apakah Anda yakin akan mengimpor {tableData.rows.length} baris ke Google Sheet <span className="font-bold text-foreground">"{sheetTitle.name}"</span>? Tindakan ini tidak dapat dibatalkan.
+                            Apakah Anda yakin akan mengimpor {tableData.rows.length} baris ke Google Sheet <span className="font-bold text-foreground">"{sheetTitle.name}"</span>?
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -424,7 +432,7 @@ export function GsheetDashboard() {
                             onClick={handleUpdatePreview} 
                             size="sm"
                             className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950"
-                            disabled={isUpdating || isImporting || !sheetUrl || sheetTitle.loading || !!sheetTitle.error || isPreviewing || isUndoing}>
+                            disabled={isUpdating || isImporting || !sheetUrl || sheetTitle.loading || isPreviewing || isUndoing}>
                             {isPreviewing ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

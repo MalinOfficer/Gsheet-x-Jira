@@ -89,7 +89,7 @@ const getGoogleSheetsClient = () => {
             client_email: clientEmail,
             private_key: privateKey.replace(/\\n/g, '\n'),
         },
-        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
     return google.sheets({ version: 'v4', auth });
@@ -120,13 +120,17 @@ export async function getSheetTitle(url: string) {
         return { error: 'Could not retrieve the sheet title.' };
     }
      
-    const allCaseSheet = response.data.sheets?.find(s => s.properties?.title?.toLowerCase() === 'all case');
-    if (!allCaseSheet?.properties?.sheetId) {
-        return { title, error: 'Target sheet named "All Case" was not found in this spreadsheet.' };
+    const allCaseSheet = response.data.sheets?.find(s => s.properties?.title === 'All Case');
+    
+    // If "All Case" sheet is not found, we don't block the process here. 
+    // The import/update functions will handle the case where the sheet doesn't exist.
+    // We just return the main title. The sheetId can be optional.
+    const sheetId = allCaseSheet?.properties?.sheetId ?? null;
+    
+    if (!allCaseSheet) {
+      return { title, sheetId, error: 'Target sheet named "All Case" might be missing, but you can still try to proceed.' };
     }
-    
-    const sheetId = allCaseSheet.properties.sheetId;
-    
+
     return { title, sheetId };
   } catch (error: any) {
     console.error('Failed to get sheet title:', error.message);
@@ -325,13 +329,17 @@ export async function updateSheetStatus(
 export async function importToSheet(
     data: { headers: string[], rows: Record<string, any>[] },
     sheetUrl: string,
-    sheetId: number
+    sheetId: number | null
 ) {
     const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
     }
+    if (!sheetId) {
+        return { error: 'Could not determine the ID of the "All Case" sheet. Please ensure it exists.' };
+    }
+
     const spreadsheetId = match[1];
 
     try {
@@ -368,29 +376,45 @@ export async function importToSheet(
             };
         }
 
-        const values = newRows.map(row => {
-            const rowValues = data.headers.map(header => row[header]);
-            return ['', '', '', '', ...rowValues];
+        const valuesToAppend = newRows.map(row => {
+            // Reorder the row values to match the GSheet columns: G,H,I,J,K,L,M
+            return [
+                row['Status'] || '',
+                row['Kolom kosong1'] || '',
+                row['Ticket Category'] || '',
+                row['Module'] || '',
+                row['Detail Module'] || '',
+                row['Created At'] || '',
+                row['Title'] || ''
+            ];
         });
-        
-        const updateRange = `${sheetName}!A${lastRow + 1}`;
 
-        await sheets.spreadsheets.values.batchUpdate({
+        const appendResult = await sheets.spreadsheets.values.append({
             spreadsheetId,
+            range: `${sheetName}!G1`, // Append starting from column G
+            valueInputOption: 'USER_ENTERED',
             requestBody: {
-                valueInputOption: 'USER_ENTERED',
-                data: [{
-                    range: updateRange,
-                    values: values,
-                }],
+                values: valuesToAppend,
             },
         });
-        
+
+        const updatedRange = appendResult.data.updates?.updatedRange;
+        if (!updatedRange) {
+            throw new Error("Could not determine the range of appended data for undo operation.");
+        }
+
+        const rangeRegex = /'All Case'!G(\d+):M(\d+)/;
+        const rangeMatch = updatedRange.match(rangeRegex);
+        if (!rangeMatch) {
+             throw new Error("Could not parse the updated range from API response.");
+        }
+        const startRowIndex = parseInt(rangeMatch[1], 10) -1;
+
         const undoData = {
             operationType: 'IMPORT',
             spreadsheetId,
             sheetId,
-            startIndex: lastRow,
+            startIndex: startRowIndex,
             count: newRows.length
         };
 
