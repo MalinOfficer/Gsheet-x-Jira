@@ -120,7 +120,7 @@ export async function getSheetTitle(url: string) {
         return { error: 'Could not retrieve the sheet title.' };
     }
      
-    const allCaseSheet = response.data.sheets?.find(s => s.properties?.title === 'All Case');
+    const allCaseSheet = response.data.sheets?.find(s => s.properties?.title?.toLowerCase() === 'all case');
     if (!allCaseSheet?.properties?.sheetId) {
         return { title, error: 'Target sheet named "All Case" was not found in this spreadsheet.' };
     }
