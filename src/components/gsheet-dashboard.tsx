@@ -7,13 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet, ArrowRight, Undo, ListTree } from 'lucide-react';
-import { importToSheet, updateSheetStatus, getSheetTitle, getUpdatePreview, undoLastAction, getSheetNames } from '@/app/actions';
+import { importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { TableDataContext } from '@/store/table-data-context';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { useDebouncedCallback } from 'use-debounce';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +42,6 @@ type LastActionUndoData = {
 export function GsheetDashboard() {
   const { tableData, setTableData } = useContext(TableDataContext);
   const [sheetUrl, setSheetUrl] = useState('');
-  const [sheetTitle, setSheetTitle] = useState<{ name: string; error: string | null; loading: boolean, sheetId: number | null }>({ name: '', error: null, loading: false, sheetId: null });
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
   const [lastActionUndoData, setLastActionUndoData] = useState<LastActionUndoData>(null);
@@ -52,76 +50,19 @@ export function GsheetDashboard() {
   const [isUpdating, startUpdating] = useTransition();
   const [isPreviewing, startPreviewing] = useTransition();
   const [isUndoing, startUndoing] = useTransition();
-  const [isAnalyzing, startAnalyzing] = useTransition();
 
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
     const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
-    const initialUrl = savedUrl || DEFAULT_SHEET_URL;
-    setSheetUrl(initialUrl);
-    fetchTitle(initialUrl);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    setSheetUrl(savedUrl || DEFAULT_SHEET_URL);
   }, []);
-
-  const fetchTitle = useCallback(async (url: string) => {
-    if (!url || !url.includes('spreadsheets/d/')) {
-        setSheetTitle({ name: '', error: null, loading: false, sheetId: null });
-        return;
-    }
-    setSheetTitle(prev => ({ ...prev, loading: true, name: '', error: null, sheetId: null }));
-    const result = await getSheetTitle(url);
-    
-    setSheetTitle({
-        name: result.title || '',
-        error: result.error || null,
-        loading: false,
-        sheetId: result.sheetId || null,
-    });
-  }, []);
-
-  const debouncedFetchTitle = useDebouncedCallback(fetchTitle, 500);
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value;
     setSheetUrl(newUrl);
-    debouncedFetchTitle(newUrl);
     setLastActionUndoData(null);
-  };
-  
-  const handleAnalyzeSheet = () => {
-    if (!sheetUrl) {
-        toast({
-            variant: "destructive",
-            title: "Analysis Failed",
-            description: "Please enter a Google Sheet URL first.",
-        });
-        return;
-    }
-    startAnalyzing(async () => {
-        const result = await getSheetNames(sheetUrl);
-        if (result.error) {
-            toast({
-                variant: "destructive",
-                title: "Analysis Error",
-                description: result.error,
-            });
-        } else if (result.success && result.sheetNames) {
-            toast({
-                title: "Sheet Analysis Complete",
-                description: (
-                    <div>
-                        <p>The following sheets were found:</p>
-                        <ul className="mt-2 list-disc list-inside text-xs">
-                            {result.sheetNames.map(name => <li key={name}>{name}</li>)}
-                        </ul>
-                    </div>
-                ),
-                duration: 10000,
-            });
-        }
-    });
   };
 
   const handleUpdatePreview = async () => {
@@ -201,11 +142,11 @@ export function GsheetDashboard() {
   };
 
   const handleImport = async () => {
-    if (!tableData || !sheetUrl || sheetTitle.sheetId === null) {
+    if (!tableData || !sheetUrl) {
         toast({
             variant: "destructive",
             title: "Import Failed",
-            description: "No data to import, sheet URL is missing, or sheet ID could not be determined.",
+            description: "No data to import or sheet URL is missing.",
         });
         return;
     }
@@ -213,8 +154,8 @@ export function GsheetDashboard() {
     localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
 
     startImporting(async () => {
-        if (!tableData || sheetTitle.sheetId === null) return;
-        const result = await importToSheet({ headers: tableData.headers, rows: tableData.rows }, sheetUrl, sheetTitle.sheetId);
+        if (!tableData) return;
+        const result = await importToSheet({ headers: tableData.headers, rows: tableData.rows }, sheetUrl);
 
         if (result.error) {
             toast({
@@ -351,46 +292,16 @@ export function GsheetDashboard() {
                         onChange={handleUrlChange}
                         className="flex-grow"
                       />
-                       <Button onClick={handleAnalyzeSheet} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isAnalyzing}>
-                           {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ListTree className="h-4 w-4 mr-2" />}
-                           Analyze Sheet
-                       </Button>
                       <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto">
                           <Save className="h-4 w-4 mr-2" /> Set as Default
                       </Button>
-                    </div>
-                     <div className="h-5 mt-2 text-xs">
-                        {sheetTitle.loading && (
-                            <p className="flex items-center text-muted-foreground">
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Fetching title...
-                            </p>
-                        )}
-                        {sheetTitle.error && (
-                            <p className="flex items-center text-destructive">
-                                <XCircle className="mr-2 h-4 w-4" />
-                                {sheetTitle.error}
-                            </p>
-                        )}
-                        {sheetTitle.name && !sheetTitle.error && (
-                            <p className="flex items-center text-green-600 font-medium">
-                                <CheckCircle2 className="mr-2 h-4 w-4" />
-                                {sheetTitle.name}
-                            </p>
-                        )}
-                         {!sheetTitle.loading && !sheetTitle.error && !sheetTitle.name && (
-                            <p className="flex items-center text-muted-foreground">
-                                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                                Sheet title will appear here.
-                            </p>
-                         )}
                     </div>
                   </div>
                 
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || sheetTitle.loading || !!sheetTitle.error || isPreviewing || isUndoing}>
+                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || isPreviewing || isUndoing}>
                            <Upload className="mr-2 h-4 w-4" />
                            Import to GSheet
                          </Button>
@@ -399,7 +310,7 @@ export function GsheetDashboard() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Konfirmasi Impor</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Apakah Anda yakin akan mengimpor {tableData.rows.length} baris ke Google Sheet <span className="font-bold text-foreground">"{sheetTitle.name || 'target'}"</span>?
+                            Apakah Anda yakin akan mengimpor {tableData.rows.length} baris ke Google Sheet target?
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -424,7 +335,7 @@ export function GsheetDashboard() {
                             onClick={handleUpdatePreview} 
                             size="sm"
                             className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950"
-                            disabled={isUpdating || isImporting || !sheetUrl || sheetTitle.loading || isPreviewing || isUndoing}>
+                            disabled={isUpdating || isImporting || !sheetUrl || isPreviewing || isUndoing}>
                             {isPreviewing ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -440,9 +351,9 @@ export function GsheetDashboard() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
+                           <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
                            <div className="text-sm text-muted-foreground">
-                                <p className='mb-2'>Apakah Anda yakin ingin memperbarui status untuk {updatePreview.length} kasus di sheet <span className="font-bold text-foreground">"{sheetTitle.name}"</span>?</p>
+                                <p className='mb-2'>Apakah Anda yakin ingin memperbarui status untuk {updatePreview.length} kasus di sheet target?</p>
                                 <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
                                     <p className="font-bold">Detail Perubahan:</p>
                                     <ul className="list-disc pl-5">

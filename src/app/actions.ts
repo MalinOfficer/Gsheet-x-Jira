@@ -95,88 +95,6 @@ const getGoogleSheetsClient = () => {
     return google.sheets({ version: 'v4', auth });
 }
 
-
-export async function getSheetTitle(url: string) {
-  if (!url) {
-    return { error: 'URL is required.' };
-  }
-
-  const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
-  const match = url.match(sheetIdRegex);
-  if (!match || !match[1]) {
-    return { error: 'Invalid Google Sheets URL format.' };
-  }
-  const spreadsheetId = match[1];
-
-  try {
-    const sheets = getGoogleSheetsClient();
-    const response = await sheets.spreadsheets.get({
-      spreadsheetId,
-      fields: 'properties.title,sheets.properties.sheetId,sheets.properties.title',
-    });
-    
-    const title = response.data.properties?.title;
-    if (!title) {
-        return { error: 'Could not retrieve the sheet title.' };
-    }
-     
-    // Find the sheet named 'All Case' case-insensitively
-    const allCaseSheet = response.data.sheets?.find(s => 
-        s.properties?.title?.trim().toLowerCase() === 'all case'
-    );
-    
-    const sheetId = allCaseSheet?.properties?.sheetId ?? null;
-
-    if (sheetId === null) {
-        return { 
-            title, 
-            sheetId: null, 
-            error: `Target sheet named "All Case" was not found in this spreadsheet. Please ensure it exists and has the exact name.` 
-        };
-    }
-
-    return { title, sheetId, error: null };
-  } catch (error: any) {
-    console.error('Failed to get sheet title:', error.message);
-    const apiError = error.errors?.[0]?.message || 'Could not access the sheet. Please check the URL and sharing permissions.';
-    return { error: apiError };
-  }
-}
-
-export async function getSheetNames(url: string) {
-    if (!url) {
-        return { error: 'URL is required.' };
-    }
-
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
-    const match = url.match(sheetIdRegex);
-    if (!match || !match[1]) {
-        return { error: 'Invalid Google Sheets URL format.' };
-    }
-    const spreadsheetId = match[1];
-
-    try {
-        const sheets = getGoogleSheetsClient();
-        const response = await sheets.spreadsheets.get({
-            spreadsheetId,
-            fields: 'sheets.properties.title',
-        });
-
-        const sheetNames = response.data.sheets?.map(s => s.properties?.title || '').filter(Boolean) as string[];
-
-        if (!sheetNames || sheetNames.length === 0) {
-            return { error: 'No sheets found in this spreadsheet.' };
-        }
-
-        return { success: true, sheetNames };
-    } catch (error: any) {
-        console.error('Failed to get sheet names:', error.message);
-        const apiError = error.errors?.[0]?.message || 'Could not access the sheet. Please check the URL and sharing permissions.';
-        return { error: apiError };
-    }
-}
-
-
 async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: string) {
     const rangeToRead = `${sheetName}!G:M`;
     const response = await sheets.spreadsheets.values.get({
@@ -330,26 +248,36 @@ export async function updateSheetStatus(
     }
 }
 
+async function getSheetIdByName(sheets: any, spreadsheetId: string, sheetName: string) {
+    const response = await sheets.spreadsheets.get({
+        spreadsheetId,
+        fields: 'sheets.properties.sheetId,sheets.properties.title',
+    });
+    const sheet = response.data.sheets?.find(
+        (s: any) => s.properties?.title?.trim().toLowerCase() === sheetName.trim().toLowerCase()
+    );
+    return sheet?.properties?.sheetId ?? null;
+}
 
 export async function importToSheet(
     data: { headers: string[], rows: Record<string, any>[] },
-    sheetUrl: string,
-    sheetId: number | null
+    sheetUrl: string
 ) {
     const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
     }
-    if (sheetId === null) {
-        return { error: 'Could not determine the ID of the "All Case" sheet. Please ensure it exists and the URL is correct.' };
-    }
-
     const spreadsheetId = match[1];
 
     try {
         const sheets = getGoogleSheetsClient();
         const sheetName = 'All Case';
+
+        const sheetId = await getSheetIdByName(sheets, spreadsheetId, sheetName);
+        if (sheetId === null) {
+            return { error: `The target sheet named "${sheetName}" was not found in the spreadsheet.` };
+        }
 
         const titleRange = `${sheetName}!M:M`;
         const response = await sheets.spreadsheets.values.get({
@@ -381,37 +309,27 @@ export async function importToSheet(
         }
 
         const valuesToAppend = newRows.map(row => {
-            // Reorder the row values to match the GSheet columns: G,H,I,J,K,L,M
             return [
-                row['Status'] || '',
-                row['Kolom kosong1'] || '',
-                row['Ticket Category'] || '',
-                row['Module'] || '',
-                row['Detail Module'] || '',
-                row['Created At'] || '',
+                row['Status'] || '', row['Kolom kosong1'] || '', row['Ticket Category'] || '',
+                row['Module'] || '', row['Detail Module'] || '', row['Created At'] || '',
                 row['Title'] || ''
             ];
         });
 
         const appendResult = await sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: `${sheetName}!G1`, // Append starting from column G
+            range: `${sheetName}!G1`,
             valueInputOption: 'USER_ENTERED',
-            requestBody: {
-                values: valuesToAppend,
-            },
+            requestBody: { values: valuesToAppend },
         });
 
         const updatedRange = appendResult.data.updates?.updatedRange;
-        if (!updatedRange) {
-            throw new Error("Could not determine the range of appended data for undo operation.");
-        }
-
+        if (!updatedRange) throw new Error("Could not determine the range of appended data for undo.");
+        
         const rangeRegex = /'All Case'!G(\d+):M(\d+)/;
         const rangeMatch = updatedRange.match(rangeRegex);
-        if (!rangeMatch) {
-             throw new Error("Could not parse the updated range from API response.");
-        }
+        if (!rangeMatch) throw new Error("Could not parse the updated range.");
+        
         const startRowIndex = parseInt(rangeMatch[1], 10) -1;
 
         const undoData = {
