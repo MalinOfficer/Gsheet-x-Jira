@@ -5,7 +5,7 @@ import { useState, useTransition, useEffect, useContext, useCallback, useRef } f
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2 } from 'lucide-react';
+import { Loader2, Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil } from 'lucide-react';
 import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
@@ -26,6 +26,8 @@ import {
 import { Textarea } from './ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { AlertCircle } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
@@ -58,6 +60,10 @@ export function ImportFlow() {
   const [jsonInput, setJsonInput] = useState('');
   const [templateInput, setTemplateInput] = useState(DEFAULT_TEMPLATE);
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [dateFormats, setDateFormats] = useState<Record<string, DateFormat>>({
+    'Created At': 'report',
+    'Resolved At': 'report',
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, startImporting] = useTransition();
@@ -291,6 +297,16 @@ export function ImportFlow() {
     setLastActionUndoData(null);
   };
   
+    const handleDateFormatChange = (header: string, format: string) => {
+        if (format === 'origin' || format === 'jam' || format === 'report') {
+            setDateFormats(prev => ({
+                ...prev,
+                'Created At': format as DateFormat,
+                'Resolved At': format as DateFormat,
+            }));
+        }
+    };
+
   const flattenJson = (obj: any, path: string = '', res: Record<string, any> = {}): Record<string, any> => {
       if (obj === null || typeof obj !== 'object') {
           if (path) res[path] = obj;
@@ -621,8 +637,30 @@ export function ImportFlow() {
                         <Table>
                             <TableHeader className="sticky top-0 z-10 bg-card">
                                 <TableRow>
-                                    {tableData.headers.map(header => (
-                                        <TableHead key={header} className="font-bold bg-muted/50 whitespace-nowrap">{header}</TableHead>
+                                    {tableData.headers.map((header, index) => (
+                                        <TableHead key={`${header}-${index}`} className="font-bold bg-muted/50 whitespace-nowrap">
+                                            {(header === 'Created At' || header === 'Resolved At') ? (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" className="pl-0 text-xs text-left font-bold" disabled={isProcessing}>
+                                                            <span className="flex items-center gap-1">
+                                                                {header}
+                                                                <Pencil className="h-3 w-3 text-muted-foreground" />
+                                                            </span>
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent>
+                                                        <DropdownMenuLabel>Date Format</DropdownMenuLabel>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuRadioGroup value={dateFormats[header] || 'report'} onValueChange={(value) => handleDateFormatChange(header, value)}>
+                                                            <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
+                                                            <DropdownMenuRadioItem value="jam">Time</DropdownMenuRadioItem>
+                                                            <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
+                                                        </DropdownMenuRadioGroup>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            ) : header}
+                                        </TableHead>
                                     ))}
                                 </TableRow>
                             </TableHeader>
@@ -643,6 +681,8 @@ export function ImportFlow() {
                                                             <SelectItem value="Solved">Solved</SelectItem>
                                                         </SelectContent>
                                                     </Select>
+                                                ) : (header === 'Created At' || header === 'Resolved At') ? (
+                                                    formatDateTime(row[header], dateFormats[header] || 'report')
                                                 ) : (
                                                     String(row[header] || '')
                                                 )}
