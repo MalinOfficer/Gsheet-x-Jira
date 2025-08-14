@@ -18,12 +18,21 @@ const navItems = [
 
 function NavLinks() {
     const pathname = usePathname();
+    const { setIsProcessing } = useContext(TableDataContext);
+
+    const handleLinkClick = (href: string) => {
+        if (pathname !== href) {
+            setIsProcessing(true);
+        }
+    };
+
     return (
         <>
             {navItems.map((item) => (
                 <Link
                     key={item.label}
                     href={item.href}
+                    onClick={() => handleLinkClick(item.href)}
                     className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
                         pathname === item.href && "bg-accent text-accent-foreground font-semibold"
@@ -39,7 +48,7 @@ function NavLinks() {
 
 function LoadingOverlay() {
     return (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+        <div className="fixed inset-0 z-[101] bg-background/80 backdrop-blur-sm flex items-center justify-center">
             <div className="flex flex-col items-center gap-2">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-muted-foreground">Processing your request...</p>
@@ -65,6 +74,18 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 <nav className="flex-1 flex flex-col gap-1 p-4 text-sm font-medium">
                     <NavLinks />
                 </nav>
+                 <div className="mt-auto p-4">
+                    <Link
+                        href="/settings"
+                        className={cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                            usePathname() === "/settings" && "bg-accent text-accent-foreground font-semibold"
+                        )}
+                    >
+                        <Settings className="h-4 w-4" />
+                        Settings
+                    </Link>
+                </div>
             </aside>
 
             <div className="flex flex-col flex-1">
@@ -88,6 +109,18 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                 </Link>
                                 <NavLinks />
                             </nav>
+                            <div className="mt-auto">
+                                <Link
+                                    href="/settings"
+                                    className={cn(
+                                        "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                                         usePathname() === "/settings" && "bg-accent text-accent-foreground font-semibold"
+                                    )}
+                                >
+                                    <Settings className="h-5 w-5" />
+                                    Settings
+                                </Link>
+                            </div>
                         </SheetContent>
                     </Sheet>
                      <div className="flex w-full items-center justify-start gap-4">
