@@ -95,6 +95,40 @@ const getGoogleSheetsClient = () => {
     return google.sheets({ version: 'v4', auth });
 }
 
+export async function getSheetNames(sheetUrl: string) {
+    if (!sheetUrl) {
+        return { error: "URL is empty. Please provide a Google Sheet URL." };
+    }
+
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const match = sheetUrl.match(sheetIdRegex);
+    if (!match || !match[1]) {
+        return { error: 'Invalid Google Sheets URL format.' };
+    }
+    const spreadsheetId = match[1];
+
+    try {
+        const sheets = getGoogleSheetsClient();
+        const response = await sheets.spreadsheets.get({
+            spreadsheetId,
+            fields: 'sheets.properties.title',
+        });
+
+        const sheetNames = response.data.sheets?.map(s => s.properties?.title || '').filter(Boolean) as string[];
+        
+        if (!sheetNames || sheetNames.length === 0) {
+            return { error: "No sheets found in this spreadsheet." };
+        }
+
+        return { success: true, sheetNames };
+    } catch (error: any) {
+        console.error('Failed to get sheet names:', error.message);
+        const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred while analyzing the sheet.';
+        return { error: `Analysis Failed: ${apiError}` };
+    }
+}
+
+
 async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: string) {
     const rangeToRead = `${sheetName}!G:M`;
     const response = await sheets.spreadsheets.values.get({
@@ -420,7 +454,3 @@ export async function undoLastAction(
         return { error: apiError };
     }
 }
-
-    
-
-    

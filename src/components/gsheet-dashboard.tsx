@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet, ArrowRight, Undo, ListTree } from 'lucide-react';
-import { importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
+import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet, ArrowRight, Undo, ListTree, Search } from 'lucide-react';
+import { getSheetNames, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Badge } from './ui/badge';
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1aWpDRyFyl6a8bV0-e1ddYVkcfDK5WA498OHMU2Wv9iU/edit?gid=0#gid=0';
@@ -45,11 +46,15 @@ export function GsheetDashboard() {
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
   const [lastActionUndoData, setLastActionUndoData] = useState<LastActionUndoData>(null);
+  const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
 
   const [isImporting, startImporting] = useTransition();
   const [isUpdating, startUpdating] = useTransition();
   const [isPreviewing, startPreviewing] = useTransition();
   const [isUndoing, startUndoing] = useTransition();
+  const [isAnalyzing, startAnalyzing] = useTransition();
 
   const { toast } = useToast();
   const router = useRouter();
@@ -63,6 +68,38 @@ export function GsheetDashboard() {
     const newUrl = e.target.value;
     setSheetUrl(newUrl);
     setLastActionUndoData(null);
+    setSheetNames([]);
+    setAnalysisError(null);
+  };
+
+  const handleAnalyzeSheet = async () => {
+    if (!sheetUrl) {
+        toast({
+            variant: "destructive",
+            title: "Analysis Failed",
+            description: "Please enter a Google Sheet URL first.",
+        });
+        return;
+    }
+    setSheetNames([]);
+    setAnalysisError(null);
+    startAnalyzing(async () => {
+        const result = await getSheetNames(sheetUrl);
+        if (result.error) {
+            toast({
+                variant: "destructive",
+                title: "Analysis Failed",
+                description: result.error,
+            });
+            setAnalysisError(result.error);
+        } else if (result.sheetNames) {
+            toast({
+                title: "Analysis Complete",
+                description: `Found ${result.sheetNames.length} sheet(s).`,
+            });
+            setSheetNames(result.sheetNames);
+        }
+    });
   };
 
   const handleUpdatePreview = async () => {
@@ -292,13 +329,33 @@ export function GsheetDashboard() {
                         onChange={handleUrlChange}
                         className="flex-grow"
                       />
+                      <Button onClick={handleAnalyzeSheet} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isAnalyzing || !sheetUrl}>
+                          {isAnalyzing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+                           Analyze Sheets
+                      </Button>
                       <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto">
                           <Save className="h-4 w-4 mr-2" /> Set as Default
                       </Button>
                     </div>
                   </div>
                 
-                <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+                {(sheetNames.length > 0 || analysisError) && (
+                    <div className="mt-2 p-3 bg-muted/50 rounded-md">
+                        <h4 className="text-sm font-semibold mb-2">Analysis Result:</h4>
+                        {sheetNames.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {sheetNames.map(name => (
+                                    <Badge key={name} variant={name.toLowerCase() === 'all case' ? 'default' : 'secondary'}>{name}</Badge>
+                                ))}
+                            </div>
+                        )}
+                        {analysisError && (
+                            <p className="text-sm text-destructive">{analysisError}</p>
+                        )}
+                    </div>
+                )}
+                
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                          <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || isPreviewing || isUndoing}>
