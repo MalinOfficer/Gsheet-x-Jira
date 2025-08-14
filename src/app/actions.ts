@@ -302,17 +302,18 @@ export async function importToSheet(
         return { error: 'Invalid Google Sheets URL format.' };
     }
     const spreadsheetId = match[1];
+    const sheetName = 'All Case';
 
     try {
         const sheets = getGoogleSheetsClient();
-        const sheetName = 'All Case';
 
+        // 1. Get sheetId for Undo operation later
         const sheetId = await getSheetIdByName(sheets, spreadsheetId, sheetName);
         if (sheetId === null) {
             return { error: `The target sheet named "${sheetName}" was not found in the spreadsheet.` };
         }
 
-        // 1. Find existing titles to avoid duplicates
+        // 2. Find existing titles to avoid duplicates (from column M)
         const titleRange = `${sheetName}!M:M`;
         const titleResponse = await sheets.spreadsheets.values.get({
             spreadsheetId,
@@ -341,53 +342,35 @@ export async function importToSheet(
             };
         }
 
-        // 2. Prepare data for append operation, prepending 4 empty columns to align with column E
-        const valuesToAppend = newRows.map(row => 
-            ['', '', '', '', ...data.headers.map(header => row[header] || '')]
+        // 3. Find the first empty row to start writing data, by checking column E.
+        const checkColumnResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: `${sheetName}!E:E`,
+        });
+        const startRowIndex = (checkColumnResponse.data.values || []).length + 1;
+
+        // 4. Prepare data for the update operation, only sending the data for columns E onwards.
+        const valuesToUpdate = newRows.map(row => 
+            data.headers.map(header => row[header] || '')
         );
 
-        // 3. Use `append` to add data. This automatically finds the last row and extends the sheet if needed.
-        const appendResult = await sheets.spreadsheets.values.append({
+        // 5. Use `update` to write data to the specific range, starting from column E.
+        // This will not overwrite formulas in columns A-D.
+        await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: sheetName, // Append to the sheet in general, API will find the table
+            range: `${sheetName}!E${startRowIndex}`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
-                values: valuesToAppend,
+                values: valuesToUpdate,
             },
         });
         
-        // 4. Prepare data for the 'Undo' action
-        const updatedRange = appendResult.data.updates?.updatedRange;
-        if (!updatedRange) {
-             return { 
-                success: true,
-                message: `Import complete, but could not get range for undo.`,
-                importedCount: newRows.length,
-                duplicateCount: duplicateRows.length,
-                duplicates: duplicateRows,
-            };
-        }
-
-        // Regex to extract start and end row from the range string, e.g., "'All Case'!A2269:M2270"
-        const rangeRegex = /!A(\d+):/; 
-        const match = updatedRange.match(rangeRegex);
-        if (!match || !match[1]) {
-             return { 
-                success: true,
-                message: `Import complete, but could not parse the updated range for undo.`,
-                importedCount: newRows.length,
-                duplicateCount: duplicateRows.length,
-                duplicates: duplicateRows,
-            };
-        }
-        
-        const startIndex = parseInt(match[1], 10) -1; // 0-indexed for deletion API
-
+        // 6. Prepare data for the 'Undo' action
         const undoData = {
             operationType: 'IMPORT',
             spreadsheetId,
             sheetId,
-            startIndex: startIndex,
+            startIndex: startRowIndex - 1, // 0-indexed for deletion API
             count: newRows.length
         };
 
@@ -475,3 +458,5 @@ export async function undoLastAction(
         return { error: apiError };
     }
 }
+
+    
