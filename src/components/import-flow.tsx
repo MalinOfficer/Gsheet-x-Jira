@@ -5,7 +5,7 @@ import { useState, useTransition, useEffect, useContext, useCallback, useRef } f
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil } from 'lucide-react';
+import { Loader2, Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check } from 'lucide-react';
 import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
@@ -64,6 +64,7 @@ export function ImportFlow() {
     'Created At': 'report',
     'Resolved At': 'report',
   });
+   const [isCopied, setIsCopied] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, startImporting] = useTransition();
@@ -449,6 +450,41 @@ export function ImportFlow() {
   };
   const isVerified = !!verifiedUrl && verifiedUrl === sheetUrl;
 
+   const handleCopyToClipboard = () => {
+        if (!tableData) return;
+
+        const { headers, rows } = tableData;
+        const tsv = [
+            ...rows.map(row => headers.map(header => {
+                let value = row[header];
+                 if (header === 'Created At' || header === 'Resolved At') {
+                    value = formatDateTime(value, dateFormats[header] || 'report');
+                }
+                if (value === null || value === undefined) return '';
+                let stringValue = String(value);
+                if (stringValue.includes('\t') || stringValue.includes('\n') || stringValue.includes('"')) {
+                    stringValue = `"${stringValue.replace(/"/g, '""')}"`;
+                }
+                return stringValue;
+            }).join('\t'))
+        ].join('\n');
+
+        navigator.clipboard.writeText(tsv).then(() => {
+            setIsCopied(true);
+            toast({
+                title: "Copied to clipboard!",
+                description: "You can now paste the data into Google Sheets, Excel, or other spreadsheet software.",
+            });
+            setTimeout(() => setIsCopied(false), 2000);
+        }, () => {
+            toast({
+                variant: "destructive",
+                title: "Copy failed",
+                description: "Could not copy data to clipboard. Please try again.",
+            });
+        });
+    };
+
   const JsonErrorAlert = ({ message }: { message: string }) => (
       <Alert variant="destructive" className="mt-4">
           <AlertCircle className="h-4 w-4" />
@@ -627,10 +663,18 @@ export function ImportFlow() {
 
             <Card className="shadow-lg mt-6">
                 <CardHeader>
-                    <CardTitle>3. Data Preview</CardTitle>
-                    <CardDescription>
-                        Ini adalah pratinjau data yang akan diekspor. Anda dapat mengubah status di sini sebelum mengekspor.
-                    </CardDescription>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                        <div>
+                            <CardTitle>3. Data Preview</CardTitle>
+                            <CardDescription>
+                                Ini adalah pratinjau data yang akan diekspor. Anda dapat mengubah status di sini sebelum mengekspor.
+                            </CardDescription>
+                        </div>
+                        <Button onClick={handleCopyToClipboard} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
+                            {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                            {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
