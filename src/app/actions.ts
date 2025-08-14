@@ -341,32 +341,53 @@ export async function importToSheet(
             };
         }
 
-        // 2. Find the next empty row to write to
-        const columnData = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: `${sheetName}!A:A`,
-        });
-        const nextRowIndex = (columnData.data.values ? columnData.data.values.length : 0) + 1;
-        
-        // 3. Prepare data for insertion
-        const valuesToUpdate = newRows.map(row => 
-            data.headers.map(header => row[header] || '')
+        // 2. Prepare data for append operation, prepending 4 empty columns to align with column E
+        const valuesToAppend = newRows.map(row => 
+            ['', '', '', '', ...data.headers.map(header => row[header] || '')]
         );
 
-        // 4. Use `update` with a specific range
-        const updateRange = `${sheetName}!E${nextRowIndex}`;
-        await sheets.spreadsheets.values.update({
+        // 3. Use `append` to add data. This automatically finds the last row and extends the sheet if needed.
+        const appendResult = await sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: updateRange,
+            range: sheetName, // Append to the sheet in general, API will find the table
             valueInputOption: 'USER_ENTERED',
-            requestBody: { values: valuesToUpdate },
+            requestBody: {
+                values: valuesToAppend,
+            },
         });
+        
+        // 4. Prepare data for the 'Undo' action
+        const updatedRange = appendResult.data.updates?.updatedRange;
+        if (!updatedRange) {
+             return { 
+                success: true,
+                message: `Import complete, but could not get range for undo.`,
+                importedCount: newRows.length,
+                duplicateCount: duplicateRows.length,
+                duplicates: duplicateRows,
+            };
+        }
+
+        // Regex to extract start and end row from the range string, e.g., "'All Case'!A2269:M2270"
+        const rangeRegex = /!A(\d+):/; 
+        const match = updatedRange.match(rangeRegex);
+        if (!match || !match[1]) {
+             return { 
+                success: true,
+                message: `Import complete, but could not parse the updated range for undo.`,
+                importedCount: newRows.length,
+                duplicateCount: duplicateRows.length,
+                duplicates: duplicateRows,
+            };
+        }
+        
+        const startIndex = parseInt(match[1], 10) -1; // 0-indexed for deletion API
 
         const undoData = {
             operationType: 'IMPORT',
             spreadsheetId,
             sheetId,
-            startIndex: nextRowIndex - 1, // 0-indexed for deletion
+            startIndex: startIndex,
             count: newRows.length
         };
 
@@ -382,7 +403,7 @@ export async function importToSheet(
     } catch (error: any) {
         console.error('Failed to import to sheet:', error.message);
         const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred during sheet import.';
-        return { error: apiError };
+        return { error: `Import Error: ${apiError}` };
     }
 }
 
