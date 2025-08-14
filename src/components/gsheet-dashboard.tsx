@@ -390,7 +390,7 @@ export function GsheetDashboard() {
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || sheetTitle.loading || isPreviewing || isUndoing}>
+                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || sheetTitle.loading || !!sheetTitle.error || isPreviewing || isUndoing}>
                            <Upload className="mr-2 h-4 w-4" />
                            Import to GSheet
                          </Button>

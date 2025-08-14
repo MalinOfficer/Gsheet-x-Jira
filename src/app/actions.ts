@@ -120,13 +120,22 @@ export async function getSheetTitle(url: string) {
         return { error: 'Could not retrieve the sheet title.' };
     }
      
-    const allCaseSheet = response.data.sheets?.find(s => s.properties?.title?.trim() === 'All Case');
+    // Find the sheet named 'All Case' case-insensitively
+    const allCaseSheet = response.data.sheets?.find(s => 
+        s.properties?.title?.trim().toLowerCase() === 'all case'
+    );
     
-    // We optimistically get the sheetId. If it's not found, the import/update functions will fail
-    // with a more accurate error message from the API itself. This avoids the contradictory error.
     const sheetId = allCaseSheet?.properties?.sheetId ?? null;
 
-    return { title, sheetId, error: null }; // Always return error as null to avoid premature UI blocking
+    if (sheetId === null) {
+        return { 
+            title, 
+            sheetId: null, 
+            error: `Target sheet named "All Case" was not found in this spreadsheet. Please ensure it exists and has the exact name.` 
+        };
+    }
+
+    return { title, sheetId, error: null };
   } catch (error: any) {
     console.error('Failed to get sheet title:', error.message);
     const apiError = error.errors?.[0]?.message || 'Could not access the sheet. Please check the URL and sharing permissions.';
