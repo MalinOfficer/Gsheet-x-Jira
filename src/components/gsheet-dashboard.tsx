@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet, ArrowRight, Undo, ListTree, Search } from 'lucide-react';
-import { getSheetNames, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
+import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet, ArrowRight, Undo, ListTree, Search, FileText } from 'lucide-react';
+import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -46,7 +46,7 @@ export function GsheetDashboard() {
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
   const [lastActionUndoData, setLastActionUndoData] = useState<LastActionUndoData>(null);
-  const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [spreadsheetTitle, setSpreadsheetTitle] = useState<string | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
 
@@ -68,7 +68,7 @@ export function GsheetDashboard() {
     const newUrl = e.target.value;
     setSheetUrl(newUrl);
     setLastActionUndoData(null);
-    setSheetNames([]);
+    setSpreadsheetTitle(null);
     setAnalysisError(null);
   };
 
@@ -81,10 +81,10 @@ export function GsheetDashboard() {
         });
         return;
     }
-    setSheetNames([]);
+    setSpreadsheetTitle(null);
     setAnalysisError(null);
     startAnalyzing(async () => {
-        const result = await getSheetNames(sheetUrl);
+        const result = await getSpreadsheetTitle(sheetUrl);
         if (result.error) {
             toast({
                 variant: "destructive",
@@ -92,12 +92,12 @@ export function GsheetDashboard() {
                 description: result.error,
             });
             setAnalysisError(result.error);
-        } else if (result.sheetNames) {
+        } else if (result.title) {
             toast({
                 title: "Analysis Complete",
-                description: `Found ${result.sheetNames.length} sheet(s).`,
+                description: `Successfully retrieved sheet title.`,
             });
-            setSheetNames(result.sheetNames);
+            setSpreadsheetTitle(result.title);
         }
     });
   };
@@ -331,7 +331,7 @@ export function GsheetDashboard() {
                       />
                       <Button onClick={handleAnalyzeSheet} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isAnalyzing || !sheetUrl}>
                           {isAnalyzing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
-                           Analyze Sheets
+                           Get Sheet Title
                       </Button>
                       <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto">
                           <Save className="h-4 w-4 mr-2" /> Set as Default
@@ -339,15 +339,14 @@ export function GsheetDashboard() {
                     </div>
                   </div>
                 
-                {(sheetNames.length > 0 || analysisError) && (
+                {(spreadsheetTitle || analysisError) && (
                     <div className="mt-2 p-3 bg-muted/50 rounded-md">
-                        <h4 className="text-sm font-semibold mb-2">Analysis Result:</h4>
-                        {sheetNames.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {sheetNames.map(name => (
-                                    <Badge key={name} variant={name.toLowerCase() === 'all case' ? 'default' : 'secondary'}>{name}</Badge>
-                                ))}
-                            </div>
+                        <h4 className="text-sm font-semibold mb-2 flex items-center">
+                          <FileText className="w-4 h-4 mr-2" />
+                          Analysis Result:
+                        </h4>
+                        {spreadsheetTitle && (
+                           <p className="text-sm text-foreground font-medium">{spreadsheetTitle}</p>
                         )}
                         {analysisError && (
                             <p className="text-sm text-destructive">{analysisError}</p>

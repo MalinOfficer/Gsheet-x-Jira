@@ -95,7 +95,7 @@ const getGoogleSheetsClient = () => {
     return google.sheets({ version: 'v4', auth });
 }
 
-export async function getSheetNames(sheetUrl: string) {
+export async function getSpreadsheetTitle(sheetUrl: string) {
     if (!sheetUrl) {
         return { error: "URL is empty. Please provide a Google Sheet URL." };
     }
@@ -111,18 +111,18 @@ export async function getSheetNames(sheetUrl: string) {
         const sheets = getGoogleSheetsClient();
         const response = await sheets.spreadsheets.get({
             spreadsheetId,
-            fields: 'sheets.properties.title',
+            fields: 'properties.title',
         });
 
-        const sheetNames = response.data.sheets?.map(s => s.properties?.title || '').filter(Boolean) as string[];
-        
-        if (!sheetNames || sheetNames.length === 0) {
-            return { error: "No sheets found in this spreadsheet." };
+        const title = response.data.properties?.title;
+
+        if (!title) {
+            return { error: "Could not retrieve the spreadsheet title." };
         }
 
-        return { success: true, sheetNames };
+        return { success: true, title };
     } catch (error: any) {
-        console.error('Failed to get sheet names:', error.message);
+        console.error('Failed to get spreadsheet title:', error.message);
         const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred while analyzing the sheet.';
         return { error: `Analysis Failed: ${apiError}` };
     }
