@@ -120,18 +120,13 @@ export async function getSheetTitle(url: string) {
         return { error: 'Could not retrieve the sheet title.' };
     }
      
-    const allCaseSheet = response.data.sheets?.find(s => s.properties?.title === 'All Case');
+    const allCaseSheet = response.data.sheets?.find(s => s.properties?.title?.trim() === 'All Case');
     
-    // If "All Case" sheet is not found, we don't block the process here. 
-    // The import/update functions will handle the case where the sheet doesn't exist.
-    // We just return the main title. The sheetId can be optional.
+    // We optimistically get the sheetId. If it's not found, the import/update functions will fail
+    // with a more accurate error message from the API itself. This avoids the contradictory error.
     const sheetId = allCaseSheet?.properties?.sheetId ?? null;
-    
-    if (!allCaseSheet) {
-      return { title, sheetId, error: 'Target sheet named "All Case" might be missing, but you can still try to proceed.' };
-    }
 
-    return { title, sheetId };
+    return { title, sheetId, error: null }; // Always return error as null to avoid premature UI blocking
   } catch (error: any) {
     console.error('Failed to get sheet title:', error.message);
     const apiError = error.errors?.[0]?.message || 'Could not access the sheet. Please check the URL and sharing permissions.';
@@ -182,7 +177,8 @@ async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: str
 
     const sheetRows = response.data.values;
     if (!sheetRows || sheetRows.length === 0) {
-        throw new Error('Could not find any data in the target sheet.');
+        // This is not an error, it just means the sheet is empty or has no data in the specific range
+        return {};
     }
 
     const ticketNumberRegex = /#(\d+)/;
@@ -336,8 +332,8 @@ export async function importToSheet(
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
     }
-    if (!sheetId) {
-        return { error: 'Could not determine the ID of the "All Case" sheet. Please ensure it exists.' };
+    if (sheetId === null) {
+        return { error: 'Could not determine the ID of the "All Case" sheet. Please ensure it exists and the URL is correct.' };
     }
 
     const spreadsheetId = match[1];
@@ -353,7 +349,6 @@ export async function importToSheet(
         });
 
         const existingTitles = new Set(response.data.values ? response.data.values.flat() : []);
-        const lastRow = response.data.values?.length || 0;
         
         const newRows = [];
         const duplicateRows = [];
@@ -361,7 +356,7 @@ export async function importToSheet(
             const title = row['Title'];
             if (title && !existingTitles.has(title)) {
                 newRows.push(row);
-            } else {
+            } else if (title) {
                 duplicateRows.push(title);
             }
         }
@@ -455,6 +450,9 @@ export async function undoLastAction(
         const sheets = getGoogleSheetsClient();
 
         if (undoData.operationType === 'IMPORT') {
+            if (typeof undoData.sheetId !== 'number') {
+                return { error: 'Invalid sheet ID for undo operation.' };
+            }
             await sheets.spreadsheets.batchUpdate({
                 spreadsheetId,
                 requestBody: {

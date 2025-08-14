@@ -201,19 +201,11 @@ export function GsheetDashboard() {
   };
 
   const handleImport = async () => {
-    if (!tableData || !sheetUrl) {
+    if (!tableData || !sheetUrl || sheetTitle.sheetId === null) {
         toast({
             variant: "destructive",
             title: "Import Failed",
-            description: "No data to import or sheet URL is missing.",
-        });
-        return;
-    }
-     if (!sheetTitle.sheetId) {
-        toast({
-            variant: "destructive",
-            title: "Import Failed",
-            description: "Could not find the target sheet 'All Case'. Please ensure it exists and the URL is correct.",
+            description: "No data to import, sheet URL is missing, or sheet ID could not be determined.",
         });
         return;
     }
@@ -221,7 +213,7 @@ export function GsheetDashboard() {
     localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
 
     startImporting(async () => {
-        if (!tableData || !sheetTitle.sheetId) return;
+        if (!tableData || sheetTitle.sheetId === null) return;
         const result = await importToSheet({ headers: tableData.headers, rows: tableData.rows }, sheetUrl, sheetTitle.sheetId);
 
         if (result.error) {
@@ -247,7 +239,7 @@ export function GsheetDashboard() {
                                 </ul>
                             </div>
                         )}
-                        {!result.importedCount && !result.duplicateCount && <p>No new data to import.</p>}
+                        {(!result.importedCount && !result.duplicateCount) && <p>No new data to import.</p>}
                     </div>
                 ),
             });
@@ -407,7 +399,7 @@ export function GsheetDashboard() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Konfirmasi Impor</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Apakah Anda yakin akan mengimpor {tableData.rows.length} baris ke Google Sheet <span className="font-bold text-foreground">"{sheetTitle.name}"</span>?
+                            Apakah Anda yakin akan mengimpor {tableData.rows.length} baris ke Google Sheet <span className="font-bold text-foreground">"{sheetTitle.name || 'target'}"</span>?
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
