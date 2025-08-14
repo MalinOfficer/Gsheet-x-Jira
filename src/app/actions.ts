@@ -278,13 +278,13 @@ export async function importToSheet(
             return { error: `The target sheet named "${sheetName}" was not found in the spreadsheet.` };
         }
 
+        // 1. Find existing titles to avoid duplicates
         const titleRange = `${sheetName}!M:M`;
-        const response = await sheets.spreadsheets.values.get({
+        const titleResponse = await sheets.spreadsheets.values.get({
             spreadsheetId,
             range: titleRange,
         });
-
-        const existingTitles = new Set(response.data.values ? response.data.values.flat() : []);
+        const existingTitles = new Set(titleResponse.data.values ? titleResponse.data.values.flat() : []);
         
         const newRows = [];
         const duplicateRows = [];
@@ -306,33 +306,33 @@ export async function importToSheet(
                 duplicates: duplicateRows
             };
         }
+
+        // 2. Find the next empty row to write to
+        const columnData = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: `${sheetName}!A:A`,
+        });
+        const nextRowIndex = (columnData.data.values ? columnData.data.values.length : 0) + 1;
         
-        const valuesToAppend = newRows.map(row => 
+        // 3. Prepare data for insertion
+        const valuesToUpdate = newRows.map(row => 
             data.headers.map(header => row[header] || '')
         );
 
-        const appendResult = await sheets.spreadsheets.values.append({
+        // 4. Use `update` with a specific range
+        const updateRange = `${sheetName}!E${nextRowIndex}`;
+        await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `${sheetName}!E1`, // Start from column E
+            range: updateRange,
             valueInputOption: 'USER_ENTERED',
-            requestBody: { values: valuesToAppend },
+            requestBody: { values: valuesToUpdate },
         });
-
-        const updatedRange = appendResult.data.updates?.updatedRange;
-        if (!updatedRange) throw new Error("Could not determine the range of appended data for undo.");
-        
-        const rangeRegex = /'?(.*?)'?!?[A-Z]+\d+:?[A-Z]*(\d+)/;
-        const rangeMatch = updatedRange.match(rangeRegex);
-        if (!rangeMatch || !rangeMatch[2]) throw new Error("Could not parse the updated range.");
-        
-        const endRowIndex = parseInt(rangeMatch[2], 10);
-        const startRowIndex = endRowIndex - newRows.length + 1;
 
         const undoData = {
             operationType: 'IMPORT',
             spreadsheetId,
             sheetId,
-            startIndex: startRowIndex - 1,
+            startIndex: nextRowIndex - 1, // 0-indexed for deletion
             count: newRows.length
         };
 
@@ -420,5 +420,7 @@ export async function undoLastAction(
         return { error: apiError };
     }
 }
+
+    
 
     
