@@ -22,7 +22,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Badge } from './ui/badge';
 
@@ -55,6 +54,9 @@ export function GsheetDashboard() {
   const [isPreviewing, startPreviewing] = useTransition();
   const [isUndoing, startUndoing] = useTransition();
   const [isAnalyzing, startAnalyzing] = useTransition();
+  
+  const isProcessing = isImporting || isUpdating || isPreviewing || isUndoing || isAnalyzing;
+
 
   const { toast } = useToast();
   const router = useRouter();
@@ -324,8 +326,9 @@ export function GsheetDashboard() {
                         value={sheetUrl}
                         onChange={handleUrlChange}
                         className="flex-grow"
+                        disabled={isProcessing}
                       />
-                      <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto">
+                      <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
                           <Save className="h-4 w-4 mr-2" /> Set as Default
                       </Button>
                     </div>
@@ -357,7 +360,7 @@ export function GsheetDashboard() {
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || isPreviewing || isUndoing || !!analysisError}>
+                         <Button size="sm" disabled={isProcessing || !sheetUrl || !!analysisError}>
                            <Upload className="mr-2 h-4 w-4" />
                            Import to GSheet
                          </Button>
@@ -391,7 +394,7 @@ export function GsheetDashboard() {
                             onClick={handleUpdatePreview} 
                             size="sm"
                             className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950"
-                            disabled={isUpdating || isImporting || !sheetUrl || isPreviewing || isUndoing || !!analysisError}>
+                            disabled={isProcessing || !sheetUrl || !!analysisError}>
                             {isPreviewing ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -442,7 +445,7 @@ export function GsheetDashboard() {
                         onClick={handleUndo} 
                         size="sm"
                         variant="destructive"
-                        disabled={!lastActionUndoData || isUndoing || isImporting || isUpdating || isPreviewing}>
+                        disabled={!lastActionUndoData || isProcessing}>
                         {isUndoing ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -493,6 +496,7 @@ export function GsheetDashboard() {
                                                     <Select
                                                         value={String(row[header] ?? '')}
                                                         onValueChange={(newStatus) => handleStatusChange(rowIndex, newStatus)}
+                                                        disabled={isProcessing}
                                                     >
                                                         <SelectTrigger className="w-[120px] h-8 text-xs">
                                                             <SelectValue placeholder="Select status" />
@@ -525,5 +529,3 @@ export function GsheetDashboard() {
     </div>
   );
 }
-
-    

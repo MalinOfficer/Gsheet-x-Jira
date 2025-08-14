@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useState, useRef, useEffect, useContext } from 'react';
+import { useState, useRef, useEffect, useContext, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save, Pencil, BarChart, Trash2, GanttChartSquare } from 'lucide-react';
+import { AlertCircle, Braces, Copy, Check, Upload, ArrowRight, Save, Pencil, BarChart, Trash2, GanttChartSquare, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,6 +36,7 @@ export function JsonConverter() {
         'Resolved At': 'report',
     });
     const router = useRouter();
+    const [isConverting, startConverting] = useTransition();
     
     useEffect(() => {
         const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE);
@@ -97,79 +98,81 @@ export function JsonConverter() {
 
 
     const handleConvert = (jsonString: string, currentTemplate: string, silent = false) => {
-        setError(null);
-        setTableData(null);
-        setIsCopied(false);
+        startConverting(() => {
+            setError(null);
+            setTableData(null);
+            setIsCopied(false);
 
-        if (!jsonString.trim()) {
-            if (!silent) setError("JSON input cannot be empty.");
-            return;
-        }
-
-        try {
-            let data = JSON.parse(jsonString);
-            if (!Array.isArray(data)) data = [data];
-            if (data.length === 0) {
-                if (!silent) setError("JSON array is empty.");
+            if (!jsonString.trim()) {
+                if (!silent) setError("JSON input cannot be empty.");
                 return;
             }
 
-            const flattenedData = data.map((item: any) => flattenJson(item));
-            const headers = currentTemplate.split(',').map(h => h.trim());
-            
-            let processedRows = flattenedData.map(flatRow => {
-                const newRow: Record<string, any> = {};
-                headers.forEach(header => {
-                    if (header.toLowerCase().startsWith('kolom kosong')) {
-                        newRow[header] = '';
-                        return;
-                    }
-                    const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
-                    let value = matchingKey ? flatRow[matchingKey] : '';
+            try {
+                let data = JSON.parse(jsonString);
+                if (!Array.isArray(data)) data = [data];
+                if (data.length === 0) {
+                    if (!silent) setError("JSON array is empty.");
+                    return;
+                }
 
-                    if (header.toLowerCase() === 'status' && typeof value === 'string') {
-                        const lowerCaseValue = value.toLowerCase();
-                        switch (lowerCaseValue) {
-                            case 'resolved': value = 'Solved'; break;
-                            case 'open': value = 'L2'; break;
-                            case 'pending': value = 'L1'; break;
-                            case 'on hold': case 'on-hold': value = 'L3'; break;
-                            default: break;
+                const flattenedData = data.map((item: any) => flattenJson(item));
+                const headers = currentTemplate.split(',').map(h => h.trim());
+                
+                let processedRows = flattenedData.map(flatRow => {
+                    const newRow: Record<string, any> = {};
+                    headers.forEach(header => {
+                        if (header.toLowerCase().startsWith('kolom kosong')) {
+                            newRow[header] = '';
+                            return;
                         }
-                    }
-                    newRow[header] = value;
+                        const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
+                        let value = matchingKey ? flatRow[matchingKey] : '';
+
+                        if (header.toLowerCase() === 'status' && typeof value === 'string') {
+                            const lowerCaseValue = value.toLowerCase();
+                            switch (lowerCaseValue) {
+                                case 'resolved': value = 'Solved'; break;
+                                case 'open': value = 'L2'; break;
+                                case 'pending': value = 'L1'; break;
+                                case 'on hold': case 'on-hold': value = 'L3'; break;
+                                default: break;
+                            }
+                        }
+                        newRow[header] = value;
+                    });
+                    return newRow;
                 });
-                return newRow;
-            });
 
-            const extractTicketNumber = (title: string) => {
-                if (typeof title !== 'string') return null;
-                const match = title.match(/#(\d+)/);
-                return match ? parseInt(match[1], 10) : null;
-            };
+                const extractTicketNumber = (title: string) => {
+                    if (typeof title !== 'string') return null;
+                    const match = title.match(/#(\d+)/);
+                    return match ? parseInt(match[1], 10) : null;
+                };
 
-            processedRows.sort((a, b) => {
-                const numA = extractTicketNumber(a.Title);
-                const numB = extractTicketNumber(b.Title);
-                if (numA === null && numB === null) return 0;
-                if (numA === null) return 1;
-                if (numB === null) return -1;
-                return numA - numB;
-            });
-            
-            setTableData({ headers, rows: processedRows });
-            localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, jsonString);
-
-            if (!silent) {
-                toast({
-                    title: "Conversion Successful",
-                    description: "Your JSON has been converted and sorted.",
+                processedRows.sort((a, b) => {
+                    const numA = extractTicketNumber(a.Title);
+                    const numB = extractTicketNumber(b.Title);
+                    if (numA === null && numB === null) return 0;
+                    if (numA === null) return 1;
+                    if (numB === null) return -1;
+                    return numA - numB;
                 });
+                
+                setTableData({ headers, rows: processedRows });
+                localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, jsonString);
+
+                if (!silent) {
+                    toast({
+                        title: "Conversion Successful",
+                        description: "Your JSON has been converted and sorted.",
+                    });
+                }
+
+            } catch (e) {
+                setError(e instanceof Error ? `Invalid JSON: ${e.message}` : "An unknown error occurred during conversion.");
             }
-
-        } catch (e) {
-            setError(e instanceof Error ? `Invalid JSON: ${e.message}` : "An unknown error occurred during conversion.");
-        }
+        });
     };
     
     const handleCopyToClipboard = () => {
@@ -311,13 +314,14 @@ export function JsonConverter() {
                                     rows={8}
                                     className="font-mono text-xs"
                                     aria-label="JSON Input"
+                                    disabled={isConverting}
                                 />
                                 <div className="flex flex-wrap gap-2">
-                                    <Button onClick={handleImportClick} variant="outline" size="sm" className="w-full sm:w-auto">
+                                    <Button onClick={handleImportClick} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isConverting}>
                                         <Upload className="mr-2 h-4 w-4" />
                                         Import JSON File
                                     </Button>
-                                     <Button onClick={handleDelete} variant="destructive" size="sm" className="w-full sm:w-auto">
+                                     <Button onClick={handleDelete} variant="destructive" size="sm" className="w-full sm:w-auto" disabled={isConverting}>
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         Delete
                                     </Button>
@@ -328,6 +332,7 @@ export function JsonConverter() {
                                     onChange={handleFileChange}
                                     className="hidden"
                                     accept="application/json,.json"
+                                    disabled={isConverting}
                                 />
                             </div>
                              <div className="grid gap-2">
@@ -340,9 +345,10 @@ export function JsonConverter() {
                                     rows={4}
                                     className="font-mono text-xs"
                                     aria-label="Convert To Headers"
+                                    disabled={isConverting}
                                 />
                                 <div className="flex flex-wrap gap-2">
-                                    <Button onClick={handleSaveTemplate} variant="outline" size="sm" className="w-full sm:w-auto">
+                                    <Button onClick={handleSaveTemplate} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isConverting}>
                                         <Save className="mr-2 h-4 w-4" />
                                         Save as Default
                                     </Button>
@@ -354,10 +360,14 @@ export function JsonConverter() {
                         </div>
 
                         <div className="mt-4">
-                            <Button onClick={() => handleConvert(jsonInput, templateInput)} size="sm" className="w-full md:w-auto" disabled={!jsonInput}>
-                                <Braces className="mr-2 h-4 w-4" />
-                                Convert to Table
-                                <ArrowRight className="ml-2 h-4 w-4" />
+                            <Button onClick={() => handleConvert(jsonInput, templateInput)} size="sm" className="w-full md:w-auto" disabled={!jsonInput || isConverting}>
+                                {isConverting ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Braces className="mr-2 h-4 w-4" />
+                                )}
+                                {isConverting ? 'Converting...' : 'Convert to Table'}
+                                {!isConverting && <ArrowRight className="ml-2 h-4 w-4" />}
                             </Button>
                         </div>
                         {error && <div className="mt-4"><ErrorAlert message={error} /></div>}
@@ -461,5 +471,3 @@ export function JsonConverter() {
         </div>
     );
 }
-
-    
