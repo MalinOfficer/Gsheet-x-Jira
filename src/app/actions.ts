@@ -307,14 +307,13 @@ export async function importToSheet(
             };
         }
         
-        // REVERTED: Map all headers dynamically, not just a hardcoded subset.
         const valuesToAppend = newRows.map(row => 
             data.headers.map(header => row[header] || '')
         );
 
         const appendResult = await sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: `${sheetName}!A1`, // REVERTED: Start from A1 for correct column mapping
+            range: `${sheetName}!E1`, // Start from column E
             valueInputOption: 'USER_ENTERED',
             requestBody: { values: valuesToAppend },
         });
@@ -322,12 +321,10 @@ export async function importToSheet(
         const updatedRange = appendResult.data.updates?.updatedRange;
         if (!updatedRange) throw new Error("Could not determine the range of appended data for undo.");
         
-        // FIXED: More robust regex for parsing the updated range.
         const rangeRegex = /'?(.*?)'?!?[A-Z]+\d+:?[A-Z]*(\d+)/;
         const rangeMatch = updatedRange.match(rangeRegex);
         if (!rangeMatch || !rangeMatch[2]) throw new Error("Could not parse the updated range.");
         
-        // The last number in the matched range is the end row.
         const endRowIndex = parseInt(rangeMatch[2], 10);
         const startRowIndex = endRowIndex - newRows.length + 1;
 
@@ -335,7 +332,7 @@ export async function importToSheet(
             operationType: 'IMPORT',
             spreadsheetId,
             sheetId,
-            startIndex: startRowIndex - 1, // Convert to 0-based index for API
+            startIndex: startRowIndex - 1,
             count: newRows.length
         };
 
@@ -423,3 +420,5 @@ export async function undoLastAction(
         return { error: apiError };
     }
 }
+
+    
