@@ -80,7 +80,7 @@ export function GsheetDashboard() {
             setSpreadsheetTitle(result.title);
         }
     });
-  }, [startAnalyzing]);
+  }, []);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -329,32 +329,30 @@ export function GsheetDashboard() {
                           <Save className="h-4 w-4 mr-2" /> Set as Default
                       </Button>
                     </div>
+                    <div className="mt-1 h-5">
+                      {isAnalyzing ? (
+                          <div className="flex items-center text-xs text-muted-foreground">
+                              <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                              <span>Analyzing...</span>
+                          </div>
+                      ) : (
+                        <>
+                          {spreadsheetTitle && (
+                              <div className="flex items-center text-xs text-green-600 font-medium">
+                                  <CheckCircle2 className="w-3 h-3 mr-1.5" />
+                                  <span>{spreadsheetTitle}</span>
+                              </div>
+                          )}
+                          {analysisError && (
+                              <div className="flex items-center text-xs text-destructive font-medium">
+                                  <XCircle className="w-3 h-3 mr-1.5" />
+                                  <span>{analysisError}</span>
+                              </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
-                
-                <div className="mt-2 p-3 bg-muted/50 rounded-md min-h-[6rem] flex items-center justify-center">
-                    {isAnalyzing ? (
-                        <div className="flex items-center text-sm text-muted-foreground">
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            <span>Menganalisis URL...</span>
-                        </div>
-                    ) : (
-                        <div>
-                            <h4 className="text-sm font-semibold mb-2 flex items-center">
-                              <FileText className="w-4 h-4 mr-2" />
-                              Analysis Result:
-                            </h4>
-                            {spreadsheetTitle && (
-                               <p className="text-sm text-foreground font-medium">{spreadsheetTitle}</p>
-                            )}
-                            {analysisError && (
-                                <p className="text-sm text-destructive">{analysisError}</p>
-                            )}
-                            {!spreadsheetTitle && !analysisError && (
-                                <p className="text-sm text-muted-foreground">Judul sheet akan muncul di sini.</p>
-                            )}
-                        </div>
-                    )}
-                </div>
                 
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t">
                     <AlertDialog>
