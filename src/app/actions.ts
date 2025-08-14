@@ -342,35 +342,53 @@ export async function importToSheet(
             };
         }
 
-        // 3. Find the first empty row to start writing data, by checking column E.
-        const checkColumnResponse = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: `${sheetName}!E:E`,
-        });
-        const startRowIndex = (checkColumnResponse.data.values || []).length + 1;
-
-        // 4. Prepare data for the update operation, only sending the data for columns E onwards.
-        const valuesToUpdate = newRows.map(row => 
-            data.headers.map(header => row[header] || '')
+        // 3. Prepare data for the append operation.
+        // Prepend 4 empty columns to correctly align data starting from column E
+        const valuesToAppend = newRows.map(row => 
+            ['', '', '', '', ...data.headers.map(header => row[header] || '')]
         );
 
-        // 5. Use `update` to write data to the specific range, starting from column E.
-        // This will not overwrite formulas in columns A-D.
-        await sheets.spreadsheets.values.update({
+        // 4. Use `append` to add the new rows. This will automatically add new rows if the grid is full.
+        const appendResult = await sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: `${sheetName}!E${startRowIndex}`,
+            range: sheetName, // Append to the entire sheet, API finds the last row
             valueInputOption: 'USER_ENTERED',
             requestBody: {
-                values: valuesToUpdate,
+                values: valuesToAppend,
             },
         });
+
+        // 5. Prepare data for the 'Undo' action
+        const updatedRange = appendResult.data.updates?.updatedRange;
+        if (!updatedRange) {
+            return {
+                success: true,
+                message: `Import complete, but could not get range for undo action.`,
+                importedCount: newRows.length,
+                duplicateCount: duplicateRows.length,
+                duplicates: duplicateRows,
+            };
+        }
         
-        // 6. Prepare data for the 'Undo' action
+        // Regex to extract start row from a range like 'All Case'!A2414:M2414
+        const rangeRegex = /!A(\d+):/; 
+        const matchResult = updatedRange.match(rangeRegex);
+        if (!matchResult || !matchResult[1]) {
+             return {
+                success: true,
+                message: `Import complete, but could not parse the updated range for undo action.`,
+                importedCount: newRows.length,
+                duplicateCount: duplicateRows.length,
+                duplicates: duplicateRows,
+            };
+        }
+        const startRowIndex = parseInt(matchResult[1], 10) -1; // 0-indexed for API
+
         const undoData = {
             operationType: 'IMPORT',
             spreadsheetId,
             sheetId,
-            startIndex: startRowIndex - 1, // 0-indexed for deletion API
+            startIndex: startRowIndex,
             count: newRows.length
         };
 
@@ -458,5 +476,7 @@ export async function undoLastAction(
         return { error: apiError };
     }
 }
+
+    
 
     
