@@ -104,7 +104,6 @@ async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: str
 
     const sheetRows = response.data.values;
     if (!sheetRows || sheetRows.length === 0) {
-        // This is not an error, it just means the sheet is empty or has no data in the specific range
         return {};
     }
 
@@ -307,18 +306,15 @@ export async function importToSheet(
                 duplicates: duplicateRows
             };
         }
-
-        const valuesToAppend = newRows.map(row => {
-            return [
-                row['Status'] || '', row['Kolom kosong1'] || '', row['Ticket Category'] || '',
-                row['Module'] || '', row['Detail Module'] || '', row['Created At'] || '',
-                row['Title'] || ''
-            ];
-        });
+        
+        // REVERTED: Map all headers dynamically, not just a hardcoded subset.
+        const valuesToAppend = newRows.map(row => 
+            data.headers.map(header => row[header] || '')
+        );
 
         const appendResult = await sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: `${sheetName}!G1`,
+            range: `${sheetName}!A1`, // REVERTED: Start from A1 for correct column mapping
             valueInputOption: 'USER_ENTERED',
             requestBody: { values: valuesToAppend },
         });
@@ -326,18 +322,20 @@ export async function importToSheet(
         const updatedRange = appendResult.data.updates?.updatedRange;
         if (!updatedRange) throw new Error("Could not determine the range of appended data for undo.");
         
-        const rangeRegex = /'?(.*?)'?!?[A-Z]+\d+:?[A-Z]*(\d*)/;
+        // FIXED: More robust regex for parsing the updated range.
+        const rangeRegex = /'?(.*?)'?!?[A-Z]+\d+:?[A-Z]*(\d+)/;
         const rangeMatch = updatedRange.match(rangeRegex);
         if (!rangeMatch || !rangeMatch[2]) throw new Error("Could not parse the updated range.");
         
-        const startRowIndex = parseInt(rangeMatch[2], 10) - newRows.length;
-
+        // The last number in the matched range is the end row.
+        const endRowIndex = parseInt(rangeMatch[2], 10);
+        const startRowIndex = endRowIndex - newRows.length + 1;
 
         const undoData = {
             operationType: 'IMPORT',
             spreadsheetId,
             sheetId,
-            startIndex: startRowIndex,
+            startIndex: startRowIndex - 1, // Convert to 0-based index for API
             count: newRows.length
         };
 
