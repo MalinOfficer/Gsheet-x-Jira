@@ -26,7 +26,7 @@ export function JsonConverter() {
     
     const [templateInput, setTemplateInput] = useState(DEFAULT_TEMPLATE);
 
-    const { tableData, setTableData } = useContext(TableDataContext);
+    const { tableData, setTableData, setIsProcessing } = useContext(TableDataContext);
     const [error, setError] = useState<string | null>(null);
     const [isCopied, setIsCopied] = useState(false);
     const { toast } = useToast();
@@ -37,6 +37,10 @@ export function JsonConverter() {
     });
     const router = useRouter();
     const [isConverting, startConverting] = useTransition();
+
+    useEffect(() => {
+        setIsProcessing(isConverting);
+    }, [isConverting, setIsProcessing]);
     
     useEffect(() => {
         const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE);

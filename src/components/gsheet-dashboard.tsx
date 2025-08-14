@@ -41,7 +41,7 @@ type LastActionUndoData = {
 } | null;
 
 export function GsheetDashboard() {
-  const { tableData, setTableData } = useContext(TableDataContext);
+  const { tableData, setTableData, isProcessing, setIsProcessing } = useContext(TableDataContext);
   const [sheetUrl, setSheetUrl] = useState('');
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
@@ -56,7 +56,11 @@ export function GsheetDashboard() {
   const [isUndoing, startUndoing] = useTransition();
   const [isAnalyzing, startAnalyzing] = useTransition();
   
-  const isProcessing = isImporting || isUpdating || isPreviewing || isUndoing || isAnalyzing;
+  const anyActionRunning = isImporting || isUpdating || isPreviewing || isUndoing || isAnalyzing;
+  
+  useEffect(() => {
+    setIsProcessing(anyActionRunning);
+  }, [anyActionRunning, setIsProcessing]);
 
 
   const { toast } = useToast();
@@ -362,8 +366,17 @@ export function GsheetDashboard() {
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                          <Button size="sm" disabled={isProcessing || !sheetUrl || !!analysisError}>
-                           <Upload className="mr-2 h-4 w-4" />
-                           Export to GSheet
+                           {isImporting ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Mengekspor...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="mr-2 h-4 w-4" />
+                                  Export to GSheet
+                                </>
+                              )}
                          </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -530,5 +543,3 @@ export function GsheetDashboard() {
     </div>
   );
 }
-
-    

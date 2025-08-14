@@ -5,8 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Braces, BarChart, GanttChartSquare, Settings } from "lucide-react";
+import { Menu, Braces, BarChart, GanttChartSquare, Settings, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useContext } from "react";
+import { TableDataContext } from "@/store/table-data-context";
 
 const navItems = [
     { href: "/", label: "JSON Converter", icon: Braces },
@@ -35,10 +37,23 @@ function NavLinks() {
     );
 }
 
+function LoadingOverlay() {
+    return (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-muted-foreground">Processing your request...</p>
+            </div>
+        </div>
+    );
+}
+
 export function ClientLayout({ children }: { children: React.ReactNode }) {
+    const { isProcessing } = useContext(TableDataContext);
 
     return (
         <div className={cn("flex min-h-screen w-full")}>
+             {isProcessing && <LoadingOverlay />}
             {/* Sidebar for Desktop */}
             <aside className="hidden md:flex flex-col w-64 border-r bg-card text-card-foreground">
                 <div className="flex h-16 items-center border-b px-6">
