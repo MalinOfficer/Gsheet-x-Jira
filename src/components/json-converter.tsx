@@ -26,7 +26,7 @@ export function JsonConverter() {
     
     const [templateInput, setTemplateInput] = useState(DEFAULT_TEMPLATE);
 
-    const { tableData, setTableData, setIsProcessing } = useContext(TableDataContext);
+    const { tableData, setTableData, isProcessing, setIsProcessing } = useContext(TableDataContext);
     const [error, setError] = useState<string | null>(null);
     const [isCopied, setIsCopied] = useState(false);
     const { toast } = useToast();
@@ -318,14 +318,14 @@ export function JsonConverter() {
                                     rows={8}
                                     className="font-mono text-xs"
                                     aria-label="JSON Input"
-                                    disabled={isConverting}
+                                    disabled={isProcessing}
                                 />
                                 <div className="flex flex-wrap gap-2">
-                                    <Button onClick={handleImportClick} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isConverting}>
+                                    <Button onClick={handleImportClick} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
                                         <Upload className="mr-2 h-4 w-4" />
                                         Import JSON File
                                     </Button>
-                                     <Button onClick={handleDelete} variant="destructive" size="sm" className="w-full sm:w-auto" disabled={isConverting}>
+                                     <Button onClick={handleDelete} variant="destructive" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         Delete
                                     </Button>
@@ -336,7 +336,7 @@ export function JsonConverter() {
                                     onChange={handleFileChange}
                                     className="hidden"
                                     accept="application/json,.json"
-                                    disabled={isConverting}
+                                    disabled={isProcessing}
                                 />
                             </div>
                              <div className="grid gap-2">
@@ -349,10 +349,10 @@ export function JsonConverter() {
                                     rows={4}
                                     className="font-mono text-xs"
                                     aria-label="Convert To Headers"
-                                    disabled={isConverting}
+                                    disabled={isProcessing}
                                 />
                                 <div className="flex flex-wrap gap-2">
-                                    <Button onClick={handleSaveTemplate} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isConverting}>
+                                    <Button onClick={handleSaveTemplate} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
                                         <Save className="mr-2 h-4 w-4" />
                                         Save as Default
                                     </Button>
@@ -364,7 +364,7 @@ export function JsonConverter() {
                         </div>
 
                         <div className="mt-4">
-                            <Button onClick={() => handleConvert(jsonInput, templateInput)} size="sm" className="w-full md:w-auto" disabled={!jsonInput || isConverting}>
+                            <Button onClick={() => handleConvert(jsonInput, templateInput)} size="sm" className="w-full md:w-auto" disabled={!jsonInput || isProcessing}>
                                 {isConverting ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 ) : (
@@ -389,15 +389,15 @@ export function JsonConverter() {
                                     </CardDescription>
                                 </div>
                                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                    <Button onClick={handleCopyToClipboard} variant="outline" size="sm" className="w-full sm:w-auto">
+                                    <Button onClick={handleCopyToClipboard} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
                                         {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
                                         {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
                                     </Button>
-                                    <Button onClick={() => router.push('/report-harian')} size="sm" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
+                                    <Button onClick={() => router.push('/report-harian')} size="sm" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90" disabled={isProcessing}>
                                         <BarChart className="mr-2 h-4 w-4" />
                                         View as Report
                                     </Button>
-                                    <Button onClick={() => router.push('/update-case-l3')} variant="default" size="sm" className="w-full sm:w-auto">
+                                    <Button onClick={() => router.push('/update-case-l3')} variant="default" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
                                         <GanttChartSquare className="mr-2 h-4 w-4" />
                                         Go to Import Page
                                     </Button>
@@ -414,7 +414,7 @@ export function JsonConverter() {
                                                     {(header === 'Created At' || header === 'Resolved At') ? (
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" className="pl-0 text-xs text-left font-bold">
+                                                                <Button variant="ghost" className="pl-0 text-xs text-left font-bold" disabled={isProcessing}>
                                                                     <span className="flex items-center gap-1">
                                                                       {header}
                                                                       <Pencil className="h-3 w-3 text-muted-foreground" />
@@ -445,6 +445,7 @@ export function JsonConverter() {
                                                             <Select
                                                                 value={String(row[header] ?? '')}
                                                                 onValueChange={(newStatus) => handleStatusChange(rowIndex, newStatus)}
+                                                                disabled={isProcessing}
                                                             >
                                                                 <SelectTrigger className="w-[120px] h-8 text-xs">
                                                                     <SelectValue placeholder="Select status" />

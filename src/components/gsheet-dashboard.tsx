@@ -56,11 +56,9 @@ export function GsheetDashboard() {
   const [isUndoing, startUndoing] = useTransition();
   const [isAnalyzing, startAnalyzing] = useTransition();
   
-  const anyActionRunning = isImporting || isUpdating || isPreviewing || isUndoing || isAnalyzing;
-  
   useEffect(() => {
-    setIsProcessing(anyActionRunning);
-  }, [anyActionRunning, setIsProcessing]);
+    setIsProcessing(isImporting || isUpdating || isPreviewing || isUndoing || isAnalyzing);
+  }, [isImporting, isUpdating, isPreviewing, isUndoing, isAnalyzing, setIsProcessing]);
 
 
   const { toast } = useToast();

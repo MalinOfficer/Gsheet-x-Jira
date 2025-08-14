@@ -46,31 +46,30 @@ function NavLinks() {
     );
 }
 
-function LoadingOverlay() {
+function ProcessingIndicator() {
+    const { isProcessing } = useContext(TableDataContext);
+    if (!isProcessing) return null;
+
     return (
-        <div className="fixed inset-0 z-[101] bg-background/80 backdrop-blur-sm flex items-center justify-center">
-            <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-muted-foreground">Processing your request...</p>
-            </div>
+        <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm font-medium">Processing...</span>
         </div>
     );
 }
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-    const { showProcessingOverlay, setIsProcessing } = useContext(TableDataContext);
+    const { isProcessing, setIsProcessing } = useContext(TableDataContext);
     const pathname = usePathname();
 
     useEffect(() => {
-        // When the page navigation completes, the new pathname will be available.
-        // We turn off the processing indicator.
+        // When page navigation completes, turn off the processing indicator.
         setIsProcessing(false);
     }, [pathname, setIsProcessing]);
 
 
     return (
-        <div className={cn("flex min-h-screen w-full")}>
-             {showProcessingOverlay && <LoadingOverlay />}
+        <div className={cn("flex min-h-screen w-full", isProcessing && "pointer-events-none")}>
             {/* Sidebar for Desktop */}
             <aside className="hidden md:flex flex-col w-64 border-r bg-card text-card-foreground">
                 <div className="flex h-16 items-center border-b px-6">
@@ -81,16 +80,17 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 </div>
                 <nav className="flex-1 flex flex-col gap-1 p-4 text-sm font-medium">
                     <NavLinks />
+                    <ProcessingIndicator />
                 </nav>
                  <div className="mt-auto p-4">
                     <Link
                         href="/settings"
                         className={cn(
                             "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
-                            usePathname() === "/settings" && "bg-accent text-accent-foreground font-semibold"
+                            pathname === "/settings" && "bg-accent text-accent-foreground font-semibold"
                         )}
                         onClick={() => {
-                            if (usePathname() !== "/settings") {
+                            if (pathname !== "/settings") {
                                 setIsProcessing(true);
                             }
                         }}
@@ -121,16 +121,17 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                     <span>GSheet Tools</span>
                                 </Link>
                                 <NavLinks />
+                                <ProcessingIndicator />
                             </nav>
                             <div className="mt-auto">
                                 <Link
                                     href="/settings"
                                     className={cn(
                                         "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
-                                         usePathname() === "/settings" && "bg-accent text-accent-foreground font-semibold"
+                                         pathname === "/settings" && "bg-accent text-accent-foreground font-semibold"
                                     )}
                                     onClick={() => {
-                                        if (usePathname() !== "/settings") {
+                                        if (pathname !== "/settings") {
                                             setIsProcessing(true);
                                         }
                                     }}
