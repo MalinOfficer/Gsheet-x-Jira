@@ -64,42 +64,38 @@ export function GsheetDashboard() {
     setSheetUrl(savedUrl || DEFAULT_SHEET_URL);
   }, []);
 
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newUrl = e.target.value;
-    setSheetUrl(newUrl);
-    setLastActionUndoData(null);
-    setSpreadsheetTitle(null);
-    setAnalysisError(null);
-  };
-
-  const handleAnalyzeSheet = async () => {
-    if (!sheetUrl) {
-        toast({
-            variant: "destructive",
-            title: "Analysis Failed",
-            description: "Please enter a Google Sheet URL first.",
-        });
+  const handleAnalyzeSheet = useCallback(async (url: string) => {
+    if (!url || !url.startsWith('https')) {
+        setSpreadsheetTitle(null);
+        setAnalysisError(null);
         return;
     }
     setSpreadsheetTitle(null);
     setAnalysisError(null);
     startAnalyzing(async () => {
-        const result = await getSpreadsheetTitle(sheetUrl);
+        const result = await getSpreadsheetTitle(url);
         if (result.error) {
-            toast({
-                variant: "destructive",
-                title: "Analysis Failed",
-                description: result.error,
-            });
             setAnalysisError(result.error);
         } else if (result.title) {
-            toast({
-                title: "Analysis Complete",
-                description: `Successfully retrieved sheet title.`,
-            });
             setSpreadsheetTitle(result.title);
         }
     });
+  }, [startAnalyzing]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      handleAnalyzeSheet(sheetUrl);
+    }, 500); // Debounce API call
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [sheetUrl, handleAnalyzeSheet]);
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newUrl = e.target.value;
+    setSheetUrl(newUrl);
+    setLastActionUndoData(null);
   };
 
   const handleUpdatePreview = async () => {
@@ -329,35 +325,41 @@ export function GsheetDashboard() {
                         onChange={handleUrlChange}
                         className="flex-grow"
                       />
-                      <Button onClick={handleAnalyzeSheet} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isAnalyzing || !sheetUrl}>
-                          {isAnalyzing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
-                           Get Sheet Title
-                      </Button>
                       <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto">
                           <Save className="h-4 w-4 mr-2" /> Set as Default
                       </Button>
                     </div>
                   </div>
                 
-                {(spreadsheetTitle || analysisError) && (
-                    <div className="mt-2 p-3 bg-muted/50 rounded-md">
-                        <h4 className="text-sm font-semibold mb-2 flex items-center">
-                          <FileText className="w-4 h-4 mr-2" />
-                          Analysis Result:
-                        </h4>
-                        {spreadsheetTitle && (
-                           <p className="text-sm text-foreground font-medium">{spreadsheetTitle}</p>
-                        )}
-                        {analysisError && (
-                            <p className="text-sm text-destructive">{analysisError}</p>
-                        )}
-                    </div>
-                )}
+                <div className="mt-2 p-3 bg-muted/50 rounded-md min-h-[6rem] flex items-center justify-center">
+                    {isAnalyzing ? (
+                        <div className="flex items-center text-sm text-muted-foreground">
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            <span>Menganalisis URL...</span>
+                        </div>
+                    ) : (
+                        <div>
+                            <h4 className="text-sm font-semibold mb-2 flex items-center">
+                              <FileText className="w-4 h-4 mr-2" />
+                              Analysis Result:
+                            </h4>
+                            {spreadsheetTitle && (
+                               <p className="text-sm text-foreground font-medium">{spreadsheetTitle}</p>
+                            )}
+                            {analysisError && (
+                                <p className="text-sm text-destructive">{analysisError}</p>
+                            )}
+                            {!spreadsheetTitle && !analysisError && (
+                                <p className="text-sm text-muted-foreground">Judul sheet akan muncul di sini.</p>
+                            )}
+                        </div>
+                    )}
+                </div>
                 
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || isPreviewing || isUndoing}>
+                         <Button size="sm" disabled={isImporting || isUpdating || !sheetUrl || isPreviewing || isUndoing || !!analysisError}>
                            <Upload className="mr-2 h-4 w-4" />
                            Import to GSheet
                          </Button>
@@ -366,7 +368,7 @@ export function GsheetDashboard() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Konfirmasi Impor</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Apakah Anda yakin akan mengimpor {tableData.rows.length} baris ke Google Sheet target?
+                            Apakah Anda yakin akan mengimpor {tableData.rows.length} baris ke sheet <span className="font-bold">{spreadsheetTitle || 'target'}</span>?
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -391,7 +393,7 @@ export function GsheetDashboard() {
                             onClick={handleUpdatePreview} 
                             size="sm"
                             className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950"
-                            disabled={isUpdating || isImporting || !sheetUrl || isPreviewing || isUndoing}>
+                            disabled={isUpdating || isImporting || !sheetUrl || isPreviewing || isUndoing || !!analysisError}>
                             {isPreviewing ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -525,3 +527,5 @@ export function GsheetDashboard() {
     </div>
   );
 }
+
+    
