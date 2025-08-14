@@ -181,8 +181,8 @@ export function GsheetDashboard() {
     if (!tableData || !sheetUrl) {
         toast({
             variant: "destructive",
-            title: "Import Failed",
-            description: "No data to import or sheet URL is missing.",
+            title: "Export Failed",
+            description: "No data to export or sheet URL is missing.",
         });
         return;
     }
@@ -196,16 +196,16 @@ export function GsheetDashboard() {
         if (result.error) {
             toast({
                 variant: "destructive",
-                title: "Import Error",
-                description: `Failed to import to sheet: ${result.error}`,
+                title: "Export Error",
+                description: `Failed to export to sheet: ${result.error}`,
             });
             setLastActionUndoData(null);
         } else {
             toast({
-                title: "Import Complete",
+                title: "Export Complete",
                 description: (
                     <div>
-                        {result.importedCount > 0 && <p>{result.importedCount} new rows imported successfully.</p>}
+                        {result.importedCount > 0 && <p>{result.importedCount} new rows exported successfully.</p>}
                         {result.duplicateCount > 0 && (
                             <div className="mt-2 text-xs">
                                 <p className="font-bold">{result.duplicateCount} duplicate rows found and skipped:</p>
@@ -216,7 +216,7 @@ export function GsheetDashboard() {
                                 </ul>
                             </div>
                         )}
-                        {(!result.importedCount && !result.duplicateCount) && <p>No new data to import.</p>}
+                        {(!result.importedCount && !result.duplicateCount) && <p>No new data to export.</p>}
                     </div>
                 ),
             });
@@ -284,7 +284,7 @@ export function GsheetDashboard() {
   const InitialState = () => (
     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
         <Import className="w-16 h-16 text-muted-foreground mb-4" />
-        <CardTitle>No Data to Import</CardTitle>
+        <CardTitle>No Data to Export</CardTitle>
         <CardDescription className="mt-2 mb-4">
             First, convert your JSON data on the converter page.
         </CardDescription>
@@ -301,7 +301,7 @@ export function GsheetDashboard() {
         <header>
           <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Update Cases</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Tinjau data yang dikonversi dari JSON dan impor ke Google Sheet target Anda.
+            Tinjau data yang dikonversi dari JSON dan ekspor ke Google Sheet target Anda.
           </p>
         </header>
 
@@ -311,9 +311,9 @@ export function GsheetDashboard() {
           <>
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle>Import Destination</CardTitle>
+                <CardTitle>Export Destination</CardTitle>
                 <CardDescription>
-                  Masukkan URL Google Sheet Anda. Data akan diimpor ke sheet "All Case".
+                  Masukkan URL Google Sheet Anda. Data akan diekspor ke sheet "All Case".
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -363,14 +363,14 @@ export function GsheetDashboard() {
                       <AlertDialogTrigger asChild>
                          <Button size="sm" disabled={isProcessing || !sheetUrl || !!analysisError}>
                            <Upload className="mr-2 h-4 w-4" />
-                           Import to GSheet
+                           Export to GSheet
                          </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Konfirmasi Impor</AlertDialogTitle>
+                          <AlertDialogTitle>Konfirmasi Ekspor</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Apakah Anda yakin akan mengimpor {tableData.rows.length} baris ke sheet <span className="font-bold">{spreadsheetTitle || 'target'}</span>?
+                            Apakah Anda yakin akan mengekspor {tableData.rows.length} baris ke sheet <span className="font-bold">{spreadsheetTitle || 'target'}</span>?
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -379,10 +379,10 @@ export function GsheetDashboard() {
                             {isImporting ? (
                                 <>
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Mengimpor...
+                                  Mengekspor...
                                 </>
                               ) : (
-                                "Ya, Lanjutkan Impor"
+                                "Ya, Lanjutkan Ekspor"
                               )}
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -465,9 +465,9 @@ export function GsheetDashboard() {
 
             <Card className="shadow-lg mt-6">
                 <CardHeader>
-                    <CardTitle>Data Preview for Import</CardTitle>
+                    <CardTitle>Data Preview for Export</CardTitle>
                     <CardDescription>
-                        Ini adalah data yang Anda konversi. Data ini akan diimpor ke sheet target.
+                        Ini adalah data yang Anda konversi. Data ini akan diekspor ke sheet target.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -521,7 +521,7 @@ export function GsheetDashboard() {
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <p className="text-sm text-muted-foreground">Showing {tableData.rows.length} rows to be imported.</p>
+                    <p className="text-sm text-muted-foreground">Showing {tableData.rows.length} rows to be exported.</p>
                 </CardFooter>
             </Card>
           </>
@@ -530,3 +530,5 @@ export function GsheetDashboard() {
     </div>
   );
 }
+
+    
