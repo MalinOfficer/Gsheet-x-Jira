@@ -326,11 +326,12 @@ export async function importToSheet(
         const updatedRange = appendResult.data.updates?.updatedRange;
         if (!updatedRange) throw new Error("Could not determine the range of appended data for undo.");
         
-        const rangeRegex = /'All Case'!G(\d+):M(\d+)/;
+        const rangeRegex = /'?(.*?)'?!?[A-Z]+\d+:?[A-Z]*(\d*)/;
         const rangeMatch = updatedRange.match(rangeRegex);
-        if (!rangeMatch) throw new Error("Could not parse the updated range.");
+        if (!rangeMatch || !rangeMatch[2]) throw new Error("Could not parse the updated range.");
         
-        const startRowIndex = parseInt(rangeMatch[1], 10) -1;
+        const startRowIndex = parseInt(rangeMatch[2], 10) - newRows.length;
+
 
         const undoData = {
             operationType: 'IMPORT',
