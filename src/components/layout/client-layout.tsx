@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, Braces, BarChart, GanttChartSquare, Settings, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 
 const navItems = [
@@ -58,7 +58,15 @@ function LoadingOverlay() {
 }
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-    const { showProcessingOverlay } = useContext(TableDataContext);
+    const { showProcessingOverlay, setIsProcessing } = useContext(TableDataContext);
+    const pathname = usePathname();
+
+    useEffect(() => {
+        // When the page navigation completes, the new pathname will be available.
+        // We turn off the processing indicator.
+        setIsProcessing(false);
+    }, [pathname, setIsProcessing]);
+
 
     return (
         <div className={cn("flex min-h-screen w-full")}>
@@ -81,6 +89,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                             "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
                             usePathname() === "/settings" && "bg-accent text-accent-foreground font-semibold"
                         )}
+                        onClick={() => {
+                            if (usePathname() !== "/settings") {
+                                setIsProcessing(true);
+                            }
+                        }}
                     >
                         <Settings className="h-4 w-4" />
                         Settings
@@ -116,6 +129,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                         "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
                                          usePathname() === "/settings" && "bg-accent text-accent-foreground font-semibold"
                                     )}
+                                    onClick={() => {
+                                        if (usePathname() !== "/settings") {
+                                            setIsProcessing(true);
+                                        }
+                                    }}
                                 >
                                     <Settings className="h-5 w-5" />
                                     Settings
