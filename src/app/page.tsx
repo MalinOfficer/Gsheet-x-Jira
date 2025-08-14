@@ -1,7 +1,8 @@
-import { JsonConverter } from '@/components/json-converter';
 
-export default function JsonConverterPage() {
-  return (
-    <JsonConverter />
-  );
+import { ImportFlow } from "@/components/import-flow";
+
+export default function ImportFlowPage() {
+    return (
+        <ImportFlow />
+    );
 }

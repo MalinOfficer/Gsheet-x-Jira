@@ -11,10 +11,8 @@ import { useContext, useEffect } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 
 const navItems = [
-    { href: "/", label: "JSON Converter", icon: Braces },
+    { href: "/", label: "Import Flow", icon: ListTree },
     { href: "/report-harian", label: "Daily Report", icon: BarChart },
-    { href: "/update-case-l3", label: "Update Cases", icon: GanttChartSquare },
-    { href: "/import-flow", label: "Import Flow", icon: ListTree },
 ];
 
 function NavLinks() {
