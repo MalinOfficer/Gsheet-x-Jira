@@ -49,7 +49,6 @@ export function JsonConverter() {
         const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
         if (savedJson) {
             setJsonInput(savedJson);
-            handleConvert(savedJson, savedTemplate || DEFAULT_TEMPLATE, true);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

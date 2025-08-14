@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet, ArrowRight, Undo, ListTree, Search, FileText } from 'lucide-react';
+import { Loader2, Upload, ArrowLeft, Import, DatabaseZap, Save, CheckCircle2, XCircle, FileSpreadsheet, ArrowRight, Undo, ListTree, Search, FileText, ShieldCheck } from 'lucide-react';
 import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
@@ -43,6 +43,7 @@ type LastActionUndoData = {
 export function GsheetDashboard() {
   const { tableData, setTableData, isProcessing, setIsProcessing } = useContext(TableDataContext);
   const [sheetUrl, setSheetUrl] = useState('');
+  const [verifiedUrl, setVerifiedUrl] = useState('');
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
   const [lastActionUndoData, setLastActionUndoData] = useState<LastActionUndoData>(null);
@@ -69,38 +70,35 @@ export function GsheetDashboard() {
     setSheetUrl(savedUrl || DEFAULT_SHEET_URL);
   }, []);
 
-  const handleAnalyzeSheet = useCallback(async (url: string) => {
-    if (!url || !url.startsWith('https')) {
-        setSpreadsheetTitle(null);
-        setAnalysisError(null);
+  const handleAnalyzeSheet = useCallback(async () => {
+    if (!sheetUrl) {
+        toast({ variant: 'destructive', title: 'URL is missing', description: 'Please enter a Google Sheet URL to verify.' });
         return;
     }
     setSpreadsheetTitle(null);
     setAnalysisError(null);
     startAnalyzing(async () => {
-        const result = await getSpreadsheetTitle(url);
+        const result = await getSpreadsheetTitle(sheetUrl);
         if (result.error) {
             setAnalysisError(result.error);
+            setVerifiedUrl('');
         } else if (result.title) {
             setSpreadsheetTitle(result.title);
+            setVerifiedUrl(sheetUrl);
+            setAnalysisError(null);
         }
     });
-  }, []);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      handleAnalyzeSheet(sheetUrl);
-    }, 500); // Debounce API call
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [sheetUrl, handleAnalyzeSheet]);
+  }, [sheetUrl]);
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value;
     setSheetUrl(newUrl);
     setLastActionUndoData(null);
+    if (newUrl !== verifiedUrl) {
+      setSpreadsheetTitle(null);
+      setAnalysisError(null);
+      setVerifiedUrl('');
+    }
   };
 
   const handleUpdatePreview = async () => {
@@ -283,6 +281,8 @@ export function GsheetDashboard() {
     setLastActionUndoData(null); // Invalidate last action on data change
   };
 
+  const isVerified = !!verifiedUrl && verifiedUrl === sheetUrl;
+
   const InitialState = () => (
     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
         <Import className="w-16 h-16 text-muted-foreground mb-4" />
@@ -315,7 +315,7 @@ export function GsheetDashboard() {
               <CardHeader>
                 <CardTitle>Export Destination</CardTitle>
                 <CardDescription>
-                  Masukkan URL Google Sheet Anda. Data akan diekspor ke sheet "All Case".
+                  Masukkan URL Google Sheet Anda, verifikasi, lalu ekspor ke sheet "All Case".
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -331,10 +331,20 @@ export function GsheetDashboard() {
                         className="flex-grow"
                         disabled={isProcessing}
                       />
-                      <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
+                       <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
                           <Save className="h-4 w-4 mr-2" /> Set as Default
                       </Button>
                     </div>
+                     <div className='mt-2'>
+                        <Button onClick={handleAnalyzeSheet} variant="outline" size="sm" disabled={isProcessing || isVerified}>
+                            {isAnalyzing ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                                <ShieldCheck className="w-4 h-4 mr-2" />
+                            )}
+                            {isAnalyzing ? 'Verifying...' : 'Verify'}
+                        </Button>
+                     </div>
                     <div className="mt-1 h-5">
                       {isAnalyzing ? (
                           <div className="flex items-center text-xs text-muted-foreground">
@@ -363,7 +373,7 @@ export function GsheetDashboard() {
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                         <Button size="sm" disabled={isProcessing || !sheetUrl || !!analysisError}>
+                         <Button size="sm" disabled={isProcessing || !isVerified}>
                            {isImporting ? (
                                 <>
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -406,7 +416,7 @@ export function GsheetDashboard() {
                             onClick={handleUpdatePreview} 
                             size="sm"
                             className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950"
-                            disabled={isProcessing || !sheetUrl || !!analysisError}>
+                            disabled={isProcessing || !isVerified}>
                             {isPreviewing ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -457,7 +467,7 @@ export function GsheetDashboard() {
                         onClick={handleUndo} 
                         size="sm"
                         variant="destructive"
-                        disabled={!lastActionUndoData || isProcessing}>
+                        disabled={!lastActionUndoData || isProcessing || !isVerified}>
                         {isUndoing ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
