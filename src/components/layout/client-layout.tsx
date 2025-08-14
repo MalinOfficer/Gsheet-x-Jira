@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Braces, BarChart, GanttChartSquare, Settings, Loader2 } from "lucide-react";
+import { Menu, Braces, BarChart, GanttChartSquare, Settings, Loader2, ListTree } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useContext, useEffect } from "react";
 import { TableDataContext } from "@/store/table-data-context";
@@ -14,6 +14,7 @@ const navItems = [
     { href: "/", label: "JSON Converter", icon: Braces },
     { href: "/report-harian", label: "Daily Report", icon: BarChart },
     { href: "/update-case-l3", label: "Update Cases", icon: GanttChartSquare },
+    { href: "/import-flow", label: "Import Flow", icon: ListTree },
 ];
 
 function NavLinks() {
