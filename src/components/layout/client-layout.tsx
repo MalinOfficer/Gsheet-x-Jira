@@ -58,11 +58,11 @@ function LoadingOverlay() {
 }
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-    const { isProcessing } = useContext(TableDataContext);
+    const { showProcessingOverlay } = useContext(TableDataContext);
 
     return (
         <div className={cn("flex min-h-screen w-full")}>
-             {isProcessing && <LoadingOverlay />}
+             {showProcessingOverlay && <LoadingOverlay />}
             {/* Sidebar for Desktop */}
             <aside className="hidden md:flex flex-col w-64 border-r bg-card text-card-foreground">
                 <div className="flex h-16 items-center border-b px-6">
