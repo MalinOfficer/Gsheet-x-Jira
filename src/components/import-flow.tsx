@@ -2,10 +2,11 @@
 "use client";
 
 import { useState, useTransition, useEffect, useContext, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check } from 'lucide-react';
+import { Loader2, Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart } from 'lucide-react';
 import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
@@ -67,6 +68,7 @@ export function ImportFlow() {
    const [isCopied, setIsCopied] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
   const [isImporting, startImporting] = useTransition();
   const [isUpdating, startUpdating] = useTransition();
   const [isPreviewing, startPreviewing] = useTransition();
@@ -484,6 +486,19 @@ export function ImportFlow() {
             });
         });
     };
+    
+   const handleNavigateToReport = () => {
+    if (!tableData) {
+        toast({
+            variant: "destructive",
+            title: "Data Not Ready",
+            description: "Please convert your JSON to a table before viewing the report.",
+        });
+        return;
+    }
+    router.push('/report-harian');
+  };
+
 
   const JsonErrorAlert = ({ message }: { message: string }) => (
       <Alert variant="destructive" className="mt-4">
@@ -670,10 +685,16 @@ export function ImportFlow() {
                                 Ini adalah pratinjau data yang akan diekspor. Anda dapat mengubah status di sini sebelum mengekspor.
                             </CardDescription>
                         </div>
-                        <Button onClick={handleCopyToClipboard} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
-                            {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                            {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
-                        </Button>
+                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                            <Button onClick={handleCopyToClipboard} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
+                                {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                                {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
+                            </Button>
+                             <Button onClick={handleNavigateToReport} size="sm" className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white" disabled={isProcessing || !tableData}>
+                                <BarChart className="mr-2 h-4 w-4" />
+                                Report Harian
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -748,3 +769,5 @@ export function ImportFlow() {
     </div>
   );
 }
+
+    
