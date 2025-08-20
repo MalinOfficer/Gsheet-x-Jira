@@ -57,6 +57,9 @@ export function MigrasiMurid() {
                 if (colIndex >= tableHeaders.length) return; // Stop if paste exceeds table bounds
 
                 const header = tableHeaders[colIndex];
+                // Skip updating the "No" column from pasted data
+                if (header === "No") return;
+                
                 newRows[rowIndex][header] = value.trim();
             });
             maxRowIndex = rowIndex;
@@ -108,7 +111,10 @@ export function MigrasiMurid() {
                                 <TableHeader className="sticky top-0 z-10 bg-card">
                                     <TableRow>
                                         {tableHeaders.map((header) => (
-                                            <TableHead key={header} className={cn(headerCellClassName)}>
+                                            <TableHead key={header} className={cn(
+                                                headerCellClassName,
+                                                header === "No" && "w-[50px] min-w-[50px]"
+                                            )}>
                                                 {header}
                                             </TableHead>
                                         ))}
@@ -122,13 +128,16 @@ export function MigrasiMurid() {
                                                    key={`cell-${rowIndex}-${colIndex}`} 
                                                    className={cn(
                                                        cellClassName,
-                                                       selectedCell?.row === rowIndex && selectedCell?.col === colIndex
-                                                           ? "ring-2 ring-primary ring-inset"
-                                                           : ""
+                                                       {
+                                                           "w-[50px] min-w-[50px] text-center": header === "No",
+                                                           "ring-2 ring-primary ring-inset": selectedCell?.row === rowIndex && selectedCell?.col === colIndex
+                                                       }
                                                    )}
                                                    onClick={() => handleCellClick(rowIndex, colIndex)}
                                                >
-                                                   {row[header]}
+                                                   {header === "No"
+                                                       ? (row["Username"] ? rowIndex + 1 : "")
+                                                       : row[header]}
                                                </TableCell>
                                            ))}
                                        </TableRow>
