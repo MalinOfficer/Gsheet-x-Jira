@@ -1,14 +1,20 @@
 
 "use client";
 
-import { useState, useCallback, KeyboardEvent, MouseEvent } from "react";
+import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Wand2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const tableHeaders = [
     "No", "Username", "NIS", "NISN", "NIK", "Kode", "Asal Sekolah", "Nama", "L/P",
@@ -28,8 +34,50 @@ const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ 
 
 const INITIAL_ROWS = 30;
 
+const monthMap: { [key: string]: string } = {
+    'januari': '01', 'februari': '02', 'maret': '03', 'april': '04',
+    'mei': '05', 'juni': '06', 'juli': '07', 'agustus': '08',
+    'september': '09', 'oktober': '10', 'november': '11', 'desember': '12',
+    'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
+    'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+};
+
+const parseAndFormatDate = (dateStr: string): string | null => {
+    if (!dateStr || typeof dateStr !== 'string') return null;
+
+    const trimmedDate = dateStr.trim();
+    // Check if it's already in DD/MM/YYYY format
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmedDate)) {
+        return trimmedDate;
+    }
+
+    // Try parsing DD-MonthName-YYYY (e.g., 03-Januari-2009)
+    const monthMatch = trimmedDate.match(/^(\d{1,2})[-.\s]([a-zA-Z]+)[-.\s](\d{4})$/);
+    if (monthMatch) {
+        const day = monthMatch[1].padStart(2, '0');
+        const monthName = monthMatch[2].toLowerCase();
+        const year = monthMatch[3];
+        const month = monthMap[monthName];
+        if (day && month && year) {
+            return `${day}/${month}/${year}`;
+        }
+    }
+    
+    // Add other parsers here if needed, e.g., for YYYY-MM-DD
+    const isoMatch = trimmedDate.match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
+    if (isoMatch) {
+        const year = isoMatch[1];
+        const month = isoMatch[2];
+        const day = isoMatch[3];
+        return `${day}/${month}/${year}`;
+    }
+
+    return null; // Return null if no format matches
+};
+
+
 export function MigrasiMurid() {
-    const [rows, setRows] = useState<MuridData[]>(() => Array.from({ length: INITIAL_ROWS }, createEmptyRow));
+    const [rows, setRows] = useState<MuridData[]>(() => Array.from({ length: INITIAL_ROWS }, (_, i) => createEmptyRow()));
     const [selectedRange, setSelectedRange] = useState<{ start: CellSelection | null, end: CellSelection | null }>({ start: null, end: null });
     const [numRowsToAdd, setNumRowsToAdd] = useState(1);
     const { toast } = useToast();
@@ -45,7 +93,7 @@ export function MigrasiMurid() {
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, { row, col }: CellSelection) => {
         const move = (dRow: number, dCol: number) => {
             const nextRow = Math.max(0, Math.min(rows.length - 1, row + dRow));
-            const nextCol = Math.max(0, Math.min(tableHeaders.length - 1, col + dCol));
+            const nextCol = Math.max(1, Math.min(tableHeaders.length - 1, col + dCol)); // skip "No" column
             const nextCell = document.querySelector(`[data-row='${nextRow}'][data-col='${nextCol}']`) as HTMLInputElement;
             if (nextCell) {
                 nextCell.focus();
@@ -116,6 +164,7 @@ export function MigrasiMurid() {
     };
     
     const handleCellClick = (e: MouseEvent<HTMLInputElement>, { row, col }: CellSelection) => {
+        if (tableHeaders[col] === "No") return;
         if (e.shiftKey && selectedRange.start) {
             setSelectedRange({ ...selectedRange, end: { row, col } });
         } else {
@@ -173,6 +222,39 @@ export function MigrasiMurid() {
         toast({ title: "Rows Added", description: `${count} empty rows have been added.` });
     };
 
+    const handleFormatDates = () => {
+        let changes = 0;
+        const dateHeader = "Tanggal Lahir (DD/MM/YYYY)";
+        
+        setRows(currentRows => {
+            const newRows = currentRows.map(row => {
+                const originalValue = row[dateHeader];
+                if (originalValue) {
+                    const formattedValue = parseAndFormatDate(originalValue);
+                    if (formattedValue && formattedValue !== originalValue) {
+                        changes++;
+                        return { ...row, [dateHeader]: formattedValue };
+                    }
+                }
+                return row;
+            });
+            return newRows;
+        });
+
+        if (changes > 0) {
+            toast({
+                title: "Dates Formatted",
+                description: `Successfully formatted ${changes} dates to DD/MM/YYYY.`,
+            });
+        } else {
+            toast({
+                variant: "default",
+                title: "No Dates to Format",
+                description: "No dates needed reformatting or the format was not recognized.",
+            });
+        }
+    };
+
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-full mx-auto space-y-6">
@@ -200,9 +282,27 @@ export function MigrasiMurid() {
                                         {tableHeaders.map((header) => (
                                             <TableHead key={header} className={cn(
                                                 "border bg-muted/50 p-0 text-xs font-bold text-center whitespace-nowrap",
-                                                header === "No" && "w-[50px] min-w-[50px]"
+                                                header === "No" && "w-[50px] min-w-[50px]",
+                                                "sticky top-0 z-10"
                                             )}>
-                                                <div className="px-2 py-2">{header}</div>
+                                                <div className="px-2 py-2 flex items-center justify-center gap-1">
+                                                    {header}
+                                                    {header === "Tanggal Lahir (DD/MM/YYYY)" && (
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-5 w-5">
+                                                                    <Wand2 className="h-3 w-3" />
+                                                                    <span className="sr-only">Format Menu</span>
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent>
+                                                                <DropdownMenuItem onClick={handleFormatDates}>
+                                                                    Format ke DD/MM/YYYY
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    )}
+                                                </div>
                                             </TableHead>
                                         ))}
                                     </TableRow>
@@ -215,7 +315,7 @@ export function MigrasiMurid() {
                                                    key={`cell-${rowIndex}-${colIndex}`} 
                                                    className={cn(
                                                        "border p-0 m-0 h-auto relative",
-                                                       { "bg-muted/50 text-center": header === "No" }
+                                                       { "bg-muted/30": header === "No" }
                                                    )}
                                                >
                                                     <div className={cn("absolute inset-[-1px] pointer-events-none z-10", getCellBorderClass(rowIndex, colIndex))}></div>
@@ -230,7 +330,7 @@ export function MigrasiMurid() {
                                                       data-col={colIndex}
                                                       className={cn(
                                                           "w-full h-full min-w-[100px] text-xs p-1 rounded-none border-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
-                                                          { "w-[50px] min-w-[50px] text-center cursor-default": header === "No" }
+                                                          header === "No" && "w-[50px] min-w-[50px] text-center cursor-default bg-muted/30 focus-visible:ring-0",
                                                       )}
                                                    />
                                                </TableCell>
@@ -262,3 +362,5 @@ export function MigrasiMurid() {
     );
 }
 
+
+    
