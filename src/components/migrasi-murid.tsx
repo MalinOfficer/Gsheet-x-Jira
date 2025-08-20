@@ -24,7 +24,7 @@ const tableHeaders = [
     "Wali", "Pekerjaan Wali", "No Kartu Keluarga"
 ];
 
-type MuridData = Record<string, string>;
+type MuridData = Record<string, string | number>;
 type CellSelection = {
     row: number;
     col: number;
@@ -90,6 +90,19 @@ export function MigrasiMurid() {
             return newRows;
         });
     };
+    
+    const getNormalizedRange = useCallback(() => {
+        if (!selectedRange.start) {
+            return { startRow: -1, endRow: -1, startCol: -1, endCol: -1 };
+        }
+        const end = selectedRange.end || selectedRange.start;
+        const startRow = Math.min(selectedRange.start.row, end.row);
+        const endRow = Math.max(selectedRange.start.row, end.row);
+        const startCol = Math.min(selectedRange.start.col, end.col);
+        const endCol = Math.max(selectedRange.start.col, end.col);
+        return { startRow, endRow, startCol, endCol };
+    }, [selectedRange]);
+
 
     const handleCopy = useCallback(() => {
         if (!selectedRange.start) {
@@ -123,7 +136,7 @@ export function MigrasiMurid() {
                 description: "Could not copy data to clipboard.",
             });
         });
-    }, [rows, selectedRange.start, selectedRange.end, toast]);
+    }, [rows, getNormalizedRange, toast]);
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, { row, col }: CellSelection) => {
         const move = (dRow: number, dCol: number) => {
@@ -153,7 +166,7 @@ export function MigrasiMurid() {
                 break;
             case "Delete":
             case "Backspace":
-                if (selectedRange.start && selectedRange.end) {
+                if (selectedRange.start) {
                     e.preventDefault();
                     setRows(currentRows => {
                         const newRows = [...currentRows];
@@ -173,19 +186,8 @@ export function MigrasiMurid() {
         }
     };
     
-    const getNormalizedRange = () => {
-        if (!selectedRange.start || !selectedRange.end) {
-            return { startRow: -1, endRow: -1, startCol: -1, endCol: -1 };
-        }
-        const startRow = Math.min(selectedRange.start.row, selectedRange.end.row);
-        const endRow = Math.max(selectedRange.start.row, selectedRange.end.row);
-        const startCol = Math.min(selectedRange.start.col, selectedRange.end.col);
-        const endCol = Math.max(selectedRange.start.col, selectedRange.end.col);
-        return { startRow, endRow, startCol, endCol };
-    };
-
     const getCellBorderClass = (row: number, col: number) => {
-        if (!selectedRange.start || !selectedRange.end) return "";
+        if (!selectedRange.start) return "";
         const { startRow, endRow, startCol, endCol } = getNormalizedRange();
 
         if (row < startRow || row > endRow || col < startCol || col > endCol) return "";
@@ -270,7 +272,7 @@ export function MigrasiMurid() {
         setRows(currentRows => {
             const newRows = currentRows.map(row => {
                 const originalValue = row[dateHeader];
-                if (originalValue) {
+                if (originalValue && typeof originalValue === 'string') {
                     const formattedValue = parseAndFormatDate(originalValue);
                     if (formattedValue && formattedValue !== originalValue) {
                         changes++;
@@ -317,7 +319,7 @@ export function MigrasiMurid() {
             .map((row, index) => {
                 const newRow: Record<string, any> = { ...row, No: row.Username ? String(index + 1) : '' };
                 const dateValue = newRow[dateHeader];
-                if (dateValue) {
+                if (dateValue && typeof dateValue === 'string') {
                     const parsedDate = parseDateString(dateValue);
                     if (parsedDate) {
                         newRow[dateHeader] = parsedDate;
@@ -337,7 +339,7 @@ export function MigrasiMurid() {
             return;
         }
 
-        const worksheet = XLSX.utils.json_to_sheet(processedRows, { header: tableHeaders });
+        const worksheet = XLSX.utils.json_to_sheet(processedRows, { header: tableHeaders, skipHeader: false });
         
         // This loop was removed as the library handles Date objects automatically.
         // The explicit formatting is no longer needed with the parseDateString approach.
@@ -348,7 +350,7 @@ export function MigrasiMurid() {
         const date = new Date().toISOString().slice(0, 10);
         const filename = `Data_Murid_${date}.xls`;
 
-        XLSX.writeFile(workbook, filename, { bookType: "xls" });
+        XLSX.writeFile(workbook, filename, { bookType: "biff8" });
         
         toast({
             title: "Export Successful",
@@ -432,7 +434,7 @@ export function MigrasiMurid() {
                                                     <div className={cn("absolute inset-[-1px] pointer-events-none z-10", getCellBorderClass(rowIndex, colIndex))}></div>
                                                    <Input
                                                       type="text"
-                                                      value={header === "No" ? (row["Username"] ? String(rowIndex + 1) : "") : row[header]}
+                                                      value={String(header === "No" ? (row["Username"] ? rowIndex + 1 : "") : row[header] || '')}
                                                       readOnly={header === "No"}
                                                       onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
                                                       onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
