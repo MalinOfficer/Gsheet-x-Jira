@@ -18,13 +18,13 @@ type MuridData = Record<string, string>;
 
 const cellClassName = "border p-1 text-xs whitespace-nowrap min-w-[100px] h-6 focus:outline-none";
 const headerCellClassName = "border bg-muted/50 p-2 text-xs font-bold text-center whitespace-nowrap";
-const TOTAL_ROWS = 30;
+const INITIAL_ROWS = 30;
 
 // Helper to create an empty row
 const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ ...acc, [header]: '' }), {});
 
 export function MigrasiMurid() {
-    const [rows, setRows] = useState<MuridData[]>(() => Array.from({ length: TOTAL_ROWS }, createEmptyRow));
+    const [rows, setRows] = useState<MuridData[]>(() => Array.from({ length: INITIAL_ROWS }, createEmptyRow));
     const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
     const { toast } = useToast();
 
@@ -49,12 +49,16 @@ export function MigrasiMurid() {
 
         pastedLines.forEach((line, lineIndex) => {
             const rowIndex = selectedCell.row + lineIndex;
-            if (rowIndex >= newRows.length) return; // Stop if paste exceeds table bounds
+            
+            // If paste exceeds current table bounds, add new rows
+            while (rowIndex >= newRows.length) {
+                newRows.push(createEmptyRow());
+            }
 
             const values = line.split('\t');
             values.forEach((value, valueIndex) => {
                 const colIndex = selectedCell.col + valueIndex;
-                if (colIndex >= tableHeaders.length) return; // Stop if paste exceeds table bounds
+                if (colIndex >= tableHeaders.length) return; // Stop if paste exceeds table bounds horizontally
 
                 const header = tableHeaders[colIndex];
                 // Skip updating the "No" column from pasted data
