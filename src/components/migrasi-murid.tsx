@@ -256,12 +256,42 @@ export function MigrasiMurid() {
         }
     };
     
-    const handleExportExcel = () => {
-        const dataToExport = rows
-            .map((row, index) => ({ ...row, No: row.Username ? String(index + 1) : '' }))
-            .filter(row => Object.values(row).some(val => typeof val === 'string' && val.trim() !== ''));
+    // Function to parse 'DD/MM/YYYY' string to a JS Date object
+    const parseDateString = (dateString: string): Date | null => {
+        if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) return null;
+        const parts = dateString.split('/');
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS
+        const year = parseInt(parts[2], 10);
+        const date = new Date(year, month, day);
+        // Check for invalid date (e.g., 32/01/2024)
+        if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
+            return null;
+        }
+        return date;
+    };
 
-        if (dataToExport.length === 0) {
+    const handleExportExcel = () => {
+        const dateHeader = "Tanggal Lahir";
+        const processedRows = rows
+            .map((row, index) => {
+                // Add No. column
+                const newRow: Record<string, any> = { ...row, No: row.Username ? String(index + 1) : '' };
+                
+                // Convert date string to JS Date object for xlsx library
+                const dateValue = newRow[dateHeader];
+                if (dateValue && typeof dateValue === 'string') {
+                    const parsedDate = parseDateString(dateValue);
+                    if (parsedDate) {
+                        newRow[dateHeader] = parsedDate;
+                    }
+                }
+                return newRow;
+            })
+            .filter(row => Object.values(row).some(val => val !== null && val !== ''));
+
+
+        if (processedRows.length === 0) {
             toast({
                 variant: "destructive",
                 title: "No Data to Export",
@@ -270,21 +300,7 @@ export function MigrasiMurid() {
             return;
         }
 
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport, { header: tableHeaders });
-
-        const dateColIndex = tableHeaders.indexOf("Tanggal Lahir");
-        if (dateColIndex !== -1) {
-            const dateColLetter = XLSX.utils.encode_col(dateColIndex);
-            for (let i = 1; i <= dataToExport.length + 1; i++) {
-                 const cellAddress = `${dateColLetter}${i}`;
-                 const cell = worksheet[cellAddress];
-                 // Ensure the cell exists and has a value, and it's not the header
-                 if (cell && cell.v && i > 1) {
-                    cell.t = 'd'; // Set type to 'd' for date
-                    cell.z = 'dd/mm/yyyy'; // Set the format string
-                 }
-            }
-        }
+        const worksheet = XLSX.utils.json_to_sheet(processedRows, { header: tableHeaders });
 
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Data Murid");
@@ -296,7 +312,7 @@ export function MigrasiMurid() {
         
         toast({
             title: "Export Successful",
-            description: `${dataToExport.length} rows have been exported to ${filename}.`,
+            description: `${processedRows.length} rows have been exported to ${filename}.`,
         });
     };
 
