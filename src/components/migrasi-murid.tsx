@@ -5,6 +5,7 @@ import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const tableHeaders = [
     "No", "Username", "NIS", "NISN", "NIK", "Kode", "Asal Sekolah", "Nama", "L/P",
@@ -14,6 +15,9 @@ const tableHeaders = [
 ];
 
 type MuridData = Record<string, string>;
+
+const cellClassName = "border p-2 text-xs whitespace-nowrap";
+const headerCellClassName = "border bg-muted/50 p-2 text-xs font-bold text-center whitespace-nowrap";
 
 export function MigrasiMurid() {
     const [rows, setRows] = useState<MuridData[]>([]);
@@ -63,15 +67,15 @@ export function MigrasiMurid() {
                     </CardHeader>
                     <CardContent>
                         <div 
-                            className="relative w-full overflow-auto rounded-md border max-h-[600px]"
+                            className="relative w-full overflow-auto rounded-md border max-h-[600px] focus:outline-none focus:ring-2 focus:ring-ring"
                             onPaste={handlePaste}
-                            tabIndex={0} // Make it focusable to receive paste events
+                            tabIndex={0} 
                         >
-                            <Table>
+                            <Table className="border-collapse">
                                 <TableHeader className="sticky top-0 z-10 bg-card">
                                     <TableRow>
                                         {tableHeaders.map((header) => (
-                                            <TableHead key={header} className="font-bold bg-muted/50 whitespace-nowrap">
+                                            <TableHead key={header} className={cn(headerCellClassName)}>
                                                 {header}
                                             </TableHead>
                                         ))}
@@ -80,9 +84,9 @@ export function MigrasiMurid() {
                                 <TableBody>
                                    {rows.length > 0 ? (
                                         rows.map((row, rowIndex) => (
-                                            <TableRow key={rowIndex}>
-                                                {tableHeaders.map((header, cellIndex) => (
-                                                    <TableCell key={`${rowIndex}-${cellIndex}`} className="text-xs whitespace-nowrap">
+                                            <TableRow key={rowIndex} className="border-0">
+                                                {tableHeaders.map((header) => (
+                                                    <TableCell key={`${rowIndex}-${header}`} className={cn(cellClassName)}>
                                                         {row[header]}
                                                     </TableCell>
                                                 ))}
@@ -90,7 +94,7 @@ export function MigrasiMurid() {
                                         ))
                                    ) : (
                                      <TableRow>
-                                        <TableCell colSpan={tableHeaders.length} className="h-24 text-center text-muted-foreground">
+                                        <TableCell colSpan={tableHeaders.length} className="h-24 text-center text-muted-foreground border">
                                             Area untuk menempelkan data. Salin dari Excel/Sheets lalu tempel di sini.
                                         </TableCell>
                                     </TableRow>
