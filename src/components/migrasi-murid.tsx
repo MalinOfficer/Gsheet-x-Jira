@@ -26,18 +26,35 @@ export function MigrasiMurid() {
     const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         event.preventDefault();
         const pasteData = event.clipboardData.getData("text");
-        
-        const parsedRows = pasteData
-            .trim()
-            .split('\n')
-            .map(line => {
-                const values = line.split('\t');
-                const row: MuridData = {};
-                tableHeaders.forEach((header, i) => {
-                    row[header] = values[i] || '';
-                });
-                return row;
+        const lines = pasteData.trim().split('\n');
+
+        if (lines.length === 0) {
+            toast({ variant: "destructive", title: "Data Kosong", description: "Data yang ditempelkan kosong." });
+            return;
+        }
+
+        const pastedHeaders = lines[0].split('\t').map(h => h.trim());
+        const dataRows = lines.slice(1);
+
+        const parsedRows = dataRows.map(line => {
+            const values = line.split('\t');
+            const row: MuridData = {};
+            
+            // Inisialisasi semua kolom tabel dengan string kosong
+            tableHeaders.forEach(header => {
+                row[header] = '';
             });
+
+            // Isi data berdasarkan header yang cocok
+            pastedHeaders.forEach((pastedHeader, index) => {
+                // Cari header tabel yang cocok (case-insensitive)
+                const targetHeader = tableHeaders.find(h => h.toLowerCase() === pastedHeader.toLowerCase());
+                if (targetHeader) {
+                    row[targetHeader] = values[index] || '';
+                }
+            });
+            return row;
+        });
         
         setRows(prevRows => [...prevRows, ...parsedRows]);
 
@@ -55,14 +72,14 @@ export function MigrasiMurid() {
                 <header>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Migrasi Murid</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Salin data dari spreadsheet Anda dan tempelkan langsung ke area tabel di bawah ini.
+                        Salin data dari spreadsheet Anda (termasuk baris header) dan tempelkan langsung ke area tabel di bawah ini.
                     </p>
                 </header>
                 <Card className="shadow-lg">
                     <CardHeader>
                         <CardTitle>Data Murid untuk Migrasi</CardTitle>
                         <CardDescription>
-                            Tabel ini berisi semua data murid yang akan dimigrasikan. Klik di area tabel dan tekan Ctrl+V (atau Cmd+V) untuk menempelkan data.
+                            Klik di area tabel dan tekan Ctrl+V (atau Cmd+V) untuk menempelkan data. Pastikan baris pertama yang Anda salin adalah header kolom.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
