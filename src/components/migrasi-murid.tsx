@@ -4,11 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const tableHeaders = [
-    "No", "Username/NIS", "NIS", "NISN", "NIK", "Nama Kelas", "Kode Siswa",
-    "Asal Sekolah", "Nama", "L/P", "Tempat Lahir", "Tanggal Lahir (dd/mm/yyyy)",
-    "Handphone", "Telepon", "Email", "Alamat", "No Rumah", "RT", "RW", "Ayah",
-    "Pekerjaan Ayah", "Ibu", "Pekerjaan Ibu", "Wali", "Pekerjaan Wali",
-    "No Kartu Keluarga"
+    "No", "Username", "NIS", "NISN", "NIK", "Kode", "Asal Sekolah", "Nama", "L/P",
+    "Tempat Lahir", "Tanggal Lahir", "Handphone", "Telepon", "Email", "Alamat",
+    "No Rumah", "RT", "RW", "Ayah", "Pekerjaan Ayah", "Ibu", "Pekerjaan Ibu",
+    "Wali", "Pekerjaan Wali", "No Kartu Keluarga"
 ];
 
 export function MigrasiMurid() {
