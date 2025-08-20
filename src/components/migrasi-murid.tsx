@@ -2,13 +2,14 @@
 "use client";
 
 import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo } from "react";
+import * as XLSX from "xlsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { PlusCircle, Wand2 } from "lucide-react";
+import { PlusCircle, Wand2, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -254,6 +255,37 @@ export function MigrasiMurid() {
             });
         }
     };
+    
+    const handleExportExcel = () => {
+        // Filter out rows that are completely empty or just have the "No" column
+        const dataToExport = rows
+            .map((row, index) => ({ ...row, No: row.Username ? index + 1 : '' })) // Ensure "No" is correct
+            .filter(row => Object.values(row).some(val => typeof val === 'string' && val.trim() !== ''));
+
+        if (dataToExport.length === 0) {
+            toast({
+                variant: "destructive",
+                title: "No Data to Export",
+                description: "The table is empty. Please add some data before exporting.",
+            });
+            return;
+        }
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport, { header: tableHeaders });
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data Murid");
+        
+        // Generate a filename with the current date
+        const date = new Date().toISOString().slice(0, 10);
+        const filename = `Data_Murid_${date}.xls`;
+
+        XLSX.writeFile(workbook, filename);
+        
+        toast({
+            title: "Export Successful",
+            description: `${dataToExport.length} rows have been exported to ${filename}.`,
+        });
+    };
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -265,11 +297,17 @@ export function MigrasiMurid() {
                     </p>
                 </header>
                 <Card className="shadow-lg">
-                    <CardHeader>
-                        <CardTitle>Data Murid untuk Migrasi</CardTitle>
-                        <CardDescription className="mt-1">
-                            This table behaves like a spreadsheet. Edit cells directly, select ranges, and paste data. The table will expand automatically.
-                        </CardDescription>
+                    <CardHeader className="flex flex-row justify-between items-center">
+                        <div>
+                            <CardTitle>Data Murid untuk Migrasi</CardTitle>
+                            <CardDescription className="mt-1">
+                                This table behaves like a spreadsheet. Edit cells directly, select ranges, and paste data. The table will expand automatically.
+                            </CardDescription>
+                        </div>
+                        <Button onClick={handleExportExcel} variant="outline" size="sm">
+                            <Download className="mr-2 h-4 w-4" />
+                            Export Excel
+                        </Button>
                     </CardHeader>
                     <CardContent>
                         <div 
@@ -361,4 +399,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-    
