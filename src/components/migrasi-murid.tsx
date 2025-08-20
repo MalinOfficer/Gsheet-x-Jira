@@ -83,6 +83,47 @@ export function MigrasiMurid() {
     const [numRowsToAdd, setNumRowsToAdd] = useState(1);
     const { toast } = useToast();
     const isSelecting = useRef(false);
+    
+    const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+        const initialWidths: Record<string, number> = {};
+        tableHeaders.forEach(header => {
+            if (header === "No") initialWidths[header] = 50;
+            else if (header === "Nama") initialWidths[header] = 200;
+            else initialWidths[header] = 120; // default width
+        });
+        return initialWidths;
+    });
+
+    const isResizing = useRef<string | null>(null);
+    const startX = useRef(0);
+    const startWidth = useRef(0);
+
+    const handleResizeMouseDown = (header: string, e: MouseEvent) => {
+        isResizing.current = header;
+        startX.current = e.clientX;
+        startWidth.current = columnWidths[header];
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        window.addEventListener('mousemove', handleResizeMouseMove);
+        window.addEventListener('mouseup', handleResizeMouseUp);
+    };
+
+    const handleResizeMouseMove = useCallback((e: globalThis.MouseEvent) => {
+        if (!isResizing.current) return;
+        const currentWidth = startWidth.current + e.clientX - startX.current;
+        setColumnWidths(prev => ({
+            ...prev,
+            [isResizing.current as string]: Math.max(40, currentWidth) // Minimum width 40px
+        }));
+    }, []);
+
+    const handleResizeMouseUp = useCallback(() => {
+        isResizing.current = null;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        window.removeEventListener('mousemove', handleResizeMouseMove);
+        window.removeEventListener('mouseup', handleResizeMouseUp);
+    }, [handleResizeMouseMove]);
 
     const handleCellChange = (rowIndex: number, header: string, value: string) => {
         setRows(currentRows => {
@@ -388,18 +429,20 @@ export function MigrasiMurid() {
                             className="relative w-full overflow-auto rounded-md border max-h-[600px]"
                             onPaste={handlePaste}
                             onMouseUp={handleMouseUp}
-                            // Add onMouseLeave to stop selection if mouse leaves table area
                             onMouseLeave={handleMouseUp}
                         >
-                            <Table className="border-collapse w-full">
+                            <Table className="border-collapse w-full" style={{ tableLayout: 'fixed' }}>
                                 <TableHeader className="sticky top-0 z-10 bg-card">
                                     <TableRow>
                                         {tableHeaders.map((header) => (
-                                            <TableHead key={header} className={cn(
-                                                "border bg-muted/50 p-0 text-xs font-bold text-center whitespace-nowrap",
-                                                header === "No" && "w-[50px] min-w-[50px]",
-                                                "sticky top-0 z-10"
-                                            )}>
+                                            <TableHead 
+                                                key={header} 
+                                                style={{ width: `${columnWidths[header]}px`}}
+                                                className={cn(
+                                                    "border bg-muted/50 p-0 text-xs font-bold text-center whitespace-nowrap relative select-none",
+                                                    "sticky top-0 z-10"
+                                                )}
+                                            >
                                                 <div className="px-2 py-2 flex items-center justify-center gap-1">
                                                     {header}
                                                     {header === "Tanggal Lahir" && (
@@ -418,6 +461,10 @@ export function MigrasiMurid() {
                                                         </DropdownMenu>
                                                     )}
                                                 </div>
+                                                <div
+                                                    onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
+                                                    className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize"
+                                                />
                                             </TableHead>
                                         ))}
                                     </TableRow>
@@ -428,6 +475,7 @@ export function MigrasiMurid() {
                                            {tableHeaders.map((header, colIndex) => (
                                                <TableCell 
                                                    key={`cell-${rowIndex}-${colIndex}`} 
+                                                   style={{ width: `${columnWidths[header]}px`}}
                                                    className={cn(
                                                        "border p-0 m-0 h-auto relative",
                                                        { "bg-muted/30": header === "No" },
@@ -445,8 +493,8 @@ export function MigrasiMurid() {
                                                       data-row={rowIndex}
                                                       data-col={colIndex}
                                                       className={cn(
-                                                          "w-full h-full min-w-[100px] text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
-                                                          header === "No" && "w-[50px] min-w-[50px] text-center cursor-default bg-muted/30 focus-visible:ring-0",
+                                                          "w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
+                                                          header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
                                                           isCellSelected(rowIndex, colIndex) ? 'bg-transparent' : ''
                                                       )}
                                                    />
@@ -478,3 +526,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
