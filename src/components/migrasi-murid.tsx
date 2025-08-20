@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
@@ -16,55 +16,71 @@ const tableHeaders = [
 
 type MuridData = Record<string, string>;
 
-const cellClassName = "border p-2 text-xs whitespace-nowrap";
+const cellClassName = "border p-1 text-xs whitespace-nowrap min-w-[100px] h-6 focus:outline-none";
 const headerCellClassName = "border bg-muted/50 p-2 text-xs font-bold text-center whitespace-nowrap";
+const TOTAL_ROWS = 30;
+
+// Helper to create an empty row
+const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ ...acc, [header]: '' }), {});
 
 export function MigrasiMurid() {
-    const [rows, setRows] = useState<MuridData[]>([]);
+    const [rows, setRows] = useState<MuridData[]>(() => Array.from({ length: TOTAL_ROWS }, createEmptyRow));
+    const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
     const { toast } = useToast();
 
     const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         event.preventDefault();
-        const pasteData = event.clipboardData.getData("text");
-        const lines = pasteData.trim().split('\n');
-
-        if (lines.length === 0) {
-            toast({ variant: "destructive", title: "Data Kosong", description: "Data yang ditempelkan kosong." });
+        if (!selectedCell) {
+            toast({
+                variant: "destructive",
+                title: "Tidak Ada Sel yang Dipilih",
+                description: "Silakan klik sel di tabel untuk menentukan tempat menempelkan data."
+            });
             return;
         }
 
-        const pastedHeaders = lines[0].split('\t').map(h => h.trim());
-        const dataRows = lines.slice(1);
+        const pasteData = event.clipboardData.getData("text");
+        const pastedLines = pasteData.trim().split('\n');
 
-        const parsedRows = dataRows.map(line => {
-            const values = line.split('\t');
-            const row: MuridData = {};
-            
-            // Inisialisasi semua kolom tabel dengan string kosong
-            tableHeaders.forEach(header => {
-                row[header] = '';
-            });
-
-            // Isi data berdasarkan header yang cocok
-            pastedHeaders.forEach((pastedHeader, index) => {
-                // Cari header tabel yang cocok (case-insensitive)
-                const targetHeader = tableHeaders.find(h => h.toLowerCase() === pastedHeader.toLowerCase());
-                if (targetHeader) {
-                    row[targetHeader] = values[index] || '';
-                }
-            });
-            return row;
-        });
+        if (pastedLines.length === 0) return;
         
-        setRows(parsedRows); // Replace existing rows instead of appending
+        const newRows = [...rows];
+        let maxRowIndex = selectedCell.row;
+
+        pastedLines.forEach((line, lineIndex) => {
+            const rowIndex = selectedCell.row + lineIndex;
+            if (rowIndex >= newRows.length) return; // Stop if paste exceeds table bounds
+
+            const values = line.split('\t');
+            values.forEach((value, valueIndex) => {
+                const colIndex = selectedCell.col + valueIndex;
+                if (colIndex >= tableHeaders.length) return; // Stop if paste exceeds table bounds
+
+                const header = tableHeaders[colIndex];
+                newRows[rowIndex][header] = value.trim();
+            });
+            maxRowIndex = rowIndex;
+        });
+
+        setRows(newRows);
+
+        // Select the last cell that was pasted into
+        const lastPastedLineValues = pastedLines[pastedLines.length - 1].split('\t');
+        const lastColIndex = selectedCell.col + lastPastedLineValues.length - 1;
+        setSelectedCell({
+            row: maxRowIndex,
+            col: Math.min(lastColIndex, tableHeaders.length - 1)
+        });
 
         toast({
             title: "Data Ditempel!",
-            description: `${parsedRows.length} baris baru telah ditambahkan ke tabel.`,
+            description: `${pastedLines.length} baris data telah ditempelkan.`,
         });
-
-    }, [toast]);
-
+    }, [selectedCell, rows, toast]);
+    
+    const handleCellClick = (rowIndex: number, colIndex: number) => {
+        setSelectedCell({ row: rowIndex, col: colIndex });
+    };
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -72,21 +88,21 @@ export function MigrasiMurid() {
                 <header>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Migrasi Murid</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Salin data dari spreadsheet Anda (termasuk baris header) dan tempelkan langsung ke area tabel di bawah ini.
+                        Klik pada sel untuk memilihnya, lalu tempelkan data Anda (Ctrl+V/Cmd+V). Data akan disisipkan mulai dari sel yang Anda pilih.
                     </p>
                 </header>
                 <Card className="shadow-lg">
                     <CardHeader>
                         <CardTitle>Data Murid untuk Migrasi</CardTitle>
                         <CardDescription>
-                            Klik di area tabel dan tekan Ctrl+V (atau Cmd+V) untuk menempelkan data. Pastikan baris pertama yang Anda salin adalah header kolom.
+                            Tabel ini berfungsi seperti spreadsheet. Klik sel, lalu salin dan tempel data Anda.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div 
                             className="relative w-full overflow-auto rounded-md border max-h-[600px] focus:outline-none focus:ring-2 focus:ring-ring"
                             onPaste={handlePaste}
-                            tabIndex={0} 
+                            tabIndex={-1} 
                         >
                             <Table className="border-collapse">
                                 <TableHeader className="sticky top-0 z-10 bg-card">
@@ -99,27 +115,24 @@ export function MigrasiMurid() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                   {rows.length > 0 ? (
-                                        rows.map((row, rowIndex) => (
-                                            <TableRow key={rowIndex} className="border-0">
-                                                {tableHeaders.map((header) => (
-                                                    <TableCell key={`${rowIndex}-${header}`} className={cn(cellClassName)}>
-                                                        {row[header]}
-                                                    </TableCell>
-                                                ))}
-                                            </TableRow>
-                                        ))
-                                   ) : (
-                                        Array.from({ length: 30 }).map((_, rowIndex) => (
-                                            <TableRow key={`placeholder-${rowIndex}`} className="border-0">
-                                                {tableHeaders.map((header) => (
-                                                    <TableCell key={`placeholder-${rowIndex}-${header}`} className={cn(cellClassName)}>
-                                                        &nbsp;
-                                                    </TableCell>
-                                                ))}
-                                            </TableRow>
-                                        ))
-                                   )}
+                                   {rows.map((row, rowIndex) => (
+                                       <TableRow key={`row-${rowIndex}`} className="border-0">
+                                           {tableHeaders.map((header, colIndex) => (
+                                               <TableCell 
+                                                   key={`cell-${rowIndex}-${colIndex}`} 
+                                                   className={cn(
+                                                       cellClassName,
+                                                       selectedCell?.row === rowIndex && selectedCell?.col === colIndex
+                                                           ? "ring-2 ring-primary ring-inset"
+                                                           : ""
+                                                   )}
+                                                   onClick={() => handleCellClick(rowIndex, colIndex)}
+                                               >
+                                                   {row[header]}
+                                               </TableCell>
+                                           ))}
+                                       </TableRow>
+                                   ))}
                                 </TableBody>
                             </Table>
                         </div>
