@@ -304,7 +304,11 @@ export function MigrasiMurid() {
                                 This table behaves like a spreadsheet. Edit cells directly, select ranges, and paste data. The table will expand automatically.
                             </CardDescription>
                         </div>
-                        <Button onClick={handleExportExcel} variant="outline" size="sm">
+                        <Button
+                          onClick={handleExportExcel}
+                          size="sm"
+                          className="bg-green-600 text-primary-foreground hover:bg-green-700"
+                        >
                             <Download className="mr-2 h-4 w-4" />
                             Export Excel
                         </Button>
