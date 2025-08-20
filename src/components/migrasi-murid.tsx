@@ -200,10 +200,10 @@ export function MigrasiMurid() {
         const isRight = col === endCol;
 
         const classes = [];
-        if (isTop) classes.push("border-t-2 border-t-primary");
-        if (isBottom) classes.push("border-b-2 border-b-primary");
-        if (isLeft) classes.push("border-l-2 border-l-primary");
-        if (isRight) classes.push("border-r-2 border-r-primary");
+        if (isTop) classes.push("border-t-2 border-t-green-600");
+        if (isBottom) classes.push("border-b-2 border-b-green-600");
+        if (isLeft) classes.push("border-l-2 border-l-green-600");
+        if (isRight) classes.push("border-r-2 border-r-green-600");
 
         return classes.join(" ");
     };
@@ -491,4 +491,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
