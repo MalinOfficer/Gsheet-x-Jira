@@ -95,12 +95,26 @@ export function MigrasiMurid() {
         return { startRow, endRow, startCol, endCol };
     };
 
-    const isCellSelected = (row: number, col: number) => {
-        if (!selectedRange.start || !selectedRange.end) return false;
+    const getCellBorderClass = (row: number, col: number) => {
+        if (!selectedRange.start || !selectedRange.end) return "";
         const { startRow, endRow, startCol, endCol } = getNormalizedRange();
-        return row >= startRow && row <= endRow && col >= startCol && col <= endCol;
-    };
 
+        if (row < startRow || row > endRow || col < startCol || col > endCol) return "";
+
+        const isTop = row === startRow;
+        const isBottom = row === endRow;
+        const isLeft = col === startCol;
+        const isRight = col === endCol;
+
+        const classes = [];
+        if (isTop) classes.push("border-t-2 border-t-primary");
+        if (isBottom) classes.push("border-b-2 border-b-primary");
+        if (isLeft) classes.push("border-l-2 border-l-primary");
+        if (isRight) classes.push("border-r-2 border-r-primary");
+
+        return classes.join(" ");
+    };
+    
     const handleCellClick = (e: MouseEvent<HTMLInputElement>, { row, col }: CellSelection) => {
         if (e.shiftKey && selectedRange.start) {
             setSelectedRange({ ...selectedRange, end: { row, col } });
@@ -200,10 +214,11 @@ export function MigrasiMurid() {
                                                <TableCell 
                                                    key={`cell-${rowIndex}-${colIndex}`} 
                                                    className={cn(
-                                                       "border p-0 m-0 h-auto",
+                                                       "border p-0 m-0 h-auto relative",
                                                        { "bg-muted/50 text-center": header === "No" }
                                                    )}
                                                >
+                                                    <div className={cn("absolute inset-[-1px] pointer-events-none z-10", getCellBorderClass(rowIndex, colIndex))}></div>
                                                    <Input
                                                       type="text"
                                                       value={header === "No" ? (row["Username"] ? rowIndex + 1 : "") : row[header]}
@@ -214,9 +229,8 @@ export function MigrasiMurid() {
                                                       data-row={rowIndex}
                                                       data-col={colIndex}
                                                       className={cn(
-                                                          "w-full h-full min-w-[100px] text-xs p-1 rounded-none border-0 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
-                                                          { "w-[50px] min-w-[50px] text-center cursor-default": header === "No" },
-                                                          isCellSelected(rowIndex, colIndex) && "bg-blue-100 dark:bg-blue-900/50"
+                                                          "w-full h-full min-w-[100px] text-xs p-1 rounded-none border-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
+                                                          { "w-[50px] min-w-[50px] text-center cursor-default": header === "No" }
                                                       )}
                                                    />
                                                </TableCell>
@@ -247,3 +261,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
