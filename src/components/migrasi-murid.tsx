@@ -18,7 +18,7 @@ import {
 
 const tableHeaders = [
     "No", "Username", "NIS", "NISN", "NIK", "Kode", "Asal Sekolah", "Nama", "L/P",
-    "Tempat Lahir", "Tanggal Lahir (DD/MM/YYYY)", "Handphone", "Telepon", "Email", "Alamat",
+    "Tempat Lahir", "Tanggal Lahir", "Handphone", "Telepon", "Email", "Alamat",
     "No Rumah", "RT", "RW", "Ayah", "Pekerjaan Ayah", "Ibu", "Pekerjaan Ibu",
     "Wali", "Pekerjaan Wali", "No Kartu Keluarga"
 ];
@@ -224,7 +224,7 @@ export function MigrasiMurid() {
 
     const handleFormatDates = () => {
         let changes = 0;
-        const dateHeader = "Tanggal Lahir (DD/MM/YYYY)";
+        const dateHeader = "Tanggal Lahir";
         
         setRows(currentRows => {
             const newRows = currentRows.map(row => {
@@ -287,7 +287,7 @@ export function MigrasiMurid() {
                                             )}>
                                                 <div className="px-2 py-2 flex items-center justify-center gap-1">
                                                     {header}
-                                                    {header === "Tanggal Lahir (DD/MM/YYYY)" && (
+                                                    {header === "Tanggal Lahir" && (
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button variant="ghost" size="icon" className="h-5 w-5">
@@ -362,5 +362,3 @@ export function MigrasiMurid() {
     );
 }
 
-
-    
