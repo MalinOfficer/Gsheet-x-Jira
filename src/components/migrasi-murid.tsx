@@ -12,7 +12,7 @@ import { PlusCircle } from "lucide-react";
 
 const tableHeaders = [
     "No", "Username", "NIS", "NISN", "NIK", "Kode", "Asal Sekolah", "Nama", "L/P",
-    "Tempat Lahir", "Tanggal Lahir", "Handphone", "Telepon", "Email", "Alamat",
+    "Tempat Lahir", "Tanggal Lahir (DD/MM/YYYY)", "Handphone", "Telepon", "Email", "Alamat",
     "No Rumah", "RT", "RW", "Ayah", "Pekerjaan Ayah", "Ibu", "Pekerjaan Ibu",
     "Wali", "Pekerjaan Wali", "No Kartu Keluarga"
 ];
@@ -262,4 +262,3 @@ export function MigrasiMurid() {
     );
 }
 
-    
