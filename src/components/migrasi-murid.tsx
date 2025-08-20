@@ -209,7 +209,6 @@ export function MigrasiMurid() {
     };
     
     const handleMouseDown = (e: MouseEvent<HTMLInputElement>, { row, col }: CellSelection) => {
-        e.preventDefault();
         if (tableHeaders[col] === "No") return;
         isSelecting.current = true;
         if (e.shiftKey && selectedRange.start) {
@@ -321,8 +320,9 @@ export function MigrasiMurid() {
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS
         const year = parseInt(parts[2], 10);
+        // Use UTC to avoid timezone issues
         const date = new Date(Date.UTC(year, month, day));
-        // Check for invalid date (e.g., 32/01/2024)
+        // Check for invalid date (e.g., 32/01/2024 or invalid month) which JS might misinterpret
         if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day) {
             return null;
         }
@@ -402,6 +402,8 @@ export function MigrasiMurid() {
                             className="relative w-full overflow-auto rounded-md border max-h-[600px]"
                             onPaste={handlePaste}
                             onMouseUp={handleMouseUp}
+                            // Add onMouseLeave to stop selection if mouse leaves table area
+                            onMouseLeave={handleMouseUp}
                         >
                             <Table className="border-collapse w-full">
                                 <TableHeader className="sticky top-0 z-10 bg-card">
