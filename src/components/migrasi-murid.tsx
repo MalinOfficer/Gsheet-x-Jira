@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef } from "react";
+import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { PlusCircle, Wand2, Download } from "lucide-react";
+import { PlusCircle, Wand2, Download, Undo2, Redo2, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,6 +83,38 @@ export function MigrasiMurid() {
     const [numRowsToAdd, setNumRowsToAdd] = useState(1);
     const { toast } = useToast();
     const isSelecting = useRef(false);
+
+    const [history, setHistory] = useState<MuridData[][]>([rows]);
+    const [historyIndex, setHistoryIndex] = useState(0);
+
+    const recordHistory = (newRows: MuridData[]) => {
+        const newHistory = history.slice(0, historyIndex + 1);
+        setHistory([...newHistory, newRows]);
+        setHistoryIndex(newHistory.length);
+    };
+    
+    const handleUndo = () => {
+        if (historyIndex > 0) {
+            const newIndex = historyIndex - 1;
+            setHistoryIndex(newIndex);
+            setRows(history[newIndex]);
+        }
+    };
+
+    const handleRedo = () => {
+        if (historyIndex < history.length - 1) {
+            const newIndex = historyIndex + 1;
+            setHistoryIndex(newIndex);
+            setRows(history[newIndex]);
+        }
+    };
+
+    const handleRowsChange = (newRows: MuridData[], record: boolean = true) => {
+        setRows(newRows);
+        if (record) {
+            recordHistory(newRows);
+        }
+    };
     
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
         const initialWidths: Record<string, number> = {};
@@ -126,11 +158,9 @@ export function MigrasiMurid() {
     }, [handleResizeMouseMove]);
 
     const handleCellChange = (rowIndex: number, header: string, value: string) => {
-        setRows(currentRows => {
-            const newRows = [...currentRows];
-            newRows[rowIndex] = { ...newRows[rowIndex], [header]: value };
-            return newRows;
-        });
+        const newRows = [...rows];
+        newRows[rowIndex] = { ...newRows[rowIndex], [header]: value };
+        handleRowsChange(newRows);
     };
     
     const getNormalizedRange = useCallback(() => {
@@ -150,6 +180,21 @@ export function MigrasiMurid() {
         const { startRow, endRow, startCol, endCol } = getNormalizedRange();
         return row >= startRow && row <= endRow && col >= startCol && col <= endCol;
     }, [getNormalizedRange, selectedRange.start]);
+
+    const handleClearSelectedCells = () => {
+         if (!selectedRange.start) return;
+        const newRows = [...rows];
+        const { startRow, endRow, startCol, endCol } = getNormalizedRange();
+        for (let r = startRow; r <= endRow; r++) {
+            for (let c = startCol; c <= endCol; c++) {
+                const header = tableHeaders[c];
+                if (header !== "No") {
+                  newRows[r] = { ...newRows[r], [header]: '' };
+                }
+            }
+        }
+        handleRowsChange(newRows);
+    };
 
 
     const handleCopy = useCallback(() => {
@@ -203,6 +248,18 @@ export function MigrasiMurid() {
             handleCopy();
             return;
         }
+        
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            e.preventDefault();
+            handleUndo();
+            return;
+        }
+
+        if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+            e.preventDefault();
+            handleRedo();
+            return;
+        }
 
         switch (e.key) {
             case "ArrowUp":    move(-1, 0); break;
@@ -217,19 +274,7 @@ export function MigrasiMurid() {
             case "Backspace":
                 if (selectedRange.start) {
                     e.preventDefault();
-                    setRows(currentRows => {
-                        const newRows = [...currentRows];
-                        const { startRow, endRow, startCol, endCol } = getNormalizedRange();
-                        for (let r = startRow; r <= endRow; r++) {
-                            for (let c = startCol; c <= endCol; c++) {
-                                const header = tableHeaders[c];
-                                if (header !== "No") {
-                                  newRows[r] = { ...newRows[r], [header]: '' };
-                                }
-                            }
-                        }
-                        return newRows;
-                    });
+                    handleClearSelectedCells();
                 }
                 break;
         }
@@ -273,37 +318,36 @@ export function MigrasiMurid() {
         const pastedLines = pasteData.trim().split('\n');
         if (pastedLines.length === 0) return;
 
-        setRows(currentRows => {
-            let newRows = [...currentRows];
-            pastedLines.forEach((line, lineIndex) => {
-                const rowIndex = startCell.row + lineIndex;
-                if (rowIndex >= newRows.length) {
-                    newRows = [...newRows, ...Array.from({ length: rowIndex - newRows.length + 1 }, createEmptyRow)];
+        let newRows = [...rows];
+        pastedLines.forEach((line, lineIndex) => {
+            const rowIndex = startCell.row + lineIndex;
+            if (rowIndex >= newRows.length) {
+                newRows = [...newRows, ...Array.from({ length: rowIndex - newRows.length + 1 }, createEmptyRow)];
+            }
+            const values = line.split('\t');
+            values.forEach((value, valueIndex) => {
+                const colIndex = startCell.col + valueIndex;
+                if (colIndex >= tableHeaders.length) return;
+
+                const header = tableHeaders[colIndex];
+                if (header !== "No") {
+                    newRows[rowIndex][header] = value.trim();
                 }
-                const values = line.split('\t');
-                values.forEach((value, valueIndex) => {
-                    const colIndex = startCell.col + valueIndex;
-                    if (colIndex >= tableHeaders.length) return;
-
-                    const header = tableHeaders[colIndex];
-                    if (header !== "No") {
-                        newRows[rowIndex][header] = value.trim();
-                    }
-                });
             });
-            return newRows;
         });
-
+        
+        handleRowsChange(newRows);
         toast({
             title: "Data Pasted!",
             description: `${pastedLines.length} rows of data have been pasted.`,
         });
-    }, [selectedRange.start, toast]);
+    }, [selectedRange.start, toast, rows]);
 
     const handleAddRows = () => {
         const count = Number(numRowsToAdd);
         if (isNaN(count) || count < 1) return;
-        setRows(prev => [...prev, ...Array.from({ length: count }, createEmptyRow)]);
+        const newRows = [...rows, ...Array.from({ length: count }, createEmptyRow)];
+        handleRowsChange(newRows);
         toast({ title: "Rows Added", description: `${count} empty rows have been added.` });
     };
 
@@ -311,22 +355,20 @@ export function MigrasiMurid() {
         let changes = 0;
         const dateHeader = "Tanggal Lahir";
         
-        setRows(currentRows => {
-            const newRows = currentRows.map(row => {
-                const originalValue = row[dateHeader];
-                if (originalValue && typeof originalValue === 'string') {
-                    const formattedValue = parseAndFormatDate(originalValue);
-                    if (formattedValue && formattedValue !== originalValue) {
-                        changes++;
-                        return { ...row, [dateHeader]: formattedValue };
-                    }
+        const newRows = rows.map(row => {
+            const originalValue = row[dateHeader];
+            if (originalValue && typeof originalValue === 'string') {
+                const formattedValue = parseAndFormatDate(originalValue);
+                if (formattedValue && formattedValue !== originalValue) {
+                    changes++;
+                    return { ...row, [dateHeader]: formattedValue };
                 }
-                return row;
-            });
-            return newRows;
+            }
+            return row;
         });
 
         if (changes > 0) {
+            handleRowsChange(newRows);
             toast({
                 title: "Dates Formatted",
                 description: `Successfully formatted ${changes} dates to DD/MM/YYYY.`,
@@ -340,16 +382,13 @@ export function MigrasiMurid() {
         }
     };
     
-    // Function to parse 'DD/MM/YYYY' string to a JS Date object
     const parseDateString = (dateString: string): Date | null => {
         if (typeof dateString !== 'string' || !/^\d{2}\/\d{2}\/\d{4}$/.test(dateString.trim())) return null;
         const parts = dateString.trim().split('/');
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS
         const year = parseInt(parts[2], 10);
-        // Use UTC to avoid timezone issues
         const date = new Date(Date.UTC(year, month, day));
-        // Check for invalid date (e.g., 32/01/2024 or invalid month) which JS might misinterpret
         if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day) {
             return null;
         }
@@ -408,23 +447,34 @@ export function MigrasiMurid() {
                     </p>
                 </header>
                 <Card className="shadow-lg">
-                    <CardHeader className="flex flex-row justify-between items-center">
+                    <CardHeader>
                         <div>
                             <CardTitle>Data Murid untuk Migrasi</CardTitle>
                             <CardDescription className="mt-1">
                                 This table behaves like a spreadsheet. Edit cells directly, select ranges, and paste data. The table will expand automatically.
                             </CardDescription>
                         </div>
+                    </CardHeader>
+                    <div className="px-6 pb-4 flex items-center gap-2 border-b">
+                         <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
+                            <Undo2 className="mr-2 h-4 w-4" /> Undo
+                        </Button>
+                        <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
+                            <Redo2 className="mr-2 h-4 w-4" /> Redo
+                        </Button>
+                        <Button onClick={handleClearSelectedCells} size="sm" variant="destructive" disabled={!selectedRange.start}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </Button>
                         <Button
                           onClick={handleExportExcel}
                           size="sm"
                           className="bg-green-600 text-white hover:bg-green-700"
                         >
                             <Download className="mr-2 h-4 w-4" />
-                            Export Excel
+                            Export
                         </Button>
-                    </CardHeader>
-                    <CardContent>
+                    </div>
+                    <CardContent className="pt-6">
                         <div 
                             className="relative w-full overflow-auto rounded-md border max-h-[600px]"
                             onPaste={handlePaste}
@@ -528,3 +578,5 @@ export function MigrasiMurid() {
     );
 }
 
+
+    
