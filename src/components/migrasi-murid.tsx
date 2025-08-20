@@ -439,11 +439,11 @@ export function MigrasiMurid() {
                                                 key={header} 
                                                 style={{ width: `${columnWidths[header]}px`}}
                                                 className={cn(
-                                                    "border bg-muted/50 p-0 text-xs font-bold text-center whitespace-nowrap relative select-none",
+                                                    "border bg-muted/50 p-0 text-xs font-bold text-center relative select-none",
                                                     "sticky top-0 z-10"
                                                 )}
                                             >
-                                                <div className="px-2 py-2 flex items-center justify-center gap-1">
+                                                <div className="px-2 py-2 flex items-center justify-center gap-1 whitespace-normal break-words">
                                                     {header}
                                                     {header === "Tanggal Lahir" && (
                                                         <DropdownMenu>
@@ -494,6 +494,7 @@ export function MigrasiMurid() {
                                                       data-col={colIndex}
                                                       className={cn(
                                                           "w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
+                                                          "whitespace-normal break-words py-2",
                                                           header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
                                                           isCellSelected(rowIndex, colIndex) ? 'bg-transparent' : ''
                                                       )}
@@ -527,4 +528,3 @@ export function MigrasiMurid() {
     );
 }
 
-    
