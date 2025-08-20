@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo } from "react";
+import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -82,6 +82,7 @@ export function MigrasiMurid() {
     const [selectedRange, setSelectedRange] = useState<{ start: CellSelection | null, end: CellSelection | null }>({ start: null, end: null });
     const [numRowsToAdd, setNumRowsToAdd] = useState(1);
     const { toast } = useToast();
+    const isSelecting = useRef(false);
 
     const handleCellChange = (rowIndex: number, header: string, value: string) => {
         setRows(currentRows => {
@@ -140,6 +141,7 @@ export function MigrasiMurid() {
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, { row, col }: CellSelection) => {
         const move = (dRow: number, dCol: number) => {
+            e.preventDefault();
             const nextRow = Math.max(0, Math.min(rows.length - 1, row + dRow));
             const nextCol = Math.max(1, Math.min(tableHeaders.length - 1, col + dCol)); // skip "No" column
             const nextCell = document.querySelector(`[data-row='${nextRow}'][data-col='${nextCol}']`) as HTMLInputElement;
@@ -206,13 +208,27 @@ export function MigrasiMurid() {
         return classes.join(" ");
     };
     
-    const handleCellClick = (e: MouseEvent<HTMLInputElement>, { row, col }: CellSelection) => {
+    const handleMouseDown = (e: MouseEvent<HTMLInputElement>, { row, col }: CellSelection) => {
+        e.preventDefault();
         if (tableHeaders[col] === "No") return;
+        isSelecting.current = true;
         if (e.shiftKey && selectedRange.start) {
-            setSelectedRange({ ...selectedRange, end: { row, col } });
+            setSelectedRange(prev => ({ ...prev, end: { row, col } }));
         } else {
             setSelectedRange({ start: { row, col }, end: { row, col } });
         }
+    };
+
+    const handleMouseOver = (e: MouseEvent<HTMLInputElement>, { row, col }: CellSelection) => {
+        if (isSelecting.current) {
+            e.preventDefault();
+            if (tableHeaders[col] === "No") return;
+            setSelectedRange(prev => ({ ...prev, end: { row, col } }));
+        }
+    };
+    
+    const handleMouseUp = () => {
+        isSelecting.current = false;
     };
 
     const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
@@ -305,9 +321,9 @@ export function MigrasiMurid() {
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS
         const year = parseInt(parts[2], 10);
-        const date = new Date(year, month, day);
+        const date = new Date(Date.UTC(year, month, day));
         // Check for invalid date (e.g., 32/01/2024)
-        if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
+        if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day) {
             return null;
         }
         return date;
@@ -341,9 +357,6 @@ export function MigrasiMurid() {
 
         const worksheet = XLSX.utils.json_to_sheet(processedRows, { header: tableHeaders, skipHeader: false });
         
-        // This loop was removed as the library handles Date objects automatically.
-        // The explicit formatting is no longer needed with the parseDateString approach.
-
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Data Murid");
         
@@ -364,7 +377,7 @@ export function MigrasiMurid() {
                 <header>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Migrasi Murid</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                       Click to select a cell, Shift+Click to select a range. Use arrow keys to navigate. Press Delete to clear selected cells. Paste data from your spreadsheet.
+                       Click and drag to select a range. Use arrow keys to navigate. Press Delete to clear selected cells. Paste data from your spreadsheet.
                     </p>
                 </header>
                 <Card className="shadow-lg">
@@ -388,6 +401,7 @@ export function MigrasiMurid() {
                         <div 
                             className="relative w-full overflow-auto rounded-md border max-h-[600px]"
                             onPaste={handlePaste}
+                            onMouseUp={handleMouseUp}
                         >
                             <Table className="border-collapse w-full">
                                 <TableHeader className="sticky top-0 z-10 bg-card">
@@ -438,7 +452,8 @@ export function MigrasiMurid() {
                                                       readOnly={header === "No"}
                                                       onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
                                                       onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
-                                                      onClick={(e) => handleCellClick(e, { row: rowIndex, col: colIndex })}
+                                                      onMouseDown={(e) => handleMouseDown(e, { row: rowIndex, col: colIndex })}
+                                                      onMouseOver={(e) => handleMouseOver(e, { row: rowIndex, col: colIndex })}
                                                       data-row={rowIndex}
                                                       data-col={colIndex}
                                                       className={cn(
@@ -475,4 +490,3 @@ export function MigrasiMurid() {
     );
 }
 
-    
