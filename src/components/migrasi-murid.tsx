@@ -2,11 +2,12 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { PlusCircle } from "lucide-react";
 
 const tableHeaders = [
@@ -28,6 +29,7 @@ const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ 
 export function MigrasiMurid() {
     const [rows, setRows] = useState<MuridData[]>(() => Array.from({ length: INITIAL_ROWS }, createEmptyRow));
     const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
+    const [numRowsToAdd, setNumRowsToAdd] = useState(1);
     const { toast } = useToast();
 
     const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
@@ -93,12 +95,23 @@ export function MigrasiMurid() {
         setSelectedCell({ row: rowIndex, col: colIndex });
     };
 
-    const handleAddRow = () => {
-        setRows(prevRows => [...prevRows, createEmptyRow()]);
+    const handleAddRows = () => {
+        const count = Number(numRowsToAdd);
+        if (isNaN(count) || count < 1) {
+            toast({
+                variant: "destructive",
+                title: "Input Tidak Valid",
+                description: "Silakan masukkan jumlah baris yang valid.",
+            });
+            return;
+        }
+        
+        const newEmptyRows = Array.from({ length: count }, createEmptyRow);
+        setRows(prevRows => [...prevRows, ...newEmptyRows]);
         toast({
             title: "Baris Ditambahkan",
-            description: "Satu baris kosong telah ditambahkan di akhir tabel."
-        })
+            description: `${count} baris kosong telah ditambahkan di akhir tabel.`,
+        });
     };
 
     return (
@@ -116,13 +129,9 @@ export function MigrasiMurid() {
                             <div>
                                 <CardTitle>Data Murid untuk Migrasi</CardTitle>
                                 <CardDescription className="mt-1">
-                                    Tabel ini berfungsi seperti spreadsheet. Klik sel, lalu salin dan tempel data Anda.
+                                    Tabel ini berfungsi seperti spreadsheet. Klik sel, lalu salin dan tempel data Anda. Tabel akan bertambah otomatis.
                                 </CardDescription>
                             </div>
-                             <Button onClick={handleAddRow} size="sm" variant="outline" className="w-full sm:w-auto">
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Tambah Baris
-                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -170,6 +179,21 @@ export function MigrasiMurid() {
                             </Table>
                         </div>
                     </CardContent>
+                     <CardFooter>
+                        <div className="flex items-center gap-2">
+                           <Input
+                                type="number"
+                                value={numRowsToAdd}
+                                onChange={(e) => setNumRowsToAdd(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                                className="w-24 h-9"
+                                min="1"
+                            />
+                            <Button onClick={handleAddRows} size="sm" variant="outline">
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Tambah Baris
+                            </Button>
+                        </div>
+                    </CardFooter>
                 </Card>
             </div>
         </div>
