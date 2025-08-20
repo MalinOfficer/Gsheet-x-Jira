@@ -258,7 +258,7 @@ export function MigrasiMurid() {
     
     const handleExportExcel = () => {
         const dataToExport = rows
-            .map((row, index) => ({ ...row, No: row.Username ? index + 1 : '' }))
+            .map((row, index) => ({ ...row, No: row.Username ? String(index + 1) : '' }))
             .filter(row => Object.values(row).some(val => typeof val === 'string' && val.trim() !== ''));
 
         if (dataToExport.length === 0) {
@@ -270,27 +270,18 @@ export function MigrasiMurid() {
             return;
         }
 
-        const dataWithDateObjects = dataToExport.map(row => {
-            const dateStr = row["Tanggal Lahir"];
-            if (dateStr && /^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
-                const parts = dateStr.split('/');
-                const dateObject = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-                return { ...row, "Tanggal Lahir": dateObject };
-            }
-            return row;
-        });
-        
-        const worksheet = XLSX.utils.json_to_sheet(dataWithDateObjects, { header: tableHeaders });
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport, { header: tableHeaders });
 
         const dateColIndex = tableHeaders.indexOf("Tanggal Lahir");
         if (dateColIndex !== -1) {
             const dateColLetter = XLSX.utils.encode_col(dateColIndex);
-             // Set the format for the entire date column
-            for (let i = 1; i <= dataWithDateObjects.length +1; i++) {
+            for (let i = 1; i <= dataToExport.length + 1; i++) {
                  const cellAddress = `${dateColLetter}${i}`;
-                 if(worksheet[cellAddress]){
-                    worksheet[cellAddress].t = 'd';
-                    worksheet[cellAddress].z = 'dd/mm/yyyy';
+                 const cell = worksheet[cellAddress];
+                 // Ensure the cell exists and has a value, and it's not the header
+                 if (cell && cell.v && i > 1) {
+                    cell.t = 'd'; // Set type to 'd' for date
+                    cell.z = 'dd/mm/yyyy'; // Set the format string
                  }
             }
         }
@@ -385,7 +376,7 @@ export function MigrasiMurid() {
                                                     <div className={cn("absolute inset-[-1px] pointer-events-none z-10", getCellBorderClass(rowIndex, colIndex))}></div>
                                                    <Input
                                                       type="text"
-                                                      value={header === "No" ? (row["Username"] ? rowIndex + 1 : "") : row[header]}
+                                                      value={header === "No" ? (row["Username"] ? String(rowIndex + 1) : "") : row[header]}
                                                       readOnly={header === "No"}
                                                       onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
                                                       onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
