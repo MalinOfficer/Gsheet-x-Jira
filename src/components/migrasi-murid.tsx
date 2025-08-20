@@ -275,11 +275,11 @@ export function MigrasiMurid() {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Data Murid");
         
-        // Generate a filename with the current date
         const date = new Date().toISOString().slice(0, 10);
         const filename = `Data_Murid_${date}.xls`;
 
-        XLSX.writeFile(workbook, filename);
+        // Explicitly set bookType to 'xls' for Excel 97-2003 format
+        XLSX.writeFile(workbook, filename, { bookType: "xls" });
         
         toast({
             title: "Export Successful",
@@ -403,3 +403,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
