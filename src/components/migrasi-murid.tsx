@@ -91,6 +91,40 @@ export function MigrasiMurid() {
         });
     };
 
+    const handleCopy = useCallback(() => {
+        if (!selectedRange.start) {
+            return;
+        }
+
+        const { startRow, endRow, startCol, endCol } = getNormalizedRange();
+        
+        let copyString = "";
+        for (let r = startRow; r <= endRow; r++) {
+            const rowValues = [];
+            for (let c = startCol; c <= endCol; c++) {
+                const header = tableHeaders[c];
+                rowValues.push(rows[r][header] || "");
+            }
+            copyString += rowValues.join("\t");
+            if (r < endRow) {
+                copyString += "\n";
+            }
+        }
+
+        navigator.clipboard.writeText(copyString).then(() => {
+            toast({
+                title: "Copied to Clipboard",
+                description: `Selected data has been copied.`,
+            });
+        }, () => {
+            toast({
+                variant: "destructive",
+                title: "Copy Failed",
+                description: "Could not copy data to clipboard.",
+            });
+        });
+    }, [rows, selectedRange.start, selectedRange.end, toast]);
+
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, { row, col }: CellSelection) => {
         const move = (dRow: number, dCol: number) => {
             const nextRow = Math.max(0, Math.min(rows.length - 1, row + dRow));
@@ -101,6 +135,12 @@ export function MigrasiMurid() {
                 setSelectedRange({ start: { row: nextRow, col: nextCol }, end: { row: nextRow, col: nextCol } });
             }
         };
+
+        if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+            e.preventDefault();
+            handleCopy();
+            return;
+        }
 
         switch (e.key) {
             case "ArrowUp":    move(-1, 0); break;
@@ -258,8 +298,8 @@ export function MigrasiMurid() {
     
     // Function to parse 'DD/MM/YYYY' string to a JS Date object
     const parseDateString = (dateString: string): Date | null => {
-        if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) return null;
-        const parts = dateString.split('/');
+        if (typeof dateString !== 'string' || !/^\d{2}\/\d{2}\/\d{4}$/.test(dateString.trim())) return null;
+        const parts = dateString.trim().split('/');
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS
         const year = parseInt(parts[2], 10);
@@ -275,12 +315,9 @@ export function MigrasiMurid() {
         const dateHeader = "Tanggal Lahir";
         const processedRows = rows
             .map((row, index) => {
-                // Add No. column
                 const newRow: Record<string, any> = { ...row, No: row.Username ? String(index + 1) : '' };
-                
-                // Convert date string to JS Date object for xlsx library
                 const dateValue = newRow[dateHeader];
-                if (dateValue && typeof dateValue === 'string') {
+                if (dateValue) {
                     const parsedDate = parseDateString(dateValue);
                     if (parsedDate) {
                         newRow[dateHeader] = parsedDate;
@@ -301,6 +338,9 @@ export function MigrasiMurid() {
         }
 
         const worksheet = XLSX.utils.json_to_sheet(processedRows, { header: tableHeaders });
+        
+        // This loop was removed as the library handles Date objects automatically.
+        // The explicit formatting is no longer needed with the parseDateString approach.
 
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Data Murid");
@@ -432,3 +472,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
