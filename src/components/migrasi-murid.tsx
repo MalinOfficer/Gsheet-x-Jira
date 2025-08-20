@@ -257,9 +257,8 @@ export function MigrasiMurid() {
     };
     
     const handleExportExcel = () => {
-        // Filter out rows that are completely empty or just have the "No" column
         const dataToExport = rows
-            .map((row, index) => ({ ...row, No: row.Username ? index + 1 : '' })) // Ensure "No" is correct
+            .map((row, index) => ({ ...row, No: row.Username ? index + 1 : '' }))
             .filter(row => Object.values(row).some(val => typeof val === 'string' && val.trim() !== ''));
 
         if (dataToExport.length === 0) {
@@ -271,14 +270,37 @@ export function MigrasiMurid() {
             return;
         }
 
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport, { header: tableHeaders });
+        const dataWithDateObjects = dataToExport.map(row => {
+            const dateStr = row["Tanggal Lahir"];
+            if (dateStr && /^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+                const parts = dateStr.split('/');
+                const dateObject = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+                return { ...row, "Tanggal Lahir": dateObject };
+            }
+            return row;
+        });
+        
+        const worksheet = XLSX.utils.json_to_sheet(dataWithDateObjects, { header: tableHeaders });
+
+        const dateColIndex = tableHeaders.indexOf("Tanggal Lahir");
+        if (dateColIndex !== -1) {
+            const dateColLetter = XLSX.utils.encode_col(dateColIndex);
+             // Set the format for the entire date column
+            for (let i = 1; i <= dataWithDateObjects.length +1; i++) {
+                 const cellAddress = `${dateColLetter}${i}`;
+                 if(worksheet[cellAddress]){
+                    worksheet[cellAddress].t = 'd';
+                    worksheet[cellAddress].z = 'dd/mm/yyyy';
+                 }
+            }
+        }
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Data Murid");
         
         const date = new Date().toISOString().slice(0, 10);
         const filename = `Data_Murid_${date}.xls`;
 
-        // Explicitly set bookType to 'xls' for Excel 97-2003 format
         XLSX.writeFile(workbook, filename, { bookType: "xls" });
         
         toast({
@@ -307,7 +329,7 @@ export function MigrasiMurid() {
                         <Button
                           onClick={handleExportExcel}
                           size="sm"
-                          className="bg-green-600 text-primary-foreground hover:bg-green-700"
+                          className="bg-green-600 text-white hover:bg-green-700"
                         >
                             <Download className="mr-2 h-4 w-4" />
                             Export Excel
@@ -403,5 +425,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
