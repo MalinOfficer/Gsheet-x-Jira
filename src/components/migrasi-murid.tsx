@@ -56,7 +56,7 @@ export function MigrasiMurid() {
             return row;
         });
         
-        setRows(prevRows => [...prevRows, ...parsedRows]);
+        setRows(parsedRows); // Replace existing rows instead of appending
 
         toast({
             title: "Data Ditempel!",
@@ -110,11 +110,15 @@ export function MigrasiMurid() {
                                             </TableRow>
                                         ))
                                    ) : (
-                                     <TableRow>
-                                        <TableCell colSpan={tableHeaders.length} className="h-24 text-center text-muted-foreground border">
-                                            Area untuk menempelkan data. Salin dari Excel/Sheets lalu tempel di sini.
-                                        </TableCell>
-                                    </TableRow>
+                                        Array.from({ length: 30 }).map((_, rowIndex) => (
+                                            <TableRow key={`placeholder-${rowIndex}`} className="border-0">
+                                                {tableHeaders.map((header) => (
+                                                    <TableCell key={`placeholder-${rowIndex}-${header}`} className={cn(cellClassName)}>
+                                                        &nbsp;
+                                                    </TableCell>
+                                                ))}
+                                            </TableRow>
+                                        ))
                                    )}
                                 </TableBody>
                             </Table>
