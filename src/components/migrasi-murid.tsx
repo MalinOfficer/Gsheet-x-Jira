@@ -11,6 +11,17 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { PlusCircle, Wand2, Download, Undo2, Redo2, Trash2 } from "lucide-react";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -437,6 +448,12 @@ export function MigrasiMurid() {
         });
     };
 
+    const handleClearTable = () => {
+        const newRows = Array.from({ length: INITIAL_ROWS }, (_, i) => createEmptyRow());
+        handleRowsChange(newRows);
+        toast({ title: "Table Cleared", description: "All data has been cleared from the table." });
+    };
+
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-full mx-auto space-y-6">
@@ -462,9 +479,26 @@ export function MigrasiMurid() {
                         <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
                             <Redo2 className="mr-2 h-4 w-4" /> Redo
                         </Button>
-                        <Button onClick={handleClearSelectedCells} size="sm" variant="destructive" disabled={!selectedRange.start}>
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action will permanently delete all data from the table. You cannot undo this action.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleClearTable}>Continue</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+
                         <Button
                           onClick={handleExportExcel}
                           size="sm"
@@ -578,5 +612,3 @@ export function MigrasiMurid() {
     );
 }
 
-
-    
