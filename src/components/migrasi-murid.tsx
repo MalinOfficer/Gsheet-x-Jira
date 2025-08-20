@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Button } from "./ui/button";
+import { PlusCircle } from "lucide-react";
 
 const tableHeaders = [
     "No", "Username", "NIS", "NISN", "NIK", "Kode", "Asal Sekolah", "Nama", "L/P",
@@ -44,49 +46,59 @@ export function MigrasiMurid() {
 
         if (pastedLines.length === 0) return;
         
-        const newRows = [...rows];
-        let maxRowIndex = selectedCell.row;
+        setRows(currentRows => {
+            const newRows = [...currentRows];
+            let maxRowIndex = selectedCell.row;
 
-        pastedLines.forEach((line, lineIndex) => {
-            const rowIndex = selectedCell.row + lineIndex;
-            
-            // If paste exceeds current table bounds, add new rows
-            while (rowIndex >= newRows.length) {
-                newRows.push(createEmptyRow());
-            }
-
-            const values = line.split('\t');
-            values.forEach((value, valueIndex) => {
-                const colIndex = selectedCell.col + valueIndex;
-                if (colIndex >= tableHeaders.length) return; // Stop if paste exceeds table bounds horizontally
-
-                const header = tableHeaders[colIndex];
-                // Skip updating the "No" column from pasted data
-                if (header === "No") return;
+            pastedLines.forEach((line, lineIndex) => {
+                const rowIndex = selectedCell.row + lineIndex;
                 
-                newRows[rowIndex][header] = value.trim();
+                // If paste exceeds current table bounds, add new rows
+                while (rowIndex >= newRows.length) {
+                    newRows.push(createEmptyRow());
+                }
+
+                const values = line.split('\t');
+                values.forEach((value, valueIndex) => {
+                    const colIndex = selectedCell.col + valueIndex;
+                    if (colIndex >= tableHeaders.length) return; // Stop if paste exceeds table bounds horizontally
+
+                    const header = tableHeaders[colIndex];
+                    // Skip updating the "No" column from pasted data
+                    if (header === "No") return;
+                    
+                    newRows[rowIndex][header] = value.trim();
+                });
+                maxRowIndex = rowIndex;
             });
-            maxRowIndex = rowIndex;
-        });
 
-        setRows(newRows);
+             // Select the last cell that was pasted into
+            const lastPastedLineValues = pastedLines[pastedLines.length - 1].split('\t');
+            const lastColIndex = selectedCell.col + lastPastedLineValues.length - 1;
+            setSelectedCell({
+                row: maxRowIndex,
+                col: Math.min(lastColIndex, tableHeaders.length - 1)
+            });
 
-        // Select the last cell that was pasted into
-        const lastPastedLineValues = pastedLines[pastedLines.length - 1].split('\t');
-        const lastColIndex = selectedCell.col + lastPastedLineValues.length - 1;
-        setSelectedCell({
-            row: maxRowIndex,
-            col: Math.min(lastColIndex, tableHeaders.length - 1)
+            return newRows;
         });
 
         toast({
             title: "Data Ditempel!",
             description: `${pastedLines.length} baris data telah ditempelkan.`,
         });
-    }, [selectedCell, rows, toast]);
+    }, [selectedCell, toast]);
     
     const handleCellClick = (rowIndex: number, colIndex: number) => {
         setSelectedCell({ row: rowIndex, col: colIndex });
+    };
+
+    const handleAddRow = () => {
+        setRows(prevRows => [...prevRows, createEmptyRow()]);
+        toast({
+            title: "Baris Ditambahkan",
+            description: "Satu baris kosong telah ditambahkan di akhir tabel."
+        })
     };
 
     return (
@@ -100,10 +112,18 @@ export function MigrasiMurid() {
                 </header>
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle>Data Murid untuk Migrasi</CardTitle>
-                        <CardDescription>
-                            Tabel ini berfungsi seperti spreadsheet. Klik sel, lalu salin dan tempel data Anda.
-                        </CardDescription>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <div>
+                                <CardTitle>Data Murid untuk Migrasi</CardTitle>
+                                <CardDescription className="mt-1">
+                                    Tabel ini berfungsi seperti spreadsheet. Klik sel, lalu salin dan tempel data Anda.
+                                </CardDescription>
+                            </div>
+                             <Button onClick={handleAddRow} size="sm" variant="outline" className="w-full sm:w-auto">
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Tambah Baris
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div 
@@ -133,7 +153,7 @@ export function MigrasiMurid() {
                                                    className={cn(
                                                        cellClassName,
                                                        {
-                                                           "w-[50px] min-w-[50px] text-center": header === "No",
+                                                           "w-[50px] min-w-[50px] text-center bg-muted/50": header === "No",
                                                            "ring-2 ring-primary ring-inset": selectedCell?.row === rowIndex && selectedCell?.col === colIndex
                                                        }
                                                    )}
