@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { PlusCircle, Wand2, Download, Undo2, Redo2, Trash2 } from "lucide-react";
+import { PlusCircle, Wand2, Download, Undo2, Redo2, Trash2, Files } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useRouter } from "next/navigation";
 
 const tableHeaders = [
     "No", "Username", "NIS", "NISN", "NIK", "Kode", "Asal Sekolah", "Nama", "L/P",
@@ -94,6 +95,7 @@ export function MigrasiMurid() {
     const [numRowsToAdd, setNumRowsToAdd] = useState(1);
     const { toast } = useToast();
     const isSelecting = useRef(false);
+    const router = useRouter();
 
     const [history, setHistory] = useState<MuridData[][]>([rows]);
     const [historyIndex, setHistoryIndex] = useState(0);
@@ -266,7 +268,7 @@ export function MigrasiMurid() {
             return;
         }
 
-        if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'Z' && e.shiftKey))) {
             e.preventDefault();
             handleRedo();
             return;
@@ -352,7 +354,7 @@ export function MigrasiMurid() {
             title: "Data Pasted!",
             description: `${pastedLines.length} rows of data have been pasted.`,
         });
-    }, [selectedRange.start, toast, rows]);
+    }, [selectedRange.start, toast, rows, handleRowsChange]);
 
     const handleAddRows = () => {
         const count = Number(numRowsToAdd);
@@ -472,7 +474,7 @@ export function MigrasiMurid() {
                             </CardDescription>
                         </div>
                     </CardHeader>
-                    <div className="px-6 pb-4 flex items-center gap-2 border-b">
+                    <div className="px-6 pb-4 flex flex-wrap items-center gap-2 border-b">
                          <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
                             <Undo2 className="mr-2 h-4 w-4" /> Undo
                         </Button>
@@ -498,7 +500,9 @@ export function MigrasiMurid() {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-
+                        <Button onClick={() => router.push('/cek-duplikasi')} size="sm" variant="outline">
+                            <Files className="mr-2 h-4 w-4" /> Cek Duplikasi
+                        </Button>
                         <Button
                           onClick={handleExportExcel}
                           size="sm"
