@@ -500,9 +500,6 @@ export function MigrasiMurid() {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                        <Button onClick={() => router.push('/cek-duplikasi')} size="sm" variant="outline">
-                            <Files className="mr-2 h-4 w-4" /> Cek Duplikasi
-                        </Button>
                         <Button
                           onClick={handleExportExcel}
                           size="sm"
@@ -615,4 +612,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
