@@ -14,6 +14,7 @@ type DuplicateRecord = {
     nis: string;
     nama: string;
     fileName: string;
+    sheetName: string;
 };
 
 export function CekDuplikasi() {
@@ -43,29 +44,30 @@ export function CekDuplikasi() {
 
         startChecking(async () => {
             setHasChecked(true);
-            const nisMap = new Map<string, { nama: string, fileName: string }[]>();
+            const nisMap = new Map<string, { nama: string, fileName: string, sheetName: string }[]>();
 
             for (const file of files) {
                 try {
                     const data = await file.arrayBuffer();
                     const workbook = XLSX.read(data);
-                    const sheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheetName];
-                    const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    for (const sheetName of workbook.SheetNames) {
+                        const worksheet = workbook.Sheets[sheetName];
+                        const json: any[] = XLSX.utils.sheet_to_json(worksheet);
 
-                    for (const row of json) {
-                        // Find NIS and Nama columns case-insensitively
-                        const nisKey = Object.keys(row).find(k => k.toLowerCase() === 'nis');
-                        const namaKey = Object.keys(row).find(k => k.toLowerCase() === 'nama');
+                        for (const row of json) {
+                            const nisKey = Object.keys(row).find(k => k.toLowerCase() === 'nis');
+                            const namaKey = Object.keys(row).find(k => k.toLowerCase() === 'nama');
 
-                        if (nisKey && row[nisKey]) {
-                            const nis = String(row[nisKey]).trim();
-                            const nama = namaKey && row[namaKey] ? String(row[namaKey]).trim() : 'N/A';
-                            
-                            if (!nisMap.has(nis)) {
-                                nisMap.set(nis, []);
+                            if (nisKey && row[nisKey]) {
+                                const nis = String(row[nisKey]).trim();
+                                const nama = namaKey && row[namaKey] ? String(row[namaKey]).trim() : 'N/A';
+                                
+                                if (!nisMap.has(nis)) {
+                                    nisMap.set(nis, []);
+                                }
+                                nisMap.get(nis)?.push({ nama, fileName: file.name, sheetName });
                             }
-                            nisMap.get(nis)?.push({ nama, fileName: file.name });
                         }
                     }
                 } catch (error) {
@@ -102,7 +104,7 @@ export function CekDuplikasi() {
                 <header>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Cek Duplikasi NIS</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Upload beberapa file Excel sekaligus untuk menemukan NIS yang duplikat di antara semua file tersebut.
+                        Upload beberapa file Excel sekaligus untuk menemukan NIS yang duplikat di antara semua file dan semua sheet.
                     </p>
                 </header>
 
@@ -168,15 +170,17 @@ export function CekDuplikasi() {
                                                 <TableRow>
                                                     <TableHead>NIS</TableHead>
                                                     <TableHead>Nama</TableHead>
-                                                    <TableHead>Nama File Excel</TableHead>
+                                                    <TableHead>Nama File</TableHead>
+                                                    <TableHead>Nama Sheet</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {duplicates.map((item, index) => (
-                                                    <TableRow key={index}>
+                                                    <TableRow key={index} className="bg-destructive/10">
                                                         <TableCell>{item.nis}</TableCell>
                                                         <TableCell>{item.nama}</TableCell>
                                                         <TableCell>{item.fileName}</TableCell>
+                                                        <TableCell>{item.sheetName}</TableCell>
                                                     </TableRow>
                                                 ))}
                                             </TableBody>
