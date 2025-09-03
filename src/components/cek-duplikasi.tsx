@@ -57,6 +57,7 @@ export function CekDuplikasi() {
 
                         for (const row of json) {
                             const keys = Object.keys(row);
+                            // Prioritaskan key 'nis' yang bukan 'nisn'
                             const nisKey = keys.find(k => k.toLowerCase().includes('nis') && !k.toLowerCase().includes('nisn'));
                             const namaKey = keys.find(k => k.toLowerCase().includes('nama'));
 
