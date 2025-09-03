@@ -348,28 +348,51 @@ export function MigrasiMurid() {
         if (pastedLines.length === 0) return;
 
         let newRows = [...rows];
+        let changes = 0;
+        const dateHeader = "Tanggal Lahir";
+
         pastedLines.forEach((line, lineIndex) => {
             const rowIndex = startCell.row + lineIndex;
             if (rowIndex >= newRows.length) {
                 newRows = [...newRows, ...Array.from({ length: rowIndex - newRows.length + 1 }, createEmptyRow)];
             }
+
             const values = line.split('\t');
+            let updatedRow = { ...newRows[rowIndex] };
+
             values.forEach((value, valueIndex) => {
                 const colIndex = startCell.col + valueIndex;
                 if (colIndex >= tableHeaders.length) return;
 
                 const header = tableHeaders[colIndex];
                 if (header !== "No") {
-                    newRows[rowIndex][header] = value.trim();
+                    updatedRow[header] = value.trim();
                 }
             });
+
+            const originalDate = updatedRow[dateHeader];
+            if (originalDate && typeof originalDate === 'string') {
+                const formattedDate = parseAndFormatDate(originalDate);
+                if (formattedDate && formattedDate !== originalDate) {
+                    updatedRow[dateHeader] = formattedDate;
+                    changes++;
+                }
+            }
+            newRows[rowIndex] = updatedRow;
         });
-        
+
         handleRowsChange(newRows);
         toast({
             title: "Data Pasted!",
             description: `${pastedLines.length} rows of data have been pasted.`,
         });
+
+        if (changes > 0) {
+            toast({
+                title: "Dates Auto-Formatted",
+                description: `Automatically formatted ${changes} dates to DD/MM/YYYY.`,
+            });
+        }
     }, [selectedRange.start, toast, rows, handleRowsChange]);
 
     const handleAddRows = () => {
