@@ -59,9 +59,25 @@ const parseAndFormatDate = (dateStr: string): string | null => {
     if (!dateStr || typeof dateStr !== 'string') return null;
 
     const trimmedDate = dateStr.trim();
+    
     // Check if it's already in DD/MM/YYYY format
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmedDate)) {
-        return trimmedDate;
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmedDate)) {
+        const parts = trimmedDate.split('/');
+        const day = parts[0].padStart(2, '0');
+        const month = parts[1].padStart(2, '0');
+        if (parseInt(month, 10) > 12) { // Likely MM/DD/YYYY format
+             return `${parts[1].padStart(2, '0')}/${parts[0].padStart(2, '0')}/${parts[2]}`;
+        }
+        return `${day}/${month}/${parts[2]}`;
+    }
+
+    // Try parsing MM/DD/YYYY or M/D/YYYY
+    const americanDateMatch = trimmedDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (americanDateMatch) {
+        const month = americanDateMatch[1].padStart(2, '0');
+        const day = americanDateMatch[2].padStart(2, '0');
+        const year = americanDateMatch[3];
+        return `${day}/${month}/${year}`;
     }
 
     // Try parsing DD-MonthName-YYYY (e.g., 03-Januari-2009)
@@ -76,7 +92,7 @@ const parseAndFormatDate = (dateStr: string): string | null => {
         }
     }
     
-    // Add other parsers here if needed, e.g., for YYYY-MM-DD
+    // Try parsing YYYY-MM-DD
     const isoMatch = trimmedDate.match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
     if (isoMatch) {
         const year = isoMatch[1];
