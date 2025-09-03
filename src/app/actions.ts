@@ -100,7 +100,7 @@ export async function getSpreadsheetTitle(sheetUrl: string) {
         return { error: "URL is empty. Please provide a Google Sheet URL." };
     }
 
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
@@ -169,7 +169,7 @@ export async function getUpdatePreview(
         return { error: 'No data provided to preview.' };
     }
 
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
@@ -223,7 +223,7 @@ export async function updateSheetStatus(
         return { error: 'No data provided to update.' };
     }
     
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
@@ -296,7 +296,7 @@ export async function importToSheet(
     data: { headers: string[], rows: Record<string, any>[] },
     sheetUrl: string
 ) {
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
@@ -343,10 +343,23 @@ export async function importToSheet(
         }
 
         // 3. Prepare data for the append operation.
-        // Prepend 4 empty columns to correctly align data starting from column E
-        const valuesToAppend = newRows.map(row => 
-            ['', '', '', '', ...data.headers.map(header => row[header] || '')]
-        );
+        // The final structure should have data up to column T.
+        // Columns A-D are empty.
+        // E-O are from the main headers.
+        // P-S are empty.
+        // T is "Ticket OP".
+        const valuesToAppend = newRows.map(row => {
+            const mainData = data.headers
+                .filter(h => h.toLowerCase() !== 'ticket op') // Exclude Ticket OP from main mapping
+                .map(header => row[header] || '');
+
+            return [
+                '', '', '', '', // A-D
+                ...mainData,   // E-O (11 columns)
+                '', '', '', '', // P-S
+                row['Ticket OP'] || '' // T
+            ];
+        });
 
         // 4. Use `append` to add the new rows. This will automatically add new rows if the grid is full.
         const appendResult = await sheets.spreadsheets.values.append({
@@ -370,7 +383,7 @@ export async function importToSheet(
             };
         }
         
-        // Regex to extract start row from a range like 'All Case'!A2414:M2414
+        // Regex to extract start row from a range like 'All Case'!A2414:T2414
         const rangeRegex = /!A(\d+):/; 
         const matchResult = updatedRange.match(rangeRegex);
         if (!matchResult || !matchResult[1]) {
@@ -417,7 +430,7 @@ export async function undoLastAction(
         return { error: 'No undo data available.' };
     }
 
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };

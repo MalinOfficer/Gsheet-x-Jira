@@ -33,9 +33,9 @@ import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1aWpDRyFyl6a8bV0-e1ddYVkcfDK5WA498OHMU2Wv9iU/edit?gid=0#gid=0';
-const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
+const LOCAL_storage_key_template = 'jsonConverterHeaderTemplate';
 const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
-const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,Kolom kosong1,Ticket Category,Module,Detail Module,Created At,Title,Kolom kosong2,Resolved At';
+const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,Kolom kosong1,Ticket Category,Module,Detail Module,Created At,Title,Kolom kosong2,Resolved At,Ticket OP';
 
 
 type UpdatePreview = {
@@ -88,7 +88,7 @@ export function ImportFlow() {
   useEffect(() => {
     const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
     setSheetUrl(savedUrl || DEFAULT_SHEET_URL);
-    const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE);
+    const savedTemplate = localStorage.getItem(LOCAL_storage_key_template);
     setTemplateInput(savedTemplate || DEFAULT_TEMPLATE);
     const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
     if (savedJson) {
@@ -447,7 +447,7 @@ export function ImportFlow() {
     toast({ title: "Input Cleared", description: "JSON input has been cleared." });
   };
   const handleSaveTemplate = () => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_TEMPLATE, templateInput);
+    localStorage.setItem(LOCAL_storage_key_template, templateInput);
     toast({ title: "Template Saved", description: "Header template has been saved." });
   };
   const isVerified = !!verifiedUrl && verifiedUrl === sheetUrl;
