@@ -217,7 +217,7 @@ export function ImportFlow() {
 
     startImporting(async () => {
         if (!tableData) return;
-        const result = await importToSheet({ headers: tableData.headers, rows: tableData.rows }, sheetUrl);
+        const result = await importToSheet(tableData, sheetUrl);
 
         if (result.error) {
             toast({
@@ -727,7 +727,7 @@ export function ImportFlow() {
                                             ) : header}
                                         </TableHead>
                                     ))}
-                                </TableRow>
+                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {tableData.rows.map((row, rowIndex) => (
@@ -769,5 +769,7 @@ export function ImportFlow() {
     </div>
   );
 }
+
+    
 
     
