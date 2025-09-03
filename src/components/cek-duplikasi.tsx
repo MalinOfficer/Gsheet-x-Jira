@@ -53,14 +53,16 @@ export function CekDuplikasi() {
                     
                     for (const sheetName of workbook.SheetNames) {
                         const worksheet = workbook.Sheets[sheetName];
-                        const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+                        const json: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
                         for (const row of json) {
-                            const nisKey = Object.keys(row).find(k => k.toLowerCase() === 'nis');
-                            const namaKey = Object.keys(row).find(k => k.toLowerCase() === 'nama');
+                            const keys = Object.keys(row);
+                            const nisKey = keys.find(k => k.toLowerCase().includes('nis') && !k.toLowerCase().includes('nisn'));
+                            const namaKey = keys.find(k => k.toLowerCase().includes('nama'));
 
                             if (nisKey && row[nisKey]) {
                                 const nis = String(row[nisKey]).trim();
+                                if (!nis) continue;
                                 const nama = namaKey && row[namaKey] ? String(row[namaKey]).trim() : 'N/A';
                                 
                                 if (!nisMap.has(nis)) {
