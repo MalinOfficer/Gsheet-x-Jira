@@ -292,13 +292,13 @@ export function ImportFlow() {
     toast({ title: "URL Saved", description: "Google Sheet URL has been saved as your default." });
   };
   
-  const handleStatusChange = (rowIndex: number, newStatus: string) => {
+  const handleStatusChange = (rowIndex: number, header: string, value: string) => {
     if (!tableData) return;
     const newRows = [...tableData.rows];
-    newRows[rowIndex]['Status'] = newStatus;
+    newRows[rowIndex][header] = value;
     setTableData({ ...tableData, rows: newRows });
     setLastActionUndoData(null);
-  };
+};
   
     const handleDateFormatChange = (header: string, format: string) => {
         if (format === 'origin' || format === 'jam' || format === 'report') {
@@ -735,7 +735,7 @@ export function ImportFlow() {
                                         {tableData.headers.map((header, headerIndex) => (
                                             <TableCell key={`${header}-${headerIndex}-${rowIndex}`} className="text-xs">
                                                {header === 'Status' ? (
-                                                    <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(rowIndex, newStatus)} disabled={isProcessing}>
+                                                    <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(rowIndex, header, newStatus)} disabled={isProcessing}>
                                                         <SelectTrigger className="w-[120px] h-8 text-xs">
                                                             <SelectValue placeholder="Select status" />
                                                         </SelectTrigger>
@@ -746,6 +746,14 @@ export function ImportFlow() {
                                                             <SelectItem value="Solved">Solved</SelectItem>
                                                         </SelectContent>
                                                     </Select>
+                                                ) : header === 'Ticket OP' ? (
+                                                    <Input
+                                                        type="text"
+                                                        value={row[header] || ''}
+                                                        onChange={(e) => handleStatusChange(rowIndex, header, e.target.value)}
+                                                        className="w-[120px] h-8 text-xs"
+                                                        disabled={isProcessing}
+                                                    />
                                                 ) : (header === 'Created At' || header === 'Resolved At') ? (
                                                     formatDateTime(row[header], dateFormats[header] || 'report')
                                                 ) : (
@@ -769,7 +777,5 @@ export function ImportFlow() {
     </div>
   );
 }
-
-    
 
     

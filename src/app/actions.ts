@@ -130,7 +130,7 @@ export async function getSpreadsheetTitle(sheetUrl: string) {
 
 
 async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: string) {
-    const rangeToRead = `${sheetName}!G:M`;
+    const rangeToRead = `${sheetName}!G:T`; // Read from Status (G) to Ticket OP (T)
     const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
         range: rangeToRead,
@@ -142,10 +142,12 @@ async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: str
     }
 
     const ticketNumberRegex = /#(\d+)/;
-    const rowMap: Record<string, { rowIndex: number, currentStatus: string, title: string }> = {};
+    const rowMap: Record<string, { rowIndex: number, currentStatus: string; currentTicketOp: string; title: string }> = {};
     sheetRows.forEach((row, index) => {
         const currentStatus = row[0] || ''; // Column G
-        const detailCase = row[6]; // Column M
+        const detailCase = row[6]; // Column M (G is 0, so M is 6)
+        const currentTicketOp = row[13] || ''; // Column T (G is 0, so T is 13)
+
         if (typeof detailCase === 'string') {
             const match = detailCase.match(ticketNumberRegex);
             if (match && match[1]) {
@@ -153,6 +155,7 @@ async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: str
                 rowMap[ticketNumber] = {
                     rowIndex: index + 1, // 1-based index
                     currentStatus: currentStatus,
+                    currentTicketOp: currentTicketOp,
                     title: detailCase,
                 };
             }
@@ -236,25 +239,40 @@ export async function updateSheetStatus(
         const rowMap = await getSheetRowMap(sheets, spreadsheetId, sheetName);
 
         const updateRequests = [];
-        const updatedRows: { title: string, oldStatus: string, newStatus: string, rowIndex: number }[] = [];
+        const updatedRows: { title: string, oldStatus: string, newStatus: string, rowIndex: number, oldTicketOp: string, newTicketOp: string }[] = [];
         const ticketNumberRegex = /#(\d+)/;
         
         for (const appRow of data.rows) {
             const detailCase = appRow['Title'];
             const newStatus = appRow['Status'];
+            const newTicketOp = appRow['Ticket OP'];
 
-            if (typeof detailCase === 'string' && newStatus) {
+
+            if (typeof detailCase === 'string') {
                 const match = detailCase.match(ticketNumberRegex);
                 if (match && match[1]) {
                     const ticketNumber = match[1];
                     const sheetRowInfo = rowMap[ticketNumber];
                     
-                    if (sheetRowInfo && sheetRowInfo.currentStatus !== newStatus) {
-                        updateRequests.push({
-                            range: `${sheetName}!G${sheetRowInfo.rowIndex}`,
-                            values: [[newStatus]],
+                    if (sheetRowInfo && (sheetRowInfo.currentStatus !== newStatus || sheetRowInfo.currentTicketOp !== newTicketOp)) {
+                         updateRequests.push(
+                            { // Status
+                                range: `${sheetName}!G${sheetRowInfo.rowIndex}`,
+                                values: [[newStatus]],
+                            },
+                            { // Ticket OP
+                                range: `${sheetName}!T${sheetRowInfo.rowIndex}`,
+                                values: [[newTicketOp]],
+                            }
+                        );
+                        updatedRows.push({ 
+                            title: detailCase, 
+                            oldStatus: sheetRowInfo.currentStatus, 
+                            newStatus, 
+                            rowIndex: sheetRowInfo.rowIndex,
+                            oldTicketOp: sheetRowInfo.currentTicketOp,
+                            newTicketOp
                         });
-                        updatedRows.push({ title: detailCase, oldStatus: sheetRowInfo.currentStatus, newStatus, rowIndex: sheetRowInfo.rowIndex });
                     }
                 }
             }
@@ -464,10 +482,16 @@ export async function undoLastAction(
         }
 
         if (undoData.operationType === 'UPDATE') {
-             const updateRequests = undoData.updatedRows.map((row: { rowIndex: number, oldStatus: string }) => ({
-                range: `${sheetName}!G${row.rowIndex}`,
-                values: [[row.oldStatus]],
-            }));
+             const updateRequests = undoData.updatedRows.flatMap((row: { rowIndex: number, oldStatus: string, oldTicketOp: string }) => ([
+                {
+                    range: `${sheetName}!G${row.rowIndex}`,
+                    values: [[row.oldStatus]],
+                },
+                {
+                    range: `${sheetName}!T${row.rowIndex}`,
+                    values: [[row.oldTicketOp]],
+                }
+            ]));
 
             if (updateRequests.length > 0) {
                  await sheets.spreadsheets.values.batchUpdate({
@@ -489,7 +513,5 @@ export async function undoLastAction(
         return { error: apiError };
     }
 }
-
-    
 
     
