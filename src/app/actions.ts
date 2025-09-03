@@ -184,24 +184,27 @@ export async function getUpdatePreview(
         const sheets = getGoogleSheetsClient();
         const rowMap = await getSheetRowMap(sheets, spreadsheetId, sheetName);
         
-        const changesToPreview: { title: string, oldStatus: string, newStatus: string }[] = [];
+        const changesToPreview: { title: string, oldStatus: string, newStatus: string, oldTicketOp: string, newTicketOp: string }[] = [];
         const ticketNumberRegex = /#(\d+)/;
 
         for (const appRow of data.rows) {
             const detailCase = appRow['Title'];
             const newStatus = appRow['Status'];
+            const newTicketOp = appRow['Ticket OP'];
 
-            if (typeof detailCase === 'string' && newStatus) {
+            if (typeof detailCase === 'string') {
                 const match = detailCase.match(ticketNumberRegex);
                 if (match && match[1]) {
                     const ticketNumber = match[1];
                     const sheetRowInfo = rowMap[ticketNumber];
                     
-                    if (sheetRowInfo && sheetRowInfo.currentStatus !== newStatus) {
+                    if (sheetRowInfo && (sheetRowInfo.currentStatus !== newStatus || sheetRowInfo.currentTicketOp !== newTicketOp)) {
                         changesToPreview.push({
                             title: sheetRowInfo.title,
                             oldStatus: sheetRowInfo.currentStatus,
-                            newStatus: newStatus
+                            newStatus: newStatus,
+                            oldTicketOp: sheetRowInfo.currentTicketOp,
+                            newTicketOp: newTicketOp,
                         });
                     }
                 }
@@ -279,7 +282,7 @@ export async function updateSheetStatus(
         }
         
         if (updateRequests.length === 0) {
-            return { success: true, message: 'No status changes detected. Everything is up-to-date.', updatedRows: [] };
+            return { success: true, message: 'No changes detected. Everything is up-to-date.', updatedRows: [] };
         }
         
         await sheets.spreadsheets.values.batchUpdate({
@@ -513,5 +516,3 @@ export async function undoLastAction(
         return { error: apiError };
     }
 }
-
-    

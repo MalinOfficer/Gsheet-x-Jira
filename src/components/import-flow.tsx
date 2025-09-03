@@ -42,6 +42,8 @@ type UpdatePreview = {
     title: string;
     oldStatus: string;
     newStatus: string;
+    oldTicketOp: string;
+    newTicketOp: string;
 };
 
 type LastActionUndoData = {
@@ -154,7 +156,7 @@ export function ImportFlow() {
         } else {
             toast({
                 title: "No Changes Detected",
-                description: "All statuses are already up-to-date in the Google Sheet.",
+                description: "All statuses and ticket OPs are already up-to-date in the Google Sheet.",
             });
         }
     });
@@ -185,8 +187,8 @@ export function ImportFlow() {
                 <div className="mt-2 text-xs">
                   <p className="font-bold">Updated Cases:</p>
                   <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
-                    {result.updatedRows.map((item: { title: string, newStatus: string }, index: number) => (
-                      <li key={index}>{item.title} -> <strong>{item.newStatus}</strong></li>
+                    {result.updatedRows.map((item: { title: string, newStatus: string, newTicketOp: string }, index: number) => (
+                      <li key={index}>{item.title} -> <strong>{item.newStatus} / {item.newTicketOp}</strong></li>
                     ))}
                   </ul>
                 </div>
@@ -649,12 +651,16 @@ export function ImportFlow() {
                         <AlertDialogHeader>
                            <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
                            <div className="text-sm text-muted-foreground">
-                                <p className='mb-2'>Apakah Anda yakin ingin memperbarui status untuk {updatePreview.length} kasus di sheet target?</p>
+                                <p className='mb-2'>Apakah Anda yakin ingin memperbarui {updatePreview.length} kasus di sheet target?</p>
                                 <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
                                     <p className="font-bold">Detail Perubahan:</p>
                                     <ul className="list-disc pl-5">
                                         {updatePreview.map((item, index) => (
-                                          <li key={index} className='text-foreground'>{item.title}: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> &rarr; <strong>{item.newStatus}</strong></li>
+                                          <li key={index} className='text-foreground'>
+                                            {item.title}:
+                                            {item.oldStatus !== item.newStatus && <span> Status: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> &rarr; <strong>{item.newStatus}</strong></span>}
+                                            {item.oldTicketOp !== item.newTicketOp && <span> Ticket OP: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> &rarr; <strong>{item.newTicketOp}</strong></span>}
+                                          </li>
                                         ))}
                                     </ul>
                                 </div>
@@ -777,5 +783,3 @@ export function ImportFlow() {
     </div>
   );
 }
-
-    
