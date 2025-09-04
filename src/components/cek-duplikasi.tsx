@@ -112,9 +112,9 @@ export function CekDuplikasi() {
                 namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
             }
 
-            // Find Date of Birth column
+            // Find Date of Birth column by looking for headers that *include* the keywords
             const dobKeywords = ['tanggal lahir', 'tgl lahir'];
-            dobIndex = lowerCaseHeaders.findIndex(h => dobKeywords.includes(h));
+            dobIndex = lowerCaseHeaders.findIndex(h => dobKeywords.some(keyword => h.includes(keyword)));
             
             if (nisIndex !== -1 && namaIndex !== -1 && dobIndex !== -1) {
                 return { rowIndex: i, nisIndex, namaIndex, dobIndex };
@@ -171,7 +171,9 @@ export function CekDuplikasi() {
 
                             const isNisEmpty = !nis || !/\d/.test(nis);
                             const isNamePresent = namaValue && namaValue.toLowerCase() !== 'nama';
-                            const isDobEmpty = !dobValue;
+                            
+                            // A cell is considered empty if it's falsy (empty string, null, undefined) or an excel error string like #VALUE!
+                            const isDobEmpty = !dobValue || (typeof dobValue === 'string' && dobValue.startsWith('#'));
 
                             if (isNamePresent && isDobEmpty) {
                                 foundEmptyDob.push({ nama: namaValue, fileName: fileData.name, sheetName });
@@ -498,5 +500,3 @@ export function CekDuplikasi() {
         </div>
     );
 }
-
-    
