@@ -6,12 +6,12 @@ import * as XLSX from 'xlsx';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, CheckCircle2, AlertTriangle, Trash2, Search } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, AlertTriangle, Trash2, Search, FileWarning } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from './ui/input';
 
-type DuplicateRecord = {
-    nis: string;
+type StudentRecord = {
+    nis?: string;
     nama: string;
     fileName: string;
     sheetName: string;
@@ -26,7 +26,8 @@ type HeaderInfo = {
 
 export function CekDuplikasi() {
     const [files, setFiles] = useState<File[]>([]);
-    const [duplicates, setDuplicates] = useState<DuplicateRecord[]>([]);
+    const [duplicates, setDuplicates] = useState<StudentRecord[]>([]);
+    const [emptyNisRecords, setEmptyNisRecords] = useState<StudentRecord[]>([]);
     const [isChecking, startChecking] = useTransition();
     const [hasChecked, setHasChecked] = useState(false);
     const { toast } = useToast();
@@ -35,6 +36,7 @@ export function CekDuplikasi() {
         if (event.target.files) {
             setFiles(Array.from(event.target.files));
             setDuplicates([]);
+            setEmptyNisRecords([]);
             setHasChecked(false);
         }
     };
@@ -94,6 +96,7 @@ export function CekDuplikasi() {
         startChecking(async () => {
             setHasChecked(true);
             const nisMap = new Map<string, { nama: string, fileName: string, sheetName: string }[]>();
+            const foundEmptyNis: StudentRecord[] = [];
 
             for (const file of files) {
                 try {
@@ -121,17 +124,23 @@ export function CekDuplikasi() {
                             if (!row || row.length === 0) continue;
 
                             const nisValue = row[nisIndex];
-                            // Skip row if NIS is empty, null, or doesn't contain any numbers
-                            if (!nisValue || String(nisValue).trim() === '' || !/\d/.test(String(nisValue))) continue;
-
+                            const namaValue = String(row[namaIndex] || '').trim();
                             const nis = String(nisValue).trim();
-                            
-                            const nama = namaIndex !== -1 ? String(row[namaIndex] || '').trim() : 'N/A';
+
+                            const isNisEmpty = !nis || !/\d/.test(nis);
+                            const isNamePresent = namaValue && namaValue.toLowerCase() !== 'nama';
+
+                            if (isNisEmpty) {
+                                if (isNamePresent) {
+                                    foundEmptyNis.push({ nama: namaValue, fileName: file.name, sheetName });
+                                }
+                                continue; 
+                            }
                             
                             if (!nisMap.has(nis)) {
                                 nisMap.set(nis, []);
                             }
-                            nisMap.get(nis)?.push({ nama, fileName: file.name, sheetName });
+                            nisMap.get(nis)?.push({ nama: namaValue, fileName: file.name, sheetName });
                         }
                     }
                 } catch (error) {
@@ -144,7 +153,7 @@ export function CekDuplikasi() {
                 }
             }
 
-            const foundDuplicates: DuplicateRecord[] = [];
+            const foundDuplicates: StudentRecord[] = [];
             nisMap.forEach((records, nis) => {
                 if (records.length > 1) {
                     records.forEach(record => {
@@ -154,12 +163,14 @@ export function CekDuplikasi() {
             });
 
             setDuplicates(foundDuplicates);
+            setEmptyNisRecords(foundEmptyNis);
         });
     }, [files, toast]);
     
     const handleClear = () => {
         setFiles([]);
         setDuplicates([]);
+        setEmptyNisRecords([]);
         setHasChecked(false);
         const fileInput = document.getElementById('file-upload') as HTMLInputElement;
         if (fileInput) {
@@ -167,13 +178,100 @@ export function CekDuplikasi() {
         }
     }
 
+    const renderResults = () => {
+        if (duplicates.length === 0 && emptyNisRecords.length === 0) {
+            return (
+                <div className="flex flex-col items-center justify-center text-center py-8">
+                    <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
+                    <p className="font-semibold text-lg">Tidak Ada Masalah Ditemukan</p>
+                    <p className="text-muted-foreground mt-1">Tidak ada NIS duplikat atau NIS kosong pada file yang Anda unggah.</p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-6">
+                {duplicates.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-destructive">
+                                <AlertTriangle />
+                                Hasil Pengecekan Duplikasi
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                           <p className="font-semibold mb-4">{new Set(duplicates.map(d => d.nis)).size} NIS ditemukan duplikat ({duplicates.length} total entri).</p>
+                           <div className="relative w-full overflow-auto rounded-md border max-h-[400px]">
+                               <Table>
+                                   <TableHeader className="sticky top-0 bg-card z-10">
+                                       <TableRow>
+                                           <TableHead>NIS</TableHead>
+                                           <TableHead>Nama</TableHead>
+                                           <TableHead>Nama File</TableHead>
+                                           <TableHead>Nama Sheet</TableHead>
+                                       </TableRow>
+                                   </TableHeader>
+                                   <TableBody>
+                                       {duplicates.sort((a, b) => (a.nis || '').localeCompare(b.nis || '') || a.fileName.localeCompare(b.fileName)).map((item, index) => (
+                                           <TableRow key={index} className="bg-destructive/10">
+                                               <TableCell className="font-medium">{item.nis}</TableCell>
+                                               <TableCell>{item.nama}</TableCell>
+                                               <TableCell>{item.fileName}</TableCell>
+                                               <TableCell>{item.sheetName}</TableCell>
+                                           </TableRow>
+                                       ))}
+                                   </TableBody>
+                               </Table>
+                           </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {emptyNisRecords.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-amber-600">
+                                <FileWarning />
+                                Siswa dengan NIS Kosong
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                           <p className="font-semibold mb-4">{emptyNisRecords.length} siswa ditemukan tanpa NIS yang valid.</p>
+                           <div className="relative w-full overflow-auto rounded-md border max-h-[400px]">
+                               <Table>
+                                   <TableHeader className="sticky top-0 bg-card z-10">
+                                       <TableRow>
+                                           <TableHead>Nama</TableHead>
+                                           <TableHead>Nama File</TableHead>
+                                           <TableHead>Nama Sheet</TableHead>
+                                       </TableRow>
+                                   </TableHeader>
+                                   <TableBody>
+                                       {emptyNisRecords.sort((a, b) => a.nama.localeCompare(b.nama)).map((item, index) => (
+                                           <TableRow key={index} className="bg-amber-100 dark:bg-amber-900/20">
+                                               <TableCell className="font-medium">{item.nama}</TableCell>
+                                               <TableCell>{item.fileName}</TableCell>
+                                               <TableCell>{item.sheetName}</TableCell>
+                                           </TableRow>
+                                       ))}
+                                   </TableBody>
+                               </Table>
+                           </div>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+        );
+    }
+
+
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-4xl mx-auto space-y-6">
                 <header>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Cek Duplikasi NIS</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Cek Duplikasi & Validasi NIS</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Upload beberapa file Excel sekaligus untuk menemukan NIS yang duplikat di antara semua file dan semua sheet.
+                        Upload beberapa file Excel sekaligus untuk menemukan NIS yang duplikat dan NIS yang kosong di antara semua file dan semua sheet.
                     </p>
                 </header>
 
@@ -212,7 +310,7 @@ export function CekDuplikasi() {
                     <CardFooter className="flex gap-2">
                         <Button onClick={handleCheckDuplicates} disabled={isChecking || files.length === 0}>
                             {isChecking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-                            {isChecking ? 'Mengecek...' : 'Cek Duplikasi'}
+                            {isChecking ? 'Mengecek...' : 'Cek File'}
                         </Button>
                         <Button onClick={handleClear} variant="outline" disabled={isChecking || files.length === 0}>
                             <Trash2 className="mr-2 h-4 w-4" />
@@ -222,51 +320,11 @@ export function CekDuplikasi() {
                 </Card>
 
                 {hasChecked && !isChecking && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Hasil Pengecekan</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {duplicates.length > 0 ? (
-                                <div className="space-y-4">
-                                    <div className="flex items-center text-destructive">
-                                        <AlertTriangle className="mr-2 h-5 w-5" />
-                                        <p className="font-semibold">{new Set(duplicates.map(d => d.nis)).size} NIS ditemukan duplikat ({duplicates.length} total entri).</p>
-                                    </div>
-                                    <div className="relative w-full overflow-auto rounded-md border max-h-[400px]">
-                                        <Table>
-                                            <TableHeader className="sticky top-0 bg-card z-10">
-                                                <TableRow>
-                                                    <TableHead>NIS</TableHead>
-                                                    <TableHead>Nama</TableHead>
-                                                    <TableHead>Nama File</TableHead>
-                                                    <TableHead>Nama Sheet</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {duplicates.sort((a, b) => a.nis.localeCompare(b.nis) || a.fileName.localeCompare(b.fileName)).map((item, index) => (
-                                                    <TableRow key={index} className="bg-destructive/10">
-                                                        <TableCell className="font-medium">{item.nis}</TableCell>
-                                                        <TableCell>{item.nama}</TableCell>
-                                                        <TableCell>{item.fileName}</TableCell>
-                                                        <TableCell>{item.sheetName}</TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center text-center py-8">
-                                    <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
-                                    <p className="font-semibold text-lg">Tidak Ada Duplikasi Ditemukan</p>
-                                    <p className="text-muted-foreground mt-1">Semua NIS di file yang Anda upload unik.</p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                    renderResults()
                 )}
             </div>
         </div>
     );
 }
+
+    
