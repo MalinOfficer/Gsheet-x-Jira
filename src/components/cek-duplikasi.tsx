@@ -25,9 +25,14 @@ type HeaderInfo = {
     dobIndex: number; // Date of Birth index
 };
 
+type FileData = {
+    name: string;
+    buffer: ArrayBuffer;
+};
+
 
 export function CekDuplikasi() {
-    const [files, setFiles] = useState<File[]>([]);
+    const [filesData, setFilesData] = useState<FileData[]>([]);
     const [duplicates, setDuplicates] = useState<StudentRecord[]>([]);
     const [emptyNisRecords, setEmptyNisRecords] = useState<StudentRecord[]>([]);
     const [emptyDobRecords, setEmptyDobRecords] = useState<StudentRecord[]>([]);
@@ -36,13 +41,39 @@ export function CekDuplikasi() {
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
-            setFiles(Array.from(event.target.files));
             setDuplicates([]);
             setEmptyNisRecords([]);
             setEmptyDobRecords([]);
             setHasChecked(false);
+            
+            try {
+                const filePromises = Array.from(event.target.files).map(file => {
+                    return new Promise<FileData>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            if (e.target?.result instanceof ArrayBuffer) {
+                                resolve({ name: file.name, buffer: e.target.result });
+                            } else {
+                                reject(new Error('Failed to read file as ArrayBuffer.'));
+                            }
+                        };
+                        reader.onerror = (e) => reject(new Error('File reading error: ' + reader.error));
+                        reader.readAsArrayBuffer(file);
+                    });
+                });
+
+                const allFilesData = await Promise.all(filePromises);
+                setFilesData(allFilesData);
+
+            } catch (error) {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Error Reading Files',
+                    description: `Could not read the selected files. Please try again. Error: ${error instanceof Error ? error.message : 'Unknown'}`,
+                });
+            }
         }
     };
 
@@ -94,7 +125,7 @@ export function CekDuplikasi() {
 
 
     const handleCheckDuplicates = useCallback(async () => {
-        if (files.length === 0) {
+        if (filesData.length === 0) {
             toast({
                 variant: 'destructive',
                 title: 'No Files Selected',
@@ -109,10 +140,9 @@ export function CekDuplikasi() {
             const foundEmptyNis: StudentRecord[] = [];
             const foundEmptyDob: StudentRecord[] = [];
 
-            for (const file of files) {
+            for (const fileData of filesData) {
                 try {
-                    const data = await file.arrayBuffer();
-                    const workbook = XLSX.read(data, { type: 'buffer' });
+                    const workbook = XLSX.read(fileData.buffer, { type: 'buffer' });
                     
                     for (const sheetName of workbook.SheetNames) {
                         const worksheet = workbook.Sheets[sheetName];
@@ -123,7 +153,7 @@ export function CekDuplikasi() {
                         const headerInfo = findHeaderRow(sheetData);
 
                         if (!headerInfo) {
-                            console.warn(`Could not find a valid header row in ${file.name} -> ${sheetName}. Skipping sheet.`);
+                            console.warn(`Could not find a valid header row in ${fileData.name} -> ${sheetName}. Skipping sheet.`);
                             continue;
                         }
                         
@@ -144,12 +174,12 @@ export function CekDuplikasi() {
                             const isDobEmpty = !dobValue;
 
                             if (isNamePresent && isDobEmpty) {
-                                foundEmptyDob.push({ nama: namaValue, fileName: file.name, sheetName });
+                                foundEmptyDob.push({ nama: namaValue, fileName: fileData.name, sheetName });
                             }
                             
                             if (isNisEmpty) {
                                 if (isNamePresent) {
-                                    foundEmptyNis.push({ nama: namaValue, fileName: file.name, sheetName });
+                                    foundEmptyNis.push({ nama: namaValue, fileName: fileData.name, sheetName });
                                 }
                                 continue; 
                             }
@@ -157,14 +187,14 @@ export function CekDuplikasi() {
                             if (!nisMap.has(nis)) {
                                 nisMap.set(nis, []);
                             }
-                            nisMap.get(nis)?.push({ nama: namaValue, fileName: file.name, sheetName });
+                            nisMap.get(nis)?.push({ nama: namaValue, fileName: fileData.name, sheetName });
                         }
                     }
                 } catch (error) {
-                    console.error("Error processing file:", file.name, error);
+                    console.error("Error processing file:", fileData.name, error);
                     toast({
                         variant: 'destructive',
-                        title: `Error Reading ${file.name}`,
+                        title: `Error Reading ${fileData.name}`,
                         description: `The file might be corrupted or in an unsupported format. Error: ${error instanceof Error ? error.message : 'Unknown'}`,
                     });
                 }
@@ -183,10 +213,10 @@ export function CekDuplikasi() {
             setEmptyNisRecords(foundEmptyNis);
             setEmptyDobRecords(foundEmptyDob);
         });
-    }, [files, toast]);
+    }, [filesData, toast]);
     
     const handleClear = () => {
-        setFiles([]);
+        setFilesData([]);
         setDuplicates([]);
         setEmptyNisRecords([]);
         setEmptyDobRecords([]);
@@ -439,22 +469,22 @@ export function CekDuplikasi() {
                                 file:bg-primary/10 file:text-primary
                                 hover:file:bg-primary/20"
                             />
-                            {files.length > 0 && (
+                            {filesData.length > 0 && (
                                 <div className="text-sm text-muted-foreground">
-                                    <p className='font-medium'>{files.length} file(s) selected:</p>
+                                    <p className='font-medium'>{filesData.length} file(s) selected:</p>
                                     <ul className='list-disc pl-5 mt-1'>
-                                        {files.map(f => <li key={f.name}>{f.name}</li>)}
+                                        {filesData.map(f => <li key={f.name}>{f.name}</li>)}
                                     </ul>
                                 </div>
                             )}
                         </div>
                     </CardContent>
                     <CardFooter className="flex gap-2">
-                        <Button onClick={handleCheckDuplicates} disabled={isChecking || files.length === 0}>
+                        <Button onClick={handleCheckDuplicates} disabled={isChecking || filesData.length === 0}>
                             {isChecking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                             {isChecking ? 'Mengecek...' : 'Cek File'}
                         </Button>
-                        <Button onClick={handleClear} variant="outline" disabled={isChecking || files.length === 0}>
+                        <Button onClick={handleClear} variant="outline" disabled={isChecking || filesData.length === 0}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Clear
                         </Button>
@@ -468,5 +498,3 @@ export function CekDuplikasi() {
         </div>
     );
 }
-
-    
