@@ -17,6 +17,13 @@ type DuplicateRecord = {
     sheetName: string;
 };
 
+type HeaderInfo = {
+    rowIndex: number;
+    nisIndex: number;
+    namaIndex: number;
+};
+
+
 export function CekDuplikasi() {
     const [files, setFiles] = useState<File[]>([]);
     const [duplicates, setDuplicates] = useState<DuplicateRecord[]>([]);
@@ -32,25 +39,30 @@ export function CekDuplikasi() {
         }
     };
 
-    const findColumnIndices = (headerRow: any[]): { nisIndex: number, namaIndex: number } => {
-        let nisIndex = -1;
-        let namaIndex = -1;
+    const findHeaderRow = (sheetData: any[][]): HeaderInfo | null => {
+        // Search for header in the first 20 rows
+        for (let i = 0; i < Math.min(sheetData.length, 20); i++) {
+            const row = sheetData[i];
+            if (!Array.isArray(row)) continue;
 
-        if (!Array.isArray(headerRow)) {
-            return { nisIndex, namaIndex };
+            const lowerCaseHeaders = row.map(h => String(h || '').toLowerCase());
+            
+            let nisIndex = -1;
+            // Prioritize 'nis' but not 'nisn'
+            nisIndex = lowerCaseHeaders.findIndex(h => h.includes('nis') && !h.includes('nisn'));
+            // If not found, fall back to any column with 'nis'
+            if (nisIndex === -1) {
+                nisIndex = lowerCaseHeaders.findIndex(h => h.includes('nis'));
+            }
+
+            const namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
+
+            // A row is considered a header if it contains both 'NIS' and 'Nama' variants
+            if (nisIndex !== -1 && namaIndex !== -1) {
+                return { rowIndex: i, nisIndex, namaIndex };
+            }
         }
-
-        const lowerCaseHeaders = headerRow.map(h => String(h || '').toLowerCase());
-
-        // Prioritize 'nis' over 'nisn'
-        nisIndex = lowerCaseHeaders.findIndex(h => h.includes('nis') && !h.includes('nisn'));
-        if (nisIndex === -1) {
-            nisIndex = lowerCaseHeaders.findIndex(h => h.includes('nis'));
-        }
-
-        namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
-
-        return { nisIndex, namaIndex };
+        return null;
     };
 
     const handleCheckDuplicates = useCallback(async () => {
@@ -74,26 +86,23 @@ export function CekDuplikasi() {
                     
                     for (const sheetName of workbook.SheetNames) {
                         const worksheet = workbook.Sheets[sheetName];
-                        // Convert to array of arrays, robust against sheets with or without headers
                         const sheetData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
                         if (sheetData.length === 0) continue;
 
-                        const { nisIndex, namaIndex } = findColumnIndices(sheetData[0]);
+                        const headerInfo = findHeaderRow(sheetData);
 
-                        if (nisIndex === -1) {
-                            // If no NIS column found in header, maybe there's no header.
-                            // We can't proceed reliably for this sheet.
-                            console.warn(`Could not find a 'NIS' column in ${file.name} -> ${sheetName}. Skipping sheet.`);
+                        if (!headerInfo) {
+                            console.warn(`Could not find a valid header row in ${file.name} -> ${sheetName}. Skipping sheet.`);
                             continue;
                         }
                         
-                        // Start from row 1 if header was found, otherwise from row 0
-                        const startRow = (namaIndex !== -1 || nisIndex !== -1) ? 1 : 0;
+                        const { rowIndex: headerRowIndex, nisIndex, namaIndex } = headerInfo;
+                        const startRow = headerRowIndex + 1;
 
                         for (let i = startRow; i < sheetData.length; i++) {
                             const row = sheetData[i];
-                            if (!row || row.length === 0) continue;
+                            if (!row || row.length === 0 || !row[nisIndex]) continue;
 
                             const nis = String(row[nisIndex] || '').trim();
                             if (!nis) continue;
