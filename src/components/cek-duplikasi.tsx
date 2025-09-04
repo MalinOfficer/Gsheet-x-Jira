@@ -40,30 +40,46 @@ export function CekDuplikasi() {
     };
 
     const findHeaderRow = (sheetData: any[][]): HeaderInfo | null => {
-        // Search for header in the first 20 rows
         for (let i = 0; i < Math.min(sheetData.length, 20); i++) {
             const row = sheetData[i];
             if (!Array.isArray(row)) continue;
 
-            const lowerCaseHeaders = row.map(h => String(h || '').toLowerCase());
+            const lowerCaseHeaders = row.map(h => String(h || '').toLowerCase().trim());
             
             let nisIndex = -1;
-            // Prioritize 'nis' but not 'nisn'
-            nisIndex = lowerCaseHeaders.findIndex(h => h.includes('nis') && !h.includes('nisn'));
-            // If not found, fall back to any column with 'nis'
+            let namaIndex = -1;
+
+            // Priority 1: Exact matches or very specific 'nis'
+            nisIndex = lowerCaseHeaders.findIndex(h => h === 'nis' || h === 'no. induk');
             if (nisIndex === -1) {
+                // Priority 2: Contains 'nis' but not 'nisn'
+                nisIndex = lowerCaseHeaders.findIndex(h => h.includes('nis') && !h.includes('nisn'));
+            }
+            if (nisIndex === -1) {
+                // Priority 3: Fallback to any 'nis'
                 nisIndex = lowerCaseHeaders.findIndex(h => h.includes('nis'));
             }
 
-            const namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
+            // Priority 1: Exact matches for "Nama"
+            const exactNamaMatches = ['nama', 'nama siswa', 'nama lengkap'];
+            namaIndex = lowerCaseHeaders.findIndex(h => exactNamaMatches.includes(h));
+            if (namaIndex === -1) {
+                // Priority 2: Contains 'nama' but exclude common false positives
+                const excludeKeywords = ['kelas', 'sekolah', 'wali', 'ayah', 'ibu', 'orang tua'];
+                namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama') && !excludeKeywords.some(keyword => h.includes(keyword)));
+            }
+            if (namaIndex === -1) {
+                // Priority 3: Fallback to any 'nama'
+                namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
+            }
 
-            // A row is considered a header if it contains both 'NIS' and 'Nama' variants
             if (nisIndex !== -1 && namaIndex !== -1) {
                 return { rowIndex: i, nisIndex, namaIndex };
             }
         }
         return null;
     };
+
 
     const handleCheckDuplicates = useCallback(async () => {
         if (files.length === 0) {
