@@ -209,7 +209,7 @@ export function CekDuplikasi() {
         if (emptyNisRecords.length > 0) {
             summary += "\nSiswa dengan NIS Kosong:\n";
             emptyNisRecords.forEach(record => {
-                summary += `- ${record.nama}\n`;
+                summary += `- ${record.nama} sheet ${record.sheetName}\n`;
             });
         }
 
