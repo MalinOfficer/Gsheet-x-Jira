@@ -118,10 +118,13 @@ export function CekDuplikasi() {
 
                         for (let i = startRow; i < sheetData.length; i++) {
                             const row = sheetData[i];
-                            if (!row || row.length === 0 || !row[nisIndex]) continue;
+                            if (!row || row.length === 0) continue;
 
-                            const nis = String(row[nisIndex] || '').trim();
-                            if (!nis) continue;
+                            const nisValue = row[nisIndex];
+                            // Skip row if NIS is empty, null, or doesn't contain any numbers
+                            if (!nisValue || String(nisValue).trim() === '' || !/\d/.test(String(nisValue))) continue;
+
+                            const nis = String(nisValue).trim();
                             
                             const nama = namaIndex !== -1 ? String(row[namaIndex] || '').trim() : 'N/A';
                             
