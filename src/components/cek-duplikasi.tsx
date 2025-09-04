@@ -32,6 +32,27 @@ export function CekDuplikasi() {
         }
     };
 
+    const findColumnIndices = (headerRow: any[]): { nisIndex: number, namaIndex: number } => {
+        let nisIndex = -1;
+        let namaIndex = -1;
+
+        if (!Array.isArray(headerRow)) {
+            return { nisIndex, namaIndex };
+        }
+
+        const lowerCaseHeaders = headerRow.map(h => String(h || '').toLowerCase());
+
+        // Prioritize 'nis' over 'nisn'
+        nisIndex = lowerCaseHeaders.findIndex(h => h.includes('nis') && !h.includes('nisn'));
+        if (nisIndex === -1) {
+            nisIndex = lowerCaseHeaders.findIndex(h => h.includes('nis'));
+        }
+
+        namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
+
+        return { nisIndex, namaIndex };
+    };
+
     const handleCheckDuplicates = useCallback(async () => {
         if (files.length === 0) {
             toast({
@@ -49,35 +70,48 @@ export function CekDuplikasi() {
             for (const file of files) {
                 try {
                     const data = await file.arrayBuffer();
-                    const workbook = XLSX.read(data);
+                    const workbook = XLSX.read(data, { type: 'buffer' });
                     
                     for (const sheetName of workbook.SheetNames) {
                         const worksheet = workbook.Sheets[sheetName];
-                        const json: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                        // Convert to array of arrays, robust against sheets with or without headers
+                        const sheetData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
-                        for (const row of json) {
-                            const keys = Object.keys(row);
-                            // Prioritaskan key 'nis' yang bukan 'nisn'
-                            const nisKey = keys.find(k => k.toLowerCase().includes('nis') && !k.toLowerCase().includes('nisn'));
-                            const namaKey = keys.find(k => k.toLowerCase().includes('nama'));
+                        if (sheetData.length === 0) continue;
 
-                            if (nisKey && row[nisKey]) {
-                                const nis = String(row[nisKey]).trim();
-                                if (!nis) continue;
-                                const nama = namaKey && row[namaKey] ? String(row[namaKey]).trim() : 'N/A';
-                                
-                                if (!nisMap.has(nis)) {
-                                    nisMap.set(nis, []);
-                                }
-                                nisMap.get(nis)?.push({ nama, fileName: file.name, sheetName });
+                        const { nisIndex, namaIndex } = findColumnIndices(sheetData[0]);
+
+                        if (nisIndex === -1) {
+                            // If no NIS column found in header, maybe there's no header.
+                            // We can't proceed reliably for this sheet.
+                            console.warn(`Could not find a 'NIS' column in ${file.name} -> ${sheetName}. Skipping sheet.`);
+                            continue;
+                        }
+                        
+                        // Start from row 1 if header was found, otherwise from row 0
+                        const startRow = (namaIndex !== -1 || nisIndex !== -1) ? 1 : 0;
+
+                        for (let i = startRow; i < sheetData.length; i++) {
+                            const row = sheetData[i];
+                            if (!row || row.length === 0) continue;
+
+                            const nis = String(row[nisIndex] || '').trim();
+                            if (!nis) continue;
+                            
+                            const nama = namaIndex !== -1 ? String(row[namaIndex] || '').trim() : 'N/A';
+                            
+                            if (!nisMap.has(nis)) {
+                                nisMap.set(nis, []);
                             }
+                            nisMap.get(nis)?.push({ nama, fileName: file.name, sheetName });
                         }
                     }
                 } catch (error) {
+                    console.error("Error processing file:", file.name, error);
                     toast({
                         variant: 'destructive',
                         title: `Error Reading ${file.name}`,
-                        description: 'The file might be corrupted or in an unsupported format.',
+                        description: `The file might be corrupted or in an unsupported format. Error: ${error instanceof Error ? error.message : 'Unknown'}`,
                     });
                 }
             }
@@ -99,6 +133,10 @@ export function CekDuplikasi() {
         setFiles([]);
         setDuplicates([]);
         setHasChecked(false);
+        const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+        if (fileInput) {
+            fileInput.value = '';
+        }
     }
 
     return (
@@ -165,7 +203,7 @@ export function CekDuplikasi() {
                                 <div className="space-y-4">
                                     <div className="flex items-center text-destructive">
                                         <AlertTriangle className="mr-2 h-5 w-5" />
-                                        <p className="font-semibold">{duplicates.length} data duplikat ditemukan.</p>
+                                        <p className="font-semibold">{new Set(duplicates.map(d => d.nis)).size} NIS ditemukan duplikat ({duplicates.length} total entri).</p>
                                     </div>
                                     <div className="relative w-full overflow-auto rounded-md border max-h-[400px]">
                                         <Table>
@@ -178,9 +216,9 @@ export function CekDuplikasi() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {duplicates.map((item, index) => (
+                                                {duplicates.sort((a, b) => a.nis.localeCompare(b.nis) || a.fileName.localeCompare(b.fileName)).map((item, index) => (
                                                     <TableRow key={index} className="bg-destructive/10">
-                                                        <TableCell>{item.nis}</TableCell>
+                                                        <TableCell className="font-medium">{item.nis}</TableCell>
                                                         <TableCell>{item.nama}</TableCell>
                                                         <TableCell>{item.fileName}</TableCell>
                                                         <TableCell>{item.sheetName}</TableCell>
