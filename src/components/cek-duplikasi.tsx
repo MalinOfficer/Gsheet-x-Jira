@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, CheckCircle2, AlertTriangle, Trash2, Search, FileWarning, Copy, Check } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, AlertTriangle, Trash2, Search, FileWarning, Copy, Check, Cake } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -22,6 +22,7 @@ type HeaderInfo = {
     rowIndex: number;
     nisIndex: number;
     namaIndex: number;
+    dobIndex: number; // Date of Birth index
 };
 
 
@@ -29,6 +30,7 @@ export function CekDuplikasi() {
     const [files, setFiles] = useState<File[]>([]);
     const [duplicates, setDuplicates] = useState<StudentRecord[]>([]);
     const [emptyNisRecords, setEmptyNisRecords] = useState<StudentRecord[]>([]);
+    const [emptyDobRecords, setEmptyDobRecords] = useState<StudentRecord[]>([]);
     const [isChecking, startChecking] = useTransition();
     const [hasChecked, setHasChecked] = useState(false);
     const { toast } = useToast();
@@ -39,6 +41,7 @@ export function CekDuplikasi() {
             setFiles(Array.from(event.target.files));
             setDuplicates([]);
             setEmptyNisRecords([]);
+            setEmptyDobRecords([]);
             setHasChecked(false);
         }
     };
@@ -52,6 +55,7 @@ export function CekDuplikasi() {
             
             let nisIndex = -1;
             let namaIndex = -1;
+            let dobIndex = -1;
 
             // Priority 1: Exact matches or very specific 'nis'
             nisIndex = lowerCaseHeaders.findIndex(h => h === 'nis' || h === 'no. induk');
@@ -77,8 +81,12 @@ export function CekDuplikasi() {
                 namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
             }
 
-            if (nisIndex !== -1 && namaIndex !== -1) {
-                return { rowIndex: i, nisIndex, namaIndex };
+            // Find Date of Birth column
+            const dobKeywords = ['tanggal lahir', 'tgl lahir'];
+            dobIndex = lowerCaseHeaders.findIndex(h => dobKeywords.includes(h));
+            
+            if (nisIndex !== -1 && namaIndex !== -1 && dobIndex !== -1) {
+                return { rowIndex: i, nisIndex, namaIndex, dobIndex };
             }
         }
         return null;
@@ -99,6 +107,7 @@ export function CekDuplikasi() {
             setHasChecked(true);
             const nisMap = new Map<string, { nama: string, fileName: string, sheetName: string }[]>();
             const foundEmptyNis: StudentRecord[] = [];
+            const foundEmptyDob: StudentRecord[] = [];
 
             for (const file of files) {
                 try {
@@ -118,7 +127,7 @@ export function CekDuplikasi() {
                             continue;
                         }
                         
-                        const { rowIndex: headerRowIndex, nisIndex, namaIndex } = headerInfo;
+                        const { rowIndex: headerRowIndex, nisIndex, namaIndex, dobIndex } = headerInfo;
                         const startRow = headerRowIndex + 1;
 
                         for (let i = startRow; i < sheetData.length; i++) {
@@ -127,11 +136,17 @@ export function CekDuplikasi() {
 
                             const nisValue = row[nisIndex];
                             const namaValue = String(row[namaIndex] || '').trim();
+                            const dobValue = row[dobIndex];
                             const nis = String(nisValue).trim();
 
                             const isNisEmpty = !nis || !/\d/.test(nis);
                             const isNamePresent = namaValue && namaValue.toLowerCase() !== 'nama';
+                            const isDobEmpty = !dobValue;
 
+                            if (isNamePresent && isDobEmpty) {
+                                foundEmptyDob.push({ nama: namaValue, fileName: file.name, sheetName });
+                            }
+                            
                             if (isNisEmpty) {
                                 if (isNamePresent) {
                                     foundEmptyNis.push({ nama: namaValue, fileName: file.name, sheetName });
@@ -166,6 +181,7 @@ export function CekDuplikasi() {
 
             setDuplicates(foundDuplicates);
             setEmptyNisRecords(foundEmptyNis);
+            setEmptyDobRecords(foundEmptyDob);
         });
     }, [files, toast]);
     
@@ -173,6 +189,7 @@ export function CekDuplikasi() {
         setFiles([]);
         setDuplicates([]);
         setEmptyNisRecords([]);
+        setEmptyDobRecords([]);
         setHasChecked(false);
         const fileInput = document.getElementById('file-upload') as HTMLInputElement;
         if (fileInput) {
@@ -203,18 +220,28 @@ export function CekDuplikasi() {
                 const sheetNames = [...new Set(records.map(r => r.sheetName))].join(', ');
                 summary += `- ${nis} telah digunakan pada nama ${names} di sheet ${sheetNames}\n`;
             });
+            summary += "\n";
         }
 
         // Empty NIS summary
         if (emptyNisRecords.length > 0) {
-            summary += "\nSiswa dengan NIS Kosong:\n";
+            summary += "Siswa dengan NIS Kosong:\n";
             emptyNisRecords.forEach(record => {
+                summary += `- ${record.nama} sheet ${record.sheetName}\n`;
+            });
+            summary += "\n";
+        }
+        
+        // Empty DOB summary
+        if (emptyDobRecords.length > 0) {
+            summary += "Siswa dengan Tanggal Lahir Kosong:\n";
+            emptyDobRecords.forEach(record => {
                 summary += `- ${record.nama} sheet ${record.sheetName}\n`;
             });
         }
 
         return summary.trim() || "Tidak ada masalah ditemukan.";
-    }, [duplicates, emptyNisRecords, hasChecked, isChecking]);
+    }, [duplicates, emptyNisRecords, emptyDobRecords, hasChecked, isChecking]);
 
 
     const handleCopySummary = () => {
@@ -236,12 +263,12 @@ export function CekDuplikasi() {
     };
 
     const renderResults = () => {
-        if (duplicates.length === 0 && emptyNisRecords.length === 0) {
+        if (duplicates.length === 0 && emptyNisRecords.length === 0 && emptyDobRecords.length === 0) {
             return (
                 <div className="flex flex-col items-center justify-center text-center py-8">
                     <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
                     <p className="font-semibold text-lg">Tidak Ada Masalah Ditemukan</p>
-                    <p className="text-muted-foreground mt-1">Tidak ada NIS duplikat atau NIS kosong pada file yang Anda unggah.</p>
+                    <p className="text-muted-foreground mt-1">Tidak ada NIS duplikat, NIS kosong, atau tanggal lahir kosong pada file yang Anda unggah.</p>
                 </div>
             );
         }
@@ -318,6 +345,40 @@ export function CekDuplikasi() {
                             </CardContent>
                         </Card>
                     )}
+                    
+                    {emptyDobRecords.length > 0 && (
+                         <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-sky-600">
+                                    <Cake />
+                                    Siswa dengan Tanggal Lahir Kosong
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                               <p className="font-semibold mb-4">{emptyDobRecords.length} siswa ditemukan tanpa tanggal lahir.</p>
+                               <div className="relative w-full overflow-auto rounded-md border max-h-[400px]">
+                                   <Table>
+                                       <TableHeader className="sticky top-0 bg-card z-10">
+                                           <TableRow>
+                                               <TableHead>Nama</TableHead>
+                                               <TableHead>Nama File</TableHead>
+                                               <TableHead>Nama Sheet</TableHead>
+                                           </TableRow>
+                                       </TableHeader>
+                                       <TableBody>
+                                           {emptyDobRecords.sort((a, b) => a.nama.localeCompare(b.nama)).map((item, index) => (
+                                               <TableRow key={index} className="bg-sky-100 dark:bg-sky-900/20">
+                                                   <TableCell className="font-medium">{item.nama}</TableCell>
+                                                   <TableCell>{item.fileName}</TableCell>
+                                                   <TableCell>{item.sheetName}</TableCell>
+                                               </TableRow>
+                                           ))}
+                                       </TableBody>
+                                   </Table>
+                               </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
 
                 <div className="lg:col-span-1">
@@ -350,9 +411,9 @@ export function CekDuplikasi() {
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
                 <header>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Cek Duplikasi & Validasi NIS</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Cek Duplikasi & Validasi Data</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Upload beberapa file Excel sekaligus untuk menemukan NIS yang duplikat dan NIS yang kosong di antara semua file dan semua sheet.
+                        Upload beberapa file Excel untuk menemukan NIS duplikat, NIS kosong, dan tanggal lahir kosong di semua file dan sheet.
                     </p>
                 </header>
 
@@ -407,3 +468,5 @@ export function CekDuplikasi() {
         </div>
     );
 }
+
+    
