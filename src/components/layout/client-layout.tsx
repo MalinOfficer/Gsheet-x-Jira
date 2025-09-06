@@ -36,11 +36,11 @@ function NavLinks() {
                     href={item.href}
                     onClick={() => handleLinkClick(item.href)}
                     className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                        "flex items-center justify-start rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
                         pathname === item.href && "bg-accent text-accent-foreground font-semibold"
                     )}
                 >
-                    <item.icon className="h-4 w-4" />
+                    <item.icon className="h-4 w-4 mr-3" />
                     {item.label}
                 </Link>
             ))}
@@ -88,7 +88,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     <Link
                         href="/settings"
                         className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                            "flex items-center justify-start rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
                             pathname === "/settings" && "bg-accent text-accent-foreground font-semibold"
                         )}
                         onClick={() => {
@@ -97,7 +97,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                             }
                         }}
                     >
-                        <Settings className="h-4 w-4" />
+                        <Settings className="h-4 w-4 mr-3" />
                         Settings
                     </Link>
                 </div>
@@ -129,7 +129,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                 <Link
                                     href="/settings"
                                     className={cn(
-                                        "flex items-center gap-3 rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                                        "flex items-center justify-start rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
                                          pathname === "/settings" && "bg-accent text-accent-foreground font-semibold"
                                     )}
                                     onClick={() => {
@@ -138,7 +138,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                         }
                                     }}
                                 >
-                                    <Settings className="h-5 w-5" />
+                                    <Settings className="h-5 w-5 mr-3" />
                                     Settings
                                 </Link>
                             </div>
