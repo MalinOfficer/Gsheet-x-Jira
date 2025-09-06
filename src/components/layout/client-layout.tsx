@@ -36,7 +36,7 @@ function NavLinks() {
                     href={item.href}
                     onClick={() => handleLinkClick(item.href)}
                     className={cn(
-                        "flex items-center justify-start rounded-lg px-2 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                        "flex items-center justify-start rounded-lg px-2 py-1.5 mb-1 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
                         pathname === item.href && "bg-accent text-accent-foreground font-semibold"
                     )}
                 >
@@ -80,7 +80,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         <span>GSheet Tools</span>
                     </Link>
                 </div>
-                <nav className="flex-1 flex flex-col gap-1 p-2 text-sm font-medium">
+                <nav className="flex-1 flex flex-col p-2 text-sm font-medium">
                     <NavLinks />
                     <ProcessingIndicator />
                 </nav>
