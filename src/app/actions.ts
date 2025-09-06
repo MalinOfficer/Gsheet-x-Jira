@@ -516,3 +516,27 @@ export async function undoLastAction(
         return { error: apiError };
     }
 }
+async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKey: string) {
+    // This is a placeholder. In a real scenario, this would involve
+    // more complex logic on the server.
+    console.log("Merging on server with key:", mergeKey);
+    const fileAMap = new Map(fileAData.rows.map((row: any) => [String(row[mergeKey]).toLowerCase(), row]));
+    
+    const mergedRows: any[] = [];
+    const unmatchedRowsB: any[] = [];
+
+    fileBData.rows.forEach((rowB: any) => {
+        const key = String(rowB[mergeKey]).toLowerCase();
+        const rowA = fileAMap.get(key);
+        if (rowA) {
+            mergedRows.push({ ...rowA, ...rowB });
+            fileAMap.delete(key); // Remove matched row
+        } else {
+            unmatchedRowsB.push(rowB);
+        }
+    });
+
+    const unmatchedRowsA = Array.from(fileAMap.values());
+
+    return { mergedRows, unmatchedRowsA, unmatchedRowsB };
+}
