@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, FileDown, Columns, AlertCircle, Check, RefreshCw, ChevronsUpDown, PlusCircle, CheckCircle, ArrowRight } from 'lucide-react';
+import { Upload, FileDown, Columns, AlertCircle, Check, RefreshCw, ChevronsUpDown, PlusCircle, CheckCircle, ArrowRight, Settings } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandInput, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
@@ -525,24 +526,59 @@ export default function DataWeaverPage() {
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
-                <header>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Data Weaver</h1>
-                    <p className="text-sm text-muted-foreground mt-1">Upload two Excel files, select a common column to merge on, choose headers, and merge them into a single table.</p>
-                </header>
-
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="flex justify-between items-center mb-4">
-                        <TabsList className="bg-muted p-1 rounded-lg">
-                            <TabsTrigger value="upload" className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">1. Upload</TabsTrigger>
-                            <TabsTrigger value="review" disabled={!fileA || !fileB} className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">2. Review &amp; Merge</TabsTrigger>
-                            <TabsTrigger value="result" disabled={!mergedData} className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">3. Result</TabsTrigger>
-                        </TabsList>
-
+                <header className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Data Weaver</h1>
+                        <p className="text-sm text-muted-foreground mt-1">Upload two Excel files, select a common column to merge on, choose headers, and merge them into a single table.</p>
+                    </div>
+                     <div className="flex items-center gap-2">
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="ghost" size="icon" disabled={!fileA || !fileB}>
+                                    <Settings className="h-5 w-5" />
+                                    <span className="sr-only">Settings</span>
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Merge Settings</DialogTitle>
+                                    <DialogDescription>
+                                        Choose a common column to join the files on, then select the columns you want in the final table.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="merge-key-dialog">Kolom Acuan</Label>
+                                        <Select value={mergeKey} onValueChange={setMergeKey} disabled={commonHeaders.length === 0}>
+                                            <SelectTrigger id="merge-key-dialog">
+                                                <SelectValue placeholder={commonHeaders.length > 0 ? "Select a column" : "No common columns"} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {commonHeaders.map(header => (
+                                                    <SelectItem key={header} value={header}>{header}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="headers-select-dialog">Headers to Include</Label>
+                                        <MultiSelect
+                                            id="headers-select-dialog"
+                                            options={mergedHeaders}
+                                            selected={selectedHeaders}
+                                            onChange={setSelectedHeaders}
+                                            className="w-full"
+                                            placeholder="Select headers to include..."
+                                        />
+                                    </div>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive" disabled={!fileA && !fileB}>
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    Reset
+                                <Button variant="destructive" size="icon" disabled={!fileA && !fileB}>
+                                    <RefreshCw className="h-5 w-5" />
+                                     <span className="sr-only">Reset</span>
                                 </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -558,6 +594,15 @@ export default function DataWeaverPage() {
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
+                    </div>
+                </header>
+
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <div className="flex justify-between items-center mb-4">
+                        <TabsList className="bg-muted p-1 rounded-lg">
+                            <TabsTrigger value="upload" className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">1. Upload</TabsTrigger>
+                            <TabsTrigger value="result" disabled={!mergedData} className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">2. Result</TabsTrigger>
+                        </TabsList>
                     </div>
                     
                     <TabsContent value="upload">
@@ -598,51 +643,12 @@ export default function DataWeaverPage() {
                             </CardContent>
                         </Card>
                          <div className="mt-4">
-                            <Button onClick={() => setActiveTab("review")} disabled={!fileA || !fileB} className="w-full">
+                            <Button onClick={handleMerge} disabled={!fileA || !fileB || !mergeKey || selectedHeaders.length === 0} className="w-full">
+                                <Columns className="mr-2 h-4 w-4" />
                                 Merge File
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         </div>
-                    </TabsContent>
-
-                    <TabsContent value="review">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Select Merge Key &amp; Headers</CardTitle>
-                                <CardDescription>Choose a common column to join the files on, then select the columns you want in the final table.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid md:grid-cols-2 gap-6 items-start">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="merge-key">Kolom Acuan</Label>
-                                        <Select value={mergeKey} onValueChange={setMergeKey} disabled={commonHeaders.length === 0}>
-                                            <SelectTrigger id="merge-key">
-                                                <SelectValue placeholder={commonHeaders.length > 0 ? "Select a column" : "No common columns"} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {commonHeaders.map(header => (
-                                                    <SelectItem key={header} value={header}>{header}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="headers-select">Headers to Include</Label>
-                                        <MultiSelect
-                                            options={mergedHeaders}
-                                            selected={selectedHeaders}
-                                            onChange={setSelectedHeaders}
-                                            className="w-full"
-                                            placeholder="Select headers to include..."
-                                        />
-                                    </div>
-                                </div>
-                                <Button onClick={handleMerge} disabled={!fileA || !fileB || !mergeKey || selectedHeaders.length === 0} className="mt-4">
-                                    <Columns className="mr-2 h-4 w-4" />
-                                    Merge Files and Continue to Result
-                                </Button>
-                            </CardContent>
-                        </Card>
                     </TabsContent>
 
                     <TabsContent value="result">
@@ -860,3 +866,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
