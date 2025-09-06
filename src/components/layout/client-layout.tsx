@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, BarChart, GanttChartSquare, Settings, Loader2, ListTree, GitBranch, Files, Combine } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useState, useRef, useCallback } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 
 const navItems = [
@@ -40,8 +40,8 @@ function NavLinks() {
                         pathname === item.href && "bg-accent text-accent-foreground font-semibold"
                     )}
                 >
-                    <item.icon className="h-4 w-4 mr-3" />
-                    {item.label}
+                    <item.icon className="h-4 w-4 mr-3 shrink-0" />
+                    <span className="truncate">{item.label}</span>
                 </Link>
             ))}
         </>
@@ -60,9 +60,54 @@ function ProcessingIndicator() {
     );
 }
 
+const LOCAL_STORAGE_KEY_SIDEBAR_WIDTH = 'sidebarWidth';
+const MIN_WIDTH = 200; // 50rem
+const MAX_WIDTH = 500; // 125rem
+
 export function ClientLayout({ children }: { children: React.ReactNode }) {
     const { isProcessing, setIsProcessing } = useContext(TableDataContext);
     const pathname = usePathname();
+    const [sidebarWidth, setSidebarWidth] = useState(256);
+    const isResizing = useRef(false);
+
+    useEffect(() => {
+        const savedWidth = localStorage.getItem(LOCAL_STORAGE_KEY_SIDEBAR_WIDTH);
+        if (savedWidth) {
+            setSidebarWidth(Number(savedWidth));
+        }
+    }, []);
+
+    const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        isResizing.current = true;
+        document.body.style.cursor = 'col-resize';
+    };
+
+    const handleMouseUp = useCallback(() => {
+        isResizing.current = false;
+        document.body.style.cursor = 'default';
+        localStorage.setItem(LOCAL_STORAGE_KEY_SIDEBAR_WIDTH, String(sidebarWidth));
+    }, [sidebarWidth]);
+
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (isResizing.current) {
+            let newWidth = e.clientX;
+            if (newWidth < MIN_WIDTH) newWidth = MIN_WIDTH;
+            if (newWidth > MAX_WIDTH) newWidth = MAX_WIDTH;
+            setSidebarWidth(newWidth);
+        }
+    }, []);
+
+    useEffect(() => {
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [handleMouseMove, handleMouseUp]);
+
 
     useEffect(() => {
         // When page navigation completes, turn off the processing indicator.
@@ -73,7 +118,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className={cn("flex min-h-screen w-full", isProcessing && "pointer-events-none")}>
             {/* Sidebar for Desktop */}
-            <aside className="hidden md:flex flex-col w-64 border-r bg-card text-card-foreground">
+            <aside 
+                className="hidden md:flex flex-col relative bg-card text-card-foreground"
+                style={{ width: `${sidebarWidth}px` }}
+            >
                 <div className="flex h-16 items-center border-b px-6">
                     <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                         <GanttChartSquare className="h-6 w-6" />
@@ -101,6 +149,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         Settings
                     </Link>
                 </div>
+                <div 
+                    className="absolute top-0 right-0 h-full w-1 cursor-col-resize bg-border hover:bg-primary transition-colors duration-200"
+                    onMouseDown={handleMouseDown}
+                />
             </aside>
 
             <div className="flex flex-col flex-1">
@@ -156,3 +208,5 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         </div>
     );
 }
+
+    
