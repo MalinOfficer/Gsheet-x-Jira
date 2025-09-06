@@ -519,20 +519,18 @@ export async function undoLastAction(
 export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKey: string) {
     console.log("Merging on server with key:", mergeKey);
     
-    // Normalize merge key for case-insensitive matching
+    // This function now runs on the server, but the logic remains the same for this basic implementation
     const fileAMap = new Map(fileAData.rows.map((row: any) => [String(row[mergeKey] || '').toLowerCase(), row]));
     
     const mergedRows: any[] = [];
-    const unmatchedRowsA = [...fileAData.rows]; // Start with all rows from A
+    const unmatchedRowsA = [...fileAData.rows]; 
 
     fileBData.rows.forEach((rowB: any) => {
         const key = String(rowB[mergeKey] || '').toLowerCase();
         const rowA = fileAMap.get(key);
         
         if (rowA) {
-            // Found a match
             mergedRows.push({ ...rowA, ...rowB });
-            // Remove the matched row from the unmatched list
             const indexToRemove = unmatchedRowsA.findIndex(r => String(r[mergeKey] || '').toLowerCase() === key);
             if (indexToRemove > -1) {
                 unmatchedRowsA.splice(indexToRemove, 1);
@@ -542,5 +540,3 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
 
     return { mergedRows, unmatchedRowsA };
 }
-
-    
