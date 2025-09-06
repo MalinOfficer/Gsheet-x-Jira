@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useTransition, useMemo } from 'react';
+import { useState, useRef, useTransition, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -376,5 +376,3 @@ export default function DataWeaverPage() {
         </div>
     );
 }
-
-    
