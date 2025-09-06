@@ -597,8 +597,8 @@ export default function DataWeaverPage() {
                                 </div>
                             </CardContent>
                         </Card>
-                         <div className="mt-4 flex justify-center">
-                            <Button onClick={() => setActiveTab("review")} disabled={!fileA || !fileB}>
+                         <div className="mt-4">
+                            <Button onClick={() => setActiveTab("review")} disabled={!fileA || !fileB} className="w-full">
                                 Merge File
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
