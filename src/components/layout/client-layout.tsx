@@ -67,7 +67,7 @@ const MAX_WIDTH = 500; // 125rem
 export function ClientLayout({ children }: { children: React.ReactNode }) {
     const { isProcessing, setIsProcessing } = useContext(TableDataContext);
     const pathname = usePathname();
-    const [sidebarWidth, setSidebarWidth] = useState(256);
+    const [sidebarWidth, setSidebarWidth] = useState(200);
     const isResizing = useRef(false);
 
     useEffect(() => {
