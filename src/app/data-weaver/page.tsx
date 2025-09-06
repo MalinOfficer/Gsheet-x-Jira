@@ -579,7 +579,7 @@ export default function DataWeaverPage() {
 
     return (
         <div className="flex-1 bg-background text-foreground">
-             <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+             <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
                 <header className="flex justify-between items-center">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Data Weaver</h1>
@@ -974,5 +974,3 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
-    
