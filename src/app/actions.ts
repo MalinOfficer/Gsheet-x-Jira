@@ -516,27 +516,31 @@ export async function undoLastAction(
         return { error: apiError };
     }
 }
-async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKey: string) {
-    // This is a placeholder. In a real scenario, this would involve
-    // more complex logic on the server.
+export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKey: string) {
     console.log("Merging on server with key:", mergeKey);
-    const fileAMap = new Map(fileAData.rows.map((row: any) => [String(row[mergeKey]).toLowerCase(), row]));
+    
+    // Normalize merge key for case-insensitive matching
+    const fileAMap = new Map(fileAData.rows.map((row: any) => [String(row[mergeKey] || '').toLowerCase(), row]));
     
     const mergedRows: any[] = [];
-    const unmatchedRowsB: any[] = [];
+    const unmatchedRowsA = [...fileAData.rows]; // Start with all rows from A
 
     fileBData.rows.forEach((rowB: any) => {
-        const key = String(rowB[mergeKey]).toLowerCase();
+        const key = String(rowB[mergeKey] || '').toLowerCase();
         const rowA = fileAMap.get(key);
+        
         if (rowA) {
+            // Found a match
             mergedRows.push({ ...rowA, ...rowB });
-            fileAMap.delete(key); // Remove matched row
-        } else {
-            unmatchedRowsB.push(rowB);
+            // Remove the matched row from the unmatched list
+            const indexToRemove = unmatchedRowsA.findIndex(r => String(r[mergeKey] || '').toLowerCase() === key);
+            if (indexToRemove > -1) {
+                unmatchedRowsA.splice(indexToRemove, 1);
+            }
         }
     });
 
-    const unmatchedRowsA = Array.from(fileAMap.values());
-
-    return { mergedRows, unmatchedRowsA, unmatchedRowsB };
+    return { mergedRows, unmatchedRowsA };
 }
+
+    

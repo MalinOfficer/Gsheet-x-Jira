@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useTransition } from 'react';
+import { useState, useRef, useTransition, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -28,44 +28,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { mergeFilesOnServer } from '@/app/actions';
 
 type TableData = {
     headers: string[];
     rows: any[];
     fileName: string;
 };
-
-type SelectOption = {
-    value: string;
-    label: string;
-};
-
-// This is a placeholder for a real server action.
-// In a real app, this would be in `src/app/actions.ts`.
-async function mergeFilesOnServer(fileAData: TableData, fileBData: TableData, mergeKey: string) {
-    // Simulate server-side processing
-    console.log("Merging on server with key:", mergeKey);
-    const fileAMap = new Map(fileAData.rows.map(row => [String(row[mergeKey]).toLowerCase(), row]));
-    
-    const mergedRows: any[] = [];
-    const unmatchedRowsB: any[] = [];
-
-    fileBData.rows.forEach(rowB => {
-        const key = String(rowB[mergeKey]).toLowerCase();
-        const rowA = fileAMap.get(key);
-        if (rowA) {
-            mergedRows.push({ ...rowA, ...rowB });
-            fileAMap.delete(key); // Remove matched row
-        } else {
-            unmatchedRowsB.push(rowB);
-        }
-    });
-
-    const unmatchedRowsA = Array.from(fileAMap.values());
-
-    return { mergedRows, unmatchedRowsA, unmatchedRowsB };
-}
-
 
 const TablePreview = ({ title, tableData }: { title: string, tableData: TableData | null }) => {
     if (!tableData) return null;
@@ -109,7 +78,6 @@ export default function DataWeaverPage() {
     const [unmatchedData, setUnmatchedData] = useState<any[] | null>(null);
     
     const [mergeKey, setMergeKey] = useState<string>('');
-    const [commonHeaders, setCommonHeaders] = useState<string[]>([]);
     
     const [isMerging, startMergeTransition] = useTransition();
 
@@ -117,32 +85,32 @@ export default function DataWeaverPage() {
     const fileBInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
 
+    const commonHeaders = useMemo(() => {
+        if (!fileA || !fileB) return [];
+        const headersA = fileA.headers.map(h => h.toLowerCase());
+        const headersB = fileB.headers.map(h => h.toLowerCase());
+        return fileA.headers.filter(h => headersB.includes(h.toLowerCase()));
+    }, [fileA, fileB]);
+
+    useEffect(() => {
+        if (commonHeaders.length > 0 && !commonHeaders.includes(mergeKey)) {
+             const defaultKey = commonHeaders.find(h => h.toLowerCase() === 'nama') || commonHeaders[0];
+             setMergeKey(defaultKey);
+        } else if (commonHeaders.length === 0) {
+            setMergeKey('');
+        }
+    }, [commonHeaders, mergeKey]);
+
+
     const handleReset = () => {
         setFileA(null);
         setFileB(null);
         setMergedData(null);
         setUnmatchedData(null);
         setMergeKey('');
-        setCommonHeaders([]);
         if(fileAInputRef.current) fileAInputRef.current.value = '';
         if(fileBInputRef.current) fileBInputRef.current.value = '';
         toast({ title: "Reset Complete", description: "All files and data have been cleared." });
-    };
-
-    const updateCommonHeaders = (headersA?: string[], headersB?: string[]) => {
-        if (headersA && headersB) {
-            const common = headersA.filter(h => headersB.includes(h));
-            setCommonHeaders(common);
-            if (common.includes('nama')) {
-                setMergeKey('nama');
-            } else if (common.length > 0) {
-                setMergeKey(common[0]);
-            } else {
-                setMergeKey('');
-            }
-        } else {
-            setCommonHeaders([]);
-        }
     };
 
     const handleFileUpload = (file: File, fileType: 'A' | 'B') => {
@@ -165,10 +133,8 @@ export default function DataWeaverPage() {
 
                 if (fileType === 'A') {
                     setFileA(newTableData);
-                    updateCommonHeaders(newTableData.headers, fileB?.headers);
                 } else {
                     setFileB(newTableData);
-                    updateCommonHeaders(fileA?.headers, newTableData.headers);
                 }
                 toast({ title: "File Uploaded", description: `${file.name} has been processed.` });
             } catch (error) {
@@ -196,10 +162,10 @@ export default function DataWeaverPage() {
                 setUnmatchedData(unmatchedRowsA);
                 toast({
                     title: "Merge Successful",
-                    description: `${mergedRows.length} rows were matched and merged. ${unmatchedRowsA.length} rows were not matched.`
+                    description: `${mergedRows.length} rows were matched and merged. ${unmatchedRowsA.length} rows from File A were not matched.`
                 });
             } catch (error) {
-                toast({
+                 toast({
                     variant: 'destructive',
                     title: "Server Error",
                     description: "An error occurred while merging the files on the server."
@@ -410,3 +376,5 @@ export default function DataWeaverPage() {
         </div>
     );
 }
+
+    
