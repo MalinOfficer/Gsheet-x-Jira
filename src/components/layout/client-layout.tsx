@@ -73,7 +73,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className={cn("flex min-h-screen w-full", isProcessing && "pointer-events-none")}>
             {/* Sidebar for Desktop */}
-            <aside className="hidden md:flex flex-col w-64 border-r bg-card text-card-foreground">
+            <aside className="hidden md:flex flex-col w-72 border-r bg-card text-card-foreground">
                 <div className="flex h-16 items-center border-b px-6">
                     <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                         <GanttChartSquare className="h-6 w-6" />
