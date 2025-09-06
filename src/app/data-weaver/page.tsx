@@ -640,7 +640,7 @@ export default function DataWeaverPage() {
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <div className="px-4 sm:px-6 md:px-8">
-                    <TabsList className="bg-muted p-1 rounded-lg grid w-full grid-cols-3 max-w-5xl mx-auto">
+                    <TabsList className="p-1 rounded-lg grid w-full grid-cols-3 max-w-5xl mx-auto bg-card border">
                         <TabsTrigger value="upload">1. Upload</TabsTrigger>
                         <TabsTrigger value="review" disabled={!mergedData}>2. Review</TabsTrigger>
                         <TabsTrigger value="result" disabled={!mergedData}>3. Result</TabsTrigger>
