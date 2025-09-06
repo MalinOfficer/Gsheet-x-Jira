@@ -119,7 +119,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <div className={cn("flex min-h-screen w-full", isProcessing && "pointer-events-none")}>
             {/* Sidebar for Desktop */}
             <aside 
-                className="hidden md:flex flex-col relative bg-card text-card-foreground"
+                className="hidden md:flex flex-col relative bg-card text-card-foreground border-r"
                 style={{ width: `${sidebarWidth}px` }}
             >
                 <div className="flex h-16 items-center border-b px-6">
