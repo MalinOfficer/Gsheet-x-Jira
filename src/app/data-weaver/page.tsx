@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Upload, FileDown, Columns, AlertCircle, Check, RefreshCw, ChevronsUpDown, PlusCircle, CheckCircle, ArrowRight, Settings, Save, Forward } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +35,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandInput, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CardFooter } from '@/components/ui/card';
 
 
 declare const XLSX: any;
@@ -292,9 +291,9 @@ export default function DataWeaverPage() {
     
     const getSimilarityKey = (name: any) => {
         if (typeof name !== 'string') return '';
+        // The problematic regex was here. I will just normalize to lowercase.
         return name
             .toLowerCase()
-            .replace(/\b(m|moch)\b.?/g, 'muhammad') 
             .replace(/[^a-z0-9s']/g, '') // Keep apostrophes
             .replace(/\s+/g, ' ')
             .trim();
@@ -676,12 +675,19 @@ export default function DataWeaverPage() {
                                 </AlertDialog>
                             </CardHeader>
                             <CardContent className="grid md:grid-cols-2 gap-6">
-                                <div className="flex flex-col items-center gap-2 p-4 border-2 border-dashed rounded-lg">
+                                <div className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg min-h-[100px]">
                                     <h3 className="font-semibold">File NISN</h3>
-                                    <Button onClick={() => fileAInputRef.current?.click()} variant={fileA ? "ghost" : "outline"} disabled={!!fileA}>
-                                        {fileA ? <CheckCircle className="mr-2 h-4 w-4 text-green-500"/> : <Upload className="mr-2 h-4 w-4" />}
-                                        {fileA?.fileName || "Upload File NISN"}
-                                    </Button>
+                                    {fileA ? (
+                                        <div className="flex items-center gap-2 text-sm font-medium text-green-600">
+                                            <CheckCircle className="h-5 w-5" />
+                                            <span className="truncate">{fileA.fileName}</span>
+                                        </div>
+                                    ) : (
+                                        <Button onClick={() => fileAInputRef.current?.click()} variant="outline">
+                                            <Upload className="mr-2 h-4 w-4" />
+                                            Upload File NISN
+                                        </Button>
+                                    )}
                                     <Input
                                         type="file"
                                         ref={fileAInputRef}
@@ -690,12 +696,19 @@ export default function DataWeaverPage() {
                                         onChange={(e) => e.target.files && handleFileUpload(e.target.files[0], 'A')}
                                     />
                                 </div>
-                                <div className="flex flex-col items-center gap-2 p-4 border-2 border-dashed rounded-lg">
+                                <div className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg min-h-[100px]">
                                     <h3 className="font-semibold">File id Bulk</h3>
-                                    <Button onClick={() => fileBInputRef.current?.click()} variant={fileB ? "ghost" : "outline"} disabled={!!fileB}>
-                                        {fileB ? <CheckCircle className="mr-2 h-4 w-4 text-green-500"/> : <Upload className="mr-2 h-4 w-4" />}
-                                        {fileB?.fileName || "Upload File id Bulk"}
-                                    </Button>
+                                    {fileB ? (
+                                        <div className="flex items-center gap-2 text-sm font-medium text-green-600">
+                                            <CheckCircle className="h-5 w-5" />
+                                            <span className="truncate">{fileB.fileName}</span>
+                                        </div>
+                                    ) : (
+                                        <Button onClick={() => fileBInputRef.current?.click()} variant="outline">
+                                            <Upload className="mr-2 h-4 w-4" />
+                                            Upload File id Bulk
+                                        </Button>
+                                    )}
                                     <Input
                                         type="file"
                                         ref={fileBInputRef}
@@ -957,3 +970,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
