@@ -17,7 +17,7 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="flex-1 p-4 sm:p-6 md:p-8">
+    <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <header>
           <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">

@@ -970,5 +970,3 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
-    
