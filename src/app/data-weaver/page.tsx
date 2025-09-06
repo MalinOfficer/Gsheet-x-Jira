@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -534,7 +535,7 @@ export default function DataWeaverPage() {
                     <div className="flex justify-between items-center mb-4">
                         <TabsList className="bg-muted p-1 rounded-lg">
                             <TabsTrigger value="upload" className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">1. Upload</TabsTrigger>
-                            <TabsTrigger value="review" disabled={!fileA || !fileB} className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">2. Review & Merge</TabsTrigger>
+                            <TabsTrigger value="review" disabled={!fileA || !fileB} className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">2. Review &amp; Merge</TabsTrigger>
                             <TabsTrigger value="result" disabled={!mergedData} className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">3. Result</TabsTrigger>
                         </TabsList>
 
@@ -703,23 +704,24 @@ export default function DataWeaverPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
+                                     <div className="mb-4">
+                                        <Button
+                                            size="sm"
+                                            onClick={handleBulkManualMerge}
+                                            className="bg-yellow-500 text-yellow-900 hover:bg-yellow-600 disabled:bg-muted disabled:text-muted-foreground"
+                                            disabled={rowsToMerge.length === 0}
+                                        >
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Add Selected to Merged Results ({rowsToMerge.length})
+                                        </Button>
+                                    </div>
                                     <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
                                         <Table>
                                             <TableHeader className="sticky top-0 bg-card">
                                                 <TableRow>
                                                     <TableHead>Nama File NISN</TableHead>
                                                     <TableHead>Nama File Id Bulk</TableHead>
-                                                    <TableHead className="text-center">
-                                                        <Button
-                                                            size="sm"
-                                                            onClick={handleBulkManualMerge}
-                                                            className="bg-yellow-500 text-yellow-900 hover:bg-yellow-600 disabled:bg-muted disabled:text-muted-foreground"
-                                                            disabled={rowsToMerge.length === 0}
-                                                        >
-                                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                                            Add Selected to Merged Results ({rowsToMerge.length})
-                                                        </Button>
-                                                    </TableHead>
+                                                    <TableHead className="text-center">Validasi</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
@@ -853,3 +855,6 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+
+    
