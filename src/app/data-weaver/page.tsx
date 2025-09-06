@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Upload, FileDown, Columns, AlertCircle, Check, RefreshCw, ChevronsUpDown, PlusCircle, CheckCircle, ArrowRight, Settings, Save, Forward } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandInput, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CardFooter } from '@/components/ui/card';
 
 
 declare const XLSX: any;
@@ -648,9 +649,31 @@ export default function DataWeaverPage() {
                     
                     <TabsContent value="upload">
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Upload Files</CardTitle>
-                                <CardDescription>Select two Excel files (.xlsx, .xls). Data is saved in your browser.</CardDescription>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle>Upload Files</CardTitle>
+                                    <CardDescription>Select two Excel files (.xlsx, .xls). Data is saved in your browser.</CardDescription>
+                                </div>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="destructive" size="sm" disabled={!fileA && !fileB}>
+                                            <RefreshCw className="mr-2 h-4 w-4" />
+                                            Reset All
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action will permanently delete the uploaded files and all merged data from your browser session. You will need to upload the files again.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleReset}>Yes, Reset</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </CardHeader>
                             <CardContent className="grid md:grid-cols-2 gap-6">
                                 <div className="flex flex-col items-center gap-2 p-4 border-2 border-dashed rounded-lg">
@@ -682,32 +705,12 @@ export default function DataWeaverPage() {
                                     />
                                 </div>
                             </CardContent>
-                             <CardFooter className="flex-col items-stretch gap-4">
+                             <CardFooter>
                                 <Button onClick={handleMerge} disabled={!fileA || !fileB || !mergeKey || selectedHeaders.length === 0} className="w-full">
                                     <Columns className="mr-2 h-4 w-4" />
                                     Merge File
                                     <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="destructive" disabled={!fileA && !fileB}>
-                                            <RefreshCw className="mr-2 h-4 w-4" />
-                                             Reset All
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This action will permanently delete the uploaded files and all merged data from your browser session. You will need to upload the files again.
-                                        </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleReset}>Yes, Reset</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
                             </CardFooter>
                         </Card>
                     </TabsContent>
@@ -954,5 +957,3 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
-    
