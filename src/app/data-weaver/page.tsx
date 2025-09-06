@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, FileDown, Columns, AlertCircle, Check, RefreshCw, ChevronsUpDown, PlusCircle, CheckCircle } from 'lucide-react';
+import { Upload, FileDown, Columns, AlertCircle, Check, RefreshCw, ChevronsUpDown, PlusCircle, CheckCircle, ArrowRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Input } from '@/components/ui/input';
@@ -117,7 +117,6 @@ export default function DataWeaverPage() {
 
     useEffect(() => {
         if (fileA && fileB) {
-            setActiveTab("review");
             const allHeadersRaw = ['No', ...fileA.headers, ...fileB.headers];
             const seenHeaders: { [key: string]: string } = {};
             allHeadersRaw.forEach(h => {
@@ -598,6 +597,12 @@ export default function DataWeaverPage() {
                                 </div>
                             </CardContent>
                         </Card>
+                         <div className="mt-4 flex justify-center">
+                            <Button onClick={() => setActiveTab("review")} disabled={!fileA || !fileB}>
+                                Merge File
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </div>
                     </TabsContent>
 
                     <TabsContent value="review">
@@ -855,6 +860,3 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
-
-    
