@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, FileDown, Columns, AlertCircle, Check, RefreshCw, ChevronsUpDown, PlusCircle, CheckCircle, ArrowRight, Settings } from 'lucide-react';
+import { Upload, FileDown, Columns, AlertCircle, Check, RefreshCw, ChevronsUpDown, PlusCircle, CheckCircle, ArrowRight, Settings, Save } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Input } from '@/components/ui/input';
@@ -49,6 +49,9 @@ type UnmatchedRow = {
     suggestion: any | null; // Suggested match from File B
 };
 
+const LOCAL_STORAGE_KEY_MERGE_KEY = 'dataWeaverDefaultMergeKey';
+const LOCAL_STORAGE_KEY_HEADERS = 'dataWeaverDefaultHeaders';
+
 
 // Helper to decode HTML entities
 const decodeHtml = (html: string | null | undefined): string => {
@@ -77,14 +80,39 @@ export default function DataWeaverPage() {
     const fileBInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
 
+    // Effect to load defaults from localStorage on initial render
+    useEffect(() => {
+        const savedMergeKey = localStorage.getItem(LOCAL_STORAGE_KEY_MERGE_KEY);
+        if (savedMergeKey) {
+            setMergeKey(savedMergeKey);
+        }
+
+        const savedHeaders = localStorage.getItem(LOCAL_STORAGE_KEY_HEADERS);
+        if (savedHeaders) {
+            try {
+                const parsedHeaders = JSON.parse(savedHeaders);
+                if (Array.isArray(parsedHeaders)) {
+                    setSelectedHeaders(parsedHeaders);
+                }
+            } catch (e) {
+                console.error("Failed to parse saved headers from localStorage", e);
+                // Fallback to default if parsing fails
+                 const defaultSelection = ['no', 'id', 'nama', 'nisn'];
+                setSelectedHeaders(defaultSelection);
+            }
+        } else {
+             // Fallback to default if nothing is in localStorage
+             const defaultSelection = ['no', 'id', 'nama', 'nisn'];
+            setSelectedHeaders(defaultSelection);
+        }
+    }, []);
+
     // Effect to reset local state when context is reset
     useEffect(() => {
         if (!fileA && !fileB) {
             setMergedHeaders([]);
-            setSelectedHeaders([]);
             setMergedData(null);
             setUnmatchedData(null);
-            setMergeKey('');
             setCommonHeaders([]);
             setManualSelections({});
             setRowsToMerge([]);
@@ -102,13 +130,19 @@ export default function DataWeaverPage() {
             const common = headersA.filter(h => lowercasedHeadersB.includes(h.toLowerCase()));
             setCommonHeaders(common);
 
-            const defaultKey = common.find(h => h.toLowerCase() === 'nama');
-            if (defaultKey) {
-                setMergeKey(defaultKey);
-            } else if (mergeKey && !common.map(h => h.toLowerCase()).includes(mergeKey.toLowerCase())) {
-                setMergeKey(common.length > 0 ? common[0] : '');
-            } else if (!mergeKey && common.length > 0) {
-                setMergeKey(common[0]);
+            const savedMergeKey = localStorage.getItem(LOCAL_STORAGE_KEY_MERGE_KEY);
+            
+            if (savedMergeKey && common.map(h => h.toLowerCase()).includes(savedMergeKey.toLowerCase())) {
+                setMergeKey(savedMergeKey);
+            } else {
+                const defaultKey = common.find(h => h.toLowerCase() === 'nama');
+                if (defaultKey) {
+                    setMergeKey(defaultKey);
+                } else if (mergeKey && !common.map(h => h.toLowerCase()).includes(mergeKey.toLowerCase())) {
+                    setMergeKey(common.length > 0 ? common[0] : '');
+                } else if (!mergeKey && common.length > 0) {
+                    setMergeKey(common[0]);
+                }
             }
         } else {
             setCommonHeaders([]);
@@ -135,17 +169,20 @@ export default function DataWeaverPage() {
             
             updateCommonHeaders(fileA.headers, fileB.headers);
 
-            const defaultSelection = ['no', 'id', 'nama', 'nisn'];
-            const finalSelection: string[] = [];
-            uniqueHeaders.forEach(uh => {
-                if(defaultSelection.includes(uh.toLowerCase())) {
-                    finalSelection.push(uh);
-                }
-            });
-             const orderedSelection = defaultSelection
-                .map(ds => finalSelection.find(fs => fs.toLowerCase() === ds))
-                .filter((item): item is string => !!item);
-            setSelectedHeaders(orderedSelection);
+            const savedHeaders = localStorage.getItem(LOCAL_STORAGE_KEY_HEADERS);
+            if (!savedHeaders) {
+                const defaultSelection = ['no', 'id', 'nama', 'nisn'];
+                const finalSelection: string[] = [];
+                uniqueHeaders.forEach(uh => {
+                    if(defaultSelection.includes(uh.toLowerCase())) {
+                        finalSelection.push(uh);
+                    }
+                });
+                const orderedSelection = defaultSelection
+                    .map(ds => finalSelection.find(fs => fs.toLowerCase() === ds))
+                    .filter((item): item is string => !!item);
+                setSelectedHeaders(orderedSelection);
+            }
 
         }
     }, [fileA, fileB, updateCommonHeaders]);
@@ -521,6 +558,25 @@ export default function DataWeaverPage() {
             [originalRowKey]: selectedRowB
         }));
     };
+    
+    const handleSaveDefaults = () => {
+        if (!mergeKey) {
+            toast({ variant: "destructive", title: "Cannot Save Defaults", description: "Please select a merge key first." });
+            return;
+        }
+        if (selectedHeaders.length === 0) {
+            toast({ variant: "destructive", title: "Cannot Save Defaults", description: "Please select at least one header to include." });
+            return;
+        }
+        
+        localStorage.setItem(LOCAL_STORAGE_KEY_MERGE_KEY, mergeKey);
+        localStorage.setItem(LOCAL_STORAGE_KEY_HEADERS, JSON.stringify(selectedHeaders));
+        
+        toast({
+            title: "Defaults Saved",
+            description: "Your merge key and header selections have been saved in this browser.",
+        });
+    };
 
 
     return (
@@ -570,6 +626,12 @@ export default function DataWeaverPage() {
                                             className="w-full"
                                             placeholder="Select headers to include..."
                                         />
+                                    </div>
+                                    <div className="pt-4 border-t">
+                                        <Button onClick={handleSaveDefaults} size="sm" variant="outline">
+                                            <Save className="mr-2 h-4 w-4" />
+                                            Set as Default
+                                        </Button>
                                     </div>
                                 </div>
                             </DialogContent>
@@ -866,5 +928,3 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
-    
