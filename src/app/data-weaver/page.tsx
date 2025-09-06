@@ -578,8 +578,8 @@ export default function DataWeaverPage() {
 
 
     return (
-        <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-            <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex-1 bg-background text-foreground">
+             <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6">
                 <header className="flex justify-between items-center">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Data Weaver</h1>
@@ -636,17 +636,19 @@ export default function DataWeaverPage() {
                         </Dialog>
                     </div>
                 </header>
+            </div>
 
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="flex justify-between items-center mb-4">
-                        <TabsList className="bg-muted p-1 rounded-lg">
-                            <TabsTrigger value="upload" className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">1. Upload</TabsTrigger>
-                            <TabsTrigger value="review" disabled={!mergedData} className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">2. Review</TabsTrigger>
-                            <TabsTrigger value="result" disabled={!mergedData} className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">3. Result</TabsTrigger>
-                        </TabsList>
-                    </div>
-                    
-                    <TabsContent value="upload">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <div className="px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+                    <TabsList className="bg-muted p-1 rounded-lg">
+                        <TabsTrigger value="upload" className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">1. Upload</TabsTrigger>
+                        <TabsTrigger value="review" disabled={!mergedData} className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">2. Review</TabsTrigger>
+                        <TabsTrigger value="result" disabled={!mergedData} className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">3. Result</TabsTrigger>
+                    </TabsList>
+                </div>
+                
+                <TabsContent value="upload" className="mt-4">
+                     <div className="px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <div>
@@ -726,120 +728,122 @@ export default function DataWeaverPage() {
                                 </Button>
                             </CardFooter>
                         </Card>
-                    </TabsContent>
+                    </div>
+                </TabsContent>
 
-                    <TabsContent value="review">
-                        <div className="space-y-6">
-                            {mergedData && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Review Summary</CardTitle>
-                                        <CardDescription>
-                                            The initial merge is complete. Review the unmatched data below or proceed to the final result.
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="text-lg">
-                                            <p><span className="font-bold text-green-600">{mergedData.length} rows</span> were matched automatically.</p>
-                                            {unmatchedData && <p><span className="font-bold text-yellow-600">{unmatchedData.length} rows</span> could not be matched.</p>}
+                <TabsContent value="review" className="mt-4">
+                    <div className="space-y-6 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+                        {mergedData && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Review Summary</CardTitle>
+                                    <CardDescription>
+                                        The initial merge is complete. Review the unmatched data below or proceed to the final result.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-lg">
+                                        <p><span className="font-bold text-green-600">{mergedData.length} rows</span> were matched automatically.</p>
+                                        {unmatchedData && <p><span className="font-bold text-yellow-600">{unmatchedData.length} rows</span> could not be matched.</p>}
+                                    </div>
+                                </CardContent>
+                                <CardFooter>
+                                    <Button onClick={() => setActiveTab("result")} className="w-full sm:w-auto">
+                                        Continue to Result
+                                        <Forward className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        )}
+
+                        {unmatchedData && unmatchedData.length > 0 && (
+                            <Card>
+                                <CardHeader>
+                                    <div className="flex items-center gap-4">
+                                        <AlertCircle className="h-5 w-5 text-yellow-500" />
+                                        <div>
+                                            <CardTitle>Unmatched Data from {fileA?.fileName}</CardTitle>
+                                            <CardDescription>These {unmatchedData.length} rows did not have a matching key in {fileB?.fileName}. Validate any suggestions below.</CardDescription>
                                         </div>
-                                    </CardContent>
-                                    <CardFooter>
-                                        <Button onClick={() => setActiveTab("result")} className="w-full sm:w-auto">
-                                            Continue to Result
-                                            <Forward className="ml-2 h-4 w-4" />
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="mb-4">
+                                        <Button
+                                            size="sm"
+                                            onClick={handleBulkManualMerge}
+                                            className="bg-yellow-500 text-yellow-900 hover:bg-yellow-600 disabled:bg-muted disabled:text-muted-foreground"
+                                            disabled={rowsToMerge.length === 0}
+                                        >
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Add Selected to Merged Results ({rowsToMerge.length})
                                         </Button>
-                                    </CardFooter>
-                                </Card>
-                            )}
+                                    </div>
+                                    <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
+                                        <Table>
+                                            <TableHeader className="sticky top-0 bg-card">
+                                                <TableRow>
+                                                    <TableHead>Nama File NISN</TableHead>
+                                                    <TableHead>Nama File Id Bulk</TableHead>
+                                                    <TableHead className="text-center">Validasi</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {unmatchedData.map((unmatchedRow, rowIndex) => {
+                                                    const fileAMergeKey = fileA?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
+                                                    const fileBMergeKey = fileB?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
+                                                    const originalRowAKey = String(unmatchedRow.rowData[fileAMergeKey]);
 
-                            {unmatchedData && unmatchedData.length > 0 && (
-                                <Card>
-                                    <CardHeader>
-                                        <div className="flex items-center gap-4">
-                                            <AlertCircle className="h-5 w-5 text-yellow-500" />
-                                            <div>
-                                                <CardTitle>Unmatched Data from {fileA?.fileName}</CardTitle>
-                                                <CardDescription>These {unmatchedData.length} rows did not have a matching key in {fileB?.fileName}. Validate any suggestions below.</CardDescription>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="mb-4">
-                                            <Button
-                                                size="sm"
-                                                onClick={handleBulkManualMerge}
-                                                className="bg-yellow-500 text-yellow-900 hover:bg-yellow-600 disabled:bg-muted disabled:text-muted-foreground"
-                                                disabled={rowsToMerge.length === 0}
-                                            >
-                                                <PlusCircle className="mr-2 h-4 w-4" />
-                                                Add Selected to Merged Results ({rowsToMerge.length})
-                                            </Button>
-                                        </div>
-                                        <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
-                                            <Table>
-                                                <TableHeader className="sticky top-0 bg-card">
-                                                    <TableRow>
-                                                        <TableHead>Nama File NISN</TableHead>
-                                                        <TableHead>Nama File Id Bulk</TableHead>
-                                                        <TableHead className="text-center">Validasi</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {unmatchedData.map((unmatchedRow, rowIndex) => {
-                                                        const fileAMergeKey = fileA?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
-                                                        const fileBMergeKey = fileB?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
-                                                        const originalRowAKey = String(unmatchedRow.rowData[fileAMergeKey]);
+                                                    const allUnmatchedFileBRows = fileB?.rows.filter(rowB =>
+                                                        !mergedData?.some(mergedRow => {
+                                                            const mergedKey = Object.keys(mergedRow).find(k => k.toLowerCase() === fileBMergeKey.toLowerCase());
+                                                            const rowBKey = Object.keys(rowB).find(k => k.toLowerCase() === fileBMergeKey.toLowerCase());
+                                                            return mergedKey && rowBKey && mergedRow[mergedKey] === rowB[rowBKey];
+                                                        })
+                                                    ) || [];
 
-                                                        const allUnmatchedFileBRows = fileB?.rows.filter(rowB =>
-                                                            !mergedData?.some(mergedRow => {
-                                                                const mergedKey = Object.keys(mergedRow).find(k => k.toLowerCase() === fileBMergeKey.toLowerCase());
-                                                                const rowBKey = Object.keys(rowB).find(k => k.toLowerCase() === fileBMergeKey.toLowerCase());
-                                                                return mergedKey && rowBKey && mergedRow[mergedKey] === rowB[rowBKey];
-                                                            })
-                                                        ) || [];
+                                                    const currentSelection = manualSelections[originalRowAKey] || unmatchedRow.suggestion;
+                                                    const isQueued = rowsToMerge.includes(originalRowAKey);
 
-                                                        const currentSelection = manualSelections[originalRowAKey] || unmatchedRow.suggestion;
-                                                        const isQueued = rowsToMerge.includes(originalRowAKey);
+                                                    return (
+                                                        <TableRow key={rowIndex} className={isQueued ? 'bg-yellow-100/50 dark:bg-yellow-900/20' : ''}>
+                                                            <TableCell>
+                                                                {decodeHtml(String(unmatchedRow.rowData?.[fileAMergeKey] ?? 'No name'))}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <ManualSelectCombobox
+                                                                    rowsB={allUnmatchedFileBRows}
+                                                                    mergeKeyB={fileBMergeKey}
+                                                                    value={currentSelection}
+                                                                    onSelect={(selectedRowB) => {
+                                                                        handleManualSelection(unmatchedRow.rowData, selectedRowB);
+                                                                    }}
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell className="flex justify-center items-center gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    onClick={() => handleMarkForMerge(unmatchedRow)}
+                                                                    variant={isQueued ? "secondary" : "outline"}
+                                                                    disabled={!currentSelection}
+                                                                >
+                                                                    {isQueued ? <><Check className="mr-2 h-4 w-4" /> Terpilih</> : "Match"}
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+                </TabsContent>
 
-                                                        return (
-                                                            <TableRow key={rowIndex} className={isQueued ? 'bg-yellow-100/50 dark:bg-yellow-900/20' : ''}>
-                                                                <TableCell>
-                                                                    {decodeHtml(String(unmatchedRow.rowData?.[fileAMergeKey] ?? 'No name'))}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <ManualSelectCombobox
-                                                                        rowsB={allUnmatchedFileBRows}
-                                                                        mergeKeyB={fileBMergeKey}
-                                                                        value={currentSelection}
-                                                                        onSelect={(selectedRowB) => {
-                                                                            handleManualSelection(unmatchedRow.rowData, selectedRowB);
-                                                                        }}
-                                                                    />
-                                                                </TableCell>
-                                                                <TableCell className="flex justify-center items-center gap-2">
-                                                                    <Button
-                                                                        size="sm"
-                                                                        onClick={() => handleMarkForMerge(unmatchedRow)}
-                                                                        variant={isQueued ? "secondary" : "outline"}
-                                                                        disabled={!currentSelection}
-                                                                    >
-                                                                        {isQueued ? <><Check className="mr-2 h-4 w-4" /> Terpilih</> : "Match"}
-                                                                    </Button>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        )
-                                                    })}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            )}
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="result">
+                <TabsContent value="result" className="mt-4">
+                     <div className="px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
                         {mergedData && (
                             <Card className="mb-6">
                                 <CardHeader>
@@ -890,9 +894,9 @@ export default function DataWeaverPage() {
                                 </CardContent>
                             </Card>
                         )}
-                    </TabsContent>
-                </Tabs>
-            </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
@@ -970,3 +974,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
