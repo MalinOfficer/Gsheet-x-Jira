@@ -811,7 +811,7 @@ export default function DataWeaverPage() {
                                                                         variant={isQueued ? "secondary" : "outline"}
                                                                         disabled={!currentSelection}
                                                                     >
-                                                                        {isQueued ? <><Check className="mr-2 h-4 w-4" /> Terpilih</> : "Select for Merge"}
+                                                                        {isQueued ? <><Check className="mr-2 h-4 w-4" /> Terpilih</> : "Match"}
                                                                     </Button>
                                                                 </TableCell>
                                                             </TableRow>
