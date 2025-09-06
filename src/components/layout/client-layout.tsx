@@ -36,7 +36,7 @@ function NavLinks() {
                     href={item.href}
                     onClick={() => handleLinkClick(item.href)}
                     className={cn(
-                        "flex items-center justify-start rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                        "flex items-center justify-start rounded-lg px-2 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
                         pathname === item.href && "bg-accent text-accent-foreground font-semibold"
                     )}
                 >
@@ -73,14 +73,14 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className={cn("flex min-h-screen w-full", isProcessing && "pointer-events-none")}>
             {/* Sidebar for Desktop */}
-            <aside className="hidden md:flex flex-col w-72 border-r bg-card text-card-foreground">
+            <aside className="hidden md:flex flex-col w-64 border-r bg-card text-card-foreground">
                 <div className="flex h-16 items-center border-b px-6">
                     <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                         <GanttChartSquare className="h-6 w-6" />
                         <span>GSheet Tools</span>
                     </Link>
                 </div>
-                <nav className="flex-1 flex flex-col gap-1 p-4 text-sm font-medium">
+                <nav className="flex-1 flex flex-col gap-1 p-2 text-sm font-medium">
                     <NavLinks />
                     <ProcessingIndicator />
                 </nav>
