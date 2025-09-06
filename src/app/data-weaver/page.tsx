@@ -634,26 +634,6 @@ export default function DataWeaverPage() {
                                 </div>
                             </DialogContent>
                         </Dialog>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="icon" disabled={!fileA && !fileB}>
-                                    <RefreshCw className="h-5 w-5" />
-                                     <span className="sr-only">Reset</span>
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This action will permanently delete the uploaded files and all merged data from your browser session. You will need to upload the files again.
-                                </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleReset}>Yes, Reset</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
                     </div>
                 </header>
 
@@ -702,14 +682,34 @@ export default function DataWeaverPage() {
                                     />
                                 </div>
                             </CardContent>
+                             <CardFooter className="flex-col items-stretch gap-4">
+                                <Button onClick={handleMerge} disabled={!fileA || !fileB || !mergeKey || selectedHeaders.length === 0} className="w-full">
+                                    <Columns className="mr-2 h-4 w-4" />
+                                    Merge File
+                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="destructive" disabled={!fileA && !fileB}>
+                                            <RefreshCw className="mr-2 h-4 w-4" />
+                                             Reset All
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action will permanently delete the uploaded files and all merged data from your browser session. You will need to upload the files again.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleReset}>Yes, Reset</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </CardFooter>
                         </Card>
-                         <div className="mt-4">
-                            <Button onClick={handleMerge} disabled={!fileA || !fileB || !mergeKey || selectedHeaders.length === 0} className="w-full">
-                                <Columns className="mr-2 h-4 w-4" />
-                                Merge File
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
-                        </div>
                     </TabsContent>
 
                     <TabsContent value="review">
@@ -954,3 +954,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
