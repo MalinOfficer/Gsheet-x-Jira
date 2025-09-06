@@ -579,8 +579,8 @@ export default function DataWeaverPage() {
 
     return (
         <div className="flex-1 bg-background text-foreground">
-             <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
-                <header className="flex justify-between items-center">
+             <header className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto">
+                <div className="flex justify-between items-center">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Data Weaver</h1>
                         <p className="text-sm text-muted-foreground mt-1">Upload two Excel files, select a common column to merge on, choose headers, and merge them into a single table.</p>
@@ -635,12 +635,12 @@ export default function DataWeaverPage() {
                             </DialogContent>
                         </Dialog>
                     </div>
-                </header>
-            </div>
+                </div>
+            </header>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <div className="px-4 sm:px-6 md:px-8">
-                    <TabsList className="bg-muted p-1 rounded-lg grid w-full grid-cols-3">
+                    <TabsList className="bg-muted p-1 rounded-lg grid w-full grid-cols-3 max-w-5xl mx-auto">
                         <TabsTrigger value="upload">1. Upload</TabsTrigger>
                         <TabsTrigger value="review" disabled={!mergedData}>2. Review</TabsTrigger>
                         <TabsTrigger value="result" disabled={!mergedData}>3. Result</TabsTrigger>
@@ -648,7 +648,7 @@ export default function DataWeaverPage() {
                 </div>
                 
                 <TabsContent value="upload" className="mt-4">
-                     <div className="px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+                     <div className="px-4 sm:px-6 md:px-8 max-w-5xl mx-auto">
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <div>
@@ -732,7 +732,7 @@ export default function DataWeaverPage() {
                 </TabsContent>
 
                 <TabsContent value="review" className="mt-4">
-                    <div className="space-y-6 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+                    <div className="space-y-6 px-4 sm:px-6 md:px-8 max-w-5xl mx-auto">
                         {mergedData && (
                             <Card>
                                 <CardHeader>
@@ -843,7 +843,7 @@ export default function DataWeaverPage() {
                 </TabsContent>
 
                 <TabsContent value="result" className="mt-4">
-                     <div className="px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+                     <div className="px-4 sm:px-6 md:px-8 max-w-5xl mx-auto">
                         {mergedData && (
                             <Card className="mb-6">
                                 <CardHeader>
