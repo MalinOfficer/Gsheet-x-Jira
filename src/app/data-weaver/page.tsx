@@ -639,11 +639,11 @@ export default function DataWeaverPage() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <div className="px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-                    <TabsList className="bg-muted p-1 rounded-lg">
-                        <TabsTrigger value="upload" className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">1. Upload</TabsTrigger>
-                        <TabsTrigger value="review" disabled={!mergedData} className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">2. Review</TabsTrigger>
-                        <TabsTrigger value="result" disabled={!mergedData} className="px-4 py-2 text-sm font-semibold rounded-md border-2 border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary/50 data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-accent-foreground data-[state=inactive]:bg-background">3. Result</TabsTrigger>
+                <div className="px-4 sm:px-6 md:px-8">
+                    <TabsList className="bg-muted p-1 rounded-lg grid w-full grid-cols-3">
+                        <TabsTrigger value="upload">1. Upload</TabsTrigger>
+                        <TabsTrigger value="review" disabled={!mergedData}>2. Review</TabsTrigger>
+                        <TabsTrigger value="result" disabled={!mergedData}>3. Result</TabsTrigger>
                     </TabsList>
                 </div>
                 
