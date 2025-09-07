@@ -635,7 +635,7 @@ export default function DataWeaverPage() {
                                 <CardContent>
                                     <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
                                         <Table>
-                                            <TableHeader className="sticky top-0 bg-card">
+                                            <TableHeader className="sticky top-0 bg-card z-10">
                                                 <TableRow>
                                                     <TableHead>Name from id</TableHead>
                                                     <TableHead>Name from NISN</TableHead>
@@ -825,4 +825,6 @@ function ManualSelectCombobox({
 }
 
     
+    
+
     
