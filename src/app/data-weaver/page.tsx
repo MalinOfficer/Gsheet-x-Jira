@@ -289,10 +289,15 @@ export default function DataWeaverPage() {
             return;
         }
 
-        const finalTableData = serverResult.mergedRows.map((row, index) => ({
-            'No': index + 1,
-            ...row
-        }));
+        const finalTableData = serverResult.mergedRows.map((row, index) => {
+            const newRow = { ...row };
+            // Ensure the 'No' column from the original file does not override our generated index
+            delete newRow['No'];
+            return {
+                'No': index + 1,
+                ...newRow
+            };
+        });
         
         const finalUnmatched = serverResult.unmatchedRowsB.map((rowB: any) => ({
             rowData: rowB,
