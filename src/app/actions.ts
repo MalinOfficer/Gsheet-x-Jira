@@ -522,7 +522,10 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         return { mergedRows: [], unmatchedRowsB: fileBData?.rows || [] };
     }
 
-    const findHeader = (headers: string[], key: string) => headers.find(h => h.toLowerCase() === key.toLowerCase());
+    const findHeader = (headers: string[] | undefined, key: string) => {
+        if (!headers) return undefined;
+        return headers.find(h => h.toLowerCase() === key.toLowerCase());
+    }
     
     const fileAMergeKey = findHeader(fileAData.headers, mergeKey);
     const fileBMergeKey = findHeader(fileBData.headers, mergeKey);
@@ -539,8 +542,12 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
         const key = String(rowA[fileAMergeKey] || '').toLowerCase().trim();
-        if (key && !fileAMap.has(key)) {
-            fileAMap.set(key, rowA);
+        const nisnValue = nisnHeaderA ? String(rowA[nisnHeaderA] || '').trim() : '';
+        
+        if (key && nisnValue) { 
+            if (!fileAMap.has(key)) {
+                fileAMap.set(key, rowA);
+            }
         }
     }
 
@@ -552,16 +559,9 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         
         if (key && fileAMap.has(key)) {
             const rowA = fileAMap.get(key);
-            // Validation step: Only consider it a match if NISN is present in the row from File A
-            if (nisnHeaderA && rowA[nisnHeaderA] && String(rowA[nisnHeaderA]).trim() !== '') {
-                const mergedRow = { ...rowA, ...rowB };
-                mergedRows.push(mergedRow);
-            } else {
-                // Name matches, but NISN is missing, so it's an "unmatched" case for manual validation
-                unmatchedRowsB.push(rowB);
-            }
+            const mergedRow = { ...rowA, ...rowB };
+            mergedRows.push(mergedRow);
         } else {
-            // Name doesn't match, definitely unmatched
             unmatchedRowsB.push(rowB);
         }
     }
