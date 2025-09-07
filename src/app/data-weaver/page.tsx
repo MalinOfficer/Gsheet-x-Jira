@@ -619,7 +619,7 @@ export default function DataWeaverPage() {
 
                         {unmatchedData && unmatchedData.length > 0 && (
                             <Card>
-                                <CardHeader>
+                                <CardHeader className="flex flex-row justify-between items-start">
                                     <div className="flex items-center gap-4">
                                         <AlertCircle className="h-5 w-5 text-yellow-500" />
                                         <div>
@@ -627,6 +627,10 @@ export default function DataWeaverPage() {
                                             <CardDescription>Validate these rows manually to add them to the result.</CardDescription>
                                         </div>
                                     </div>
+                                    <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm">
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Add Selected to Result
+                                    </Button>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
@@ -682,12 +686,6 @@ export default function DataWeaverPage() {
                                         </Table>
                                     </div>
                                 </CardContent>
-                                <CardFooter>
-                                    <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0}>
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Add Selected to Result
-                                    </Button>
-                                </CardFooter>
                             </Card>
                         )}
                     </div>
