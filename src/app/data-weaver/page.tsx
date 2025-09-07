@@ -270,11 +270,21 @@ export default function DataWeaverPage() {
             });
             return;
         }
+
+        // Reset previous results to ensure a clean state for the new merge
+        setMergedData(null);
+        setUnmatchedData(null);
+        setManualSelections({});
         
         toast({ title: "Merging in progress...", description: "Comparing files on the server." });
         
         const serverResult = await mergeFilesOnServer({ headers: fileA.headers, rows: fileA.rows }, { headers: fileB.headers, rows: fileB.rows }, mergeKey);
         
+        if (serverResult.error) {
+            toast({ variant: "destructive", title: "Server Error", description: serverResult.error });
+            return;
+        }
+
         const finalTableData = serverResult.mergedRows.map((row, index) => ({
             'No': index + 1,
             ...row
@@ -286,7 +296,7 @@ export default function DataWeaverPage() {
         
         setMergedData(finalTableData);
         setUnmatchedData(finalUnmatched);
-        setManualSelections({});
+        
 
         toast({ title: "Merge Processed", description: `${finalTableData.length} rows were automatically matched. Proceed to Review.` });
         setActiveTab("review");
