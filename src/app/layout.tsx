@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { StoreProvider } from "@/store/store-provider";
 import { ClientLayout } from "@/components/layout/client-layout";
 import Script from "next/script";
+import { ThemeProvider } from "@/hooks/theme-provider";
 
 
 export const metadata: Metadata = {
@@ -25,12 +26,17 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <StoreProvider>
-            <ClientLayout>
-                {children}
-            </ClientLayout>
-            <Toaster />
-        </StoreProvider>
+        <ThemeProvider
+            defaultTheme="default"
+            storageKey="app-theme"
+        >
+            <StoreProvider>
+                <ClientLayout>
+                    {children}
+                </ClientLayout>
+                <Toaster />
+            </StoreProvider>
+        </ThemeProvider>
         <Script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" strategy="lazyOnload" />
       </body>
     </html>
