@@ -527,9 +527,8 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     // Find the actual header names, case-insensitive
     const fileAKey = Object.keys(fileAData.rows[0] || {}).find(h => h.toLowerCase() === mergeKey.toLowerCase());
     const fileBKey = Object.keys(fileBData.rows[0] || {}).find(h => h.toLowerCase() === mergeKey.toLowerCase());
-
+    
     if (!fileAKey || !fileBKey) {
-        // If a merge key isn't found in one of the files, no matches can be made.
         return { mergedRows: [], unmatchedRowsA: fileAData.rows };
     }
 
