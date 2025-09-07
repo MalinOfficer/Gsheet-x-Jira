@@ -334,7 +334,7 @@ export default function DataWeaverPage() {
         if (autoMatchCount > 0) {
             toast({
                 title: "Auto-Match Complete",
-                description: `Found ${autoMatchCount} potential matches for you to review.`
+                description: `${autoMatchCount} potential matches were automatically selected. Please review them.`
             });
         }
 
@@ -732,11 +732,11 @@ export default function DataWeaverPage() {
                                             <TableBody>
                                                 {(() => {
                                                     const fileAMergeKey = fileA?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
-                                                    const alreadySelectedValues = new Set(
-                                                        Object.values(manualSelections)
-                                                              .filter(Boolean)
-                                                              .map(rowA => rowA[fileAMergeKey])
-                                                    );
+                                                    
+                                                    const alreadyMatchedValues = new Set([
+                                                        ...(mergedData || []).map(row => row[fileAMergeKey]),
+                                                        ...Object.values(manualSelections).filter(Boolean).map(rowA => rowA[fileAMergeKey])
+                                                    ]);
 
                                                     return unmatchedData.map((unmatchedRow, rowIndex) => {
                                                         const fileBMergeKey = fileB?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
@@ -746,7 +746,7 @@ export default function DataWeaverPage() {
                                                         const availableRowsA = (fileA?.rows || []).filter(rowA => {
                                                             const rowAValue = rowA[fileAMergeKey];
                                                             // Show if it's not selected elsewhere, OR if it's the one currently selected for this row
-                                                            return !alreadySelectedValues.has(rowAValue) || (currentSelection && currentSelection[fileAMergeKey] === rowAValue);
+                                                            return !alreadyMatchedValues.has(rowAValue) || (currentSelection && currentSelection[fileAMergeKey] === rowAValue);
                                                         });
 
 
@@ -863,7 +863,11 @@ function ManualSelectCombobox({
 }) {
     const [open, setOpen] = useState(false)
 
-    if (!rowsA || rowsA.length === 0 || !mergeKeyA) {
+    if (!mergeKeyA) {
+         return <span className="text-xs text-muted-foreground">Pilih kolom acuan</span>;
+    }
+    
+    if (!rowsA || rowsA.length === 0) {
         return <span className="text-xs text-muted-foreground">Tidak ada data untuk dipilih</span>;
     }
 
