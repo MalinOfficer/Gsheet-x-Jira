@@ -28,7 +28,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -152,7 +151,9 @@ export default function DataWeaverPage() {
     useEffect(() => {
         if (fileA && fileB) {
             const headerMap = new Map<string, string>();
-            const allHeadersRaw = ['No', ...fileA.headers, ...fileB.headers];
+            // Combine headers from both files. 'No' is manually added.
+            // Use a Set to handle potential duplicates within a single file's headers first.
+            const allHeadersRaw = [...new Set(['No', ...fileA.headers, ...fileB.headers])];
             
             allHeadersRaw.forEach(header => {
                 const lowerCaseHeader = header.toLowerCase();
@@ -237,7 +238,7 @@ export default function DataWeaverPage() {
                     return;
                 }
 
-                if (fileType === 'B' && !lowercasedHeaders.some(h => h.toLowerCase() === 'id')) {
+                if (fileType === 'B' && !lowercasedHeaders.some(h => h.toLowerCase().includes('id'))) {
                     toast({ variant: 'destructive', title: "Invalid File B", description: "File id Bulk must contain an 'id' column." });
                      if (fileBInputRef.current) fileBInputRef.current.value = "";
                     return;
@@ -273,42 +274,33 @@ export default function DataWeaverPage() {
 
         const findHeader = (headers: string[], key: string) => headers.find(h => h.toLowerCase() === key.toLowerCase());
 
-        const nameHeaderA = findHeader(fileA.headers, mergeKey);
         const nisnHeaderA = findHeader(fileA.headers, 'nisn');
-        const nameHeaderB = findHeader(fileB.headers, mergeKey);
         const idHeaderB = findHeader(fileB.headers, 'id');
-
-        if (!nisnHeaderA || !nameHeaderA) {
-            toast({ variant: 'destructive', title: "Header Error in File A", description: `Could not find the required headers ('${mergeKey}', 'NISN'). Please check for typos or different casing.` });
+        const nameHeaderB = findHeader(fileB.headers, mergeKey);
+        
+        if (!nisnHeaderA) {
+            toast({ variant: 'destructive', title: "Header Error in File A", description: `Could not find the required header 'NISN'. Please check the file.` });
             return;
         }
         if (!idHeaderB || !nameHeaderB) {
-            toast({ variant: 'destructive', title: "Header Error in File B", description: `Could not find the required headers ('ID', '${mergeKey}'). Please check for typos or different casing.` });
+            toast({ variant: 'destructive', title: "Header Error in File B", description: `Could not find the required headers ('ID' and '${mergeKey}'). Please check the file.` });
             return;
         }
         
         toast({ title: "Merging in progress...", description: "Comparing files on the server." });
         
-        const serverResult = await mergeFilesOnServer({ rows: fileA.rows }, { rows: fileB.rows }, mergeKey);
+        const serverResult = await mergeFilesOnServer({ headers: fileA.headers, rows: fileA.rows }, { headers: fileB.headers, rows: fileB.rows }, mergeKey);
         
-        const serverMergedRows = serverResult.mergedRows.map(row => {
-            return {
-                'No': 0, // Placeholder
-                'ID': row[idHeaderB],
-                'Nama': row[nameHeaderB],
-                'NISN': row[nisnHeaderA]
-            };
-        });
-
-        // Similarity matches for review
+        // The server now returns rows with all necessary columns combined.
+        // We just need to add the 'No' column for display.
+        const finalTableData = serverResult.mergedRows.map((row, index) => ({
+            'No': index + 1,
+            ...row
+        }));
+        
         const finalUnmatchedWithSuggestions = serverResult.unmatchedRowsA.map((rowA: any) => {
             return { rowData: rowA, suggestion: null };
         });
-        
-        const finalTableData = serverMergedRows.map((row, index) => ({
-            ...row,
-            'No': index + 1
-        }));
         
         setMergedData(finalTableData);
         setUnmatchedData(finalUnmatchedWithSuggestions);
@@ -350,10 +342,13 @@ export default function DataWeaverPage() {
                 
                 const nameToUse = nameSource === 'A' ? rowA[nameHeaderA] : rowB[nameHeaderB];
                 
+                // Explicitly build the final row object to ensure correctness
                 const newlyMergedRow = {
-                    'ID': rowB[idHeaderB],
-                    'Nama': nameToUse,
-                    'NISN': rowA[nisnHeaderA],
+                    ...rowA,
+                    ...rowB,
+                    [idHeaderB]: rowB[idHeaderB],
+                    [nameHeaderB]: nameToUse,
+                    [nisnHeaderA]: rowA[nisnHeaderA],
                 };
     
                 newMergedRows.push(newlyMergedRow);
