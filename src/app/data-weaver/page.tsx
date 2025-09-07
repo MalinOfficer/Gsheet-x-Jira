@@ -271,7 +271,7 @@ export default function DataWeaverPage() {
             return;
         }
 
-        // Reset previous results to ensure a clean state for the new merge
+        // **FIX:** Reset previous results to ensure a clean state for the new merge
         setMergedData(null);
         setUnmatchedData(null);
         setManualSelections({});
@@ -800,3 +800,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
