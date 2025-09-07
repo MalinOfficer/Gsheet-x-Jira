@@ -619,7 +619,7 @@ export default function DataWeaverPage() {
 
                         {unmatchedData && unmatchedData.length > 0 && (
                             <Card>
-                                <CardHeader className="flex flex-row justify-between items-center pb-4">
+                                <CardHeader className="flex flex-row items-center justify-between pb-4">
                                     <div className="flex items-center gap-4">
                                         <AlertCircle className="h-5 w-5 text-yellow-500" />
                                         <div>
