@@ -517,7 +517,46 @@ export async function undoLastAction(
     }
 }
 export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKey: string) {
-    return { mergedRows: [], unmatchedRowsA: fileAData.rows };
+    if (!fileAData?.rows || !fileBData?.rows || !mergeKey) {
+        return { mergedRows: [], unmatchedRowsA: fileAData?.rows || [] };
+    }
+
+    const mergedRows: any[] = [];
+    const unmatchedRowsA: any[] = [];
+
+    // Find the actual header names, case-insensitive
+    const fileAKey = Object.keys(fileAData.rows[0] || {}).find(h => h.toLowerCase() === mergeKey.toLowerCase());
+    const fileBKey = Object.keys(fileBData.rows[0] || {}).find(h => h.toLowerCase() === mergeKey.toLowerCase());
+
+    if (!fileAKey || !fileBKey) {
+        // If a merge key isn't found in one of the files, no matches can be made.
+        return { mergedRows: [], unmatchedRowsA: fileAData.rows };
+    }
+
+    // Create a map of file B for efficient lookup
+    const fileBMap = new Map<string, any>();
+    for (const rowB of fileBData.rows) {
+        const key = String(rowB[fileBKey] || '').toLowerCase().trim();
+        if (key) {
+            fileBMap.set(key, rowB);
+        }
+    }
+    
+    // Iterate through file A and find matches in file B
+    for (const rowA of fileAData.rows) {
+        const key = String(rowA[fileAKey] || '').toLowerCase().trim();
+        if (key && fileBMap.has(key)) {
+            const rowB = fileBMap.get(key);
+            // Combine rowA and rowB. rowB properties will overwrite rowA if they have the same name.
+            mergedRows.push({ ...rowA, ...rowB });
+            // Remove from map to handle duplicates in file A, ensuring each rowB is used once.
+            fileBMap.delete(key); 
+        } else {
+            unmatchedRowsA.push(rowA);
+        }
+    }
+
+    return { mergedRows, unmatchedRowsA };
 }
 
     
