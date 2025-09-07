@@ -36,7 +36,7 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div
                 className="cursor-pointer"
                 onClick={() => setTheme('default')}
@@ -88,32 +88,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <p className="text-sm font-medium text-center mt-2">Dark</p>
-              </div>
-
-              <div className="cursor-pointer" onClick={() => setTheme('forest')}>
-                <div
-                  className={cn(
-                    'rounded-lg border-2 p-1',
-                    theme === 'forest'
-                      ? 'border-primary'
-                      : 'border-transparent'
-                  )}
-                >
-                  <div className="space-y-1.5 rounded-md bg-green-100 p-2">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="h-2.5 w-14 rounded-full bg-green-600" />
-                        <div className="h-2 w-20 rounded-full bg-green-400" />
-                      </div>
-                      {theme === 'forest' && (
-                        <Check className="h-5 w-5 text-green-700" />
-                      )}
-                    </div>
-                    <div className="h-2 w-10/12 rounded-lg bg-green-300" />
-                    <div className="h-2 w-full rounded-lg bg-green-300" />
-                  </div>
-                </div>
-                <p className="text-sm font-medium text-center mt-2">Forest</p>
               </div>
             </div>
           </CardContent>

@@ -57,28 +57,6 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
-
-  .forest {
-    --background: 220 15% 96%;
-    --foreground: 220 10% 20%;
-    --card: 220 15% 100%;
-    --card-foreground: 220 10% 20%;
-    --popover: 220 15% 100%;
-    --popover-foreground: 220 10% 20%;
-    --primary: 145 60% 39%;
-    --primary-foreground: 145 60% 98%;
-    --secondary: 220 10% 94%;
-    --secondary-foreground: 220 10% 20%;
-    --muted: 220 10% 94%;
-    --muted-foreground: 220 8% 45%;
-    --accent: 220 10% 90%;
-    --accent-foreground: 220 10% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 10% 88%;
-    --input: 220 10% 88%;
-    --ring: 145 60% 39%;
-  }
 }
 
 @layer base {

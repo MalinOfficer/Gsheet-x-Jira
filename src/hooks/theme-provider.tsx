@@ -4,7 +4,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 
 const LOCAL_STORAGE_KEY_THEME = 'app-theme';
-type Theme = 'dark' | 'light' | 'system' | 'default' | 'forest';
+type Theme = 'dark' | 'light' | 'system' | 'default';
 
 export type ThemeProviderState = {
   theme: Theme;
