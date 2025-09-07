@@ -278,7 +278,11 @@ export default function DataWeaverPage() {
         
         toast({ title: "Merging in progress...", description: "Comparing files on the server." });
         
-        const serverResult = await mergeFilesOnServer({ headers: fileA.headers, rows: fileA.rows }, { headers: fileB.headers, rows: fileB.rows }, mergeKey);
+        // Sanitize data to plain objects before sending to server action
+        const plainFileA = JSON.parse(JSON.stringify({ headers: fileA.headers, rows: fileA.rows }));
+        const plainFileB = JSON.parse(JSON.stringify({ headers: fileB.headers, rows: fileB.rows }));
+
+        const serverResult = await mergeFilesOnServer(plainFileA, plainFileB, mergeKey);
         
         if (serverResult.error) {
             toast({ variant: "destructive", title: "Server Error", description: serverResult.error });
