@@ -35,6 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandInput, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { mergeFilesOnServer } from '@/app/actions';
 
 
 declare const XLSX: any;
@@ -96,13 +97,11 @@ export default function DataWeaverPage() {
                 }
             } catch (e) {
                 console.error("Failed to parse saved headers from localStorage", e);
-                // Fallback to default if parsing fails
-                 const defaultSelection = ['no', 'id', 'nama', 'nisn'];
+                 const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
                 setSelectedHeaders(defaultSelection);
             }
         } else {
-             // Fallback to default if nothing is in localStorage
-             const defaultSelection = ['no', 'id', 'nama', 'nisn'];
+             const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
             setSelectedHeaders(defaultSelection);
         }
     }, []);
@@ -152,38 +151,24 @@ export default function DataWeaverPage() {
 
     useEffect(() => {
         if (fileA && fileB) {
-            const allHeadersRaw = ['No', ...fileA.headers, ...fileB.headers];
-            const seenHeaders: { [key: string]: string } = {};
-            allHeadersRaw.forEach(h => {
-                if (h) {
-                    const lowerH = h.toLowerCase();
-                    if (!seenHeaders[lowerH]) {
-                        seenHeaders[lowerH] = h;
-                    }
-                }
-            });
-            
-            const uniqueHeaders = Object.values(seenHeaders);
-            const headerOptions = uniqueHeaders.map(h => ({ value: h, label: h }));
+            const allHeadersRaw = ['No', ...new Set([...fileA.headers, ...fileB.headers])];
+            const headerOptions = allHeadersRaw.map(h => ({ value: h, label: h }));
             setMergedHeaders(headerOptions);
             
             updateCommonHeaders(fileA.headers, fileB.headers);
 
             const savedHeaders = localStorage.getItem(LOCAL_STORAGE_KEY_HEADERS);
-            if (!savedHeaders) {
-                const defaultSelection = ['no', 'id', 'nama', 'nisn'];
-                const finalSelection: string[] = [];
-                uniqueHeaders.forEach(uh => {
-                    if(defaultSelection.includes(uh.toLowerCase())) {
-                        finalSelection.push(uh);
-                    }
-                });
-                const orderedSelection = defaultSelection
-                    .map(ds => finalSelection.find(fs => fs.toLowerCase() === ds))
-                    .filter((item): item is string => !!item);
-                setSelectedHeaders(orderedSelection);
+            if (savedHeaders) {
+                try {
+                    setSelectedHeaders(JSON.parse(savedHeaders));
+                } catch {
+                     const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
+                     setSelectedHeaders(defaultSelection);
+                }
+            } else {
+                const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
+                setSelectedHeaders(defaultSelection);
             }
-
         }
     }, [fileA, fileB, updateCommonHeaders]);
 
@@ -291,10 +276,9 @@ export default function DataWeaverPage() {
     
     const getSimilarityKey = (name: any) => {
         if (typeof name !== 'string') return '';
-        // The problematic regex was here. I will just normalize to lowercase.
         return name
             .toLowerCase()
-            .replace(/[^a-z0-9s']/g, '') // Keep apostrophes
+            .replace(/[^a-z0-9\s']/g, '') // Keep apostrophes and spaces
             .replace(/\s+/g, ' ')
             .trim();
     };
@@ -346,113 +330,140 @@ export default function DataWeaverPage() {
     };
 
 
-    const handleMerge = useCallback(() => {
-        if (!fileA || !fileB || !mergeKey || selectedHeaders.length === 0) {
+     const handleMerge = useCallback(async () => {
+        if (!fileA || !fileB || !mergeKey) {
             toast({
                 variant: 'destructive',
                 title: "Merge Failed",
-                description: "Please upload both files, select a merge column, and select headers to include."
+                description: "Please upload both files and select a merge column."
             });
             return;
         }
-    
-        toast({
-            title: "Merging On Key",
-            description: `Using common column "${mergeKey}" to merge rows.`
-        });
-    
-        const fileAMergeKey = fileA.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
-        const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
-    
-        if (!fileAMergeKey || !fileBMergeKey) {
-            toast({ variant: 'destructive', title: "Merge Key Error", description: "The merge key could not be found in both files." });
+
+        const nameHeaderA = fileA.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
+        const nameHeaderB = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
+        const nisnHeaderA = fileA.headers.find(h => h.toLowerCase() === 'nisn') || '';
+        const idHeaderB = fileB.headers.find(h => h.toLowerCase() === 'id') || '';
+
+        if (!nameHeaderA || !nisnHeaderA) {
+             toast({ variant: 'destructive', title: "Header Error in File A", description: "Could not find the required headers ('Nama' or 'NISN')." });
+             return;
+        }
+        if (!nameHeaderB || !idHeaderB) {
+            toast({ variant: 'destructive', title: "Header Error in File B", description: "Could not find the required headers ('Nama' or 'ID')." });
             return;
         }
-    
-        const matchedBIndices = new Set<number>();
-        const combinedRows: any[] = [];
-        const unmatchedARows: any[] = [];
-    
-        fileA.rows.forEach(rowA => {
-            const keyA = String(rowA[fileAMergeKey] ?? '').toLowerCase();
-            const matchedIndexB = fileB.rows.findIndex(rowB => String(rowB[fileBMergeKey] ?? '').toLowerCase() === keyA);
-    
-            if (matchedIndexB !== -1) {
-                const rowB = fileB.rows[matchedIndexB];
-                const combinedRow = Object.assign({}, rowA, rowB);
-                combinedRows.push(combinedRow);
-                matchedBIndices.add(matchedIndexB);
-            } else {
-                unmatchedARows.push(rowA);
-            }
-        });
-    
-        const unmatchedFileBRows = fileB.rows.filter((_, index) => !matchedBIndices.has(index));
-    
-        const unmatchedWithSuggestions = unmatchedARows.map(rowA => {
+        
+        toast({ title: "Merging in progress...", description: "Comparing files on the server." });
+        
+        const cleanFileA = { rows: fileA.rows.map(r => ({...r})) };
+        const cleanFileB = { rows: fileB.rows.map(r => ({...r})) };
+
+        const { mergedRows: serverMergedRows, unmatchedRowsA } = await mergeFilesOnServer(
+            cleanFileA,
+            cleanFileB,
+            mergeKey
+        );
+
+        const unmatchedFileBRows = fileB.rows.filter(rowB => 
+            !serverMergedRows.some(mergedRow => mergedRow[nameHeaderB] === rowB[nameHeaderB])
+        );
+        
+        let autoMergedRows: any[] = [];
+        let remainingUnmatchedA = [];
+        
+        for (const rowA of unmatchedRowsA) {
             let bestSuggestion: any = null;
             let minDistance = Infinity;
-    
-            if (fileBMergeKey) {
-                const nameA = rowA[fileAMergeKey];
-                unmatchedFileBRows.forEach(rowB => {
-                    const nameB = rowB[fileBMergeKey];
-                    if (areNamesSimilar(nameA, nameB)) {
-                        const distance = levenshteinDistance(getSimilarityKey(nameA), getSimilarityKey(nameB));
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            bestSuggestion = rowB;
-                        }
-                    }
-                });
-            }
-    
-            return {
-                rowData: rowA,
-                suggestion: bestSuggestion,
-            };
-        });
-    
-        setUnmatchedData(unmatchedWithSuggestions);
-        setManualSelections({});
-        setRowsToMerge([]);
-    
-        const orderedCombinedRows = combinedRows.map((row, index) => {
-            const orderedRow: Record<string, any> = {};
-            selectedHeaders.forEach(header => {
-                if (header.toLowerCase() === 'no') {
-                    orderedRow[header] = index + 1;
-                } else {
-                    const headerKey = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase());
-                    if (headerKey) {
-                        orderedRow[header] = row[headerKey];
-                    } else {
-                        orderedRow[header] = '';
+            
+            unmatchedFileBRows.forEach(rowB => {
+                const nameA = rowA[nameHeaderA];
+                const nameB = rowB[nameHeaderB];
+                if (areNamesSimilar(nameA, nameB)) {
+                    const distance = levenshteinDistance(getSimilarityKey(nameA), getSimilarityKey(nameB));
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        bestSuggestion = rowB;
                     }
                 }
             });
-            return orderedRow;
+            
+            if (bestSuggestion) {
+                const combined = {
+                    [idHeaderB]: bestSuggestion[idHeaderB],
+                    [nameHeaderB]: bestSuggestion[nameHeaderB],
+                    [nisnHeaderA]: rowA[nisnHeaderA]
+                };
+                autoMergedRows.push(combined);
+            } else {
+                remainingUnmatchedA.push(rowA);
+            }
+        }
+        
+        const finalUnmatchedWithSuggestions = remainingUnmatchedA.map(rowA => {
+            let bestSuggestion: any = null;
+            let minDistance = Infinity;
+            unmatchedFileBRows.forEach(rowB => {
+                const nameA = rowA[nameHeaderA];
+                const nameB = rowB[nameHeaderB];
+                if (areNamesSimilar(nameA, nameB)) {
+                    const distance = levenshteinDistance(getSimilarityKey(nameA), getSimilarityKey(nameB));
+                     if (distance < minDistance) {
+                        minDistance = distance;
+                        bestSuggestion = rowB;
+                    }
+                }
+            });
+            return { rowData: rowA, suggestion: bestSuggestion };
         });
-    
-        toast({ title: "Merge Processed", description: `${orderedCombinedRows.length} rows were matched. Proceed to Review.` });
-        setMergedData(orderedCombinedRows.sort((a, b) => (a.No || 0) - (b.No || 0)));
+
+        const finalMergedData = [...serverMergedRows, ...autoMergedRows].map((row, index) => {
+            const finalRow: Record<string, any> = {};
+            selectedHeaders.forEach(header => {
+                const lowerHeader = header.toLowerCase();
+                if (lowerHeader === 'no') {
+                    finalRow[header] = index + 1;
+                } else if (lowerHeader === 'id') {
+                    finalRow[header] = row[idHeaderB];
+                } else if (lowerHeader === 'nama') {
+                    finalRow[header] = row[nameHeaderB];
+                } else if (lowerHeader === 'nisn') {
+                    finalRow[header] = row[nisnHeaderA];
+                } else {
+                    const headerKey = Object.keys(row).find(k => k.toLowerCase() === lowerHeader);
+                    finalRow[header] = headerKey ? row[headerKey] : '';
+                }
+            });
+            return finalRow;
+        }).sort((a,b) => (a.No || 0) - (b.No || 0));
+
+        setMergedData(finalMergedData);
+        setUnmatchedData(finalUnmatchedWithSuggestions);
+        setManualSelections({});
+        setRowsToMerge([]);
+
+        toast({ title: "Merge Processed", description: `${finalMergedData.length} rows were matched automatically. Proceed to Review.` });
         setActiveTab("review");
-    
+
     }, [fileA, fileB, mergeKey, selectedHeaders, toast]);
 
-    const handleBulkManualMerge = useCallback(() => {
+    const handleBulkManualMerge = useCallback((nameSource: 'A' | 'B') => {
         if (!fileA || !fileB || !mergeKey || rowsToMerge.length === 0) {
             toast({ variant: "destructive", title: "No Rows Selected", description: "Please select rows to merge first." });
             return;
         }
+
+        const nameHeaderA = fileA.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase())!;
+        const nameHeaderB = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase())!;
+        const nisnHeaderA = fileA.headers.find(h => h.toLowerCase() === 'nisn')!;
+        const idHeaderB = fileB.headers.find(h => h.toLowerCase() === 'id')!;
     
         const newMergedRows: any[] = [];
         const remainingUnmatchedData: UnmatchedRow[] = [];
         let successfullyMergedCount = 0;
     
         unmatchedData?.forEach(unmatchedRow => {
-            const fileAMergeKey = fileA.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
-            const originalRowAKey = String(unmatchedRow.rowData[fileAMergeKey]);
+            const originalRowAKey = String(unmatchedRow.rowData[nameHeaderA]);
     
             if (rowsToMerge.includes(originalRowAKey)) {
                 const rowA = unmatchedRow.rowData;
@@ -462,25 +473,31 @@ export default function DataWeaverPage() {
                     remainingUnmatchedData.push(unmatchedRow);
                     return; // Skip if no match is selected/suggested
                 }
-    
-                const nisnHeaderA = fileA.headers.find(h => h.toLowerCase() === 'nisn') || 'nisn';
-                const idHeaderB = fileB.headers.find(h => h.toLowerCase() === 'id') || 'id';
-                const namaHeaderB = fileB.headers.find(h => h.toLowerCase() === 'nama') || 'nama';
+                
+                const combinedBase = {...rowA, ...rowB};
+                const nameToUse = nameSource === 'A' ? rowA[nameHeaderA] : rowB[nameHeaderB];
 
-                const combinedRow = { ...rowA, ...rowB };
-                combinedRow[nisnHeaderA] = rowA[nisnHeaderA];
-                combinedRow[idHeaderB] = rowB[idHeaderB];
-                combinedRow[namaHeaderB] = rowB[namaHeaderB];
+                const finalCombinedRow = {
+                    ...combinedBase,
+                    [idHeaderB]: rowB[idHeaderB],
+                    [nameHeaderB]: nameToUse,
+                    [nisnHeaderA]: rowA[nisnHeaderA],
+                };
 
                 const orderedRow: Record<string, any> = {};
                 selectedHeaders.forEach(header => {
-                     if (header.toLowerCase() !== 'no') {
-                        const headerKey = Object.keys(combinedRow).find(k => k.toLowerCase() === header.toLowerCase());
-                        if (headerKey) {
-                             orderedRow[header] = combinedRow[headerKey];
-                        } else {
-                            orderedRow[header] = '';
-                        }
+                     const lowerHeader = header.toLowerCase();
+                     if (lowerHeader === 'no') {
+                        // 'No' will be assigned later
+                     } else if (lowerHeader === 'id') {
+                         orderedRow[header] = finalCombinedRow[idHeaderB];
+                     } else if (lowerHeader === 'nama') {
+                         orderedRow[header] = finalCombinedRow[nameHeaderB];
+                     } else if (lowerHeader === 'nisn') {
+                         orderedRow[header] = finalCombinedRow[nisnHeaderA];
+                     } else {
+                         const headerKey = Object.keys(finalCombinedRow).find(k => k.toLowerCase() === lowerHeader);
+                         orderedRow[header] = headerKey ? finalCombinedRow[headerKey] : '';
                      }
                 });
     
@@ -588,7 +605,7 @@ export default function DataWeaverPage() {
                      <div className="flex items-center gap-2">
                         <Dialog>
                             <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon" disabled={!fileA || !fileB}>
+                                <Button variant="ghost" size="icon">
                                     <Settings className="h-5 w-5" />
                                     <span className="sr-only">Settings</span>
                                 </Button>
@@ -738,7 +755,7 @@ export default function DataWeaverPage() {
                                 </div>
                             </CardContent>
                              <CardFooter>
-                                <Button onClick={handleMerge} disabled={!fileA || !fileB || !mergeKey || selectedHeaders.length === 0} className="w-full">
+                                <Button onClick={handleMerge} disabled={!fileA || !fileB || !mergeKey} className="w-full">
                                     <Columns className="mr-2 h-4 w-4" />
                                     Merge File
                                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -785,16 +802,36 @@ export default function DataWeaverPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="mb-4">
-                                        <Button
-                                            size="sm"
-                                            onClick={handleBulkManualMerge}
-                                            className="bg-yellow-500 text-yellow-900 hover:bg-yellow-600 disabled:bg-muted disabled:text-muted-foreground"
-                                            disabled={rowsToMerge.length === 0}
-                                        >
-                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                            Add Selected to Merged Results ({rowsToMerge.length})
-                                        </Button>
+                                     <div className="mb-4">
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                 <Button
+                                                    size="sm"
+                                                    className="bg-yellow-500 text-yellow-900 hover:bg-yellow-600 disabled:bg-muted disabled:text-muted-foreground"
+                                                    disabled={rowsToMerge.length === 0}
+                                                >
+                                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                                    Add Selected to Merged Results ({rowsToMerge.length})
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Confirm Name Source</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Which name do you want to use for the merged record? This will apply to all {rowsToMerge.length} selected items.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleBulkManualMerge('A')}>
+                                                        Use Name from File NISN
+                                                    </AlertDialogAction>
+                                                    <AlertDialogAction onClick={() => handleBulkManualMerge('B')}>
+                                                        Use Name from File id Bulk
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </div>
                                     <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
                                         <Table>
@@ -991,3 +1028,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
