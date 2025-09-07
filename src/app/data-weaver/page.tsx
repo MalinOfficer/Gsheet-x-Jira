@@ -391,7 +391,7 @@ export default function DataWeaverPage() {
         setManualSelections(autoSelections);
         
 
-        toast({ title: "Merge Processed", description: `${finalTableData.length} rows Matched. Proceed to Review.` });
+        toast({ title: "Matched", description: `${finalTableData.length} rows Matched. Proceed to Review.` });
         setActiveTab("review");
     };
 
@@ -479,7 +479,24 @@ export default function DataWeaverPage() {
             return rowData;
         });
 
-        const worksheetData = [selectedHeaders, ...dataForSheet];
+        // Create the two header rows based on the image provided
+        const headerRow1 = selectedHeaders.map(h => {
+            const lowerH = h.toLowerCase();
+            if (lowerH === 'id' || lowerH === 'name' || lowerH === 'nisn') {
+                return lowerH;
+            }
+            return h;
+        });
+        const headerRow2 = selectedHeaders.map(h => {
+            const lowerH = h.toLowerCase();
+            if (lowerH === 'id' || lowerH === 'name' || lowerH === 'nisn') {
+                return h.charAt(0).toUpperCase() + h.slice(1);
+            }
+            return ''; // Empty cell for headers not in the special list
+        });
+
+
+        const worksheetData = [headerRow1, headerRow2, ...dataForSheet];
 
         const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
         const workbook = XLSX.utils.book_new();
@@ -731,15 +748,16 @@ export default function DataWeaverPage() {
                                             </TableHeader>
                                             <TableBody>
                                                 {(() => {
-                                                    const fileAMergeKey = fileA?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
+                                                    if (!fileA || !fileB) return null;
+                                                    const fileAMergeKey = fileA.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
+                                                    const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
                                                     
                                                     const alreadyMatchedValues = new Set([
                                                         ...(mergedData || []).map(row => row[fileAMergeKey]),
                                                         ...Object.values(manualSelections).filter(Boolean).map(rowA => rowA[fileAMergeKey])
-                                                    ]);
+                                                    ].filter(Boolean));
 
                                                     return unmatchedData.map((unmatchedRow, rowIndex) => {
-                                                        const fileBMergeKey = fileB?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
                                                         const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
                                                         const currentSelection = manualSelections[originalRowBKey];
                                                         
