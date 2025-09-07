@@ -261,6 +261,78 @@ export default function DataWeaverPage() {
         reader.readAsBinaryString(file);
     };
 
+    const runAutoMatch = useCallback((
+        unmatched: UnmatchedRow[],
+        allFileARows: any[],
+        mergeKeyA: string,
+        mergeKeyB: string
+    ) => {
+        if (!unmatched.length || !allFileARows.length || !mergeKeyA || !mergeKeyB) {
+            return {};
+        }
+
+        const getSimilarityScore = (nameA: string, nameB: string): number => {
+            if (!nameA || !nameB) return 0;
+            const wordsA = nameA.toLowerCase().split(/\s+/).filter(Boolean);
+            const wordsB = nameB.toLowerCase().split(/\s+/).filter(Boolean);
+            if (wordsA.length === 0 || wordsB.length === 0) return 0;
+
+            const intersection = wordsA.filter(word => wordsB.includes(word));
+            const intersectionAbbr = wordsA.filter(wordA => wordsB.some(wordB => wordA.startsWith(wordB) || wordB.startsWith(wordA)));
+            
+            // Prefer intersection of at least 2 words
+            if (intersection.length >= 2) {
+                return intersection.length;
+            }
+
+            // Fallback to abbreviation check
+            if (intersectionAbbr.length > 0) {
+                return 0.5; // Lower score for abbreviations
+            }
+            
+            return 0;
+        };
+
+        const newSelections: Record<string, any> = {};
+        let autoMatchCount = 0;
+
+        unmatched.forEach(unmatchedRow => {
+            const nameB = unmatchedRow.rowData[mergeKeyB];
+            if (!nameB) return;
+
+            let bestMatch: any | null = null;
+            let highestScore = 0;
+
+            for (const rowA of allFileARows) {
+                const nameA = rowA[mergeKeyA];
+                if (!nameA) continue;
+                
+                const score = getSimilarityScore(nameA, nameB);
+
+                if (score > highestScore && score >= 2) { // Require at least 2 words to match
+                    highestScore = score;
+                    bestMatch = rowA;
+                }
+            }
+
+            if (bestMatch) {
+                const originalRowBKey = String(unmatchedRow.rowData[mergeKeyB]);
+                newSelections[originalRowBKey] = bestMatch;
+                autoMatchCount++;
+            }
+        });
+        
+        if (autoMatchCount > 0) {
+            toast({
+                title: "Auto-Match Complete",
+                description: `Found ${autoMatchCount} potential matches for you to review.`
+            });
+        }
+
+        return newSelections;
+
+    }, [toast]);
+
     const handleMerge = async () => {
         if (!fileA || !fileB || !mergeKey) {
             toast({
@@ -302,6 +374,12 @@ export default function DataWeaverPage() {
         
         setMergedData(finalTableData);
         setUnmatchedData(finalUnmatched);
+        
+        // Run auto-match after setting the unmatched data
+        const mergeKeyA = fileA.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
+        const mergeKeyB = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
+        const autoSelections = runAutoMatch(finalUnmatched, fileA.rows, mergeKeyA, mergeKeyB);
+        setManualSelections(autoSelections);
         
 
         toast({ title: "Merge Processed", description: `${finalTableData.length} rows Matched. Proceed to Review.` });
@@ -827,3 +905,4 @@ function ManualSelectCombobox({
     
 
     
+
