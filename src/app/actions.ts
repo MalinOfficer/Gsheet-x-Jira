@@ -523,9 +523,10 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     }
 
     const findHeader = (headers: string[], key: string) => headers.find(h => h.toLowerCase() === key.toLowerCase());
-
+    
     const fileAMergeKey = findHeader(fileAData.headers, mergeKey);
     const fileBMergeKey = findHeader(fileBData.headers, mergeKey);
+    const nisnHeaderA = findHeader(fileAData.headers, 'nisn');
 
     if (!fileAMergeKey || !fileBMergeKey) {
         return { 
@@ -535,39 +536,32 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         };
     }
     
-    // Create a Map of File A for efficient lookup, keyed by the normalized mergeKey value.
-    const fileAMap = new Map<string, any[]>();
+    const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
         const key = String(rowA[fileAMergeKey] || '').toLowerCase().trim();
-        if (key) {
-            if (!fileAMap.has(key)) {
-                fileAMap.set(key, []);
-            }
-            fileAMap.get(key)?.push(rowA);
+        if (key && !fileAMap.has(key)) {
+            fileAMap.set(key, rowA);
         }
     }
 
     const mergedRows: any[] = [];
     const unmatchedRowsB: any[] = [];
     
-    // Iterate through File B as the base for the new logic
     for (const rowB of fileBData.rows) {
         const key = String(rowB[fileBMergeKey] || '').toLowerCase().trim();
         
         if (key && fileAMap.has(key)) {
-            const matchingRowsA = fileAMap.get(key) || [];
-            if (matchingRowsA.length > 0) {
-                 // Use the first match from File A and combine all properties
-                const rowA = matchingRowsA.shift(); // Take one match
-                // IMPORTANT: The order here matters. Properties from rowB will overwrite rowA if they conflict.
-                // This is generally what we want, with File B as the base.
+            const rowA = fileAMap.get(key);
+            // Validation step: Only consider it a match if NISN is present in the row from File A
+            if (nisnHeaderA && rowA[nisnHeaderA] && String(rowA[nisnHeaderA]).trim() !== '') {
                 const mergedRow = { ...rowA, ...rowB };
                 mergedRows.push(mergedRow);
             } else {
-                 unmatchedRowsB.push(rowB); // No available matches left in File A
+                // Name matches, but NISN is missing, so it's an "unmatched" case for manual validation
+                unmatchedRowsB.push(rowB);
             }
         } else {
-            // If no match in File A, it's an unmatched row from File B
+            // Name doesn't match, definitely unmatched
             unmatchedRowsB.push(rowB);
         }
     }
