@@ -516,44 +516,57 @@ export async function undoLastAction(
         return { error: apiError };
     }
 }
+
 export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKey: string) {
     if (!fileAData?.rows || !fileBData?.rows || !mergeKey) {
         return { mergedRows: [], unmatchedRowsA: fileAData?.rows || [] };
     }
 
-    const mergedRows: any[] = [];
-    const unmatchedRowsA: any[] = [];
+    // Helper to find the actual header name, case-insensitively
+    const findHeader = (headers: string[], key: string) => headers.find(h => h.toLowerCase() === key.toLowerCase());
 
-    // Find the actual header names, case-insensitive
-    const fileAKey = Object.keys(fileAData.rows[0] || {}).find(h => h.toLowerCase() === mergeKey.toLowerCase());
-    const fileBKey = Object.keys(fileBData.rows[0] || {}).find(h => h.toLowerCase() === mergeKey.toLowerCase());
-    
-    if (!fileAKey || !fileBKey) {
-        return { mergedRows: [], unmatchedRowsA: fileAData.rows };
-    }
+    const fileAMergeKey = findHeader(fileAData.headers, mergeKey);
+    const fileBMergeKey = findHeader(fileBData.headers, mergeKey);
 
-    // Create a map of file B for efficient lookup
-    const fileBMap = new Map<string, any>();
-    for (const rowB of fileBData.rows) {
-        const key = String(rowB[fileBKey] || '').toLowerCase().trim();
-        if (key) {
-            fileBMap.set(key, rowB);
-        }
+    if (!fileAMergeKey || !fileBMergeKey) {
+        return { 
+            mergedRows: [], 
+            unmatchedRowsA: fileAData.rows,
+            error: `Merge key "${mergeKey}" not found in one or both files.`
+        };
     }
     
-    // Iterate through file A and find matches in file B
+    // Create a map of File A for efficient lookup based on the merge key
+    const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
-        const key = String(rowA[fileAKey] || '').toLowerCase().trim();
-        if (key && fileBMap.has(key)) {
-            const rowB = fileBMap.get(key);
-            // Combine rowA and rowB. rowB properties will overwrite rowA if they have the same name.
-            mergedRows.push({ ...rowA, ...rowB });
-            // Remove from map to handle duplicates in file A, ensuring each rowB is used once.
-            fileBMap.delete(key); 
-        } else {
-            unmatchedRowsA.push(rowA);
+        const key = String(rowA[fileAMergeKey] || '').toLowerCase().trim();
+        if (key) {
+            // If multiple rows in A have the same key, the last one wins.
+            fileAMap.set(key, rowA);
         }
     }
+
+    const mergedRows: any[] = [];
+    
+    // Iterate through File B as the base
+    for (const rowB of fileBData.rows) {
+        const key = String(rowB[fileBMergeKey] || '').toLowerCase().trim();
+        let finalRow = { ...rowB }; // Start with the row from File B
+        
+        if (key && fileAMap.has(key)) {
+            const rowA = fileAMap.get(key);
+            // Enrich with data from row A. rowB data takes precedence for common columns.
+            finalRow = { ...rowA, ...rowB };
+            
+            // Mark this key as used so it won't appear in the unmatched list
+            fileAMap.delete(key);
+        }
+        
+        mergedRows.push(finalRow);
+    }
+    
+    // Any remaining entries in fileAMap are the ones that didn't find a match in File B
+    const unmatchedRowsA = Array.from(fileAMap.values());
 
     return { mergedRows, unmatchedRowsA };
 }
