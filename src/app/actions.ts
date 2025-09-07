@@ -517,26 +517,7 @@ export async function undoLastAction(
     }
 }
 export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKey: string) {
-    console.log("Merging on server with key:", mergeKey);
-    
-    // This function now runs on the server, but the logic remains the same for this basic implementation
-    const fileAMap = new Map(fileAData.rows.map((row: any) => [String(row[mergeKey] || '').toLowerCase(), row]));
-    
-    const mergedRows: any[] = [];
-    const unmatchedRowsA = [...fileAData.rows]; 
-
-    fileBData.rows.forEach((rowB: any) => {
-        const key = String(rowB[mergeKey] || '').toLowerCase();
-        const rowA = fileAMap.get(key);
-        
-        if (rowA) {
-            mergedRows.push({ ...rowA, ...rowB });
-            const indexToRemove = unmatchedRowsA.findIndex(r => String(r[mergeKey] || '').toLowerCase() === key);
-            if (indexToRemove > -1) {
-                unmatchedRowsA.splice(indexToRemove, 1);
-            }
-        }
-    });
-
-    return { mergedRows, unmatchedRowsA };
+    return { mergedRows: [], unmatchedRowsA: fileAData.rows };
 }
+
+    

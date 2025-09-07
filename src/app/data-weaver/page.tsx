@@ -97,11 +97,11 @@ export default function DataWeaverPage() {
                 }
             } catch (e) {
                 console.error("Failed to parse saved headers from localStorage", e);
-                 const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
+                 const defaultSelection = ['No', 'id', 'Name', 'NISN'];
                 setSelectedHeaders(defaultSelection);
             }
         } else {
-             const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
+             const defaultSelection = ['No', 'id', 'Name', 'NISN'];
             setSelectedHeaders(defaultSelection);
         }
     }, []);
@@ -151,8 +151,18 @@ export default function DataWeaverPage() {
 
     useEffect(() => {
         if (fileA && fileB) {
-            const allHeadersRaw = [...new Set(['No', ...fileA.headers, ...fileB.headers])];
-            const headerOptions = allHeadersRaw.map(h => ({ value: h, label: h }));
+            const headerMap = new Map<string, string>();
+            const allHeaders = ['No', ...fileA.headers, ...fileB.headers];
+            
+            allHeaders.forEach(header => {
+                const lowerCaseHeader = header.toLowerCase();
+                if (!headerMap.has(lowerCaseHeader)) {
+                    headerMap.set(lowerCaseHeader, header);
+                }
+            });
+
+            const uniqueHeaders = Array.from(headerMap.values());
+            const headerOptions = uniqueHeaders.map(h => ({ value: h, label: h }));
             setMergedHeaders(headerOptions);
             
             updateCommonHeaders(fileA.headers, fileB.headers);
@@ -160,14 +170,22 @@ export default function DataWeaverPage() {
             const savedHeaders = localStorage.getItem(LOCAL_STORAGE_KEY_HEADERS);
             if (savedHeaders) {
                 try {
-                    setSelectedHeaders(JSON.parse(savedHeaders));
+                    const parsedHeaders = JSON.parse(savedHeaders);
+                    const validSavedHeaders = parsedHeaders.filter((h: string) => uniqueHeaders.includes(h));
+                    setSelectedHeaders(validSavedHeaders);
                 } catch {
-                     const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
-                     setSelectedHeaders(defaultSelection);
+                    const defaultSelection = ['No', 'id', 'Name', 'NISN'];
+                    const availableDefaults = defaultSelection.filter(h => 
+                        uniqueHeaders.map(uh => uh.toLowerCase()).includes(h.toLowerCase())
+                    );
+                    setSelectedHeaders(availableDefaults);
                 }
             } else {
-                const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
-                setSelectedHeaders(defaultSelection);
+                const defaultSelection = ['No', 'id', 'Name', 'NISN'];
+                const availableDefaults = defaultSelection.filter(h => 
+                    uniqueHeaders.map(uh => uh.toLowerCase()).includes(h.toLowerCase())
+                );
+                setSelectedHeaders(availableDefaults);
             }
         }
     }, [fileA, fileB, updateCommonHeaders]);
@@ -220,7 +238,7 @@ export default function DataWeaverPage() {
                 }
 
                 if (fileType === 'B' && !lowercasedHeaders.some(h => h === 'id')) {
-                    toast({ variant: 'destructive', title: "Invalid File B", description: "File id Bulk must contain an 'ID' column." });
+                    toast({ variant: 'destructive', title: "Invalid File B", description: "File id Bulk must contain an 'id' column." });
                      if (fileBInputRef.current) fileBInputRef.current.value = "";
                     return;
                 }
@@ -353,85 +371,65 @@ export default function DataWeaverPage() {
             return;
         }
         if (!idHeaderB || !nameHeaderB) {
-            toast({ variant: 'destructive', title: "Header Error in File B", description: `Could not find the required headers (like 'ID', '${mergeKey}'). Check for typos or different casing.` });
+            toast({ variant: 'destructive', title: "Header Error in File B", description: `Could not find the required headers (like 'id', '${mergeKey}'). Check for typos or different casing.` });
             return;
         }
         
         toast({ title: "Merging in progress...", description: "Comparing files on the server." });
         
-        const { mergedRows: serverMergedRows, unmatchedRowsA } = await mergeFilesOnServer(
-            { rows: fileA.rows, headers: fileA.headers },
-            { rows: fileB.rows, headers: fileB.headers },
-            nameHeaderA
-        );
+        // Exact matches
+        const exactMergedRows: any[] = [];
+        const unmatchedA: any[] = [];
+        const fileBMap = new Map(fileB.rows.map(rowB => [String(rowB[nameHeaderB] || '').toLowerCase(), rowB]));
         
-        const autoMergedRows: any[] = [];
-        let remainingUnmatchedA = [...unmatchedRowsA];
-        
-        const usedInServerMerge = new Set(serverMergedRows.map(r => r[nameHeaderB]));
-        let unmatchedFileBRows = fileB.rows.filter(rowB => !usedInServerMerge.has(rowB[nameHeaderB]));
-        
-        const stillUnmatchedA: any[] = [];
-        for (const rowA of remainingUnmatchedA) {
-            let bestSuggestion: any = null;
-            let minDistance = Infinity;
-            let bestSuggestionIndex = -1;
-            
-            unmatchedFileBRows.forEach((rowB, index) => {
-                const nameA = rowA[nameHeaderA];
-                const nameB = rowB[nameHeaderB];
-                if (areNamesSimilar(nameA, nameB)) {
-                    const distance = levenshteinDistance(getSimilarityKey(nameA), getSimilarityKey(nameB));
-                    if (distance < minDistance) {
-                        minDistance = distance;
-                        bestSuggestion = rowB;
-                        bestSuggestionIndex = index;
-                    }
-                }
-            });
-            
-            if (bestSuggestion) {
-                autoMergedRows.push({ ...rowA, ...bestSuggestion });
-                if (bestSuggestionIndex > -1) {
-                    unmatchedFileBRows.splice(bestSuggestionIndex, 1);
-                }
+        fileA.rows.forEach(rowA => {
+            const keyA = String(rowA[nameHeaderA] || '').toLowerCase();
+            const matchingRowB = fileBMap.get(keyA);
+            if (matchingRowB) {
+                exactMergedRows.push({
+                    'No': 0, // Placeholder
+                    'ID': matchingRowB[idHeaderB],
+                    'Nama': matchingRowB[nameHeaderB],
+                    'NISN': rowA[nisnHeaderA]
+                });
+                fileBMap.delete(keyA); // Remove from map to avoid re-matching
             } else {
-                stillUnmatchedA.push(rowA);
+                unmatchedA.push(rowA);
             }
-        }
-        remainingUnmatchedA = stillUnmatchedA;
+        });
         
-        const finalUnmatchedWithSuggestions = remainingUnmatchedA.map(rowA => {
+        const unmatchedB = Array.from(fileBMap.values());
+        
+        // Similarity matches for review
+        const finalUnmatchedWithSuggestions = unmatchedA.map(rowA => {
             let bestSuggestion: any = null;
             let minDistance = Infinity;
-            unmatchedFileBRows.forEach(rowB => {
+            
+            unmatchedB.forEach(rowB => {
                 const nameA = rowA[nameHeaderA];
                 const nameB = rowB[nameHeaderB];
                 const distance = levenshteinDistance(getSimilarityKey(nameA), getSimilarityKey(nameB));
-                 if (distance < minDistance && distance < 5) {
+                
+                // Suggest if distance is reasonably close
+                if (distance < minDistance && distance <= 4) {
                     minDistance = distance;
                     bestSuggestion = rowB;
                 }
             });
+            
             return { rowData: rowA, suggestion: bestSuggestion };
         });
-
-        const allMerged = [...serverMergedRows, ...autoMergedRows];
         
-        const finalTableData = allMerged.map((row, index) => {
-            return {
-                'No': index + 1,
-                'ID': row[idHeaderB],
-                'Nama': row[nameHeaderB],
-                'NISN': row[nisnHeaderA]
-            };
-        });
+        const finalTableData = exactMergedRows.map((row, index) => ({
+            ...row,
+            'No': index + 1
+        }));
         
         const baseHeaders = ['No', 'ID', 'Nama', 'NISN'];
         const currentSelected = new Set(selectedHeaders);
         baseHeaders.forEach(h => currentSelected.add(h));
         
-        setSelectedHeaders([...currentSelected]);
+        setSelectedHeaders(Array.from(currentSelected));
         setMergedData(finalTableData);
         setUnmatchedData(finalUnmatchedWithSuggestions);
         setManualSelections({});
@@ -478,7 +476,7 @@ export default function DataWeaverPage() {
                 
                 const nameToUse = nameSource === 'A' ? rowA[nameHeaderA] : rowB[nameHeaderB];
                 
-                const newlyMergedRow: Record<string, any> = {
+                const newlyMergedRow = {
                     'ID': rowB[idHeaderB],
                     'Nama': nameToUse,
                     'NISN': rowA[nisnHeaderA],
@@ -1022,6 +1020,8 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
 
     
 
