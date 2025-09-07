@@ -45,10 +45,11 @@ type SelectOption = {
     label: string;
 };
 
+// This represents a row from File B that couldn't be matched
 type UnmatchedRow = {
-    rowData: any; // Data from File A (unmatched)
-    suggestion: any | null; // Suggested match from File B
+    rowData: any; // Data from File B (unmatched)
 };
+
 
 const LOCAL_STORAGE_KEY_MERGE_KEY = 'dataWeaverDefaultMergeKey';
 const LOCAL_STORAGE_KEY_HEADERS = 'dataWeaverDefaultHeaders';
@@ -152,7 +153,7 @@ export default function DataWeaverPage() {
     useEffect(() => {
         if (fileA && fileB) {
             const headerMap = new Map<string, string>();
-            // Combine headers from both files. Use a Set to handle potential duplicates first.
+            // Combine headers from both files. Use a Map to handle case-insensitivity.
             const allHeadersRaw = ['No', ...fileA.headers, ...fileB.headers];
             
             allHeadersRaw.forEach(header => {
@@ -274,7 +275,6 @@ export default function DataWeaverPage() {
         
         toast({ title: "Merging in progress...", description: "Comparing files on the server." });
         
-        // The server now handles the new logic: B is base, A enriches it.
         const serverResult = await mergeFilesOnServer({ headers: fileA.headers, rows: fileA.rows }, { headers: fileB.headers, rows: fileB.rows }, mergeKey);
         
         const finalTableData = serverResult.mergedRows.map((row, index) => ({
@@ -282,9 +282,9 @@ export default function DataWeaverPage() {
             ...row
         }));
         
-        const finalUnmatched = serverResult.unmatchedRowsA.map((rowA: any) => ({
-            rowData: rowA,
-            suggestion: null
+        // This now correctly receives unmatched rows from File B
+        const finalUnmatched = serverResult.unmatchedRowsB.map((rowB: any) => ({
+            rowData: rowB,
         }));
         
         setMergedData(finalTableData);
@@ -292,11 +292,11 @@ export default function DataWeaverPage() {
         setManualSelections({});
         setRowsToMerge([]);
 
-        toast({ title: "Merge Processed", description: `${finalTableData.length} rows were processed based on File B. Proceed to Review.` });
+        toast({ title: "Merge Processed", description: `${finalTableData.length} rows were automatically matched. Proceed to Review.` });
         setActiveTab("review");
     };
 
-    const handleBulkManualMerge = useCallback((nameSource: 'A' | 'B') => {
+    const handleBulkManualMerge = useCallback(() => {
         if (!fileA || !fileB || !mergeKey || rowsToMerge.length === 0) {
             toast({ variant: "destructive", title: "No Rows Selected", description: "Please select rows to merge first." });
             return;
@@ -304,37 +304,27 @@ export default function DataWeaverPage() {
 
         const findHeader = (headers: string[], key: string) => headers.find(h => h.toLowerCase() === key.toLowerCase()) || key;
 
-        const nameHeaderA = findHeader(fileA.headers, mergeKey);
-        const nisnHeaderA = findHeader(fileA.headers, 'nisn');
         const nameHeaderB = findHeader(fileB.headers, mergeKey);
-        const idHeaderB = findHeader(fileB.headers, 'id');
     
         const newMergedRows: any[] = [];
         const remainingUnmatchedData: UnmatchedRow[] = [];
         let successfullyMergedCount = 0;
     
         unmatchedData?.forEach(unmatchedRow => {
-            const originalRowAKey = String(unmatchedRow.rowData[nameHeaderA]);
+            // The unique key for a row from File B is its `ID` or `Name`
+            const originalRowBKey = String(unmatchedRow.rowData[nameHeaderB]);
     
-            if (rowsToMerge.includes(originalRowAKey)) {
-                const rowA = unmatchedRow.rowData;
-                const rowB = manualSelections[originalRowAKey]; // Must be a manual selection
+            if (rowsToMerge.includes(originalRowBKey)) {
+                const rowB = unmatchedRow.rowData; // This is the base row from File B
+                const rowA = manualSelections[originalRowBKey]; // This is the selected match from File A
     
-                if (!rowB) {
+                if (!rowA) { // Should not happen if button is enabled correctly
                     remainingUnmatchedData.push(unmatchedRow);
                     return; 
                 }
                 
-                // Explicitly build the final row object to ensure correctness
-                const nameToUse = nameSource === 'A' ? rowA[nameHeaderA] : rowB[nameHeaderB];
-                
-                const newlyMergedRow = {
-                    ...rowA,
-                    ...rowB,
-                    [idHeaderB]: rowB[idHeaderB],
-                    [nameHeaderB]: nameToUse,
-                    [nisnHeaderA]: rowA[nisnHeaderA],
-                };
+                // Explicitly build the final row object
+                const newlyMergedRow = { ...rowB, ...rowA };
     
                 newMergedRows.push(newlyMergedRow);
                 successfullyMergedCount++;
@@ -343,17 +333,8 @@ export default function DataWeaverPage() {
             }
         });
     
-        const updatedMergedData = [...(mergedData || [])];
-        newMergedRows.forEach(newRow => {
-            // Find if a row from File B already exists and update it, otherwise add new
-            const existingIndex = updatedMergedData.findIndex(d => d[idHeaderB] === newRow[idHeaderB]);
-            if (existingIndex > -1) {
-                updatedMergedData[existingIndex] = { ...updatedMergedData[existingIndex], ...newRow };
-            } else {
-                updatedMergedData.push(newRow);
-            }
-        });
-
+        const updatedMergedData = [...(mergedData || []), ...newMergedRows];
+        
         updatedMergedData.forEach((row, index) => {
             row['No'] = index + 1;
         });
@@ -365,22 +346,22 @@ export default function DataWeaverPage() {
     
         toast({
             title: "Bulk Merge Complete",
-            description: `${successfullyMergedCount} rows have been added/updated in the merged results.`,
+            description: `${successfullyMergedCount} rows have been added to the merged results.`,
         });
     
     }, [fileA, fileB, mergeKey, rowsToMerge, unmatchedData, manualSelections, mergedData, toast]);
 
 
     const handleMarkForMerge = (unmatchedRow: UnmatchedRow) => {
-        if (!fileA || !mergeKey) return;
-        const fileAMergeKey = fileA.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
-        const originalRowAKey = String(unmatchedRow.rowData[fileAMergeKey]);
+        if (!fileB || !mergeKey) return;
+        const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
+        const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
 
         setRowsToMerge(prev => {
-            if (prev.includes(originalRowAKey)) {
-                return prev.filter(key => key !== originalRowAKey);
+            if (prev.includes(originalRowBKey)) {
+                return prev.filter(key => key !== originalRowBKey);
             } else {
-                return [...prev, originalRowAKey];
+                return [...prev, originalRowBKey];
             }
         });
     };
@@ -410,13 +391,13 @@ export default function DataWeaverPage() {
         XLSX.writeFile(workbook, "Merged_Data.xls");
     };
 
-    const handleManualSelection = (originalRowA: any, selectedRowB: any) => {
-        if (!fileA || !mergeKey) return;
-        const fileAMergeKey = fileA.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
-        const originalRowKey = String(originalRowA[fileAMergeKey]);
+    const handleManualSelection = (originalRowB: any, selectedRowA: any) => {
+        if (!fileB || !mergeKey) return;
+        const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
+        const originalRowKey = String(originalRowB[fileBMergeKey]);
         setManualSelections(prev => ({
             ...prev,
-            [originalRowKey]: selectedRowB
+            [originalRowKey]: selectedRowA
         }));
     };
     
@@ -623,8 +604,8 @@ export default function DataWeaverPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-lg">
-                                        <p><span className="font-bold text-green-600">{mergedData.length} rows</span> were processed based on File B.</p>
-                                        {unmatchedData && <p><span className="font-bold text-yellow-600">{unmatchedData.length} names</span> from File A could not be matched.</p>}
+                                        <p><span className="font-bold text-green-600">{mergedData.length} rows</span> were automatically matched.</p>
+                                        {unmatchedData && <p><span className="font-bold text-yellow-600">{unmatchedData.length} names</span> from File B could not be matched.</p>}
                                     </div>
                                 </CardContent>
                                 <CardFooter>
@@ -642,49 +623,29 @@ export default function DataWeaverPage() {
                                     <div className="flex items-center gap-4">
                                         <AlertCircle className="h-5 w-5 text-yellow-500" />
                                         <div>
-                                            <CardTitle>Unmatched Data from {fileA?.fileName}</CardTitle>
-                                            <CardDescription>These {unmatchedData.length} rows did not have a matching key in {fileB?.fileName}. Validate any suggestions below.</CardDescription>
+                                            <CardTitle>Unmatched Data from {fileB?.fileName}</CardTitle>
+                                            <CardDescription>These {unmatchedData.length} rows did not have a matching key in {fileA?.fileName}. Validate them manually to add them to the result.</CardDescription>
                                         </div>
                                     </div>
                                 </CardHeader>
                                 <CardContent>
                                      <div className="mb-4">
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                 <Button
-                                                    size="sm"
-                                                    className="bg-yellow-500 text-yellow-900 hover:bg-yellow-600 disabled:bg-muted disabled:text-muted-foreground"
-                                                    disabled={rowsToMerge.length === 0}
-                                                >
-                                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                                    Add Selected to Merged Results ({rowsToMerge.length})
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Confirm Name Source</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        Which name do you want to use for the merged record? This will apply to all {rowsToMerge.length} selected items.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleBulkManualMerge('A')}>
-                                                        Use Name from File NISN
-                                                    </AlertDialogAction>
-                                                    <AlertDialogAction onClick={() => handleBulkManualMerge('B')}>
-                                                        Use Name from File id Bulk
-                                                    </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
+                                        <Button
+                                            size="sm"
+                                            className="bg-yellow-500 text-yellow-900 hover:bg-yellow-600 disabled:bg-muted disabled:text-muted-foreground"
+                                            disabled={rowsToMerge.length === 0}
+                                            onClick={handleBulkManualMerge}
+                                        >
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Add Selected to Merged Results ({rowsToMerge.length})
+                                        </Button>
                                     </div>
                                     <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
                                         <Table>
                                             <TableHeader className="sticky top-0 bg-card">
                                                 <TableRow>
-                                                    <TableHead>Nama File NISN (Unmatched)</TableHead>
-                                                    <TableHead>Select Match from File id Bulk</TableHead>
+                                                    <TableHead>Nama File id Bulk (Unmatched)</TableHead>
+                                                    <TableHead>Select Match from File NISN</TableHead>
                                                     <TableHead className="text-center">Action</TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -692,25 +653,25 @@ export default function DataWeaverPage() {
                                                 {unmatchedData.map((unmatchedRow, rowIndex) => {
                                                     const fileAMergeKey = fileA?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
                                                     const fileBMergeKey = fileB?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
-                                                    const originalRowAKey = String(unmatchedRow.rowData[fileAMergeKey]);
+                                                    const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
 
-                                                    const allFileBRows = fileB?.rows || [];
+                                                    const allFileARows = fileA?.rows || [];
 
-                                                    const currentSelection = manualSelections[originalRowAKey];
-                                                    const isQueued = rowsToMerge.includes(originalRowAKey);
+                                                    const currentSelection = manualSelections[originalRowBKey];
+                                                    const isQueued = rowsToMerge.includes(originalRowBKey);
 
                                                     return (
                                                         <TableRow key={rowIndex} className={isQueued ? 'bg-yellow-100/50 dark:bg-yellow-900/20' : ''}>
                                                             <TableCell>
-                                                                {decodeHtml(String(unmatchedRow.rowData?.[fileAMergeKey] ?? 'No name'))}
+                                                                {decodeHtml(String(unmatchedRow.rowData?.[fileBMergeKey] ?? 'No name'))}
                                                             </TableCell>
                                                             <TableCell>
                                                                 <ManualSelectCombobox
-                                                                    rowsB={allFileBRows}
-                                                                    mergeKeyB={fileBMergeKey}
+                                                                    rowsA={allFileARows}
+                                                                    mergeKeyA={fileAMergeKey}
                                                                     value={currentSelection}
-                                                                    onSelect={(selectedRowB) => {
-                                                                        handleManualSelection(unmatchedRow.rowData, selectedRowB);
+                                                                    onSelect={(selectedRowA) => {
+                                                                        handleManualSelection(unmatchedRow.rowData, selectedRowA);
                                                                     }}
                                                                 />
                                                             </TableCell>
@@ -797,23 +758,23 @@ export default function DataWeaverPage() {
 }
 
 function ManualSelectCombobox({
-    rowsB,
-    mergeKeyB,
+    rowsA,
+    mergeKeyA,
     value,
     onSelect,
 }: {
-    rowsB: any[],
-    mergeKeyB: string,
+    rowsA: any[],
+    mergeKeyA: string,
     value: any | null,
     onSelect: (selectedRowA: any) => void
 }) {
     const [open, setOpen] = useState(false)
 
-    if (!rowsB || rowsB.length === 0 || !mergeKeyB) {
+    if (!rowsA || rowsA.length === 0 || !mergeKeyA) {
         return <span className="text-xs text-muted-foreground">Tidak ada data untuk dipilih</span>;
     }
 
-    const displayValue = value ? decodeHtml(String(value[mergeKeyB] ?? '')) : "Select name...";
+    const displayValue = value ? decodeHtml(String(value[mergeKeyA] ?? '')) : "Select name...";
     const hasValue = !!value;
 
     return (
@@ -840,22 +801,22 @@ function ManualSelectCombobox({
                     <CommandList>
                         <CommandEmpty>No name found.</CommandEmpty>
                         <CommandGroup>
-                            {rowsB.map((rowB, index) => {
-                                const key = `${rowB[mergeKeyB]}-${index}`;
-                                const displayVal = decodeHtml(String(rowB[mergeKeyB] ?? ''));
+                            {rowsA.map((rowA, index) => {
+                                const key = `${rowA[mergeKeyA]}-${index}`;
+                                const displayVal = decodeHtml(String(rowA[mergeKeyA] ?? ''));
                                 return (
                                     <CommandItem
                                         key={key}
                                         value={displayVal}
                                         onSelect={() => {
-                                            onSelect(rowB)
+                                            onSelect(rowA)
                                             setOpen(false)
                                         }}
                                     >
                                         <Check
                                             className={cn(
                                                 "mr-2 h-4 w-4",
-                                                value && value[mergeKeyB] === rowB[mergeKeyB] ? "opacity-100" : "opacity-0"
+                                                value && value[mergeKeyA] === rowA[mergeKeyA] ? "opacity-100" : "opacity-0"
                                             )}
                                         />
                                         {displayVal}
@@ -869,6 +830,3 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
-
-    
