@@ -800,5 +800,3 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
-    

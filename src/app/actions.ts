@@ -525,7 +525,7 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     const findHeader = (headers: string[] | undefined, key: string) => {
         if (!headers) return undefined;
         return headers.find(h => h.toLowerCase() === key.toLowerCase());
-    }
+    };
     
     const fileAMergeKey = findHeader(fileAData.headers, mergeKey);
     const fileBMergeKey = findHeader(fileBData.headers, mergeKey);
@@ -539,13 +539,15 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         };
     }
     
+    // Create a map of File A for efficient lookups. Key is the mergeKey value (e.g., name).
     const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
         const key = String(rowA[fileAMergeKey] || '').toLowerCase().trim();
         const nisnValue = nisnHeaderA ? String(rowA[nisnHeaderA] || '').trim() : '';
         
+        // Only add to map if the key is valid and it has a NISN.
         if (key && nisnValue) { 
-            if (!fileAMap.has(key)) {
+            if (!fileAMap.has(key)) { // Avoid duplicates in File A, take the first one
                 fileAMap.set(key, rowA);
             }
         }
@@ -558,10 +560,14 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         const key = String(rowB[fileBMergeKey] || '').toLowerCase().trim();
         
         if (key && fileAMap.has(key)) {
+            // Match found and the corresponding row in A has a NISN
             const rowA = fileAMap.get(key);
+            // Combine all properties from row A and row B.
+            // If a column exists in both, row B's value will be prioritized.
             const mergedRow = { ...rowA, ...rowB };
             mergedRows.push(mergedRow);
         } else {
+            // No match in File A OR the match in File A had no NISN
             unmatchedRowsB.push(rowB);
         }
     }
