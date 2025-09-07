@@ -619,7 +619,7 @@ export default function DataWeaverPage() {
 
                         {unmatchedData && unmatchedData.length > 0 && (
                             <Card>
-                                <CardHeader className="flex flex-row justify-between items-center">
+                                <CardHeader>
                                     <div className="flex items-center gap-4">
                                         <AlertCircle className="h-5 w-5 text-yellow-500" />
                                         <div>
@@ -627,12 +627,14 @@ export default function DataWeaverPage() {
                                             <CardDescription>Validate these rows manually to add them to the result.</CardDescription>
                                         </div>
                                     </div>
-                                    <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950">
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Add Selected to Result
-                                    </Button>
                                 </CardHeader>
                                 <CardContent>
+                                    <div className="flex justify-end mb-4">
+                                        <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950">
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Add Selected to Result
+                                        </Button>
+                                    </div>
                                     <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
                                         <Table>
                                             <TableHeader className="sticky top-0 bg-card z-10">
@@ -823,8 +825,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
-    
-    
 
     
