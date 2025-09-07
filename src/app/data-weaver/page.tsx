@@ -721,44 +721,57 @@ export default function DataWeaverPage() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {unmatchedData.map((unmatchedRow, rowIndex) => {
+                                                {(() => {
                                                     const fileAMergeKey = fileA?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
-                                                    const fileBMergeKey = fileB?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
-                                                    const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
+                                                    const alreadySelectedValues = new Set(
+                                                        Object.values(manualSelections)
+                                                              .filter(Boolean)
+                                                              .map(rowA => rowA[fileAMergeKey])
+                                                    );
 
-                                                    const allFileARows = fileA?.rows || [];
-                                                    const currentSelection = manualSelections[originalRowBKey];
+                                                    return unmatchedData.map((unmatchedRow, rowIndex) => {
+                                                        const fileBMergeKey = fileB?.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
+                                                        const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
+                                                        const currentSelection = manualSelections[originalRowBKey];
+                                                        
+                                                        const availableRowsA = (fileA?.rows || []).filter(rowA => {
+                                                            const rowAValue = rowA[fileAMergeKey];
+                                                            // Show if it's not selected elsewhere, OR if it's the one currently selected for this row
+                                                            return !alreadySelectedValues.has(rowAValue) || (currentSelection && currentSelection[fileAMergeKey] === rowAValue);
+                                                        });
 
-                                                    return (
-                                                        <TableRow key={rowIndex}>
-                                                            <TableCell>
-                                                                {decodeHtml(String(unmatchedRow.rowData?.[fileBMergeKey] ?? 'No name'))}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <ManualSelectCombobox
-                                                                    rowsA={allFileARows}
-                                                                    mergeKeyA={fileAMergeKey}
-                                                                    value={currentSelection}
-                                                                    onSelect={(selectedRowA) => {
-                                                                        handleManualSelection(unmatchedRow.rowData, selectedRowA);
-                                                                    }}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell className="flex justify-center">
-                                                                <Button
-                                                                    size="sm"
-                                                                    onClick={() => handleManualSelection(unmatchedRow.rowData, currentSelection ? null : (manualSelections[originalRowBKey] || null))}
-                                                                    variant={currentSelection ? "destructive" : "default"}
-                                                                    disabled={!currentSelection && !manualSelections[originalRowBKey]}
-                                                                    className="flex items-center justify-center gap-2"
-                                                                >
-                                                                    {currentSelection ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                                                                    <span>{currentSelection ? 'Unmatch' : 'Match'}</span>
-                                                                </Button>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    )
-                                                })}
+
+                                                        return (
+                                                            <TableRow key={rowIndex}>
+                                                                <TableCell>
+                                                                    {decodeHtml(String(unmatchedRow.rowData?.[fileBMergeKey] ?? 'No name'))}
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <ManualSelectCombobox
+                                                                        rowsA={availableRowsA}
+                                                                        mergeKeyA={fileAMergeKey}
+                                                                        value={currentSelection}
+                                                                        onSelect={(selectedRowA) => {
+                                                                            handleManualSelection(unmatchedRow.rowData, selectedRowA);
+                                                                        }}
+                                                                    />
+                                                                </TableCell>
+                                                                <TableCell className="flex justify-center">
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={() => handleManualSelection(unmatchedRow.rowData, currentSelection ? null : (manualSelections[originalRowBKey] || null))}
+                                                                        variant={currentSelection ? "destructive" : "default"}
+                                                                        disabled={!currentSelection && !manualSelections[originalRowBKey]}
+                                                                        className="flex items-center justify-center gap-2"
+                                                                    >
+                                                                        {currentSelection ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                                                                        <span>{currentSelection ? 'Unmatch' : 'Match'}</span>
+                                                                    </Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )
+                                                    })
+                                                })()}
                                             </TableBody>
                                         </Table>
                                     </div>
@@ -901,8 +914,3 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
-    
-
-    
-
