@@ -627,7 +627,7 @@ export default function DataWeaverPage() {
                                             <CardDescription>Validate these rows manually to add them to the result.</CardDescription>
                                         </div>
                                     </div>
-                                    <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm">
+                                    <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950">
                                         <PlusCircle className="mr-2 h-4 w-4" />
                                         Add Selected to Result
                                     </Button>
@@ -795,6 +795,10 @@ function ManualSelectCombobox({
                     <CommandList>
                         <CommandEmpty>No name found.</CommandEmpty>
                         <CommandGroup>
+                            <CommandItem onSelect={() => { onSelect(null); setOpen(false); }}>
+                                <X className="mr-2 h-4 w-4 text-destructive" />
+                                <span className="text-destructive">Unmatch</span>
+                            </CommandItem>
                             {rowsA.map((rowA, index) => {
                                 const key = `${rowA[mergeKeyA]}-${index}`;
                                 const displayVal = decodeHtml(String(rowA[mergeKeyA] ?? ''));
@@ -825,4 +829,5 @@ function ManualSelectCombobox({
     )
 }
 
+    
     
