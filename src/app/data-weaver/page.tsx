@@ -271,14 +271,12 @@ export default function DataWeaverPage() {
             return;
         }
 
-        // **FIX:** Reset previous results to ensure a clean state for the new merge
         setMergedData(null);
         setUnmatchedData(null);
         setManualSelections({});
         
         toast({ title: "Merging in progress...", description: "Comparing files on the server." });
         
-        // Sanitize data to plain objects before sending to server action
         const plainFileA = JSON.parse(JSON.stringify({ headers: fileA.headers, rows: fileA.rows }));
         const plainFileB = JSON.parse(JSON.stringify({ headers: fileB.headers, rows: fileB.rows }));
 
@@ -291,7 +289,6 @@ export default function DataWeaverPage() {
 
         const finalTableData = serverResult.mergedRows.map((row, index) => {
             const newRow = { ...row };
-            // Ensure the 'No' column from the original file does not override our generated index
             delete newRow['No'];
             return {
                 'No': index + 1,
@@ -307,7 +304,7 @@ export default function DataWeaverPage() {
         setUnmatchedData(finalUnmatched);
         
 
-        toast({ title: "Merge Processed", description: `${finalTableData.length} rows matched. Proceed to Review.` });
+        toast({ title: "Merge Processed", description: `${finalTableData.length} rows Matched. Proceed to Review.` });
         setActiveTab("review");
     };
 
@@ -323,18 +320,15 @@ export default function DataWeaverPage() {
             return;
         }
         
-        // This is the engine for manual merge. It combines the row from File B
-        // with the user-selected row from File A.
         const newlyMergedRow = {
-            ...selectedRowA, // Takes all properties from the selected File A row (like NISN)
-            ...unmatchedRow.rowData // Overwrites with all properties from the File B row (like ID and Name)
+            ...selectedRowA,
+            ...unmatchedRow.rowData
         };
         
         const updatedMergedData = [...(mergedData || [])];
         newlyMergedRow['No'] = updatedMergedData.length + 1;
         updatedMergedData.push(newlyMergedRow);
 
-        // Remove the row from the unmatched list
         const updatedUnmatchedData = unmatchedData?.filter(item => {
             const itemKey = String(item.rowData[fileBMergeKey]);
             return itemKey !== originalRowBKey;
@@ -343,13 +337,12 @@ export default function DataWeaverPage() {
         setMergedData(updatedMergedData);
         setUnmatchedData(updatedUnmatchedData);
 
-        // Clean up the manual selection for the merged row
         const newManualSelections = { ...manualSelections };
         delete newManualSelections[originalRowBKey];
         setManualSelections(newManualSelections);
 
         toast({
-            title: "Row Merged",
+            title: "Row Matched",
             description: `"${decodeHtml(unmatchedRow.rowData[fileBMergeKey])}" has been added to the results.`,
         });
 
@@ -379,14 +372,21 @@ export default function DataWeaverPage() {
         XLSX.writeFile(workbook, "Merged_Data.xls");
     };
 
-    const handleManualSelection = (originalRowB: any, selectedRowA: any) => {
+    const handleManualSelection = (originalRowB: any, selectedRowA: any | null) => {
         if (!fileB || !mergeKey) return;
         const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
         const originalRowKey = String(originalRowB[fileBMergeKey]);
-        setManualSelections(prev => ({
-            ...prev,
-            [originalRowKey]: selectedRowA
-        }));
+
+        setManualSelections(prev => {
+            const newSelections = { ...prev };
+            if (selectedRowA === null) {
+                // If null is passed, it means deselect
+                delete newSelections[originalRowKey];
+            } else {
+                newSelections[originalRowKey] = selectedRowA;
+            }
+            return newSelections;
+        });
     };
     
     const handleSaveDefaults = () => {
@@ -592,7 +592,7 @@ export default function DataWeaverPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-lg">
-                                        <p><span className="font-bold text-green-600">{mergedData.length} rows</span> matched.</p>
+                                        <p><span className="font-bold text-green-600">{mergedData.length} rows</span> Matched.</p>
                                         {unmatchedData && <p><span className="font-bold text-yellow-600">{unmatchedData.length} names</span> Unmatched.</p>}
                                     </div>
                                 </CardContent>
@@ -611,8 +611,8 @@ export default function DataWeaverPage() {
                                     <div className="flex items-center gap-4">
                                         <AlertCircle className="h-5 w-5 text-yellow-500" />
                                         <div>
-                                            <CardTitle>Unmatched Data from {fileB?.fileName}</CardTitle>
-                                            <CardDescription>These {unmatchedData.length} rows did not have a matching key in {fileA?.fileName}. Validate them manually to add them to the result.</CardDescription>
+                                            <CardTitle>Unmatched Data</CardTitle>
+                                            <CardDescription>Validate these rows manually to add them to the result.</CardDescription>
                                         </div>
                                     </div>
                                 </CardHeader>
@@ -621,9 +621,9 @@ export default function DataWeaverPage() {
                                         <Table>
                                             <TableHeader className="sticky top-0 bg-card">
                                                 <TableRow>
-                                                    <TableHead>Nama File id Bulk (Unmatched)</TableHead>
-                                                    <TableHead>Select Match from File NISN</TableHead>
-                                                    <TableHead className="text-center">Action</TableHead>
+                                                    <TableHead>Name from id</TableHead>
+                                                    <TableHead>Name from NISN</TableHead>
+                                                    <TableHead className="text-center">Validasi</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
@@ -653,11 +653,15 @@ export default function DataWeaverPage() {
                                                             <TableCell className="flex justify-center items-center gap-2">
                                                                 <Button
                                                                     size="sm"
-                                                                    onClick={() => handleManualMerge(unmatchedRow)}
-                                                                    variant="outline"
+                                                                    onClick={() => {
+                                                                        if (currentSelection) {
+                                                                            handleManualMerge(unmatchedRow);
+                                                                        }
+                                                                    }}
+                                                                    variant={currentSelection ? "default" : "outline"}
                                                                     disabled={!currentSelection}
                                                                 >
-                                                                    <PlusCircle className="mr-2 h-4 w-4" /> Add to Result
+                                                                    <PlusCircle className="mr-2 h-4 w-4" /> Match
                                                                 </Button>
                                                             </TableCell>
                                                         </TableRow>
@@ -741,7 +745,7 @@ function ManualSelectCombobox({
     rowsA: any[],
     mergeKeyA: string,
     value: any | null,
-    onSelect: (selectedRowA: any) => void
+    onSelect: (selectedRowA: any | null) => void
 }) {
     const [open, setOpen] = useState(false)
 
@@ -776,6 +780,10 @@ function ManualSelectCombobox({
                     <CommandList>
                         <CommandEmpty>No name found.</CommandEmpty>
                         <CommandGroup>
+                            <CommandItem onSelect={() => { onSelect(null); setOpen(false); }}>
+                                <X className="mr-2 h-4 w-4 text-destructive" />
+                                <span className="text-destructive">Unmatch</span>
+                            </CommandItem>
                             {rowsA.map((rowA, index) => {
                                 const key = `${rowA[mergeKeyA]}-${index}`;
                                 const displayVal = decodeHtml(String(rowA[mergeKeyA] ?? ''));
@@ -805,5 +813,7 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
 
     
