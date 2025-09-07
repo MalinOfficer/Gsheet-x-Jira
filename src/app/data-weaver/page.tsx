@@ -797,10 +797,6 @@ function ManualSelectCombobox({
                     <CommandList>
                         <CommandEmpty>No name found.</CommandEmpty>
                         <CommandGroup>
-                            <CommandItem onSelect={() => { onSelect(null); setOpen(false); }}>
-                                <X className="mr-2 h-4 w-4 text-destructive" />
-                                <span className="text-destructive">Unmatch</span>
-                            </CommandItem>
                             {rowsA.map((rowA, index) => {
                                 const key = `${rowA[mergeKeyA]}-${index}`;
                                 const displayVal = decodeHtml(String(rowA[mergeKeyA] ?? ''));
