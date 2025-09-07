@@ -74,7 +74,6 @@ export default function DataWeaverPage() {
     const [mergedData, setMergedData] = useState<any[] | null>(null);
     const [unmatchedData, setUnmatchedData] = useState<UnmatchedRow[] | null>(null);
     const [manualSelections, setManualSelections] = useState<Record<string, any>>({});
-    const [rowsToMerge, setRowsToMerge] = useState<string[]>([]);
     const [mergeKey, setMergeKey] = useState<string>('');
     const [commonHeaders, setCommonHeaders] = useState<string[]>([]);
 
@@ -115,7 +114,6 @@ export default function DataWeaverPage() {
             setUnmatchedData(null);
             setCommonHeaders([]);
             setManualSelections({});
-            setRowsToMerge([]);
             setActiveTab("upload");
         }
     }, [fileA, fileB]);
@@ -282,7 +280,6 @@ export default function DataWeaverPage() {
             ...row
         }));
         
-        // This now correctly receives unmatched rows from File B
         const finalUnmatched = serverResult.unmatchedRowsB.map((rowB: any) => ({
             rowData: rowB,
         }));
@@ -290,82 +287,54 @@ export default function DataWeaverPage() {
         setMergedData(finalTableData);
         setUnmatchedData(finalUnmatched);
         setManualSelections({});
-        setRowsToMerge([]);
 
         toast({ title: "Merge Processed", description: `${finalTableData.length} rows were automatically matched. Proceed to Review.` });
         setActiveTab("review");
     };
 
-    const handleBulkManualMerge = useCallback(() => {
-        if (!fileA || !fileB || !mergeKey || rowsToMerge.length === 0) {
-            toast({ variant: "destructive", title: "No Rows Selected", description: "Please select rows to merge first." });
-            return;
-        }
-
-        const findHeader = (headers: string[], key: string) => headers.find(h => h.toLowerCase() === key.toLowerCase()) || key;
-
-        const nameHeaderB = findHeader(fileB.headers, mergeKey);
-    
-        const newMergedRows: any[] = [];
-        const remainingUnmatchedData: UnmatchedRow[] = [];
-        let successfullyMergedCount = 0;
-    
-        unmatchedData?.forEach(unmatchedRow => {
-            // The unique key for a row from File B is its `ID` or `Name`
-            const originalRowBKey = String(unmatchedRow.rowData[nameHeaderB]);
-    
-            if (rowsToMerge.includes(originalRowBKey)) {
-                const rowB = unmatchedRow.rowData; // This is the base row from File B
-                const rowA = manualSelections[originalRowBKey]; // This is the selected match from File A
-    
-                if (!rowA) { // Should not happen if button is enabled correctly
-                    remainingUnmatchedData.push(unmatchedRow);
-                    return; 
-                }
-                
-                // Explicitly build the final row object
-                const newlyMergedRow = { ...rowB, ...rowA };
-    
-                newMergedRows.push(newlyMergedRow);
-                successfullyMergedCount++;
-            } else {
-                remainingUnmatchedData.push(unmatchedRow);
-            }
-        });
-    
-        const updatedMergedData = [...(mergedData || []), ...newMergedRows];
-        
-        updatedMergedData.forEach((row, index) => {
-            row['No'] = index + 1;
-        });
-    
-        setMergedData(updatedMergedData);
-        setUnmatchedData(remainingUnmatchedData);
-        setRowsToMerge([]);
-        setManualSelections({});
-    
-        toast({
-            title: "Bulk Merge Complete",
-            description: `${successfullyMergedCount} rows have been added to the merged results.`,
-        });
-    
-    }, [fileA, fileB, mergeKey, rowsToMerge, unmatchedData, manualSelections, mergedData, toast]);
-
-
-    const handleMarkForMerge = (unmatchedRow: UnmatchedRow) => {
+    const handleManualMerge = useCallback((unmatchedRow: UnmatchedRow) => {
         if (!fileB || !mergeKey) return;
-        const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
+
+        const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
         const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
 
-        setRowsToMerge(prev => {
-            if (prev.includes(originalRowBKey)) {
-                return prev.filter(key => key !== originalRowBKey);
-            } else {
-                return [...prev, originalRowBKey];
-            }
-        });
-    };
+        const selectedRowA = manualSelections[originalRowBKey];
+        if (!selectedRowA) {
+            toast({ variant: "destructive", title: "No Match Selected", description: "Please select a matching name from File NISN first." });
+            return;
+        }
+        
+        // This is the engine for manual merge. It combines the row from File B
+        // with the user-selected row from File A.
+        const newlyMergedRow = {
+            ...selectedRowA, // Takes all properties from the selected File A row (like NISN)
+            ...unmatchedRow.rowData // Overwrites with all properties from the File B row (like ID and Name)
+        };
+        
+        const updatedMergedData = [...(mergedData || [])];
+        newlyMergedRow['No'] = updatedMergedData.length + 1;
+        updatedMergedData.push(newlyMergedRow);
 
+        // Remove the row from the unmatched list
+        const updatedUnmatchedData = unmatchedData?.filter(item => {
+            const itemKey = String(item.rowData[fileBMergeKey]);
+            return itemKey !== originalRowBKey;
+        }) || [];
+
+        setMergedData(updatedMergedData);
+        setUnmatchedData(updatedUnmatchedData);
+
+        // Clean up the manual selection for the merged row
+        const newManualSelections = { ...manualSelections };
+        delete newManualSelections[originalRowBKey];
+        setManualSelections(newManualSelections);
+
+        toast({
+            title: "Row Merged",
+            description: `"${decodeHtml(unmatchedRow.rowData[fileBMergeKey])}" has been added to the results.`,
+        });
+
+    }, [fileB, mergeKey, manualSelections, mergedData, unmatchedData, toast]);
     
     const handleDownload = () => {
         if (!mergedData || mergedData.length === 0 || typeof XLSX === 'undefined') {
@@ -629,17 +598,6 @@ export default function DataWeaverPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                     <div className="mb-4">
-                                        <Button
-                                            size="sm"
-                                            className="bg-yellow-500 text-yellow-900 hover:bg-yellow-600 disabled:bg-muted disabled:text-muted-foreground"
-                                            disabled={rowsToMerge.length === 0}
-                                            onClick={handleBulkManualMerge}
-                                        >
-                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                            Add Selected to Merged Results ({rowsToMerge.length})
-                                        </Button>
-                                    </div>
                                     <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
                                         <Table>
                                             <TableHeader className="sticky top-0 bg-card">
@@ -656,12 +614,10 @@ export default function DataWeaverPage() {
                                                     const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
 
                                                     const allFileARows = fileA?.rows || [];
-
                                                     const currentSelection = manualSelections[originalRowBKey];
-                                                    const isQueued = rowsToMerge.includes(originalRowBKey);
 
                                                     return (
-                                                        <TableRow key={rowIndex} className={isQueued ? 'bg-yellow-100/50 dark:bg-yellow-900/20' : ''}>
+                                                        <TableRow key={rowIndex}>
                                                             <TableCell>
                                                                 {decodeHtml(String(unmatchedRow.rowData?.[fileBMergeKey] ?? 'No name'))}
                                                             </TableCell>
@@ -678,11 +634,11 @@ export default function DataWeaverPage() {
                                                             <TableCell className="flex justify-center items-center gap-2">
                                                                 <Button
                                                                     size="sm"
-                                                                    onClick={() => handleMarkForMerge(unmatchedRow)}
-                                                                    variant={isQueued ? "secondary" : "outline"}
+                                                                    onClick={() => handleManualMerge(unmatchedRow)}
+                                                                    variant="outline"
                                                                     disabled={!currentSelection}
                                                                 >
-                                                                    {isQueued ? <><Check className="mr-2 h-4 w-4" /> Queued</> : "Queue for Merge"}
+                                                                    <PlusCircle className="mr-2 h-4 w-4" /> Add to Result
                                                                 </Button>
                                                             </TableCell>
                                                         </TableRow>
@@ -830,3 +786,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
