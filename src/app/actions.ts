@@ -536,7 +536,7 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     }
     
     // Create a Map of File A for efficient lookup, keyed by the normalized mergeKey value.
-    const fileAMap = new Map<string, any>();
+    const fileAMap = new Map<string, any[]>();
     for (const rowA of fileAData.rows) {
         const key = String(rowA[fileAMergeKey] || '').toLowerCase().trim();
         if (key) {
@@ -555,15 +555,16 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         const key = String(rowB[fileBMergeKey] || '').toLowerCase().trim();
         
         if (key && fileAMap.has(key)) {
-            // Find the first matching row from File A and combine
             const matchingRowsA = fileAMap.get(key) || [];
             if (matchingRowsA.length > 0) {
-                 // Use the first match from File A
-                const rowA = matchingRowsA.shift();
-                const mergedRow = { ...rowB, ...rowA };
+                 // Use the first match from File A and combine all properties
+                const rowA = matchingRowsA.shift(); // Take one match
+                // IMPORTANT: The order here matters. Properties from rowB will overwrite rowA if they conflict.
+                // This is generally what we want, with File B as the base.
+                const mergedRow = { ...rowA, ...rowB };
                 mergedRows.push(mergedRow);
             } else {
-                 unmatchedRowsB.push(rowB);
+                 unmatchedRowsB.push(rowB); // No available matches left in File A
             }
         } else {
             // If no match in File A, it's an unmatched row from File B
