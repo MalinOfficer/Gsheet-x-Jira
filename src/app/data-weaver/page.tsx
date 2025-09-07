@@ -340,17 +340,17 @@ export default function DataWeaverPage() {
             return;
         }
 
-        const nameHeaderA = fileA.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
-        const nameHeaderB = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
-        const nisnHeaderA = fileA.headers.find(h => h.toLowerCase() === 'nisn') || '';
-        const idHeaderB = fileB.headers.find(h => h.toLowerCase() === 'id') || '';
+        const nameHeaderA = fileA.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase());
+        const nameHeaderB = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase());
+        const nisnHeaderA = fileA.headers.find(h => h.toLowerCase() === 'nisn');
+        const idHeaderB = fileB.headers.find(h => h.toLowerCase() === 'id');
 
         if (!nameHeaderA || !nisnHeaderA) {
-             toast({ variant: 'destructive', title: "Header Error in File A", description: "Could not find the required headers ('Nama' or 'NISN')." });
+             toast({ variant: 'destructive', title: "Header Error in File A", description: "Could not find the required headers (like 'Nama', 'NISN')." });
              return;
         }
         if (!nameHeaderB || !idHeaderB) {
-            toast({ variant: 'destructive', title: "Header Error in File B", description: "Could not find the required headers ('Nama' or 'ID')." });
+            toast({ variant: 'destructive', title: "Header Error in File B", description: "Could not find the required headers (like 'Nama', 'ID')." });
             return;
         }
         
@@ -358,25 +358,26 @@ export default function DataWeaverPage() {
         
         const cleanFileA = { rows: fileA.rows.map(r => ({...r})) };
         const cleanFileB = { rows: fileB.rows.map(r => ({...r})) };
+        const fileAMergeKey = fileA.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || mergeKey;
 
         const { mergedRows: serverMergedRows, unmatchedRowsA } = await mergeFilesOnServer(
             cleanFileA,
             cleanFileB,
-            mergeKey
-        );
-
-        const unmatchedFileBRows = fileB.rows.filter(rowB => 
-            !serverMergedRows.some(mergedRow => mergedRow[nameHeaderB] === rowB[nameHeaderB])
+            fileAMergeKey
         );
         
-        let autoMergedRows: any[] = [];
-        let remainingUnmatchedA = [];
+        const autoMergedRows: any[] = [];
+        const remainingUnmatchedA = [];
+        
+        const usedInServerMerge = new Set(serverMergedRows.map(r => r[nameHeaderB]));
+        const unmatchedFileBRows = fileB.rows.filter(rowB => !usedInServerMerge.has(rowB[nameHeaderB]));
         
         for (const rowA of unmatchedRowsA) {
             let bestSuggestion: any = null;
             let minDistance = Infinity;
+            let bestSuggestionIndex = -1;
             
-            unmatchedFileBRows.forEach(rowB => {
+            unmatchedFileBRows.forEach((rowB, index) => {
                 const nameA = rowA[nameHeaderA];
                 const nameB = rowB[nameHeaderB];
                 if (areNamesSimilar(nameA, nameB)) {
@@ -384,17 +385,21 @@ export default function DataWeaverPage() {
                     if (distance < minDistance) {
                         minDistance = distance;
                         bestSuggestion = rowB;
+                        bestSuggestionIndex = index;
                     }
                 }
             });
             
             if (bestSuggestion) {
-                const combined = {
+                 const combined = {
                     [idHeaderB]: bestSuggestion[idHeaderB],
                     [nameHeaderB]: bestSuggestion[nameHeaderB],
                     [nisnHeaderA]: rowA[nisnHeaderA]
                 };
                 autoMergedRows.push(combined);
+                 if (bestSuggestionIndex > -1) {
+                    unmatchedFileBRows.splice(bestSuggestionIndex, 1);
+                }
             } else {
                 remainingUnmatchedA.push(rowA);
             }
@@ -406,18 +411,17 @@ export default function DataWeaverPage() {
             unmatchedFileBRows.forEach(rowB => {
                 const nameA = rowA[nameHeaderA];
                 const nameB = rowB[nameHeaderB];
-                if (areNamesSimilar(nameA, nameB)) {
-                    const distance = levenshteinDistance(getSimilarityKey(nameA), getSimilarityKey(nameB));
-                     if (distance < minDistance) {
-                        minDistance = distance;
-                        bestSuggestion = rowB;
-                    }
+                const distance = levenshteinDistance(getSimilarityKey(nameA), getSimilarityKey(nameB));
+                 if (distance < minDistance && distance < 5) { // Suggest if distance is reasonable
+                    minDistance = distance;
+                    bestSuggestion = rowB;
                 }
             });
             return { rowData: rowA, suggestion: bestSuggestion };
         });
 
-        const finalMergedData = [...serverMergedRows, ...autoMergedRows].map((row, index) => {
+        const allMerged = [...serverMergedRows, ...autoMergedRows];
+        const finalMergedData = allMerged.map((row, index) => {
             const finalRow: Record<string, any> = {};
             selectedHeaders.forEach(header => {
                 const lowerHeader = header.toLowerCase();
@@ -430,8 +434,8 @@ export default function DataWeaverPage() {
                 } else if (lowerHeader === 'nisn') {
                     finalRow[header] = row[nisnHeaderA];
                 } else {
-                    const headerKey = Object.keys(row).find(k => k.toLowerCase() === lowerHeader);
-                    finalRow[header] = headerKey ? row[headerKey] : '';
+                    const headerKeyInRow = Object.keys(row).find(k => k.toLowerCase() === lowerHeader);
+                    finalRow[header] = headerKeyInRow ? row[headerKeyInRow] : '';
                 }
             });
             return finalRow;
@@ -474,14 +478,12 @@ export default function DataWeaverPage() {
                     return; // Skip if no match is selected/suggested
                 }
                 
-                const combinedBase = {...rowA, ...rowB};
                 const nameToUse = nameSource === 'A' ? rowA[nameHeaderA] : rowB[nameHeaderB];
 
                 const finalCombinedRow = {
-                    ...combinedBase,
-                    [idHeaderB]: rowB[idHeaderB],
-                    [nameHeaderB]: nameToUse,
-                    [nisnHeaderA]: rowA[nisnHeaderA],
+                    ...rowA,
+                    ...rowB,
+                    [nameHeaderB]: nameToUse, 
                 };
 
                 const orderedRow: Record<string, any> = {};
@@ -1028,5 +1030,7 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
 
     
