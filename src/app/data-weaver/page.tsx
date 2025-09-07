@@ -273,19 +273,28 @@ export default function DataWeaverPage() {
 
         const getSimilarityScore = (nameA: string, nameB: string): number => {
             if (!nameA || !nameB) return 0;
-            const wordsA = nameA.toLowerCase().split(/\s+/).filter(Boolean);
-            const wordsB = nameB.toLowerCase().split(/\s+/).filter(Boolean);
+            
+            // Normalize names: lowercase, remove hyphens/punctuation, split into words
+            const normalize = (name: string) => name.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
+            const wordsA = normalize(nameA);
+            const wordsB = normalize(nameB);
+
             if (wordsA.length === 0 || wordsB.length === 0) return 0;
 
             const intersection = wordsA.filter(word => wordsB.includes(word));
-            const intersectionAbbr = wordsA.filter(wordA => wordsB.some(wordB => wordA.startsWith(wordB) || wordB.startsWith(wordA)));
             
+            // Full match
+            if (wordsA.join(' ') === wordsB.join(' ')) {
+                return 100;
+            }
+
             // Prefer intersection of at least 2 words
             if (intersection.length >= 2) {
                 return intersection.length;
             }
 
-            // Fallback to abbreviation check
+            // Fallback to abbreviation check on normalized words
+            const intersectionAbbr = wordsA.filter(wordA => wordsB.some(wordB => wordA.startsWith(wordB) || wordB.startsWith(wordA)));
             if (intersectionAbbr.length > 0) {
                 return 0.5; // Lower score for abbreviations
             }
@@ -309,7 +318,7 @@ export default function DataWeaverPage() {
                 
                 const score = getSimilarityScore(nameA, nameB);
 
-                if (score > highestScore && score >= 2) { // Require at least 2 words to match
+                if (score > highestScore && score >= 2) { // Require at least 2 words to match or a perfect score
                     highestScore = score;
                     bestMatch = rowA;
                 }
@@ -756,13 +765,13 @@ export default function DataWeaverPage() {
                                                                         }}
                                                                     />
                                                                 </TableCell>
-                                                                <TableCell className="flex justify-center">
+                                                                <TableCell className="text-center">
                                                                     <Button
                                                                         size="sm"
                                                                         onClick={() => handleManualSelection(unmatchedRow.rowData, currentSelection ? null : (manualSelections[originalRowBKey] || null))}
                                                                         variant={currentSelection ? "destructive" : "default"}
                                                                         disabled={!currentSelection && !manualSelections[originalRowBKey]}
-                                                                        className="flex items-center justify-center gap-2"
+                                                                        className="flex items-center justify-center gap-2 w-24"
                                                                     >
                                                                         {currentSelection ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
                                                                         <span>{currentSelection ? 'Unmatch' : 'Match'}</span>
