@@ -619,7 +619,7 @@ export default function DataWeaverPage() {
 
                         {unmatchedData && unmatchedData.length > 0 && (
                             <Card>
-                                <CardHeader className="flex flex-row justify-between items-start">
+                                <CardHeader className="flex flex-row justify-between items-center">
                                     <div className="flex items-center gap-4">
                                         <AlertCircle className="h-5 w-5 text-yellow-500" />
                                         <div>
@@ -666,17 +666,16 @@ export default function DataWeaverPage() {
                                                                     }}
                                                                 />
                                                             </TableCell>
-                                                            <TableCell className="flex justify-center items-center gap-2">
+                                                            <TableCell className="flex justify-center">
                                                                 <Button
                                                                     size="sm"
-                                                                    onClick={() => {
-                                                                        handleManualSelection(unmatchedRow.rowData, currentSelection ? null : manualSelections[originalRowBKey] || null);
-                                                                    }}
+                                                                    onClick={() => handleManualSelection(unmatchedRow.rowData, currentSelection ? null : (manualSelections[originalRowBKey] || null))}
                                                                     variant={currentSelection ? "destructive" : "default"}
-                                                                    disabled={!manualSelections[originalRowBKey] && !currentSelection}
+                                                                    disabled={!currentSelection && !manualSelections[originalRowBKey]}
+                                                                    className="flex items-center justify-center gap-2"
                                                                 >
-                                                                    {currentSelection ? <X className="mr-2 h-4 w-4" /> : <Check className="mr-2 h-4 w-4" />}
-                                                                    {currentSelection ? 'Unmatch' : 'Match'}
+                                                                    {currentSelection ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                                                                    <span>{currentSelection ? 'Unmatch' : 'Match'}</span>
                                                                 </Button>
                                                             </TableCell>
                                                         </TableRow>
@@ -795,10 +794,6 @@ function ManualSelectCombobox({
                     <CommandList>
                         <CommandEmpty>No name found.</CommandEmpty>
                         <CommandGroup>
-                            <CommandItem onSelect={() => { onSelect(null); setOpen(false); }}>
-                                <X className="mr-2 h-4 w-4 text-destructive" />
-                                <span className="text-destructive">Unmatch</span>
-                            </CommandItem>
                             {rowsA.map((rowA, index) => {
                                 const key = `${rowA[mergeKeyA]}-${index}`;
                                 const displayVal = decodeHtml(String(rowA[mergeKeyA] ?? ''));
