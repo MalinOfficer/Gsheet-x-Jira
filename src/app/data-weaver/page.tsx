@@ -307,7 +307,7 @@ export default function DataWeaverPage() {
         setUnmatchedData(finalUnmatched);
         
 
-        toast({ title: "Merge Processed", description: `${finalTableData.length} rows were automatically matched. Proceed to Review.` });
+        toast({ title: "Merge Processed", description: `${finalTableData.length} rows matched. Proceed to Review.` });
         setActiveTab("review");
     };
 
@@ -592,8 +592,8 @@ export default function DataWeaverPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-lg">
-                                        <p><span className="font-bold text-green-600">{mergedData.length} rows</span> were automatically matched.</p>
-                                        {unmatchedData && <p><span className="font-bold text-yellow-600">{unmatchedData.length} names</span> from File B could not be matched.</p>}
+                                        <p><span className="font-bold text-green-600">{mergedData.length} rows</span> matched.</p>
+                                        {unmatchedData && <p><span className="font-bold text-yellow-600">{unmatchedData.length} names</span> Unmatched.</p>}
                                     </div>
                                 </CardContent>
                                 <CardFooter>
