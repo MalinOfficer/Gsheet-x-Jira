@@ -308,46 +308,74 @@ export default function DataWeaverPage() {
         setActiveTab("review");
     };
 
-    const handleManualMerge = useCallback((unmatchedRow: UnmatchedRow) => {
+    const handleManualSelection = (originalRowB: any, selectedRowA: any | null) => {
         if (!fileB || !mergeKey) return;
-
         const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
-        const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
+        const originalRowKey = String(originalRowB[fileBMergeKey]);
 
-        const selectedRowA = manualSelections[originalRowBKey];
-        if (!selectedRowA) {
-            toast({ variant: "destructive", title: "No Match Selected", description: "Please select a matching name from File NISN first." });
+        setManualSelections(prev => {
+            const newSelections = { ...prev };
+            if (selectedRowA === null) {
+                // If null is passed, it means deselect
+                delete newSelections[originalRowKey];
+            } else {
+                newSelections[originalRowKey] = selectedRowA;
+            }
+            return newSelections;
+        });
+    };
+    
+    const handleBulkManualMerge = useCallback(() => {
+        if (!unmatchedData || !fileB || !mergeKey || Object.keys(manualSelections).length === 0) {
+            toast({ variant: "destructive", title: "No Selections to Add", description: "Please select at least one valid match before adding." });
             return;
         }
-        
-        const newlyMergedRow = {
-            ...selectedRowA,
-            ...unmatchedRow.rowData
-        };
-        
-        const updatedMergedData = [...(mergedData || [])];
-        newlyMergedRow['No'] = updatedMergedData.length + 1;
-        updatedMergedData.push(newlyMergedRow);
 
-        const updatedUnmatchedData = unmatchedData?.filter(item => {
+        const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
+        
+        const newlyMergedRows: any[] = [];
+        const keysOfRowsToAdd = new Set<string>();
+
+        unmatchedData.forEach(unmatchedRow => {
+            const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
+            if (manualSelections[originalRowBKey]) {
+                const selectedRowA = manualSelections[originalRowBKey];
+                const mergedRow = { ...selectedRowA, ...unmatchedRow.rowData };
+                newlyMergedRows.push(mergedRow);
+                keysOfRowsToAdd.add(originalRowBKey);
+            }
+        });
+
+        if (newlyMergedRows.length === 0) {
+            toast({ variant: "destructive", title: "No Valid Selections", description: "Could not find any selections to merge. Please try again." });
+            return;
+        }
+
+        const updatedMergedData = [...(mergedData || [])];
+        newlyMergedRows.forEach(row => {
+            row['No'] = updatedMergedData.length + 1;
+            updatedMergedData.push(row);
+        });
+
+        const updatedUnmatchedData = unmatchedData.filter(item => {
             const itemKey = String(item.rowData[fileBMergeKey]);
-            return itemKey !== originalRowBKey;
-        }) || [];
+            return !keysOfRowsToAdd.has(itemKey);
+        });
+
+        const updatedManualSelections = { ...manualSelections };
+        keysOfRowsToAdd.forEach(key => delete updatedManualSelections[key]);
 
         setMergedData(updatedMergedData);
         setUnmatchedData(updatedUnmatchedData);
-
-        const newManualSelections = { ...manualSelections };
-        delete newManualSelections[originalRowBKey];
-        setManualSelections(newManualSelections);
+        setManualSelections(updatedManualSelections);
 
         toast({
-            title: "Row Matched",
-            description: `"${decodeHtml(unmatchedRow.rowData[fileBMergeKey])}" has been added to the results.`,
+            title: `${newlyMergedRows.length} Rows Added`,
+            description: "The selected rows have been added to the final result.",
         });
 
-    }, [fileB, mergeKey, manualSelections, mergedData, unmatchedData, toast]);
-    
+    }, [unmatchedData, fileB, mergeKey, manualSelections, mergedData, toast]);
+
     const handleDownload = () => {
         if (!mergedData || mergedData.length === 0 || typeof XLSX === 'undefined') {
             toast({ variant: 'destructive', title: "Download Failed", description: "No merged data to download." });
@@ -372,22 +400,6 @@ export default function DataWeaverPage() {
         XLSX.writeFile(workbook, "Merged_Data.xls");
     };
 
-    const handleManualSelection = (originalRowB: any, selectedRowA: any | null) => {
-        if (!fileB || !mergeKey) return;
-        const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
-        const originalRowKey = String(originalRowB[fileBMergeKey]);
-
-        setManualSelections(prev => {
-            const newSelections = { ...prev };
-            if (selectedRowA === null) {
-                // If null is passed, it means deselect
-                delete newSelections[originalRowKey];
-            } else {
-                newSelections[originalRowKey] = selectedRowA;
-            }
-            return newSelections;
-        });
-    };
     
     const handleSaveDefaults = () => {
         if (!mergeKey) {
@@ -654,14 +666,13 @@ export default function DataWeaverPage() {
                                                                 <Button
                                                                     size="sm"
                                                                     onClick={() => {
-                                                                        if (currentSelection) {
-                                                                            handleManualMerge(unmatchedRow);
-                                                                        }
+                                                                        handleManualSelection(unmatchedRow.rowData, currentSelection ? null : manualSelections[originalRowBKey] || null);
                                                                     }}
-                                                                    variant={currentSelection ? "default" : "outline"}
-                                                                    disabled={!currentSelection}
+                                                                    variant={currentSelection ? "destructive" : "default"}
+                                                                    disabled={!manualSelections[originalRowBKey] && !currentSelection}
                                                                 >
-                                                                    <PlusCircle className="mr-2 h-4 w-4" /> Match
+                                                                    {currentSelection ? <X className="mr-2 h-4 w-4" /> : <Check className="mr-2 h-4 w-4" />}
+                                                                    {currentSelection ? 'Unmatch' : 'Match'}
                                                                 </Button>
                                                             </TableCell>
                                                         </TableRow>
@@ -671,6 +682,12 @@ export default function DataWeaverPage() {
                                         </Table>
                                     </div>
                                 </CardContent>
+                                <CardFooter>
+                                    <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0}>
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Add Selected to Result
+                                    </Button>
+                                </CardFooter>
                             </Card>
                         )}
                     </div>
@@ -813,9 +830,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
-    
-
-    
 
     
