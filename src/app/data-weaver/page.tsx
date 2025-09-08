@@ -724,22 +724,22 @@ export default function DataWeaverPage() {
                                         </div>
                                       </div>
                                       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                          <span>Legend:</span>
+                                          <span>Keterangan:</span>
                                           <div className="flex items-center gap-1.5">
                                               <div className="w-3 h-3 rounded-sm bg-green-500"></div>
-                                              <span>High Confidence</span>
+                                              <span>Kemiripan Tinggi</span>
                                           </div>
                                           <div className="flex items-center gap-1.5">
                                               <div className="w-3 h-3 rounded-sm bg-blue-500"></div>
-                                              <span>Medium Confidence</span>
+                                              <span>Kemiripan Medium</span>
                                           </div>
                                           <div className="flex items-center gap-1.5">
                                               <div className="w-3 h-3 rounded-sm bg-yellow-500"></div>
-                                              <span>Low Confidence</span>
+                                              <span>Kemiripan Rendah</span>
                                           </div>
                                            <div className="flex items-center gap-1.5">
                                               <div className="w-3 h-3 rounded-sm bg-muted-foreground/50"></div>
-                                              <span>No Match</span>
+                                              <span>Tidak Ada Kemiripan</span>
                                           </div>
                                       </div>
                                   </div>
@@ -964,6 +964,8 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
 
     
 
