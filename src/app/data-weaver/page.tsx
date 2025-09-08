@@ -227,7 +227,7 @@ export default function DataWeaverPage() {
                     return;
                 }
 
-                const headers = Object.keys(json[0]);
+                let headers = Object.keys(json[0]);
                 const lowercasedHeaders = headers.map(h => h.toLowerCase());
 
                 // Validation logic
@@ -242,8 +242,24 @@ export default function DataWeaverPage() {
                      if (fileBInputRef.current) fileBInputRef.current.value = "";
                     return;
                 }
+                
+                let processedJson = json;
+                if (fileType === 'B') {
+                    const nisnHeader = headers.find(h => h.toLowerCase() === 'nisn');
+                    if (nisnHeader) {
+                        const originalCount = processedJson.length;
+                        processedJson = processedJson.filter(row => {
+                            const nisnValue = row[nisnHeader];
+                            return nisnValue === null || nisnValue === undefined || String(nisnValue).trim() === '' || String(nisnValue).trim() === '-';
+                        });
+                        const filteredCount = originalCount - processedJson.length;
+                        if (filteredCount > 0) {
+                            toast({ title: "Rows Filtered", description: `${filteredCount} rows with an existing NISN were removed from File B.` });
+                        }
+                    }
+                }
 
-                const newTableData: TableData = { headers, rows: json, fileName: file.name };
+                const newTableData: TableData = { headers, rows: processedJson, fileName: file.name };
                 
                 if (fileType === 'A') {
                     setFileA(newTableData);
@@ -488,14 +504,14 @@ export default function DataWeaverPage() {
         // Create the two header rows based on the image provided
         const headerRow1 = selectedHeaders.map(h => {
             const lowerH = h.toLowerCase();
-            if (lowerH === 'id' || lowerH === 'name' || lowerH === 'nisn') {
+            if (['id', 'name', 'nisn'].includes(lowerH)) {
                 return lowerH;
             }
             return h;
         });
         const headerRow2 = selectedHeaders.map(h => {
             const lowerH = h.toLowerCase();
-            if (lowerH === 'id' || lowerH === 'name' || lowerH === 'nisn') {
+            if (['id', 'name', 'nisn'].includes(lowerH)) {
                 return h.charAt(0).toUpperCase() + h.slice(1);
             }
             return ''; // Empty cell for headers not in the special list
@@ -729,18 +745,18 @@ export default function DataWeaverPage() {
 
                         {unmatchedData && unmatchedData.length > 0 && (
                             <Card>
-                                <CardHeader className="flex flex-col items-start gap-4 pb-4 sm:flex-row sm:items-center sm:justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <AlertCircle className="h-5 w-5 text-yellow-500" />
-                                        <div>
-                                            <CardTitle>Unmatched Data</CardTitle>
-                                            <CardDescription>Validate these rows manually to add them to the result.</CardDescription>
-                                        </div>
-                                    </div>
-                                    <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm" className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-950 sm:w-auto">
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Add Selected to Result
-                                    </Button>
+                                <CardHeader className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
+                                  <div className="flex items-center gap-4">
+                                      <AlertCircle className="h-5 w-5 text-yellow-500" />
+                                      <div>
+                                          <CardTitle>Unmatched Data</CardTitle>
+                                          <CardDescription>Validate these rows manually to add them to the result.</CardDescription>
+                                      </div>
+                                  </div>
+                                  <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm" className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-950 sm:w-auto">
+                                      <PlusCircle className="mr-2 h-4 w-4" />
+                                      Add Selected to Result
+                                  </Button>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
@@ -952,5 +968,3 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
-    
