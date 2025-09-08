@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useState, ReactNode, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, ReactNode, useContext, useCallback } from 'react';
 
 export type TableData = {
     headers: string[];
@@ -25,55 +25,26 @@ export const AppContext = createContext<AppContextType>({
     resetState: () => {},
 });
 
-const LOCAL_STORAGE_KEY_FILE_A = 'dataWeaverFileA';
-const LOCAL_STORAGE_KEY_FILE_B = 'dataWeaverFileB';
-
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [fileA, setFileA] = useState<TableData | null>(null);
     const [fileB, setFileB] = useState<TableData | null>(null);
-    const [isInitialized, setIsInitialized] = useState(false);
-
-    useEffect(() => {
-        try {
-            const storedFileA = localStorage.getItem(LOCAL_STORAGE_KEY_FILE_A);
-            if (storedFileA) {
-                setFileA(JSON.parse(storedFileA));
-            }
-            const storedFileB = localStorage.getItem(LOCAL_STORAGE_KEY_FILE_B);
-            if (storedFileB) {
-                setFileB(JSON.parse(storedFileB));
-            }
-        } catch (error) {
-            console.error("Failed to parse data from localStorage", error);
-            localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_A);
-            localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_B);
-        }
-        setIsInitialized(true);
-    }, []);
 
     const handleSetFileA = useCallback((data: TableData | null) => {
         setFileA(data);
-        if (data) {
-            localStorage.setItem(LOCAL_STORAGE_KEY_FILE_A, JSON.stringify(data));
-        } else {
-            localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_A);
-        }
     }, []);
 
     const handleSetFileB = useCallback((data: TableData | null) => {
         setFileB(data);
-        if (data) {
-            localStorage.setItem(LOCAL_STORAGE_KEY_FILE_B, JSON.stringify(data));
-        } else {
-            localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_B);
-        }
     }, []);
 
     const resetState = useCallback(() => {
         setFileA(null);
         setFileB(null);
-        localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_A);
-        localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_B);
+        // Clean up localStorage just in case old data exists from previous versions
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('dataWeaverFileA');
+            localStorage.removeItem('dataWeaverFileB');
+        }
     }, []);
 
     const contextValue = {
@@ -83,11 +54,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setFileB: handleSetFileB,
         resetState,
     };
-    
-    // Render children only after state has been initialized from localStorage
-    if (!isInitialized) {
-        return null; 
-    }
 
     return (
         <AppContext.Provider value={contextValue}>
