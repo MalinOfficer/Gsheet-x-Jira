@@ -178,7 +178,7 @@ export default function DataWeaverPage() {
                     setSelectedHeaders(['No', 'ID', 'Nama', 'NISN']);
                 }
             } else {
-                setSelectedHeaders(['No', 'ID', 'Nama', 'NISN']);
+                 setSelectedHeaders(['No', 'ID', 'Nama', 'NISN']);
             }
         }
     }, [fileA, fileB, updateCommonHeaders]);
@@ -416,7 +416,7 @@ export default function DataWeaverPage() {
             const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
             if (manualSelections[originalRowBKey]) {
                 const selectedRowA = manualSelections[originalRowBKey];
-                const mergedRow = { ...unmatchedRow.rowData, ...selectedRowA };
+                const mergedRow = { ...selectedRowA, ...unmatchedRow.rowData };
                 newlyMergedRows.push(mergedRow);
                 keysOfRowsToAdd.add(originalRowBKey);
             }
@@ -446,7 +446,7 @@ export default function DataWeaverPage() {
         setManualSelections(updatedManualSelections);
 
         toast({
-            title: newlyMergedRows.length + " Rows Added",
+            title: `${newlyMergedRows.length} Rows Added`,
             description: "The selected rows have been added to the final result.",
         });
 
@@ -713,14 +713,35 @@ export default function DataWeaverPage() {
                         {unmatchedData && unmatchedData.length > 0 && (
                             <Card>
                                 <CardHeader className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
-                                  <div className="flex items-center gap-4">
-                                      <AlertCircle className="h-5 w-5 text-yellow-500" />
-                                      <div>
-                                          <CardTitle>Unmatched Data</CardTitle>
-                                          <CardDescription>Validate these rows manually to add them to the result.</CardDescription>
+                                  <div className="flex-1">
+                                      <div className="flex items-center gap-4">
+                                        <AlertCircle className="h-5 w-5 text-yellow-500 shrink-0" />
+                                        <div>
+                                            <CardTitle>Unmatched Data</CardTitle>
+                                            <CardDescription>Validate these rows manually to add them to the result.</CardDescription>
+                                        </div>
+                                      </div>
+                                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                          <span>Legend:</span>
+                                          <div className="flex items-center gap-1.5">
+                                              <div className="w-3 h-3 rounded-sm bg-green-500"></div>
+                                              <span>High Confidence</span>
+                                          </div>
+                                          <div className="flex items-center gap-1.5">
+                                              <div className="w-3 h-3 rounded-sm bg-blue-500"></div>
+                                              <span>Medium Confidence</span>
+                                          </div>
+                                          <div className="flex items-center gap-1.5">
+                                              <div className="w-3 h-3 rounded-sm bg-yellow-500"></div>
+                                              <span>Low Confidence</span>
+                                          </div>
+                                           <div className="flex items-center gap-1.5">
+                                              <div className="w-3 h-3 rounded-sm bg-muted-foreground/50"></div>
+                                              <span>No Match</span>
+                                          </div>
                                       </div>
                                   </div>
-                                  <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm" className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-950 sm:w-auto">
+                                  <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm" className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-950 sm:w-auto shrink-0">
                                       <PlusCircle className="mr-2 h-4 w-4" />
                                       Add Selected to Result
                                   </Button>
@@ -833,7 +854,7 @@ export default function DataWeaverPage() {
                                             <TableBody>
                                                 {mergedData.length > 0 ? (
                                                     mergedData.map((row, rowIndex) => (
-                                                        <TableRow key={rowIndex}>
+                                                        <TableRow key={header + '-' + rowIndex}>
                                                             {selectedHeaders.map(header => {
                                                                 const headerKey = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase());
                                                                 const cellValue = headerKey ? row[headerKey] : '';
@@ -941,3 +962,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
