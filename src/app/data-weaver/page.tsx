@@ -178,7 +178,9 @@ export default function DataWeaverPage() {
                     setSelectedHeaders(['No', 'ID', 'Nama', 'NISN']);
                 }
             } else {
-                 setSelectedHeaders(['No', 'ID', 'Nama', 'NISN']);
+                 const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
+                 const availableDefaults = defaultSelection.filter(h => uniqueHeaders.map(uh => uh.toLowerCase()).includes(h.toLowerCase()));
+                 setSelectedHeaders(availableDefaults);
             }
         }
     }, [fileA, fileB, updateCommonHeaders]);
@@ -446,7 +448,7 @@ export default function DataWeaverPage() {
         setManualSelections(updatedManualSelections);
 
         toast({
-            title: `${newlyMergedRows.length} Rows Added`,
+            title: newlyMergedRows.length + ' Rows Added',
             description: "The selected rows have been added to the final result.",
         });
 
@@ -854,7 +856,7 @@ export default function DataWeaverPage() {
                                             <TableBody>
                                                 {mergedData.length > 0 ? (
                                                     mergedData.map((row, rowIndex) => (
-                                                        <TableRow key={header + '-' + rowIndex}>
+                                                        <TableRow key={'merged-row-' + rowIndex}>
                                                             {selectedHeaders.map(header => {
                                                                 const headerKey = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase());
                                                                 const cellValue = headerKey ? row[headerKey] : '';
@@ -934,7 +936,7 @@ function ManualSelectCombobox({
                         <CommandEmpty>No name found.</CommandEmpty>
                         <CommandGroup>
                             {rowsA.map((rowA, index) => {
-                                const key = `${rowA[mergeKeyA]}-${index}`;
+                                const key = rowA[mergeKeyA] + '-' + index;
                                 const displayVal = decodeHtml(String(rowA[mergeKeyA] ?? ''));
                                 return (
                                     <CommandItem
@@ -962,5 +964,7 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
 
     
