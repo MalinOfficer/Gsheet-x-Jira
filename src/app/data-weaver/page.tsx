@@ -772,7 +772,7 @@ export default function DataWeaverPage() {
 
                                                     return unmatchedData.map((unmatchedRow, rowIndex) => {
                                                         const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
-                                                        const currentSelection = manualSelections[originalRowBKey];
+                                                        const currentSelection = manualSelections[originalRowBKey] || unmatchedRow.bestMatch;
                                                         
                                                         const availableRowsA = (fileA?.rows || []).filter(rowA => {
                                                             const rowAValue = String(rowA[fileAMergeKey] || '').toLowerCase();
@@ -796,7 +796,7 @@ export default function DataWeaverPage() {
                                                                     <ManualSelectCombobox
                                                                         rowsA={availableRowsA}
                                                                         mergeKeyA={fileAMergeKey}
-                                                                        value={currentSelection ?? unmatchedRow.bestMatch}
+                                                                        value={currentSelection}
                                                                         onSelect={(selectedRowA) => {
                                                                             handleManualSelection(unmatchedRow.rowData, selectedRowA);
                                                                         }}
@@ -805,13 +805,13 @@ export default function DataWeaverPage() {
                                                                 <TableCell className="text-center">
                                                                     <Button
                                                                         size="sm"
-                                                                        onClick={() => handleManualSelection(unmatchedRow.rowData, currentSelection ? null : (manualSelections[originalRowBKey] || null))}
-                                                                        variant={currentSelection ? "destructive" : "default"}
-                                                                        disabled={!currentSelection && !manualSelections[originalRowBKey]}
+                                                                        onClick={() => handleManualSelection(unmatchedRow.rowData, manualSelections[originalRowBKey] ? null : currentSelection)}
+                                                                        variant={manualSelections[originalRowBKey] ? "destructive" : "default"}
+                                                                        disabled={!manualSelections[originalRowBKey] && !currentSelection}
                                                                         className="flex items-center justify-center gap-2 w-24"
                                                                     >
-                                                                        {currentSelection ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                                                                        <span>{currentSelection ? 'Unmatch' : 'Match'}</span>
+                                                                        {manualSelections[originalRowBKey] ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                                                                        <span>{manualSelections[originalRowBKey] ? 'Unmatch' : 'Match'}</span>
                                                                     </Button>
                                                                 </TableCell>
                                                             </TableRow>
@@ -970,3 +970,4 @@ function ManualSelectCombobox({
     
 
     
+
