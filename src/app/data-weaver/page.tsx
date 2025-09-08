@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -289,15 +290,23 @@ export default function DataWeaverPage() {
 
         const getSimilarityScore = (nameA: string, nameB: string): number => {
             if (!nameA || !nameB) return 0;
-        
-            const normalize = (name: string) => 
+            
+            // Normalize by converting to lower case and removing all punctuation and whitespace.
+            const normalizeSimple = (name: string) => name.toLowerCase().replace(/[\s-.,']/g, '');
+
+            if (normalizeSimple(nameA) === normalizeSimple(nameB)) {
+                return 100; // Perfect match for cases like "Genzo Al-Kahfi" vs "GENZO AL KAHFI"
+            }
+
+            // Fallback to word-based comparison for abbreviations
+            const normalizeWords = (name: string) => 
                 name.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
         
-            const wordsA = normalize(nameA);
-            const wordsB = normalize(nameB);
+            const wordsA = normalizeWords(nameA);
+            const wordsB = normalizeWords(nameB);
         
             if (wordsA.length === 0 || wordsB.length === 0) return 0;
-        
+            
             if (wordsA.join(' ') === wordsB.join(' ')) {
                 return 100;
             }
@@ -309,16 +318,16 @@ export default function DataWeaverPage() {
             shorterList.forEach(shortWord => {
                 if (longerList.includes(shortWord)) {
                     intersectionCount++;
-                } else if (shortWord.length === 1) {
+                } else if (shortWord.length === 1) { // Handle single-letter abbreviations like "M."
                     if (longerList.some(longWord => longWord.startsWith(shortWord))) {
                         intersectionCount++;
                     }
                 }
             });
             
-            // Prefer intersection of at least 2 words/abbreviations
+            // Give higher score for more word intersections
             if (intersectionCount >= 2) {
-                return intersectionCount;
+                return intersectionCount * 10;
             }
         
             return 0;
@@ -340,7 +349,7 @@ export default function DataWeaverPage() {
                 
                 const score = getSimilarityScore(nameA, nameB);
 
-                if (score > highestScore && score >= 2) { // Require at least 2 words to match or a perfect score
+                if (score > highestScore && score >= 20) { // Require a decent score to auto-match
                     highestScore = score;
                     bestMatch = rowA;
                 }
