@@ -49,6 +49,8 @@ type SelectOption = {
 // This represents a row from File B that couldn't be matched
 type UnmatchedRow = {
     rowData: any; // Data from File B (unmatched)
+    bestMatch: any | null; // The best matching row from File A
+    score: number; // The similarity score
 };
 
 
@@ -98,12 +100,10 @@ export default function DataWeaverPage() {
                 }
             } catch (e) {
                 console.error("Failed to parse saved headers from localStorage", e);
-                 const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
-                setSelectedHeaders(defaultSelection);
+                setSelectedHeaders(['No', 'ID', 'Nama', 'NISN']);
             }
         } else {
-             const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
-            setSelectedHeaders(defaultSelection);
+            setSelectedHeaders(['No', 'ID', 'Nama', 'NISN']);
         }
     }, []);
 
@@ -169,24 +169,16 @@ export default function DataWeaverPage() {
             updateCommonHeaders(fileA.headers, fileB.headers);
 
             const savedHeaders = localStorage.getItem(LOCAL_STORAGE_KEY_HEADERS);
-            if (savedHeaders) {
+             if (savedHeaders) {
                 try {
                     const parsedHeaders = JSON.parse(savedHeaders);
-                    const validSavedHeaders = parsedHeaders.filter((h: string) => uniqueHeaders.includes(h));
-                    setSelectedHeaders(validSavedHeaders);
+                    const validSavedHeaders = parsedHeaders.filter((h: string) => uniqueHeaders.map(uh => uh.toLowerCase()).includes(h.toLowerCase()));
+                    setSelectedHeaders(validSavedHeaders.length > 0 ? validSavedHeaders : ['No', 'ID', 'Nama', 'NISN']);
                 } catch {
-                    const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
-                    const availableDefaults = defaultSelection.filter(h => 
-                        uniqueHeaders.map(uh => uh.toLowerCase()).includes(h.toLowerCase())
-                    );
-                    setSelectedHeaders(availableDefaults);
+                    setSelectedHeaders(['No', 'ID', 'Nama', 'NISN']);
                 }
             } else {
-                const defaultSelection = ['No', 'ID', 'Nama', 'NISN'];
-                const availableDefaults = defaultSelection.filter(h => 
-                    uniqueHeaders.map(uh => uh.toLowerCase()).includes(h.toLowerCase())
-                );
-                setSelectedHeaders(availableDefaults);
+                setSelectedHeaders(['No', 'ID', 'Nama', 'NISN']);
             }
         }
     }, [fileA, fileB, updateCommonHeaders]);
@@ -279,97 +271,68 @@ export default function DataWeaverPage() {
     };
 
     const runAutoMatch = useCallback((
-        unmatched: UnmatchedRow[],
+        unmatched: any[],
         allFileARows: any[],
         mergeKeyA: string,
         mergeKeyB: string
-    ) => {
-        if (!unmatched.length || !allFileARows.length || !mergeKeyA || !mergeKeyB) {
-            return {};
-        }
+    ): UnmatchedRow[] => {
 
         const getSimilarityScore = (nameA: string, nameB: string): number => {
             if (!nameA || !nameB) return 0;
             
-            // Normalize by converting to lower case and removing all punctuation and whitespace.
-            const normalizeSimple = (name: string) => name.toLowerCase().replace(/[\s-.,']/g, '');
+            const normalize = (name: string) => name.toLowerCase().replace(/[\s-.,']/g, '');
+            if (normalize(nameA) === normalize(nameB)) return 100;
 
-            if (normalizeSimple(nameA) === normalizeSimple(nameB)) {
-                return 100; // Perfect match for cases like "Genzo Al-Kahfi" vs "GENZO AL KAHFI"
-            }
-
-            // Fallback to word-based comparison for abbreviations
-            const normalizeWords = (name: string) => 
-                name.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
-        
-            const wordsA = normalizeWords(nameA);
-            const wordsB = normalizeWords(nameB);
+            const wordsA = nameA.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
+            const wordsB = nameB.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
         
             if (wordsA.length === 0 || wordsB.length === 0) return 0;
             
-            if (wordsA.join(' ') === wordsB.join(' ')) {
-                return 100;
-            }
-        
-            let intersectionCount = 0;
-            const shorterList = wordsA.length < wordsB.length ? wordsA : wordsB;
-            const longerList = wordsA.length < wordsB.length ? wordsB : wordsA;
-        
-            shorterList.forEach(shortWord => {
-                if (longerList.includes(shortWord)) {
-                    intersectionCount++;
-                } else if (shortWord.length === 1) { // Handle single-letter abbreviations like "M."
-                    if (longerList.some(longWord => longWord.startsWith(shortWord))) {
-                        intersectionCount++;
-                    }
-                }
-            });
-            
-            // Give higher score for more word intersections
-            if (intersectionCount >= 2) {
-                return intersectionCount * 10;
-            }
+            const intersection = wordsA.filter(word => wordsB.includes(word));
+            if (intersection.length >= 2) return 85;
+            if (intersection.length === 1) return 50;
         
             return 0;
         };
 
-        const newSelections: Record<string, any> = {};
         let autoMatchCount = 0;
-
-        unmatched.forEach(unmatchedRow => {
-            const nameB = unmatchedRow.rowData[mergeKeyB];
-            if (!nameB) return;
-
+        const enrichedUnmatched = unmatched.map(rowB => {
+            const nameB = rowB[mergeKeyB];
             let bestMatch: any | null = null;
             let highestScore = 0;
 
-            for (const rowA of allFileARows) {
-                const nameA = rowA[mergeKeyA];
-                if (!nameA) continue;
-                
-                const score = getSimilarityScore(nameA, nameB);
+            if (nameB) {
+                for (const rowA of allFileARows) {
+                    const nameA = rowA[mergeKeyA];
+                    if (!nameA) continue;
+                    
+                    const score = getSimilarityScore(nameA, nameB);
 
-                if (score > highestScore && score >= 20) { // Require a decent score to auto-match
-                    highestScore = score;
-                    bestMatch = rowA;
+                    if (score > highestScore) {
+                        highestScore = score;
+                        bestMatch = rowA;
+                    }
                 }
             }
 
-            if (bestMatch) {
-                const originalRowBKey = String(unmatchedRow.rowData[mergeKeyB]);
-                newSelections[originalRowBKey] = bestMatch;
-                autoMatchCount++;
+            if (highestScore > 80) { // Auto-select high confidence matches
+                 const originalRowBKey = String(rowB[mergeKeyB]);
+                 setManualSelections(prev => ({...prev, [originalRowBKey]: bestMatch}));
+                 autoMatchCount++;
             }
+            
+            return { rowData: rowB, bestMatch, score: highestScore };
         });
-        
+
         if (autoMatchCount > 0) {
             toast({
                 title: "Auto-Match Complete",
                 description: `${autoMatchCount} potential matches were automatically selected. Please review them.`
             });
         }
-
-        return newSelections;
+        
+        // Sort by score descending
+        return enrichedUnmatched.sort((a, b) => b.score - a.score);
 
     }, [toast]);
 
@@ -408,18 +371,13 @@ export default function DataWeaverPage() {
             };
         });
         
-        const finalUnmatched = serverResult.unmatchedRowsB.map((rowB: any) => ({
-            rowData: rowB,
-        }));
-        
         setMergedData(finalTableData);
-        setUnmatchedData(finalUnmatched);
         
-        // Run auto-match after setting the unmatched data
+        // Run auto-match and enrichment after setting the unmatched data
         const mergeKeyA = fileA.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
         const mergeKeyB = fileB.headers.find(h => h.toLowerCase() === mergeKey.toLowerCase()) || '';
-        const autoSelections = runAutoMatch(finalUnmatched, fileA.rows, mergeKeyA, mergeKeyB);
-        setManualSelections(autoSelections);
+        const enrichedAndSortedUnmatched = runAutoMatch(serverResult.unmatchedRowsB, fileA.rows, mergeKeyA, mergeKeyB);
+        setUnmatchedData(enrichedAndSortedUnmatched);
         
 
         toast({ title: "Matched", description: `${finalTableData.length} rows Matched. Proceed to Review.` });
@@ -458,7 +416,7 @@ export default function DataWeaverPage() {
             const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
             if (manualSelections[originalRowBKey]) {
                 const selectedRowA = manualSelections[originalRowBKey];
-                const mergedRow = { ...selectedRowA, ...unmatchedRow.rowData };
+                const mergedRow = { ...unmatchedRow.rowData, ...selectedRowA };
                 newlyMergedRows.push(mergedRow);
                 keysOfRowsToAdd.add(originalRowBKey);
             }
@@ -784,9 +742,9 @@ export default function DataWeaverPage() {
                                                     const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
                                                     
                                                     const alreadyMatchedValues = new Set([
-                                                        ...(mergedData || []).map(row => row[fileAMergeKey]),
-                                                        ...Object.values(manualSelections).filter(Boolean).map(rowA => rowA[fileAMergeKey])
-                                                    ].filter(Boolean).map(v => String(v).toLowerCase()));
+                                                        ...(mergedData || []).map(row => String(row[fileAMergeKey] || '').toLowerCase()),
+                                                        ...Object.values(manualSelections).filter(Boolean).map(rowA => String(rowA[fileAMergeKey] || '').toLowerCase())
+                                                    ].filter(Boolean));
 
 
                                                     return unmatchedData.map((unmatchedRow, rowIndex) => {
@@ -798,10 +756,16 @@ export default function DataWeaverPage() {
                                                             // Show if it's not selected elsewhere, OR if it's the one currently selected for this row
                                                             return !alreadyMatchedValues.has(rowAValue) || (currentSelection && String(currentSelection[fileAMergeKey] || '').toLowerCase() === rowAValue);
                                                         });
+                                                        
+                                                        const score = unmatchedRow.score;
+                                                        const rowStyle = score > 95 ? 'border-l-4 border-green-500' 
+                                                                       : score >= 80 ? 'border-l-4 border-blue-500'
+                                                                       : score >= 40 ? 'border-l-4 border-yellow-500'
+                                                                       : 'border-l-4 border-muted';
 
 
                                                         return (
-                                                            <TableRow key={rowIndex}>
+                                                            <TableRow key={rowIndex} className={cn(rowStyle)}>
                                                                 <TableCell>
                                                                     {decodeHtml(String(unmatchedRow.rowData?.[fileBMergeKey] ?? 'No name'))}
                                                                 </TableCell>
@@ -809,7 +773,7 @@ export default function DataWeaverPage() {
                                                                     <ManualSelectCombobox
                                                                         rowsA={availableRowsA}
                                                                         mergeKeyA={fileAMergeKey}
-                                                                        value={currentSelection}
+                                                                        value={currentSelection ?? unmatchedRow.bestMatch}
                                                                         onSelect={(selectedRowA) => {
                                                                             handleManualSelection(unmatchedRow.rowData, selectedRowA);
                                                                         }}
