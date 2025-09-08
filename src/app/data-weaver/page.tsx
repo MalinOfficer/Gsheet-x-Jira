@@ -273,32 +273,38 @@ export default function DataWeaverPage() {
 
         const getSimilarityScore = (nameA: string, nameB: string): number => {
             if (!nameA || !nameB) return 0;
-            
-            // Normalize names: lowercase, remove hyphens/punctuation, split into words
-            const normalize = (name: string) => name.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
+        
+            const normalize = (name: string) => 
+                name.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
+        
             const wordsA = normalize(nameA);
             const wordsB = normalize(nameB);
-
+        
             if (wordsA.length === 0 || wordsB.length === 0) return 0;
-
-            const intersection = wordsA.filter(word => wordsB.includes(word));
-            
-            // Full match
+        
             if (wordsA.join(' ') === wordsB.join(' ')) {
                 return 100;
             }
-
-            // Prefer intersection of at least 2 words
-            if (intersection.length >= 2) {
-                return intersection.length;
-            }
-
-            // Fallback to abbreviation check on normalized words
-            const intersectionAbbr = wordsA.filter(wordA => wordsB.some(wordB => wordA.startsWith(wordB) || wordB.startsWith(wordA)));
-            if (intersectionAbbr.length > 0) {
-                return 0.5; // Lower score for abbreviations
-            }
+        
+            let intersectionCount = 0;
+            const shorterList = wordsA.length < wordsB.length ? wordsA : wordsB;
+            const longerList = wordsA.length < wordsB.length ? wordsB : wordsA;
+        
+            shorterList.forEach(shortWord => {
+                if (longerList.includes(shortWord)) {
+                    intersectionCount++;
+                } else if (shortWord.length === 1) {
+                    if (longerList.some(longWord => longWord.startsWith(shortWord))) {
+                        intersectionCount++;
+                    }
+                }
+            });
             
+            // Prefer intersection of at least 2 words/abbreviations
+            if (intersectionCount >= 2) {
+                return intersectionCount;
+            }
+        
             return 0;
         };
 
@@ -723,7 +729,7 @@ export default function DataWeaverPage() {
 
                         {unmatchedData && unmatchedData.length > 0 && (
                             <Card>
-                                <CardHeader className="flex flex-row items-center justify-between pb-4">
+                                <CardHeader className="flex flex-col items-start gap-4 pb-4 sm:flex-row sm:items-center sm:justify-between">
                                     <div className="flex items-center gap-4">
                                         <AlertCircle className="h-5 w-5 text-yellow-500" />
                                         <div>
@@ -731,7 +737,7 @@ export default function DataWeaverPage() {
                                             <CardDescription>Validate these rows manually to add them to the result.</CardDescription>
                                         </div>
                                     </div>
-                                    <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950">
+                                    <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm" className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-950 sm:w-auto">
                                         <PlusCircle className="mr-2 h-4 w-4" />
                                         Add Selected to Result
                                     </Button>
@@ -755,16 +761,17 @@ export default function DataWeaverPage() {
                                                     const alreadyMatchedValues = new Set([
                                                         ...(mergedData || []).map(row => row[fileAMergeKey]),
                                                         ...Object.values(manualSelections).filter(Boolean).map(rowA => rowA[fileAMergeKey])
-                                                    ].filter(Boolean));
+                                                    ].filter(Boolean).map(v => String(v).toLowerCase()));
+
 
                                                     return unmatchedData.map((unmatchedRow, rowIndex) => {
                                                         const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
                                                         const currentSelection = manualSelections[originalRowBKey];
                                                         
                                                         const availableRowsA = (fileA?.rows || []).filter(rowA => {
-                                                            const rowAValue = rowA[fileAMergeKey];
+                                                            const rowAValue = String(rowA[fileAMergeKey] || '').toLowerCase();
                                                             // Show if it's not selected elsewhere, OR if it's the one currently selected for this row
-                                                            return !alreadyMatchedValues.has(rowAValue) || (currentSelection && currentSelection[fileAMergeKey] === rowAValue);
+                                                            return !alreadyMatchedValues.has(rowAValue) || (currentSelection && String(currentSelection[fileAMergeKey] || '').toLowerCase() === rowAValue);
                                                         });
 
 
@@ -945,3 +952,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
