@@ -40,11 +40,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const resetState = useCallback(() => {
         setFileA(null);
         setFileB(null);
-        // Clean up localStorage just in case old data exists from previous versions
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem('dataWeaverFileA');
-            localStorage.removeItem('dataWeaverFileB');
-        }
     }, []);
 
     const contextValue = {

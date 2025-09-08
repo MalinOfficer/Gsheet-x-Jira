@@ -609,7 +609,7 @@ export default function DataWeaverPage() {
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <div>
                                     <CardTitle>Upload Files</CardTitle>
-                                    <CardDescription>Select two Excel files (.xlsx, .xls). Data is saved in your browser.</CardDescription>
+                                    <CardDescription>Select two Excel files (.xlsx, .xls). Data is not saved in your browser.</CardDescription>
                                 </div>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
@@ -622,7 +622,7 @@ export default function DataWeaverPage() {
                                         <AlertDialogHeader>
                                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            This action will permanently delete the uploaded files and all merged data from your browser session. You will need to upload the files again.
+                                            This action will clear the uploaded files and all merged data. You will need to upload the files again.
                                         </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
