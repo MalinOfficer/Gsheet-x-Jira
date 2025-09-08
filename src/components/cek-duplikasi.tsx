@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useCallback, useTransition, useMemo } from 'react';
-import * as XLSX from 'xlsx';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,6 +9,8 @@ import { Upload, Loader2, CheckCircle2, AlertTriangle, Trash2, Search, FileWarni
 import { useToast } from "@/hooks/use-toast";
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
+
+declare const XLSX: any;
 
 type StudentRecord = {
     nis?: string;
@@ -130,6 +131,15 @@ export function CekDuplikasi() {
                 variant: 'destructive',
                 title: 'No Files Selected',
                 description: 'Please upload at least one Excel file to check for duplicates.',
+            });
+            return;
+        }
+
+        if (typeof XLSX === 'undefined') {
+            toast({
+                variant: 'destructive',
+                title: 'Library Not Loaded',
+                description: 'The required Excel processing library (XLSX) is not available. Please check your internet connection and try reloading the page.',
             });
             return;
         }
