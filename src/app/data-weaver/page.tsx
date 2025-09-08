@@ -479,7 +479,7 @@ export default function DataWeaverPage() {
         setManualSelections(updatedManualSelections);
 
         toast({
-            title: `${newlyMergedRows.length} Rows Added`,
+            title: newlyMergedRows.length + " Rows Added",
             description: "The selected rows have been added to the final result.",
         });
 
@@ -865,7 +865,7 @@ export default function DataWeaverPage() {
                                                                 const headerKey = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase());
                                                                 const cellValue = headerKey ? row[headerKey] : '';
                                                                 return (
-                                                                    <TableCell key={`${header}-${rowIndex}`}>{decodeHtml(String(cellValue ?? ''))}</TableCell>
+                                                                    <TableCell key={header + '-' + rowIndex}>{decodeHtml(String(cellValue ?? ''))}</TableCell>
 
                                                                 );
                                                             })}
@@ -923,17 +923,17 @@ function ManualSelectCombobox({
                     role="combobox"
                     aria-expanded={open}
                     className={cn(
-                        "w-[250px] justify-between",
-                        !hasValue && "bg-accent/50"
+                        "w-full justify-between font-normal",
+                        !hasValue && "text-muted-foreground"
                     )}
                 >
-                    <span className="truncate">
+                    <span className="whitespace-normal break-all text-left">
                         {displayValue}
                     </span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[250px] p-0">
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
                 <Command>
                     <CommandInput placeholder="Search name..." />
                     <CommandList>
