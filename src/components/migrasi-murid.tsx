@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect } from "react";
-import * as XLSX from "xlsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +27,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
+
+declare const XLSX: any;
 
 const tableHeaders = [
     "No", "Username", "NIS", "NISN", "NIK", "Kode", "Asal Sekolah", "Nama", "L/P",
@@ -448,6 +449,10 @@ export function MigrasiMurid() {
     };
 
     const handleExportExcel = () => {
+        if (typeof XLSX === 'undefined') {
+            toast({ variant: 'destructive', title: "Library Not Loaded", description: "The Excel library is still loading. Please try again in a moment."});
+            return;
+        }
         const dateHeader = "Tanggal Lahir";
         const processedRows = rows
             .map((row, index) => {
