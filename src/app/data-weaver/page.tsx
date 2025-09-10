@@ -297,14 +297,17 @@ export default function DataWeaverPage() {
         mergeKeyB: string
     ): UnmatchedRow[] => {
 
-        const getSimilarityScore = (nameA: string, nameB: string): number => {
-            if (!nameA || !nameB) return 0;
+        const getSimilarityScore = (nameA: any, nameB: any): number => {
+            const strA = String(nameA || '');
+            const strB = String(nameB || '');
+
+            if (!strA || !strB) return 0;
             
             const normalize = (name: string) => name.toLowerCase().replace(/[\s-.,']/g, '');
-            if (normalize(nameA) === normalize(nameB)) return 100;
+            if (normalize(strA) === normalize(strB)) return 100;
 
-            const wordsA = nameA.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
-            const wordsB = nameB.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
+            const wordsA = strA.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
+            const wordsB = strB.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
         
             if (wordsA.length === 0 || wordsB.length === 0) return 0;
             
@@ -988,6 +991,7 @@ function ManualSelectCombobox({
     
 
     
+
 
 
 
