@@ -25,32 +25,93 @@ async function getFileContent(filePath: string): Promise<string> {
   }
 }
 
-// List of files to display, matching the user's request
+// List of all relevant files for deployment and review
 const projectFiles = [
-  // App Structure
+  // Root configuration files
+  "README.md",
+  "apphosting.yaml",
+  "components.json",
+  "next.config.ts",
+  "package.json",
+  "tailwind.config.ts",
+  "tsconfig.json",
+
+  // App Structure & Main Pages
   "src/app/layout.tsx",
+  "src/app/globals.css",
   "src/app/page.tsx", // Root page for Import Flow
   "src/app/report-harian/page.tsx",
   "src/app/migrasi-murid/page.tsx",
   "src/app/cek-duplikasi/page.tsx",
   "src/app/data-weaver/page.tsx",
+  "src/app/settings/page.tsx",
+  "src/app/code-viewer/page.tsx",
 
-  // Main Components
+  // Main Components (logic for each page)
   "src/components/import-flow.tsx",
   "src/components/report-harian.tsx",
   "src/components/migrasi-murid.tsx",
   "src/components/cek-duplikasi.tsx",
+  "src/components/layout/client-layout.tsx",
 
-  // Config files
-  "next.config.ts",
-  "package.json",
-  "tailwind.config.ts",
-  "tsconfig.json",
-  "components.json",
-
-  // Other important files
+  // Server Actions & Logic
   "src/app/actions.ts",
   "src/lib/utils.ts",
+  "src/lib/date-utils.ts",
+  "src/lib/gcp-credentials.json",
+
+  // State Management (Contexts & Providers)
+  "src/store/store-provider.tsx",
+  "src/store/table-data-context.tsx",
+  "src/contexts/app-provider.tsx",
+
+  // Custom Hooks
+  "src/hooks/use-toast.ts",
+  "src/hooks/use-theme.ts",
+  "src/hooks/theme-provider.tsx",
+  "src/hooks/use-mobile.tsx",
+
+  // AI related files
+  "src/ai/genkit.ts",
+  "src/ai/dev.ts",
+
+  // UI Components (ShadCN)
+  "src/components/ui/accordion.tsx",
+  "src/components/ui/alert-dialog.tsx",
+  "src/components/ui/alert.tsx",
+  "src/components/ui/avatar.tsx",
+  "src/components/ui/badge.tsx",
+  "src/components/ui/button.tsx",
+  "src/components/ui/calendar.tsx",
+  "src/components/ui/card.tsx",
+  "src/components/ui/carousel.tsx",
+  "src/components/ui/chart.tsx",
+  "src/components/ui/checkbox.tsx",
+  "src/components/ui/collapsible.tsx",
+  "src/components/ui/command.tsx",
+  "src/components/ui/dialog.tsx",
+  "src/components/ui/dropdown-menu.tsx",
+  "src/components/ui/form.tsx",
+  "src/components/ui/input.tsx",
+  "src/components/ui/label.tsx",
+  "src/components/ui/menubar.tsx",
+  "src/components/ui/multi-select.tsx",
+  "src/components/ui/popover.tsx",
+  "src/components/ui/progress.tsx",
+  "src/components/ui/radio-group.tsx",
+  "src/components/ui/scroll-area.tsx",
+  "src/components/ui/select.tsx",
+  "src/components/ui/separator.tsx",
+  "src/components/ui/sheet.tsx",
+  "src/components/ui/skeleton.tsx",
+  "src/components/ui/slider.tsx",
+  "src/components/ui/switch.tsx",
+  "src/components/ui/table.tsx",
+  "src/components/ui/tabs.tsx",
+  "src/components/ui/textarea.tsx",
+  "src/components/ui/toast.tsx",
+  "src/components/ui/toaster.tsx",
+  "src/components/ui/tooltip.tsx",
 ];
 
 
