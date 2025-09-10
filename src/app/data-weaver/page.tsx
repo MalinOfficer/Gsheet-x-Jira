@@ -77,8 +77,8 @@ export default function DataWeaverPage() {
     const [mergedData, setMergedData] = useState<any[] | null>(null);
     const [unmatchedData, setUnmatchedData] = useState<UnmatchedRow[] | null>(null);
     const [manualSelections, setManualSelections] = useState<Record<string, any>>({});
-    const [mergeKey, setMergeKey] = useState<string>('');
-    const [commonHeaders, setCommonHeaders] = useState<string[]>([]);
+    const [mergeKey, setMergeKey] = useState<string>('Nama');
+    const [commonHeaders, setCommonHeaders] = useState<string[]>(['Nama']);
 
     const fileAInputRef = useRef<HTMLInputElement>(null);
     const fileBInputRef = useRef<HTMLInputElement>(null);
@@ -113,7 +113,8 @@ export default function DataWeaverPage() {
             setMergedHeaders([]);
             setMergedData(null);
             setUnmatchedData(null);
-            setCommonHeaders([]);
+            setCommonHeaders(['Nama']);
+            setMergeKey('Nama');
             setManualSelections({});
             setActiveTab("upload");
         }
@@ -160,8 +161,8 @@ export default function DataWeaverPage() {
             }
 
         } else {
-            setCommonHeaders([]);
-            setMergeKey('');
+            setCommonHeaders(['Nama']);
+            setMergeKey('Nama');
         }
     }, [mergeKey]);
 
@@ -559,9 +560,9 @@ export default function DataWeaverPage() {
                                 <div className="space-y-4 py-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="merge-key-dialog">Kolom Acuan</Label>
-                                        <Select value={mergeKey} onValueChange={setMergeKey} disabled={commonHeaders.length === 0}>
+                                        <Select value={mergeKey} onValueChange={setMergeKey}>
                                             <SelectTrigger id="merge-key-dialog">
-                                                <SelectValue placeholder={commonHeaders.length > 0 ? "Select a column" : "No common columns"} />
+                                                <SelectValue placeholder="Select a column" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {commonHeaders.map(header => (
@@ -987,6 +988,7 @@ function ManualSelectCombobox({
     
 
     
+
 
 
 
