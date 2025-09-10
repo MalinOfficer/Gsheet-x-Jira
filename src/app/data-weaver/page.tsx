@@ -130,27 +130,27 @@ export default function DataWeaverPage() {
             const common = headersA.filter(h => lowercasedHeadersB.includes(h.toLowerCase()));
             setCommonHeaders(common);
 
+            // Absolute Priority: Find "Nama" (case-insensitive) and set it as the merge key.
+            const namaKey = common.find(h => h.toLowerCase() === 'nama');
+            if (namaKey) {
+                setMergeKey(namaKey);
+                return; // Exit early as we've found our absolute priority key
+            }
+
+            // Fallback Logic if "Nama" is not found
             const savedMergeKey = localStorage.getItem(LOCAL_STORAGE_KEY_MERGE_KEY);
             const lowercasedCommon = common.map(h => h.toLowerCase());
 
             // 1. Check if the saved key is still valid
             if (savedMergeKey && lowercasedCommon.includes(savedMergeKey.toLowerCase())) {
-                // Find the correctly cased version from the common list
                 const correctlyCasedKey = common.find(h => h.toLowerCase() === savedMergeKey.toLowerCase());
                 if (correctlyCasedKey) {
                     setMergeKey(correctlyCasedKey);
-                    return; // Exit early
+                    return;
                 }
             }
-            
-            // 2. If no valid saved key, try to find 'nama' as a default
-            const defaultKey = common.find(h => h.toLowerCase() === 'nama');
-            if (defaultKey) {
-                setMergeKey(defaultKey);
-                return; // Exit early
-            }
 
-            // 3. If the current mergeKey is no longer valid, or if no key is set, use the first common header
+            // 2. If the current mergeKey is no longer valid, or if no key is set, use the first common header
             if ((mergeKey && !lowercasedCommon.includes(mergeKey.toLowerCase())) || !mergeKey) {
                 if (common.length > 0) {
                     setMergeKey(common[0]);
@@ -987,5 +987,6 @@ function ManualSelectCombobox({
     
 
     
+
 
 
