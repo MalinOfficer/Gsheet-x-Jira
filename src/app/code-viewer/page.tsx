@@ -25,18 +25,29 @@ async function getFileContent(filePath: string): Promise<string> {
 
 // List of files to display, matching the user's request
 const projectFiles = [
-  // Root files
-  ".env.local",
+  // App Structure
+  "src/app/layout.tsx",
+  "src/app/page.tsx", // Root page for Import Flow
+  "src/app/report-harian/page.tsx",
+  "src/app/migrasi-murid/page.tsx",
+  "src/app/cek-duplikasi/page.tsx",
+  "src/app/data-weaver/page.tsx",
+
+  // Main Components
+  "src/components/import-flow.tsx",
+  "src/components/report-harian.tsx",
+  "src/components/migrasi-murid.tsx",
+  "src/components/cek-duplikasi.tsx",
+
+  // Config files
   "next.config.ts",
   "package.json",
   "tailwind.config.ts",
   "tsconfig.json",
   "components.json",
-  // Src files
-  "src/app/layout.tsx",
-  "src/app/page.tsx",
-  "src/app/api/export-to-gsheet/route.ts",
-  "src/components/JsonUploader.tsx",
+
+  // Other important files
+  "src/app/actions.ts",
   "src/lib/utils.ts",
 ];
 
