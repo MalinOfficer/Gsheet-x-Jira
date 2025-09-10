@@ -4,6 +4,8 @@ import path from 'path';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
 
 // This is a server component, so we can use Node.js APIs
 async function getFileContent(filePath: string): Promise<string> {
@@ -56,7 +58,7 @@ export default async function CodeViewerPage() {
   const fileContents = await Promise.all(
     projectFiles.map(async (filePath) => {
       const content = await getFileContent(filePath);
-      return { path: filePath, content };
+      return { path: filePath, content, name: path.basename(filePath) };
     })
   );
 
@@ -66,21 +68,34 @@ export default async function CodeViewerPage() {
         <header>
           <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Code Viewer</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Menampilkan kode sumber dari file-file penting dalam proyek.
+            Menampilkan kode sumber dari file-file penting dalam proyek. Klik tombol unduh untuk menyimpan salinan file.
           </p>
         </header>
 
         <Accordion type="multiple" className="w-full space-y-4">
-          {fileContents.map(({ path, content }, index) => (
+          {fileContents.map(({ path, content, name }, index) => (
             <AccordionItem value={`item-${index}`} key={path} className="border-b-0">
                  <Card className="shadow-lg">
-                    <AccordionTrigger className="p-4 md:p-6 text-left hover:no-underline">
-                        <div className='flex flex-col items-start'>
-                           <CardTitle className="text-lg">File: {path}</CardTitle>
-                           <CardDescription className="text-xs mt-1">Klik untuk melihat atau menyembunyikan kode</CardDescription>
-                        </div>
+                    <AccordionTrigger className="p-4 md:p-6 text-left hover:no-underline w-full">
+                       <div className="flex justify-between items-center w-full pr-4">
+                            <div className='flex flex-col items-start'>
+                               <CardTitle className="text-lg">File: {path}</CardTitle>
+                               <CardDescription className="text-xs mt-1">Klik untuk melihat atau menyembunyikan kode</CardDescription>
+                            </div>
+                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-4 md:px-6 pb-4 md:pb-6">
+                         <div className="flex justify-end mb-2">
+                             <a
+                                href={`data:text/plain;charset=utf-8,${encodeURIComponent(content)}`}
+                                download={name}
+                             >
+                                <Button variant="outline" size="sm">
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Unduh File
+                                </Button>
+                             </a>
+                         </div>
                          <ScrollArea className="h-[40vh] w-full rounded-md border bg-muted/20">
                             <pre className="p-4 text-xs font-code">
                                 <code>
