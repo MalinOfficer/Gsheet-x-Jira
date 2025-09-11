@@ -1,29 +1,30 @@
 
-import { promises as fs } from 'fs';
-import path from 'path';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+'use client';
 
-// This is a server component, so we can use Node.js APIs
-async function getFileContent(filePath: string): Promise<string> {
-  try {
-    const fullPath = path.join(process.cwd(), filePath);
-    // Use fs.stat to check if the file exists before reading
-    await fs.stat(fullPath);
-    const content = await fs.readFile(fullPath, 'utf-8');
-    return content;
-  } catch (error: any) {
-    // If the error is that the file doesn't exist, return a specific message
-    if (error.code === 'ENOENT') {
-        return `// File tidak ditemukan di path: ${filePath}\n// File ini mungkin belum dibuat.`;
-    }
-    console.error(`Error reading file at ${filePath}:`, error);
-    return `Error: Tidak dapat membaca file di ${filePath}`;
-  }
-}
+import { useState, useTransition } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Download, Archive, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+
+// This is a client component, but we'll fetch the file contents on the server
+// and pass them as props. The actual content is static during the page's lifecycle.
+// Therefore, we define the file list and content fetching logic outside the component.
 
 // List of all relevant files for deployment and review
 const projectFiles = [
@@ -114,23 +115,73 @@ const projectFiles = [
   "src/components/ui/tooltip.tsx",
 ];
 
+// We can't use fs on the client, so we will receive the file contents as props.
+// The fetching logic will be in the parent server component that renders this page.
+type FileContent = {
+  path: string;
+  content: string;
+  name: string;
+};
 
-export default async function CodeViewerPage() {
-  const fileContents = await Promise.all(
-    projectFiles.map(async (filePath) => {
-      const content = await getFileContent(filePath);
-      return { path: filePath, content, name: path.basename(filePath) };
-    })
-  );
+// This function needs to be defined in a file that can use server-side APIs
+// We'll simulate fetching for the client component.
+async function getFileContents(): Promise<FileContent[]> {
+    // In a real app, this would be `(await import('fs')).promises` etc.
+    // For the client component, we'll just return a placeholder.
+    // The real data will be passed as a prop from a server component parent.
+    return [];
+}
+
+
+export default function CodeViewerPage({ fileContents }: { fileContents: FileContent[] }) {
+  const { toast } = useToast();
+  const [isZipping, startZipping] = useTransition();
+
+  const handleDownloadAll = () => {
+    startZipping(async () => {
+      try {
+        const zip = new JSZip();
+        
+        fileContents.forEach(file => {
+            zip.file(file.path, file.content);
+        });
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        saveAs(zipBlob, 'GSheetDashboard-SourceCode.zip');
+        
+        toast({
+          title: 'Download Started',
+          description: 'Your ZIP file is being generated and will download shortly.',
+        });
+      } catch (error) {
+        console.error('Error creating ZIP file:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Download Failed',
+          description: 'Could not create the ZIP file. Please try again.',
+        });
+      }
+    });
+  };
 
   return (
     <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <header>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Code Viewer</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Menampilkan kode sumber dari file-file penting dalam proyek. Klik tombol unduh untuk menyimpan salinan file.
-          </p>
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Code Viewer</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Menampilkan kode sumber dari file-file penting dalam proyek. Klik tombol unduh untuk menyimpan salinan file.
+            </p>
+          </div>
+          <Button onClick={handleDownloadAll} disabled={isZipping} className="w-full sm:w-auto">
+            {isZipping ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Archive className="mr-2 h-4 w-4" />
+            )}
+            {isZipping ? 'Zipping...' : 'Download Semua File (.zip)'}
+          </Button>
         </header>
 
         <Accordion type="multiple" className="w-full space-y-4">
@@ -151,7 +202,7 @@ export default async function CodeViewerPage() {
                                 href={`data:text/plain;charset=utf-8,${encodeURIComponent(content)}`}
                                 download={name}
                              >
-                                <Button variant="outline" size="sm">
+                                <Button variant="outline" size="sm" disabled={isZipping}>
                                     <Download className="mr-2 h-4 w-4" />
                                     Unduh File
                                 </Button>
@@ -173,3 +224,41 @@ export default async function CodeViewerPage() {
     </div>
   );
 }
+
+// We need a server component wrapper to fetch the data and pass it down.
+// Since we can't create new files, we'll modify the existing page.
+// The default export will now be the server component wrapper.
+const CodeViewerPageWithData = async () => {
+    // This is a workaround for the single-file-edit limitation.
+    // In a real scenario, this would be a simple server component.
+    const fs = (await import('fs')).promises;
+    const path = (await import('path'));
+
+    async function getFileContent(filePath: string): Promise<string> {
+        try {
+            const fullPath = path.join(process.cwd(), filePath);
+            await fs.stat(fullPath);
+            const content = await fs.readFile(fullPath, 'utf-8');
+            return content;
+        } catch (error: any) {
+            if (error.code === 'ENOENT') {
+                return `// File tidak ditemukan di path: ${filePath}\n// File ini mungkin belum dibuat.`;
+            }
+            console.error(`Error reading file at ${filePath}:`, error);
+            return `Error: Tidak dapat membaca file di ${filePath}`;
+        }
+    }
+
+    const fileContents = await Promise.all(
+        projectFiles.map(async (filePath) => {
+            const content = await getFileContent(filePath);
+            return { path: filePath, content, name: path.basename(filePath) };
+        })
+    );
+
+    return <CodeViewerPage fileContents={fileContents} />;
+}
+
+// We re-assign the default export to our new server wrapper
+// This is a bit of a hack but necessary given the constraints
+export default CodeViewerPageWithData;
