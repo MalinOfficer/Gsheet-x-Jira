@@ -188,7 +188,7 @@ export function ImportFlow() {
                   <p className="font-bold">Updated Cases:</p>
                   <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
                     {result.updatedRows.map((item: { title: string, newStatus: string, newTicketOp: string }, index: number) => (
-                      <li key={index}>{item.title} -> <strong>{item.newStatus} / {item.newTicketOp}</strong></li>
+                      <li key={index}>{item.title} &rarr; <strong>{item.newStatus} / {item.newTicketOp}</strong></li>
                     ))}
                   </ul>
                 </div>
@@ -783,3 +783,5 @@ export function ImportFlow() {
     </div>
   );
 }
+
+    
