@@ -133,7 +133,7 @@ async function getFileContents(): Promise<FileContent[]> {
 }
 
 
-export default function CodeViewerPage({ fileContents }: { fileContents: FileContent[] }) {
+function CodeViewerPage({ fileContents }: { fileContents: FileContent[] }) {
   const { toast } = useToast();
   const [isZipping, startZipping] = useTransition();
 
@@ -262,3 +262,5 @@ const CodeViewerPageWithData = async () => {
 // We re-assign the default export to our new server wrapper
 // This is a bit of a hack but necessary given the constraints
 export default CodeViewerPageWithData;
+
+    
