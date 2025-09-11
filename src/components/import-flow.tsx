@@ -188,7 +188,7 @@ export function ImportFlow() {
                   <p className="font-bold">Updated Cases:</p>
                   <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
                     {result.updatedRows.map((item: { title: string, newStatus: string, newTicketOp: string }, index: number) => (
-                      <li key={index}>{item.title} &rarr; <strong>{item.newStatus} / {item.newTicketOp}</strong></li>
+                      <li key={index}>{item.title} {'→'} <strong>{item.newStatus} / {item.newTicketOp}</strong></li>
                     ))}
                   </ul>
                 </div>
@@ -658,8 +658,8 @@ export function ImportFlow() {
                                         {updatePreview.map((item, index) => (
                                           <li key={index} className='text-foreground'>
                                             {item.title}:
-                                            {item.oldStatus !== item.newStatus && <span> Status: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> &rarr; <strong>{item.newStatus}</strong></span>}
-                                            {item.oldTicketOp !== item.newTicketOp && <span> Ticket OP: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> &rarr; <strong>{item.newTicketOp}</strong></span>}
+                                            {item.oldStatus !== item.newStatus && <span> Status: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> {'→'} <strong>{item.newStatus}</strong></span>}
+                                            {item.oldTicketOp !== item.newTicketOp && <span> Ticket OP: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> {'→'} <strong>{item.newTicketOp}</strong></span>}
                                           </li>
                                         ))}
                                     </ul>
