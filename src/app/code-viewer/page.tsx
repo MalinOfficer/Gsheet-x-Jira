@@ -6,8 +6,10 @@ import { CodeViewerClient } from '@/components/code-viewer-client';
 const projectFiles = [
   // File konfigurasi root
   "README.md",
+  ".gitignore",
   "apphosting.yaml",
   "components.json",
+  "firebase.json",
   "next.config.ts",
   "package.json",
   "tailwind.config.ts",
