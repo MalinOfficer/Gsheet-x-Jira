@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, BarChart, GanttChartSquare, Settings, Loader2, ListTree, GitBranch, Files, Combine, CodeXml } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -167,6 +167,12 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                             </Button>
                         </SheetTrigger>
                         <SheetContent side="left" className="flex flex-col">
+                            <SheetHeader className="sr-only">
+                                <SheetTitle>Navigation Menu</SheetTitle>
+                                <SheetDescription>
+                                    A list of pages to navigate to.
+                                </SheetDescription>
+                            </SheetHeader>
                             <nav className="grid gap-2 text-lg font-medium">
                                 <Link
                                     href="/"
