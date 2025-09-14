@@ -68,20 +68,32 @@ export async function fetchSheetData(url: string) {
 
 const getGoogleSheetsClient = () => {
     let credentials;
-    try {
-        const filePath = path.join(process.cwd(), 'src', 'lib', 'gcp-credentials.json');
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
-        credentials = JSON.parse(fileContent);
-    } catch (error) {
-        console.error('Error reading or parsing credentials file:', error);
-        throw new Error('Could not load Google Cloud credentials from the server.');
+    // Vercel/Production environment: Read from environment variable
+    if (process.env.GCP_CREDENTIALS) {
+        try {
+            credentials = JSON.parse(process.env.GCP_CREDENTIALS);
+        } catch (error) {
+            console.error('Error parsing GCP_CREDENTIALS from environment variable:', error);
+            throw new Error('Could not parse Google Cloud credentials from environment variable.');
+        }
+    } 
+    // Local development environment: Read from file
+    else {
+        try {
+            const filePath = path.join(process.cwd(), 'src', 'lib', 'gcp-credentials.json');
+            const fileContent = fs.readFileSync(filePath, 'utf-8');
+            credentials = JSON.parse(fileContent);
+        } catch (error) {
+            console.error('Error reading or parsing credentials file:', error);
+            throw new Error('Could not load Google Cloud credentials. Make sure src/lib/gcp-credentials.json exists for local development.');
+        }
     }
     
     const clientEmail = credentials.client_email;
     const privateKey = credentials.private_key;
 
     if (!clientEmail || !privateKey) {
-        throw new Error('Google Cloud credentials are not configured correctly in gcp-credentials.json.');
+        throw new Error('Google Cloud credentials are not configured correctly.');
     }
 
     const auth = new google.auth.GoogleAuth({
@@ -594,3 +606,5 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     
     return { mergedRows, unmatchedRowsB };
 }
+
+    
