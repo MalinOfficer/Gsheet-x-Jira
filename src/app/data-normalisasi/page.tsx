@@ -256,7 +256,9 @@ export default function DataNormalisasiPage() {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Normalized Data");
 
-        XLSX.writeFile(workbook, resultFile.name);
+        // Force .xls format
+        const fileName = resultFile.name.replace(/\.[^/.]+$/, "") + ".xls";
+        XLSX.writeFile(workbook, fileName, { bookType: "biff8" });
     };
 
     return (
@@ -425,7 +427,7 @@ export default function DataNormalisasiPage() {
                         <CardFooter>
                             <Button onClick={handleDownload}>
                                 <FileDown className="mr-2 h-4 w-4" />
-                                Download Hasil ({resultFile.name})
+                                Download Hasil ({resultFile.name.replace(/\.[^/.]+$/, "") + ".xls"})
                             </Button>
                         </CardFooter>
                     </Card>
