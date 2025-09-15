@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, BarChart, GanttChartSquare, Settings, Loader2, ListTree, GitBranch, Files, Combine, CodeXml } from "lucide-react";
+import { Menu, BarChart, GanttChartSquare, Settings, Loader2, ListTree, GitBranch, Files, Combine, CodeXml, FileCog } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useContext, useEffect, useState, useRef, useCallback } from "react";
 import { TableDataContext } from "@/store/table-data-context";
@@ -16,6 +16,7 @@ const navItems = [
     { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
     { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files },
     { href: "/data-weaver", label: "Data Weaver", icon: Combine },
+    { href: "/data-normalisasi", label: "Data Normalisasi", icon: FileCog },
     { href: "/code-viewer", label: "Code Viewer", icon: CodeXml },
 ];
 

@@ -1,3 +1,4 @@
+
 import { promises as fs } from 'fs';
 import path from 'path';
 import { CodeViewerClient } from '@/components/code-viewer-client';
@@ -23,6 +24,7 @@ const projectFiles = [
   "src/app/migrasi-murid/page.tsx",
   "src/app/cek-duplikasi/page.tsx",
   "src/app/data-weaver/page.tsx",
+  "src/app/data-normalisasi/page.tsx",
   "src/app/settings/page.tsx",
   "src/app/code-viewer/page.tsx",
 
