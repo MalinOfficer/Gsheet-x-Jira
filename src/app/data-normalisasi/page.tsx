@@ -252,13 +252,13 @@ export default function DataNormalisasiPage() {
             return;
         }
 
-        const worksheet = XLSX.utils.aoa_to_sheet(resultFile.rows);
+        const worksheet = XLSX.utils.aoa_to_sheet(resultFile.rows, { cellDates: true, cellStyles: true, cellNF: true });
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Normalized Data");
 
         // Force .xls format
         const fileName = resultFile.name.replace(/\.[^/.]+$/, "") + ".xls";
-        XLSX.writeFile(workbook, fileName, { bookType: "biff8" });
+        XLSX.writeFile(workbook, fileName, { bookType: "biff8", cellStyles: true });
     };
 
     return (
@@ -438,4 +438,5 @@ export default function DataNormalisasiPage() {
     );
 }
 
+    
     
