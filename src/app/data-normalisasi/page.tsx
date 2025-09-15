@@ -42,6 +42,9 @@ type Mapping = {
     targetColumn: string; // Will store column letter e.g., "B"
 };
 
+// Helper to create an empty row of a certain length
+const createEmptyArrayRow = (length: number = 0) => Array.from({ length }, () => '');
+
 // Helper to convert index to Excel-like column name (A, B, ..., Z, AA, etc.)
 const toColumnName = (num: number): string => {
     let s = '', t;
@@ -117,7 +120,7 @@ export default function DataNormalisasiPage() {
                     return;
                 }
 
-                const maxCols = Math.max(...sheetData.map(row => row.length));
+                const maxCols = Math.max(0, ...sheetData.map(row => row ? row.length : 0));
                 const columns = Array.from({ length: maxCols }, (_, i) => toColumnName(i + 1));
                 
                 const fileInfo = { name: file.name, columns, rows: sheetData };
@@ -139,7 +142,6 @@ export default function DataNormalisasiPage() {
     const handleReset = () => {
         setFileA(null);
         setFileB(null);
-        setMappings([{ id: 1, sourceColumn: '', targetColumn: '' }]);
         setResultFile(null);
         if (fileAInputRef.current) fileAInputRef.current.value = "";
         if (fileBInputRef.current) fileBInputRef.current.value = "";
@@ -176,6 +178,7 @@ export default function DataNormalisasiPage() {
 
     // Helper to convert column letter to 0-based index
     const fromColumnName = (name: string): number => {
+      if (!name) return -1;
       let number = 0;
       for (let i = 0; i < name.length; i++) {
         number = number * 26 + (name.charCodeAt(i) - ('A'.charCodeAt(0) - 1));
@@ -199,11 +202,20 @@ export default function DataNormalisasiPage() {
 
         // Create a deep copy of File B's rows to avoid direct mutation
         const newRowsB = JSON.parse(JSON.stringify(fileB.rows));
+        
+        // Determine the loop length by the longest of the two files
+        const totalRows = Math.max(fileA.rows.length, newRowsB.length);
+        const maxColsInB = Math.max(0, ...newRowsB.map(r => r ? r.length : 0));
 
-        // Iterate through each row of file B and update it based on file A
-        for (let i = 0; i < newRowsB.length; i++) {
+        // Iterate through all rows up to the max length
+        for (let i = 0; i < totalRows; i++) {
+            const rowA = fileA.rows[i];
+
+            // If we are processing beyond File B's original length, create new empty rows
+            if (i >= newRowsB.length) {
+                newRowsB[i] = createEmptyArrayRow(maxColsInB);
+            }
             const rowB = newRowsB[i];
-            const rowA = fileA.rows[i]; // Get the corresponding row from File A
 
             // If a corresponding row exists in File A, apply the mappings
             if (rowA) {
@@ -211,10 +223,8 @@ export default function DataNormalisasiPage() {
                     const sourceIndex = fromColumnName(mapping.sourceColumn);
                     const targetIndex = fromColumnName(mapping.targetColumn);
 
-                    // Check if source column index is valid for rowA
                     if (sourceIndex >= 0 && sourceIndex < rowA.length) {
                         const valueToTransfer = rowA[sourceIndex];
-                        // Ensure the target row has enough columns, fill with empty if needed
                         while (rowB.length <= targetIndex) {
                             rowB.push('');
                         }
@@ -224,7 +234,8 @@ export default function DataNormalisasiPage() {
             }
         }
         
-        const finalColumns = Array.from({length: Math.max(...newRowsB.map(r => r.length))}, (_, i) => toColumnName(i + 1));
+        const finalMaxCols = Math.max(0, ...newRowsB.map(r => r ? r.length : 0));
+        const finalColumns = Array.from({length: finalMaxCols}, (_, i) => toColumnName(i + 1));
 
         setResultFile({
             name: `Normalized_${fileB.name}`,
@@ -266,19 +277,19 @@ export default function DataNormalisasiPage() {
                             <AlertDialogTrigger asChild>
                                 <Button variant="destructive" size="sm" disabled={!fileA && !fileB}>
                                     <RefreshCw className="mr-2 h-4 w-4" />
-                                    Reset All
+                                    Reset Files
                                 </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        This action will clear all uploaded files and mapping configurations.
+                                        This action will clear all uploaded files. Your saved mapping configuration will not be affected.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleReset}>Yes, Reset</AlertDialogAction>
+                                    <AlertDialogAction onClick={handleReset}>Yes, Reset Files</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
@@ -424,6 +435,5 @@ export default function DataNormalisasiPage() {
         </div>
     );
 }
-
 
     
