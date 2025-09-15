@@ -1,11 +1,10 @@
 
 "use client";
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, FileDown, PlusCircle, Trash2, CheckCircle, RefreshCw, Wand2, Settings } from 'lucide-react';
+import { Upload, FileDown, PlusCircle, Trash2, CheckCircle, RefreshCw, Wand2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -31,14 +30,25 @@ declare const XLSX: any;
 
 type FileInfo = {
     name: string;
-    headers: string[];
-    rows: any[];
+    columns: string[]; // Changed from headers to columns
+    rows: any[][];     // Changed to array of arrays
 };
 
 type Mapping = {
     id: number;
-    sourceColumn: string;
-    targetColumn: string;
+    sourceColumn: string; // Will store column letter e.g., "A"
+    targetColumn: string; // Will store column letter e.g., "B"
+};
+
+// Helper to convert index to Excel-like column name (A, B, ..., Z, AA, etc.)
+const toColumnName = (num: number): string => {
+    let s = '', t;
+    while (num > 0) {
+        t = (num - 1) % 26;
+        s = String.fromCharCode(65 + t) + s;
+        num = (num - t) / 26 | 0;
+    }
+    return s || '';
 };
 
 export default function DataNormalisasiPage() {
@@ -69,27 +79,27 @@ export default function DataNormalisasiPage() {
                 }
                 const workbook = XLSX.read(data, { type: 'binary' });
                 
-                let json: any[] = [];
-                let sheetName = '';
+                let sheetData: any[][] = [];
 
                 // Find the first sheet with data
                 for (const name of workbook.SheetNames) {
                     const worksheet = workbook.Sheets[name];
-                    const sheetJson = XLSX.utils.sheet_to_json<any>(worksheet);
+                    const sheetJson = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
                     if (sheetJson.length > 0) {
-                        json = sheetJson;
-                        sheetName = name;
+                        sheetData = sheetJson;
                         break;
                     }
                 }
 
-                if (json.length === 0) {
+                if (sheetData.length === 0) {
                     toast({ variant: 'destructive', title: "Empty File", description: "Could not find any data in the sheets of this Excel file."});
                     return;
                 }
 
-                let headers = Object.keys(json[0]);
-                const fileInfo = { name: file.name, headers, rows: json };
+                const maxCols = Math.max(...sheetData.map(row => row.length));
+                const columns = Array.from({ length: maxCols }, (_, i) => toColumnName(i + 1));
+                
+                const fileInfo = { name: file.name, columns, rows: sheetData };
                 
                 if (fileType === 'A') {
                     setFileA(fileInfo);
@@ -126,6 +136,15 @@ export default function DataNormalisasiPage() {
         setMappings(mappings.map(m => m.id === id ? { ...m, [key]: value } : m));
     };
 
+    // Helper to convert column letter to 0-based index
+    const fromColumnName = (name: string): number => {
+      let number = 0;
+      for (let i = 0; i < name.length; i++) {
+        number = number * 26 + (name.charCodeAt(i) - ('A'.charCodeAt(0) - 1));
+      }
+      return number - 1;
+    };
+
     const runNormalization = () => {
         if (!fileA || !fileB) {
             toast({ variant: 'destructive', title: "Files Missing", description: "Please upload both File Data (A) and File Input (B)." });
@@ -140,30 +159,38 @@ export default function DataNormalisasiPage() {
 
         toast({ title: "Processing...", description: "Normalizing data based on your configuration." });
 
-        // Create a map from File A for faster lookups. For simplicity, we'll use the first column of file A as a key.
-        // A more robust solution might require the user to define a key.
-        const keyColumnA = fileA.headers[0];
-        const fileAMap = new Map(fileA.rows.map(row => [row[keyColumnA], row]));
+        // Using the first column as a key. This assumes the key is in the first column for both files.
+        const keyColumnAIndex = 0;
+        const keyColumnBIndex = 0;
         
-        const keyColumnB = fileB.headers[0];
+        // Create a map from File A for faster lookups.
+        const fileAMap = new Map(fileA.rows.map(row => [row[keyColumnAIndex], row]));
+        
         const newRowsB = fileB.rows.map(rowB => {
-            const newRow = { ...rowB };
-            const matchingRowA = fileAMap.get(rowB[keyColumnB]);
+            const newRow = [...rowB]; // Create a mutable copy
+            const keyB = rowB[keyColumnBIndex];
+            const matchingRowA = fileAMap.get(keyB);
 
             if (matchingRowA) {
                 validMappings.forEach(mapping => {
-                    // Transfer data from matching row in A to the new row in B
-                    if (mapping.sourceColumn in matchingRowA) {
-                        newRow[mapping.targetColumn] = matchingRowA[mapping.sourceColumn];
+                    const sourceIndex = fromColumnName(mapping.sourceColumn);
+                    const targetIndex = fromColumnName(mapping.targetColumn);
+                    
+                    if (sourceIndex >= 0 && sourceIndex < matchingRowA.length) {
+                        newRow[targetIndex] = matchingRowA[sourceIndex];
                     }
                 });
             }
             return newRow;
         });
+        
+        // Determine the headers for the result file. It should be the original headers from File B's first row.
+        const resultHeaders = fileB.rows[0]?.map((_, i) => toColumnName(i + 1)) || [];
+        const finalColumns = Array.from({length: Math.max(...newRowsB.map(r => r.length))}, (_, i) => toColumnName(i + 1));
 
         setResultFile({
             name: `Normalized_${fileB.name}`,
-            headers: fileB.headers,
+            columns: finalColumns,
             rows: newRowsB
         });
 
@@ -176,7 +203,7 @@ export default function DataNormalisasiPage() {
             return;
         }
 
-        const worksheet = XLSX.utils.json_to_sheet(resultFile.rows, { header: resultFile.headers });
+        const worksheet = XLSX.utils.aoa_to_sheet(resultFile.rows);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Normalized Data");
 
@@ -272,7 +299,7 @@ export default function DataNormalisasiPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {mappings.map((mapping, index) => (
+                                {mappings.map((mapping) => (
                                     <div key={mapping.id} className="grid grid-cols-1 sm:grid-cols-[1fr,1fr,auto] gap-4 items-center p-3 border rounded-lg">
                                         <div className="grid gap-1.5">
                                             <label className="text-sm font-medium">Kolom File A (Sumber)</label>
@@ -282,7 +309,7 @@ export default function DataNormalisasiPage() {
                                             >
                                                 <SelectTrigger><SelectValue placeholder="Pilih Kolom..." /></SelectTrigger>
                                                 <SelectContent>
-                                                    {fileA.headers.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+                                                    {fileA.columns.map(c => <SelectItem key={c} value={c}>Kolom {c}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -294,7 +321,7 @@ export default function DataNormalisasiPage() {
                                             >
                                                 <SelectTrigger><SelectValue placeholder="Pilih Kolom..." /></SelectTrigger>
                                                 <SelectContent>
-                                                    {fileB.headers.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+                                                    {fileB.columns.map(c => <SelectItem key={c} value={c}>Kolom {c}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -353,3 +380,5 @@ export default function DataNormalisasiPage() {
         </div>
     );
 }
+
+    
