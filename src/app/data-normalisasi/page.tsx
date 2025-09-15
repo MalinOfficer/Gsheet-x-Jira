@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Upload, FileDown, PlusCircle, Trash2, CheckCircle, RefreshCw, Wand2 } from 'lucide-react';
+import { Upload, FileDown, PlusCircle, Trash2, CheckCircle, RefreshCw, Wand2, Save } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -27,6 +27,8 @@ import {
 import { Input } from '@/components/ui/input';
 
 declare const XLSX: any;
+
+const LOCAL_STORAGE_KEY_MAPPINGS = 'dataNormalisasiMappings';
 
 type FileInfo = {
     name: string;
@@ -60,6 +62,25 @@ export default function DataNormalisasiPage() {
     const fileAInputRef = useRef<HTMLInputElement>(null);
     const fileBInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
+
+    useEffect(() => {
+        try {
+            const savedMappings = localStorage.getItem(LOCAL_STORAGE_KEY_MAPPINGS);
+            if (savedMappings) {
+                const parsedMappings = JSON.parse(savedMappings);
+                if (Array.isArray(parsedMappings) && parsedMappings.length > 0) {
+                    setMappings(parsedMappings);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load mappings from localStorage", error);
+            toast({
+                variant: "destructive",
+                title: "Load Error",
+                description: "Could not load saved mapping configuration.",
+            });
+        }
+    }, [toast]);
 
     const handleFileUpload = (file: File, fileType: 'A' | 'B') => {
         if (!file || typeof XLSX === 'undefined') {
@@ -134,6 +155,23 @@ export default function DataNormalisasiPage() {
 
     const updateMapping = (id: number, key: 'sourceColumn' | 'targetColumn', value: string) => {
         setMappings(mappings.map(m => m.id === id ? { ...m, [key]: value } : m));
+    };
+
+    const handleSaveMappings = () => {
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY_MAPPINGS, JSON.stringify(mappings));
+            toast({
+                title: "Configuration Saved!",
+                description: "Your column mappings have been saved in this browser.",
+            });
+        } catch (error) {
+            console.error("Failed to save mappings to localStorage", error);
+            toast({
+                variant: "destructive",
+                title: "Save Error",
+                description: "Could not save your mapping configuration.",
+            });
+        }
     };
 
     // Helper to convert column letter to 0-based index
@@ -338,10 +376,16 @@ export default function DataNormalisasiPage() {
                                     </div>
                                 ))}
                             </div>
-                            <Button onClick={addMapping} variant="outline" size="sm" className="mt-4">
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Tambah Pemetaan
-                            </Button>
+                            <div className="flex gap-2 mt-4">
+                                <Button onClick={addMapping} variant="outline" size="sm">
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Tambah Pemetaan
+                                </Button>
+                                <Button onClick={handleSaveMappings} variant="secondary" size="sm">
+                                    <Save className="mr-2 h-4 w-4" />
+                                    Simpan Konfigurasi
+                                </Button>
+                            </div>
                         </CardContent>
                         <CardFooter className="border-t pt-6">
                              <Button onClick={runNormalization} className="w-full sm:w-auto">
@@ -381,3 +425,5 @@ export default function DataNormalisasiPage() {
     );
 }
 
+
+    
