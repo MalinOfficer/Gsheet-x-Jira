@@ -159,33 +159,33 @@ export default function DataNormalisasiPage() {
 
         toast({ title: "Processing...", description: "Normalizing data based on your configuration." });
 
-        // Using the first column as a key. This assumes the key is in the first column for both files.
-        const keyColumnAIndex = 0;
-        const keyColumnBIndex = 0;
-        
-        // Create a map from File A for faster lookups.
-        const fileAMap = new Map(fileA.rows.map(row => [row[keyColumnAIndex], row]));
-        
-        const newRowsB = fileB.rows.map(rowB => {
-            const newRow = [...rowB]; // Create a mutable copy
-            const keyB = rowB[keyColumnBIndex];
-            const matchingRowA = fileAMap.get(keyB);
+        // Create a deep copy of File B's rows to avoid direct mutation
+        const newRowsB = JSON.parse(JSON.stringify(fileB.rows));
 
-            if (matchingRowA) {
+        // Iterate through each row of file B and update it based on file A
+        for (let i = 0; i < newRowsB.length; i++) {
+            const rowB = newRowsB[i];
+            const rowA = fileA.rows[i]; // Get the corresponding row from File A
+
+            // If a corresponding row exists in File A, apply the mappings
+            if (rowA) {
                 validMappings.forEach(mapping => {
                     const sourceIndex = fromColumnName(mapping.sourceColumn);
                     const targetIndex = fromColumnName(mapping.targetColumn);
-                    
-                    if (sourceIndex >= 0 && sourceIndex < matchingRowA.length) {
-                        newRow[targetIndex] = matchingRowA[sourceIndex];
+
+                    // Check if source column index is valid for rowA
+                    if (sourceIndex >= 0 && sourceIndex < rowA.length) {
+                        const valueToTransfer = rowA[sourceIndex];
+                        // Ensure the target row has enough columns, fill with empty if needed
+                        while (rowB.length <= targetIndex) {
+                            rowB.push('');
+                        }
+                        rowB[targetIndex] = valueToTransfer;
                     }
                 });
             }
-            return newRow;
-        });
+        }
         
-        // Determine the headers for the result file. It should be the original headers from File B's first row.
-        const resultHeaders = fileB.rows[0]?.map((_, i) => toColumnName(i + 1)) || [];
         const finalColumns = Array.from({length: Math.max(...newRowsB.map(r => r.length))}, (_, i) => toColumnName(i + 1));
 
         setResultFile({
@@ -381,4 +381,3 @@ export default function DataNormalisasiPage() {
     );
 }
 
-    
