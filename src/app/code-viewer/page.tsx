@@ -33,7 +33,7 @@ const projectFiles = [
   "src/components/report-harian.tsx",
   "src/components/migrasi-murid.tsx",
   "src/components/cek-duplikasi.tsx",
-  "src/components/data-weaver/page.tsx", // Seharusnya ini adalah komponen, bukan halaman duplikat
+  "src/components/data-weaver.tsx",
   "src/components/layout/client-layout.tsx",
   "src/components/code-viewer-client.tsx",
 
