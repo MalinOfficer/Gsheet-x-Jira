@@ -8,9 +8,8 @@ const projectFiles = [
   // File konfigurasi root
   "README.md",
   ".gitignore",
-  "apphosting.yaml",
+  "postcss.config.js",
   "components.json",
-  "firebase.json",
   "next.config.ts",
   "package.json",
   "tailwind.config.ts",
@@ -105,7 +104,7 @@ async function getFileContent(filePath: string): Promise<string> {
         return content;
     } catch (error: any) {
         if (error.code === 'ENOENT') {
-            return `// File tidak ditemukan di path: ${filePath}\n// File ini mungkin belum dibuat.`;
+            return `// File tidak ditemukan di path: ${filePath}\n// File ini mungkin belum dibuat atau sudah dihapus.`;
         }
         console.error(`Error reading file at ${filePath}:`, error);
         return `Error: Tidak dapat membaca file di ${filePath}`;

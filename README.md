@@ -48,7 +48,7 @@ Vercel adalah platform yang direkomendasikan untuk men-deploy aplikasi Next.js i
 Aplikasi ini memerlukan kredensial Google Cloud untuk mengakses Google Sheets API. Anda harus menyediakannya sebagai *Environment Variable* di Vercel.
 
 1.  **Dapatkan Kredensial JSON Anda**:
-    *   Ikuti **Langkah 3 (poin 1-5)** dari panduan deployment Firebase di file `src/app/code-viewer/page.tsx` untuk membuat *service account* dan mengunduh file kunci JSON-nya.
+    *   Ikuti panduan di file `src/lib/gcp-credentials.json` untuk membuat *service account* dan mengunduh file kunci JSON-nya.
     *   Buka file JSON tersebut dengan editor teks.
 
 2.  **Format Kredensial untuk Vercel**:
