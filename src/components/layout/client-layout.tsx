@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetClose } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, BarChart, GanttChartSquare, Settings, Loader2, ListTree, GitBranch, Files, Combine, CodeXml, FileCog } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,7 @@ function NavLinksDesktop() {
         <NavigationMenuList>
           {primaryNavItems.map((item) => (
             <NavigationMenuItem key={item.label}>
-                <Link href={item.href} legacyBehavior passHref>
+                <Link href={item.href} legacyBehavior={false} passHref>
                     <NavigationMenuLink active={pathname === item.href} className={navigationMenuTriggerStyle()}>
                         <item.icon className="h-4 w-4 mr-2 shrink-0" />
                         {item.label}
