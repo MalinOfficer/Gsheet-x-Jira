@@ -43,7 +43,7 @@ function NavLinksDesktop() {
         <NavigationMenuList>
           {primaryNavItems.map((item) => (
             <NavigationMenuItem key={item.label}>
-                <Link href={item.href} legacyBehavior passHref>
+                <Link href={item.href} passHref>
                     <NavigationMenuLink active={pathname === item.href} className={navigationMenuTriggerStyle()}>
                         <item.icon className="h-4 w-4 mr-2 shrink-0" />
                         {item.label}
@@ -58,7 +58,7 @@ function NavLinksDesktop() {
             <NavigationMenuContent>
                 <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
                     {secondaryNavItems.map((item) => (
-                        <Link href={item.href} key={item.label} legacyBehavior passHref>
+                         <Link href={item.href} key={item.label} legacyBehavior passHref>
                             <ListItem
                                 title={item.label}
                                 icon={item.icon}
