@@ -9,6 +9,7 @@ import { Menu, BarChart, GanttChartSquare, Settings, Loader2, ListTree, GitBranc
 import { cn } from "@/lib/utils";
 import { useContext, useEffect, useState, useRef, useCallback } from "react";
 import { TableDataContext } from "@/store/table-data-context";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const navItems = [
     { href: "/", label: "Import Flow", icon: ListTree },
@@ -63,21 +64,26 @@ function ProcessingIndicator() {
 }
 
 const LOCAL_STORAGE_KEY_SIDEBAR_WIDTH = 'sidebarWidth';
-const MIN_WIDTH = 200; // 50rem
-const MAX_WIDTH = 500; // 125rem
+const MIN_WIDTH = 200;
+const MAX_WIDTH = 500;
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
     const { isProcessing, setIsProcessing } = useContext(TableDataContext);
     const pathname = usePathname();
     const [sidebarWidth, setSidebarWidth] = useState(200);
     const isResizing = useRef(false);
+    const [isClient, setIsClient] = useState(false);
+    const isMobile = useIsMobile();
 
     useEffect(() => {
+        // This effect runs only on the client, after hydration.
+        setIsClient(true);
         const savedWidth = localStorage.getItem(LOCAL_STORAGE_KEY_SIDEBAR_WIDTH);
         if (savedWidth) {
             setSidebarWidth(Number(savedWidth));
         }
     }, []);
+
 
     const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
         e.preventDefault();
@@ -86,9 +92,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     };
 
     const handleMouseUp = useCallback(() => {
-        isResizing.current = false;
-        document.body.style.cursor = 'default';
-        localStorage.setItem(LOCAL_STORAGE_KEY_SIDEBAR_WIDTH, String(sidebarWidth));
+        if (isResizing.current) {
+            isResizing.current = false;
+            document.body.style.cursor = 'default';
+            localStorage.setItem(LOCAL_STORAGE_KEY_SIDEBAR_WIDTH, String(sidebarWidth));
+        }
     }, [sidebarWidth]);
 
     const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -117,100 +125,113 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     }, [pathname, setIsProcessing]);
 
 
+    // Don't render the sidebar or mobile header until we are on the client
+    if (!isClient) {
+        return (
+             <div className="flex-1 flex flex-col bg-background">
+                {children}
+            </div>
+        );
+    }
+    
     return (
         <div className={cn("flex min-h-screen w-full", isProcessing && "pointer-events-none")}>
-            {/* Sidebar for Desktop */}
-            <aside 
-                className="hidden md:flex flex-col relative bg-card text-card-foreground border-r"
-                style={{ width: `${sidebarWidth}px` }}
-            >
-                <div className="flex h-16 items-center border-b px-6">
-                    <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
-                        <GanttChartSquare className="h-6 w-6" />
-                        <span>GSheet Tools</span>
-                    </Link>
-                </div>
-                <nav className="flex-1 flex flex-col p-2 text-sm font-medium">
-                    <NavLinks />
-                    <ProcessingIndicator />
-                </nav>
-                 <div className="mt-auto p-4">
-                    <Link
-                        href="/settings"
-                        className={cn(
-                            "flex items-center justify-start rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
-                            pathname === "/settings" && "bg-accent text-accent-foreground font-semibold"
-                        )}
-                        onClick={() => {
-                            if (pathname !== "/settings") {
-                                setIsProcessing(true);
-                            }
-                        }}
-                    >
-                        <Settings className="h-4 w-4 mr-3" />
-                        Settings
-                    </Link>
-                </div>
-                <div 
-                    className="absolute top-0 right-0 h-full w-1 cursor-col-resize bg-border hover:bg-primary transition-colors duration-200"
-                    onMouseDown={handleMouseDown}
-                />
-            </aside>
-
-            <div className="flex flex-col flex-1">
-                {/* Header for Mobile */}
-                <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-card px-4 md:hidden">
-                    <Sheet>
-                        <SheetTrigger asChild>
-                            <Button variant="outline" size="icon" className="shrink-0">
-                                <Menu className="h-5 w-5" />
-                                <span className="sr-only">Open navigation menu</span>
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="left" className="flex flex-col">
-                            <SheetHeader className="sr-only">
-                                <SheetTitle>Navigation Menu</SheetTitle>
-                                <SheetDescription>
-                                    A list of pages to navigate to.
-                                </SheetDescription>
-                            </SheetHeader>
-                            <nav className="grid gap-2 text-lg font-medium">
-                                <Link
-                                    href="/"
-                                    className="flex items-center gap-2 text-lg font-semibold mb-4 text-primary"
-                                >
-                                    <GanttChartSquare className="h-6 w-6" />
-                                    <span>GSheet Tools</span>
-                                </Link>
-                                <NavLinks />
-                                <ProcessingIndicator />
-                            </nav>
-                            <div className="mt-auto">
-                                <Link
-                                    href="/settings"
-                                    className={cn(
-                                        "flex items-center justify-start rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
-                                         pathname === "/settings" && "bg-accent text-accent-foreground font-semibold"
-                                    )}
-                                    onClick={() => {
-                                        if (pathname !== "/settings") {
-                                            setIsProcessing(true);
-                                        }
-                                    }}
-                                >
-                                    <Settings className="h-5 w-5 mr-3" />
-                                    Settings
-                                </Link>
-                            </div>
-                        </SheetContent>
-                    </Sheet>
-                     <div className="flex w-full items-center justify-start gap-4">
+            {/* Sidebar for Desktop, rendered only on the client */}
+            {!isMobile && (
+                <aside 
+                    className="hidden md:flex flex-col relative bg-card text-card-foreground border-r"
+                    style={{ width: `${sidebarWidth}px` }}
+                >
+                    <div className="flex h-16 items-center border-b px-6">
                         <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                             <GanttChartSquare className="h-6 w-6" />
-                            <span className="text-base">GSheet Tools</span>
+                            <span>GSheet Tools</span>
                         </Link>
                     </div>
-                </header>
+                    <nav className="flex-1 flex flex-col p-2 text-sm font-medium">
+                        <NavLinks />
+                        <ProcessingIndicator />
+                    </nav>
+                     <div className="mt-auto p-4">
+                        <Link
+                            href="/settings"
+                            className={cn(
+                                "flex items-center justify-start rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                                pathname === "/settings" && "bg-accent text-accent-foreground font-semibold"
+                            )}
+                            onClick={() => {
+                                if (pathname !== "/settings") {
+                                    setIsProcessing(true);
+                                }
+                            }}
+                        >
+                            <Settings className="h-4 w-4 mr-3" />
+                            Settings
+                        </Link>
+                    </div>
+                    <div 
+                        className="absolute top-0 right-0 h-full w-1 cursor-col-resize bg-border hover:bg-primary transition-colors duration-200"
+                        onMouseDown={handleMouseDown}
+                    />
+                </aside>
+            )}
+
+            <div className="flex flex-col flex-1">
+                {/* Header for Mobile, rendered only on the client */}
+                {isMobile && (
+                    <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-card px-4 md:hidden">
+                        <Sheet>
+                            <SheetTrigger asChild>
+                                <Button variant="outline" size="icon" className="shrink-0">
+                                    <Menu className="h-5 w-5" />
+                                    <span className="sr-only">Open navigation menu</span>
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent side="left" className="flex flex-col">
+                                <SheetHeader className="sr-only">
+                                    <SheetTitle>Navigation Menu</SheetTitle>
+                                    <SheetDescription>
+                                        A list of pages to navigate to.
+                                    </SheetDescription>
+                                </SheetHeader>
+                                <nav className="grid gap-2 text-lg font-medium">
+                                    <Link
+                                        href="/"
+                                        className="flex items-center gap-2 text-lg font-semibold mb-4 text-primary"
+                                    >
+                                        <GanttChartSquare className="h-6 w-6" />
+                                        <span>GSheet Tools</span>
+                                    </Link>
+                                    <NavLinks />
+                                    <ProcessingIndicator />
+                                </nav>
+                                <div className="mt-auto">
+                                    <Link
+                                        href="/settings"
+                                        className={cn(
+                                            "flex items-center justify-start rounded-lg px-3 py-2 text-card-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                                             pathname === "/settings" && "bg-accent text-accent-foreground font-semibold"
+                                        )}
+                                        onClick={() => {
+                                            if (pathname !== "/settings") {
+                                                setIsProcessing(true);
+                                            }
+                                        }}
+                                    >
+                                        <Settings className="h-5 w-5 mr-3" />
+                                        Settings
+                                    </Link>
+                                </div>
+                            </SheetContent>
+                        </Sheet>
+                         <div className="flex w-full items-center justify-start gap-4">
+                            <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
+                                <GanttChartSquare className="h-6 w-6" />
+                                <span className="text-base">GSheet Tools</span>
+                            </Link>
+                        </div>
+                    </header>
+                )}
                 <main className="flex-1 flex flex-col bg-background">{children}</main>
             </div>
         </div>
