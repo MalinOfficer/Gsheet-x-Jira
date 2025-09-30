@@ -300,13 +300,6 @@ export function MigrasiMurid() {
                 e.preventDefault();
                 move(0, e.shiftKey ? -1 : 1);
                 break;
-            case "Delete":
-            case "Backspace":
-                if (selectedRange.start) {
-                    e.preventDefault();
-                    handleClearSelectedCells();
-                }
-                break;
         }
     };
     
@@ -506,7 +499,7 @@ export function MigrasiMurid() {
                 <header>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Migrasi Murid</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                       Click and drag to select a range. Use arrow keys to navigate. Press Delete to clear selected cells. Paste data from your spreadsheet.
+                       Click and drag to select a range. Use arrow keys to navigate. Paste data from your spreadsheet.
                     </p>
                 </header>
                 <Card className="shadow-lg">
@@ -528,7 +521,7 @@ export function MigrasiMurid() {
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button size="sm" variant="destructive">
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete All
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
