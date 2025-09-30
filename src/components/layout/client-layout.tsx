@@ -28,11 +28,11 @@ const primaryNavItems = [
 ];
 
 const secondaryNavItems = [
-    { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
-    { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files },
-    { href: "/data-weaver", label: "Data Weaver", icon: Combine },
-    { href: "/data-normalisasi", label: "Data Normalisasi", icon: FileCog },
-    { href: "/code-viewer", label: "Code Viewer", icon: CodeXml },
+    { href: "/migrasi-murid", label: "Migrasi Murid", description: "Alat mirip spreadsheet untuk memformat data migrasi siswa.", icon: GitBranch },
+    { href: "/cek-duplikasi", label: "Cek Duplikasi", description: "Temukan NIS duplikat atau data tidak valid di beberapa file Excel.", icon: Files },
+    { href: "/data-weaver", label: "Data Weaver", description: "Gabungkan dua file Excel berdasarkan kolom yang sama.", icon: Combine },
+    { href: "/data-normalisasi", label: "Data Normalisasi", description: "Transfer data antar kolom dari dua file Excel berbeda.", icon: FileCog },
+    { href: "/code-viewer", label: "Code Viewer", description: "Tampilkan dan unduh seluruh kode sumber aplikasi ini.", icon: CodeXml },
 ]
 
 function NavLinksDesktop() {
@@ -43,12 +43,15 @@ function NavLinksDesktop() {
         <NavigationMenuList>
           {primaryNavItems.map((item) => (
             <NavigationMenuItem key={item.label}>
-                <Link href={item.href} passHref>
-                    <NavigationMenuLink active={pathname === item.href} className={navigationMenuTriggerStyle()}>
-                        <item.icon className="h-4 w-4 mr-2 shrink-0" />
-                        {item.label}
-                    </NavigationMenuLink>
-                </Link>
+              <Link href={item.href} legacyBehavior passHref>
+                <NavigationMenuLink
+                  active={pathname === item.href}
+                  className={navigationMenuTriggerStyle()}
+                >
+                  <item.icon className="h-4 w-4 mr-2 shrink-0" />
+                  {item.label}
+                </NavigationMenuLink>
+              </Link>
             </NavigationMenuItem>
           ))}
           <NavigationMenuItem>
@@ -64,6 +67,7 @@ function NavLinksDesktop() {
                             title={item.label}
                             icon={item.icon}
                         >
+                          {item.description}
                         </ListItem>
                     ))}
                 </ul>
@@ -217,8 +221,8 @@ const ListItem = React.forwardRef<
 >(({ className, title, children, icon: Icon, href, ...props }, ref) => {
   return (
     <li>
-      <Link href={href || "#"} passHref legacyBehavior>
-        <NavigationMenuLink asChild>
+      <NavigationMenuLink asChild>
+        <Link href={href || "#"} legacyBehavior passHref>
             <a
             ref={ref}
             className={cn(
@@ -235,9 +239,12 @@ const ListItem = React.forwardRef<
                     {children}
                 </p>
             </a>
-        </NavigationMenuLink>
-      </Link>
+        </Link>
+      </NavigationMenuLink>
     </li>
   )
 })
 ListItem.displayName = "ListItem"
+
+
+    
