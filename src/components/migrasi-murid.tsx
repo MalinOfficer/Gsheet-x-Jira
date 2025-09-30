@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { PlusCircle, Wand2, Download, Undo2, Redo2, Trash2, Files } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,6 +117,12 @@ export function MigrasiMurid() {
 
     const [history, setHistory] = useState<MuridData[][]>([rows]);
     const [historyIndex, setHistoryIndex] = useState(0);
+
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     const recordHistory = (newRows: MuridData[]) => {
         const newHistory = history.slice(0, historyIndex + 1);
@@ -299,6 +306,13 @@ export function MigrasiMurid() {
             case "Tab":
                 e.preventDefault();
                 move(0, e.shiftKey ? -1 : 1);
+                break;
+            case "Delete":
+            case "Backspace":
+                if (selectedRange.start && (selectedRange.start.row !== (selectedRange.end?.row ?? selectedRange.start.row) || selectedRange.start.col !== (selectedRange.end?.col ?? selectedRange.start.col))) {
+                    e.preventDefault();
+                    handleClearSelectedCells();
+                }
                 break;
         }
     };
@@ -493,6 +507,36 @@ export function MigrasiMurid() {
         toast({ title: "Table Cleared", description: "All data has been cleared from the table." });
     };
 
+    if (!isClient) {
+        return (
+            <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+                <div className="max-w-7xl mx-auto space-y-6">
+                    <header>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Migrasi Murid</h1>
+                        <p className="text-sm text-muted-foreground mt-1">
+                           Click and drag to select a range. Use arrow keys to navigate. Paste data from your spreadsheet.
+                        </p>
+                    </header>
+                    <Card className="shadow-lg">
+                        <CardHeader>
+                            <Skeleton className="h-8 w-64" />
+                            <Skeleton className="h-4 w-full" />
+                        </CardHeader>
+                        <div className="px-6 pb-4 flex flex-wrap items-center gap-2 border-b">
+                            <Skeleton className="h-9 w-24" />
+                            <Skeleton className="h-9 w-24" />
+                            <Skeleton className="h-9 w-28" />
+                            <Skeleton className="h-9 w-28" />
+                        </div>
+                        <CardContent className="pt-6">
+                            <Skeleton className="h-[600px] w-full" />
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
@@ -549,13 +593,13 @@ export function MigrasiMurid() {
                     <CardContent className="pt-6">
                         <div 
                             className="relative w-full overflow-auto rounded-md border max-h-[600px]"
+                            onMouseUp={handleMouseUp}
+                            onMouseLeave={handleMouseUp}
                         >
                             <Table 
                                 className="border-collapse w-full" 
                                 style={{ tableLayout: 'fixed' }}
                                 onPaste={handlePaste}
-                                onMouseUp={handleMouseUp}
-                                onMouseLeave={handleMouseUp}
                             >
                                 <TableHeader className="sticky top-0 z-10 bg-card">
                                     <TableRow>
@@ -652,3 +696,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
