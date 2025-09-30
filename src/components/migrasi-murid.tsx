@@ -325,7 +325,7 @@ export function MigrasiMurid() {
         isSelecting.current = false;
     };
 
-    const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
+    const handlePaste = useCallback((event: React.ClipboardEvent<HTMLTableElement>) => {
         event.preventDefault();
         const startCell = selectedRange.start;
         if (!startCell) {
@@ -549,11 +549,14 @@ export function MigrasiMurid() {
                     <CardContent className="pt-6">
                         <div 
                             className="relative w-full overflow-auto rounded-md border max-h-[600px]"
-                            onPaste={handlePaste}
-                            onMouseUp={handleMouseUp}
-                            onMouseLeave={handleMouseUp}
                         >
-                            <Table className="border-collapse w-full" style={{ tableLayout: 'fixed' }}>
+                            <Table 
+                                className="border-collapse w-full" 
+                                style={{ tableLayout: 'fixed' }}
+                                onPaste={handlePaste}
+                                onMouseUp={handleMouseUp}
+                                onMouseLeave={handleMouseUp}
+                            >
                                 <TableHeader className="sticky top-0 z-10 bg-card">
                                     <TableRow>
                                         {tableHeaders.map((header) => (
