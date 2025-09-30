@@ -58,13 +58,13 @@ function NavLinksDesktop() {
             <NavigationMenuContent>
                 <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
                     {secondaryNavItems.map((item) => (
-                         <ListItem
-                            key={item.label}
-                            title={item.label}
-                            href={item.href}
-                            icon={item.icon}
-                        >
-                        </ListItem>
+                        <Link href={item.href} key={item.label} passHref legacyBehavior>
+                            <ListItem
+                                title={item.label}
+                                icon={item.icon}
+                            >
+                            </ListItem>
+                        </Link>
                     ))}
                 </ul>
             </NavigationMenuContent>
@@ -218,7 +218,7 @@ const ListItem = React.forwardRef<
   return (
     <li>
       <NavigationMenuLink asChild>
-        <Link
+        <a
           ref={ref}
           className={cn(
             "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
@@ -233,9 +233,10 @@ const ListItem = React.forwardRef<
           <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
             {children}
           </p>
-        </Link>
+        </a>
       </NavigationMenuLink>
     </li>
   )
 })
 ListItem.displayName = "ListItem"
+
