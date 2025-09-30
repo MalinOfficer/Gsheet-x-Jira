@@ -509,14 +509,8 @@ export function MigrasiMurid() {
 
     if (!isClient) {
         return (
-            <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-                <div className="max-w-7xl mx-auto space-y-6">
-                    <header>
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Migrasi Murid</h1>
-                        <p className="text-sm text-muted-foreground mt-1">
-                           Click and drag to select a range. Use arrow keys to navigate. Paste data from your spreadsheet.
-                        </p>
-                    </header>
+             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+                <div className="max-w-7xl mx-auto">
                     <Card className="shadow-lg">
                         <CardHeader>
                             <Skeleton className="h-8 w-64" />
@@ -539,13 +533,7 @@ export function MigrasiMurid() {
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-            <div className="max-w-7xl mx-auto space-y-6">
-                <header>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Migrasi Murid</h1>
-                    <p className="text-sm text-muted-foreground mt-1">
-                       Click and drag to select a range. Use arrow keys to navigate. Paste data from your spreadsheet.
-                    </p>
-                </header>
+            <div className="max-w-7xl mx-auto">
                 <Card className="shadow-lg">
                     <CardHeader>
                         <div>
@@ -696,5 +684,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
