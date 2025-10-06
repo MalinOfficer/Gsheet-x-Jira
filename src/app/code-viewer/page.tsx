@@ -1,123 +1,88 @@
 
-import { promises as fs } from 'fs';
-import path from 'path';
+'use client';
+
+import { useState, useTransition } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { CodeViewerClient } from '@/components/code-viewer-client';
+import { getProjectFileContents } from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, RefreshCw } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-// Daftar semua file yang relevan untuk deployment dan peninjauan
-const projectFiles = [
-  // File konfigurasi root
-  "README.md",
-  ".gitignore",
-  "postcss.config.js",
-  "components.json",
-  "next.config.ts",
-  "package.json",
-  "tailwind.config.ts",
-  "tsconfig.json",
+type FileContent = {
+  path: string;
+  content: string;
+  name: string;
+};
 
-  // Struktur Aplikasi & Halaman Utama
-  "src/app/layout.tsx",
-  "src/app/globals.css",
-  "src/app/page.tsx", // Halaman root untuk Import Flow
-  "src/app/report-harian/page.tsx",
-  "src/app/migrasi-murid/page.tsx",
-  "src/app/cek-duplikasi/page.tsx",
-  "src/app/data-weaver/page.tsx",
-  "src/app/data-normalisasi/page.tsx",
-  "src/app/settings/page.tsx",
-  "src/app/code-viewer/page.tsx",
+export default function CodeViewerPage() {
+    const [fileContents, setFileContents] = useState<FileContent[] | null>(null);
+    const [isSyncing, startSyncing] = useTransition();
+    const { toast } = useToast();
 
-  // Komponen Utama (logika untuk setiap halaman)
-  "src/components/import-flow.tsx",
-  "src/components/report-harian.tsx",
-  "src/components/migrasi-murid.tsx",
-  "src/components/cek-duplikasi.tsx",
-  "src/components/data-weaver.tsx",
-  "src/components/layout/client-layout.tsx",
-  "src/components/code-viewer-client.tsx",
+    const handleSync = () => {
+        startSyncing(async () => {
+            const result = await getProjectFileContents();
+            if (result.success && result.data) {
+                setFileContents(result.data);
+                toast({
+                    title: "Sinkronisasi Berhasil",
+                    description: "Kode sumber terbaru telah berhasil dimuat.",
+                });
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Sinkronisasi Gagal",
+                    description: result.error || "Terjadi kesalahan yang tidak diketahui.",
+                });
+            }
+        });
+    };
 
-  // Aksi & Logika Server
-  "src/app/actions.ts",
-  "src/lib/utils.ts",
-  "src/lib/date-utils.ts",
-  "src/lib/gcp-credentials.json",
+    return (
+        <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+            <div className="max-w-7xl mx-auto space-y-6">
+                 <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Code Viewer</h1>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Klik tombol untuk memuat dan menampilkan kode sumber terbaru dari proyek ini.
+                        </p>
+                    </div>
+                     <Button onClick={handleSync} disabled={isSyncing} className="w-full sm:w-auto">
+                        {isSyncing ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                        )}
+                        {isSyncing ? 'Menyinkronkan...' : 'Sinkronisasi Kode'}
+                      </Button>
+                </header>
+                
+                {isSyncing && (
+                    <div className="flex items-center justify-center p-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                )}
+                
+                {!fileContents && !isSyncing && (
+                     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px]">
+                        <CardHeader>
+                            <CardTitle>Menunggu Sinkronisasi</CardTitle>
+                            <CardDescription>
+                                Klik tombol "Sinkronisasi Kode" untuk memuat pratinjau file proyek.
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                )}
 
-  // Manajemen State (Konteks & Provider)
-  "src/store/store-provider.tsx",
-  "src/store/table-data-context.tsx",
-  "src/contexts/app-provider.tsx",
-
-  // Hooks Kustom
-  "src/hooks/use-toast.ts",
-  "src/hooks/use-theme.ts",
-  "src/hooks/theme-provider.tsx",
-  "src/hooks/use-mobile.tsx",
-
-  // File terkait AI
-  "src/ai/genkit.ts",
-  "src/ai/dev.ts",
-
-  // Komponen UI (ShadCN)
-  "src/components/ui/accordion.tsx",
-  "src/components/ui/alert-dialog.tsx",
-  "src/components/ui/alert.tsx",
-  "src/components/ui/avatar.tsx",
-  "src/components/ui/badge.tsx",
-  "src/components/ui/button.tsx",
-  "src/components/ui/calendar.tsx",
-  "src/components/ui/card.tsx",
-  "src/components/ui/carousel.tsx",
-  "src/components/ui/chart.tsx",
-  "src/components/ui/checkbox.tsx",
-  "src/components/ui/collapsible.tsx",
-  "src/components/ui/command.tsx",
-  "src/components/ui/dialog.tsx",
-  "src/components/ui/dropdown-menu.tsx",
-  "src/components/ui/form.tsx",
-  "src/components/ui/input.tsx",
-  "src/components/ui/label.tsx",
-  "src/components/ui/menubar.tsx",
-  "src/components/ui/multi-select.tsx",
-  "src/components/ui/popover.tsx",
-  "src/components/ui/progress.tsx",
-  "src/components/ui/radio-group.tsx",
-  "src/components/ui/scroll-area.tsx",
-  "src/components/ui/select.tsx",
-  "src/components/ui/separator.tsx",
-  "src/components/ui/sheet.tsx",
-  "src/components/ui/skeleton.tsx",
-  "src/components/ui/slider.tsx",
-  "src/components/ui/switch.tsx",
-  "src/components/ui/table.tsx",
-  "src/components/ui/tabs.tsx",
-  "src/components/ui/textarea.tsx",
-  "src/components/ui/toast.tsx",
-  "src/components/ui/toaster.tsx",
-  "src/components/ui/tooltip.tsx",
-];
-
-async function getFileContent(filePath: string): Promise<string> {
-    try {
-        const fullPath = path.join(process.cwd(), filePath);
-        // Pengecekan stat tidak diperlukan jika kita hanya ingin membaca file
-        const content = await fs.readFile(fullPath, 'utf-8');
-        return content;
-    } catch (error: any) {
-        if (error.code === 'ENOENT') {
-            return `// File tidak ditemukan di path: ${filePath}\n// File ini mungkin belum dibuat atau sudah dihapus.`;
-        }
-        console.error(`Error reading file at ${filePath}:`, error);
-        return `Error: Tidak dapat membaca file di ${filePath}`;
-    }
-}
-
-export default async function CodeViewerPage() {
-    const fileContents = await Promise.all(
-        projectFiles.map(async (filePath) => {
-            const content = await getFileContent(filePath);
-            return { path: filePath, content, name: path.basename(filePath) };
-        })
+                {fileContents && (
+                    <CodeViewerClient fileContents={fileContents} />
+                )}
+            </div>
+        </div>
     );
-
-    return <CodeViewerClient fileContents={fileContents} />;
 }
+
+  
