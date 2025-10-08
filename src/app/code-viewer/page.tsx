@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,17 +18,36 @@ type FileContent = {
   name: string;
 };
 
+const LOCAL_STORAGE_KEY_CODE_VIEWER = 'codeViewerFileContents';
+
 export default function CodeViewerPage() {
     const [fileContents, setFileContents] = useState<FileContent[] | null>(null);
     const [isSyncing, startSyncing] = useTransition();
     const [isZipping, startZipping] = useTransition();
     const { toast } = useToast();
 
+    useEffect(() => {
+        try {
+            const savedContent = localStorage.getItem(LOCAL_STORAGE_KEY_CODE_VIEWER);
+            if (savedContent) {
+                setFileContents(JSON.parse(savedContent));
+            }
+        } catch (error) {
+            console.error("Failed to load code from localStorage", error);
+            localStorage.removeItem(LOCAL_STORAGE_KEY_CODE_VIEWER);
+        }
+    }, []);
+
     const handleSync = () => {
         startSyncing(async () => {
             const result = await getProjectFileContents();
             if (result.success && result.data) {
                 setFileContents(result.data);
+                try {
+                    localStorage.setItem(LOCAL_STORAGE_KEY_CODE_VIEWER, JSON.stringify(result.data));
+                } catch (error) {
+                    console.error("Failed to save code to localStorage", error);
+                }
                 toast({
                     title: "Sinkronisasi Berhasil",
                     description: "Kode sumber terbaru telah berhasil dimuat.",
