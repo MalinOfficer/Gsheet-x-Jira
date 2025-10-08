@@ -157,7 +157,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                         className="flex items-center gap-2 font-semibold text-primary"
                                     >
                                         <GanttChartSquare className="h-6 w-6" />
-                                        <span>GSheet Tools</span>
+                                        <span>Gsheet Tools V2</span>
                                     </Link>
                                 </SheetTitle>
                             </SheetHeader>
@@ -185,7 +185,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     {/* Desktop Logo */}
                     <Link href="/" className="hidden md:flex items-center gap-2 font-semibold text-primary">
                         <GanttChartSquare className="h-6 w-6" />
-                        <span className="text-lg">GSheet Tools</span>
+                        <span className="text-lg">Gsheet Tools V2</span>
                     </Link>
                     
                     {/* Desktop Navigation */}
