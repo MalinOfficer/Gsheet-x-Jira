@@ -25,10 +25,10 @@ import React from "react";
 const primaryNavItems = [
     { href: "/", label: "Import Flow", icon: ListTree },
     { href: "/report-harian", label: "Daily Report", icon: BarChart },
+    { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
 ];
 
 const secondaryNavItems = [
-    { href: "/migrasi-murid", label: "Migrasi Murid", description: "Alat mirip spreadsheet untuk memformat data migrasi siswa.", icon: GitBranch },
     { href: "/cek-duplikasi", label: "Cek Duplikasi", description: "Temukan NIS duplikat atau data tidak valid di beberapa file Excel.", icon: Files },
     { href: "/data-weaver", label: "Data Weaver", description: "Gabungkan dua file Excel berdasarkan kolom yang sama.", icon: Combine },
     { href: "/data-normalisasi", label: "Data Normalisasi", description: "Transfer data antar kolom dari dua file Excel berbeda.", icon: FileCog },
