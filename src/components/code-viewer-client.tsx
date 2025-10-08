@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -72,13 +73,12 @@ export function CodeViewerClient({ fileContents }: { fileContents: FileContent[]
   };
 
   return (
-    <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6">
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Code Viewer</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Hasil Sinkronisasi</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Menampilkan kode sumber dari file-file penting dalam proyek. Klik tombol unduh untuk menyimpan salinan file.
+              Berikut adalah kode sumber dari file-file penting dalam proyek. Klik tombol unduh untuk menyimpan salinan file.
             </p>
           </div>
           <Button onClick={handleDownloadAll} disabled={isZipping} className="w-full sm:w-auto">
@@ -94,7 +94,7 @@ export function CodeViewerClient({ fileContents }: { fileContents: FileContent[]
         <Accordion type="multiple" className="w-full space-y-4">
           {fileContents.map(({ path, content, name }, index) => (
             <AccordionItem value={`item-${index}`} key={path} className="border-b-0">
-                 <Card className="shadow-lg">
+                 <Card>
                     <AccordionTrigger className="p-4 md:p-6 text-left hover:no-underline w-full">
                        <div className="flex justify-between items-center w-full pr-4">
                             <div className='flex flex-col items-start'>
@@ -123,6 +123,5 @@ export function CodeViewerClient({ fileContents }: { fileContents: FileContent[]
           ))}
         </Accordion>
       </div>
-    </div>
   );
 }
