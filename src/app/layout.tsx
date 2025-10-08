@@ -6,8 +6,6 @@ import { StoreProvider } from "@/store/store-provider";
 import { ClientLayout } from "@/components/layout/client-layout";
 import Script from "next/script";
 import { ThemeProvider } from "@/hooks/theme-provider";
-import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu";
-
 
 export const metadata: Metadata = {
   title: "GSheet Dashboard & Tools",
@@ -43,5 +41,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    

@@ -37,7 +37,6 @@ const projectFilesForAction = [
   "src/components/cek-duplikasi.tsx",
   "src/components/data-weaver.tsx",
   "src/components/layout/client-layout.tsx",
-  "src/components/code-viewer-client.tsx",
 
   // Aksi & Logika Server
   "src/app/actions.ts",
@@ -81,6 +80,7 @@ const projectFilesForAction = [
   "src/components/ui/label.tsx",
   "src/components/ui/menubar.tsx",
   "src/components/ui/multi-select.tsx",
+  "src/components/ui/navigation-menu.tsx",
   "src/components/ui/popover.tsx",
   "src/components/ui/progress.tsx",
   "src/components/ui/radio-group.tsx",
