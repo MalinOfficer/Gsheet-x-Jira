@@ -512,175 +512,169 @@ export function MigrasiMurid() {
     if (!isClient) {
         return (
              <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-                <div className="max-w-7xl mx-auto">
-                    <Card className="shadow-lg">
-                        <CardHeader>
-                            <Skeleton className="h-8 w-64" />
-                            <Skeleton className="h-4 w-full" />
-                        </CardHeader>
-                        <div className="px-6 pb-4 flex flex-wrap items-center gap-2 border-b">
-                            <Skeleton className="h-9 w-24" />
-                            <Skeleton className="h-9 w-24" />
-                            <Skeleton className="h-9 w-28" />
-                            <Skeleton className="h-9 w-28" />
-                        </div>
-                        <CardContent className="pt-6">
-                            <Skeleton className="h-[600px] w-full" />
-                        </CardContent>
-                    </Card>
-                </div>
+                <Card className="shadow-lg">
+                    <CardHeader>
+                        <Skeleton className="h-8 w-64" />
+                        <Skeleton className="h-4 w-full" />
+                    </CardHeader>
+                    <div className="px-6 pb-4 flex flex-wrap items-center gap-2 border-b">
+                        <Skeleton className="h-9 w-24" />
+                        <Skeleton className="h-9 w-24" />
+                        <Skeleton className="h-9 w-28" />
+                        <Skeleton className="h-9 w-28" />
+                    </div>
+                    <CardContent className="pt-6">
+                        <Skeleton className="h-[600px] w-full" />
+                    </CardContent>
+                </Card>
             </div>
         )
     }
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-            <div className="max-w-7xl mx-auto">
-                <Card className="shadow-lg">
-                    <CardHeader>
-                        <div>
-                            <CardTitle>Data Murid untuk Migrasi</CardTitle>
-                            <CardDescription className="mt-1">
-                                This table behaves like a spreadsheet. Edit cells directly, select ranges, and paste data. The table will expand automatically.
-                            </CardDescription>
-                        </div>
-                    </CardHeader>
-                    <div className="px-6 pb-4 flex flex-wrap items-center gap-2 border-b">
-                         <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
-                            <Undo2 className="mr-2 h-4 w-4" /> Undo
+            <Card className="shadow-lg">
+                <CardHeader>
+                    <div>
+                        <CardTitle>Data Murid untuk Migrasi</CardTitle>
+                        <CardDescription className="mt-1">
+                            This table behaves like a spreadsheet. Edit cells directly, select ranges, and paste data. The table will expand automatically.
+                        </CardDescription>
+                    </div>
+                </CardHeader>
+                <div className="px-6 pb-4 flex flex-wrap items-center gap-2 border-b">
+                     <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
+                        <Undo2 className="mr-2 h-4 w-4" /> Undo
+                    </Button>
+                    <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
+                        <Redo2 className="mr-2 h-4 w-4" /> Redo
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="destructive">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete All
                         </Button>
-                        <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
-                            <Redo2 className="mr-2 h-4 w-4" /> Redo
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="destructive">
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete All
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action will permanently delete all data from the table. You cannot undo this action.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleClearTable}>Continue</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                        <Button
-                          onClick={handleExportExcel}
-                          size="sm"
-                          className="bg-green-600 text-white hover:bg-green-700"
-                        >
-                            <Download className="mr-2 h-4 w-4" />
-                            Export
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action will permanently delete all data from the table. You cannot undo this action.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleClearTable}>Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    <Button
+                      onClick={handleExportExcel}
+                      size="sm"
+                      className="bg-green-600 text-white hover:bg-green-700"
+                    >
+                        <Download className="mr-2 h-4 w-4" />
+                        Export
+                    </Button>
+                </div>
+                <CardContent 
+                    className="pt-6"
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                    onPaste={handlePaste}
+                >
+                    <div className="overflow-auto border rounded-md max-h-[600px]">
+                        <Table className="border-collapse w-full" style={{ tableLayout: 'fixed' }}>
+                            <TableHeader className="sticky top-0 z-10 bg-card">
+                                <TableRow className="border-0">
+                                    {tableHeaders.map((header) => (
+                                        <TableHead 
+                                            key={header} 
+                                            style={{ width: `${columnWidths[header]}px`}}
+                                            className={cn(
+                                                "border-b border-r bg-muted/50 p-0 text-xs font-bold text-center relative select-none",
+                                            )}
+                                        >
+                                            <div className="px-2 py-2 flex items-center justify-center gap-1 whitespace-normal break-words">
+                                                {header}
+                                                {header === "Tanggal Lahir" && (
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-5 w-5">
+                                                                <Wand2 className="h-3 w-3" />
+                                                                <span className="sr-only">Format Menu</span>
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent>
+                                                            <DropdownMenuItem onClick={handleFormatDates}>
+                                                                Format ke DD/MM/YYYY
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                )}
+                                            </div>
+                                            <div
+                                                onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
+                                                className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize"
+                                            />
+                                        </TableHead>
+                                    ))}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                            {rows.map((row, rowIndex) => (
+                                <TableRow key={`row-${rowIndex}`} className="border-0 m-0 p-0">
+                                    {tableHeaders.map((header, colIndex) => (
+                                        <TableCell 
+                                            key={`cell-${rowIndex}-${colIndex}`} 
+                                            style={{ width: `${columnWidths[header]}px`}}
+                                            className={cn(
+                                                "border-t border-r p-0 m-0 h-auto relative",
+                                                { "bg-muted/30": header === "No" },
+                                                isCellSelected(rowIndex, colIndex) && header !== "No" ? 'bg-green-200/50' : ''
+                                            )}
+                                        >
+                                            <Input
+                                              type="text"
+                                              value={String(header === "No" ? (row["Username"] ? rowIndex + 1 : "") : row[header] || '')}
+                                              readOnly={header === "No"}
+                                              onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
+                                              onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
+                                              onMouseDown={(e) => handleMouseDown(e, { row: rowIndex, col: colIndex })}
+                                              onMouseOver={(e) => handleMouseOver(e, { row: rowIndex, col: colIndex })}
+                                              data-row={rowIndex}
+                                              data-col={colIndex}
+                                              className={cn(
+                                                  "w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
+                                                  "whitespace-normal break-words py-2",
+                                                  header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
+                                                  isCellSelected(rowIndex, colIndex) ? 'bg-transparent' : ''
+                                              )}
+                                            />
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+                 <CardFooter>
+                    <div className="flex items-center gap-2">
+                       <Input
+                            type="number"
+                            value={numRowsToAdd}
+                            onChange={(e) => setNumRowsToAdd(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                            className="w-24 h-9"
+                            min="1"
+                        />
+                        <Button onClick={handleAddRows} size="sm" variant="outline">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Tambah Baris
                         </Button>
                     </div>
-                    <CardContent 
-                        className="pt-6"
-                        onMouseUp={handleMouseUp}
-                        onMouseLeave={handleMouseUp}
-                        onPaste={handlePaste}
-                    >
-                        <div className="overflow-auto border rounded-md max-h-[600px]">
-                            <Table className="border-collapse w-full" style={{ tableLayout: 'fixed' }}>
-                                <TableHeader className="sticky top-0 z-10 bg-card">
-                                    <TableRow className="border-0">
-                                        {tableHeaders.map((header) => (
-                                            <TableHead 
-                                                key={header} 
-                                                style={{ width: `${columnWidths[header]}px`}}
-                                                className={cn(
-                                                    "border-b border-r bg-muted/50 p-0 text-xs font-bold text-center relative select-none",
-                                                )}
-                                            >
-                                                <div className="px-2 py-2 flex items-center justify-center gap-1 whitespace-normal break-words">
-                                                    {header}
-                                                    {header === "Tanggal Lahir" && (
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-5 w-5">
-                                                                    <Wand2 className="h-3 w-3" />
-                                                                    <span className="sr-only">Format Menu</span>
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent>
-                                                                <DropdownMenuItem onClick={handleFormatDates}>
-                                                                    Format ke DD/MM/YYYY
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    )}
-                                                </div>
-                                                <div
-                                                    onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
-                                                    className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize"
-                                                />
-                                            </TableHead>
-                                        ))}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                {rows.map((row, rowIndex) => (
-                                    <TableRow key={`row-${rowIndex}`} className="border-0 m-0 p-0">
-                                        {tableHeaders.map((header, colIndex) => (
-                                            <TableCell 
-                                                key={`cell-${rowIndex}-${colIndex}`} 
-                                                style={{ width: `${columnWidths[header]}px`}}
-                                                className={cn(
-                                                    "border-t border-r p-0 m-0 h-auto relative",
-                                                    { "bg-muted/30": header === "No" },
-                                                    isCellSelected(rowIndex, colIndex) && header !== "No" ? 'bg-green-200/50' : ''
-                                                )}
-                                            >
-                                                <Input
-                                                  type="text"
-                                                  value={String(header === "No" ? (row["Username"] ? rowIndex + 1 : "") : row[header] || '')}
-                                                  readOnly={header === "No"}
-                                                  onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
-                                                  onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
-                                                  onMouseDown={(e) => handleMouseDown(e, { row: rowIndex, col: colIndex })}
-                                                  onMouseOver={(e) => handleMouseOver(e, { row: rowIndex, col: colIndex })}
-                                                  data-row={rowIndex}
-                                                  data-col={colIndex}
-                                                  className={cn(
-                                                      "w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
-                                                      "whitespace-normal break-words py-2",
-                                                      header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
-                                                      isCellSelected(rowIndex, colIndex) ? 'bg-transparent' : ''
-                                                  )}
-                                                />
-                                            </TableCell>
-                                        ))}
-                                    </TableRow>
-                                ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
-                     <CardFooter>
-                        <div className="flex items-center gap-2">
-                           <Input
-                                type="number"
-                                value={numRowsToAdd}
-                                onChange={(e) => setNumRowsToAdd(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                                className="w-24 h-9"
-                                min="1"
-                            />
-                            <Button onClick={handleAddRows} size="sm" variant="outline">
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Tambah Baris
-                            </Button>
-                        </div>
-                    </CardFooter>
-                </Card>
-            </div>
+                </CardFooter>
+            </Card>
         </div>
     );
 }
-
-    
