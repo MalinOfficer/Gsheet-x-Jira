@@ -602,14 +602,10 @@ export function MigrasiMurid() {
 
     return (
         <div className="p-4" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
-             <Card>
+            <Card>
                 <CardHeader className="flex flex-row justify-between items-start">
                     <div>
                         <CardTitle>Data Murid untuk Migrasi</CardTitle>
-                        <CardDescription className="mt-1">
-                            This table behaves like a spreadsheet. Edit cells directly, select ranges, and paste data. The table will expand
-                            automatically.
-                        </CardDescription>
                     </div>
                      <div className="flex items-center gap-2">
                          <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
@@ -707,7 +703,7 @@ export function MigrasiMurid() {
                                         >
                                             <Input
                                               type="text"
-                                              value={String((rowIndex === 0 && header === "No") || (header === "No" && row['Username']) ? rowIndex + 1 : (header !== "No" ? row[header] || '' : ''))}
+                                              value={String((rowIndex === 0 || row['Username']) ? rowIndex + 1 : (header !== "No" ? row[header] || '' : ''))}
                                               readOnly={header === "No"}
                                               onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
                                               onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
@@ -756,3 +752,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
