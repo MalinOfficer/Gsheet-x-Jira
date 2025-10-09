@@ -611,7 +611,12 @@ export function ImportFlow() {
                       </Button>
                     </div>
                      <div className='mt-2'>
-                        <Button onClick={handleAnalyzeSheet} variant="outline" size="sm" disabled={isProcessing || isVerified}>
+                        <Button
+                          onClick={handleAnalyzeSheet}
+                          variant={isVerified ? 'outline' : 'default'}
+                          size="sm"
+                          disabled={isProcessing || isVerified}
+                        >
                             {isAnalyzing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
                             {isAnalyzing ? 'Verifying...' : 'Verify'}
                         </Button>
@@ -788,8 +793,3 @@ export function ImportFlow() {
     </div>
   );
 }
-
-    
-
-    
-
