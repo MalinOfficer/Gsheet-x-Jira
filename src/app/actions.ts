@@ -878,10 +878,10 @@ export async function fetchL3ReportData(sheetUrl: string) {
         const headers = rows[0].map(h => h.trim());
         const dataRows = rows.slice(1);
 
-        const statusIndex = headers.indexOf('Status') -1; // Relative to B
-        const ticketCategoryIndex = headers.indexOf('Ticket Category')-1;
-        const titleIndex = headers.indexOf('Title')-1;
-        const dateIndex = 0; // Column B is the first column in our range
+        const statusIndex = headers.indexOf('Status');
+        const ticketCategoryIndex = headers.indexOf('Ticket Category');
+        const titleIndex = headers.indexOf('Title');
+        const dateIndex = 0; // Column B is the first column in our range (B:M)
 
         if (statusIndex < 0 || ticketCategoryIndex < 0 || titleIndex < 0) {
             return { error: 'Required columns (Status, Ticket Category, Title) not found.' };
@@ -982,3 +982,4 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
