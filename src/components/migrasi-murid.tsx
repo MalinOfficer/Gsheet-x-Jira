@@ -521,7 +521,7 @@ export function MigrasiMurid() {
                         <Skeleton className="h-9 w-28" />
                         <Skeleton className="h-9 w-28" />
                     </div>
-                    <CardContent className="pt-6">
+                    <CardContent>
                         <Skeleton className="h-[600px] w-full" />
                     </CardContent>
                 </Card>
@@ -575,8 +575,7 @@ export function MigrasiMurid() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent 
-                    className="pt-2"
+                <CardContent
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseUp}
                     onPaste={handlePaste}
@@ -676,3 +675,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
