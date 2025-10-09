@@ -475,7 +475,7 @@ export async function importToSheet(
         // 2. Get last row data
         const lastRowResponse = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: `${sheetName}!A:C`, // Read No, Date, Month
+            range: `${sheetName}!A:C`, // Read No
             majorDimension: 'ROWS',
         });
         const allRows = lastRowResponse.data.values || [];
@@ -483,19 +483,9 @@ export async function importToSheet(
 
         let lastRowIndex = allRows.length;
         let lastNo = 0;
-        let dateForNewRows: Date;
         
         if (lastPopulatedRow) {
             lastNo = parseInt(lastPopulatedRow[0] || '0', 10);
-            const lastDateStr = lastPopulatedRow[1] || ''; // DD/MM/YYYY
-            if (lastDateStr && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(lastDateStr)) {
-                const parts = lastDateStr.split('/');
-                dateForNewRows = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-            } else {
-                dateForNewRows = new Date();
-            }
-        } else {
-            dateForNewRows = new Date();
         }
 
         // 3. Find existing titles to avoid duplicates (from column M)
@@ -527,13 +517,23 @@ export async function importToSheet(
             };
         }
         
-        const dateStr = `${String(dateForNewRows.getDate()).padStart(2, '0')}/${String(dateForNewRows.getMonth() + 1).padStart(2, '0')}/${dateForNewRows.getFullYear()}`;
-        const monthStr = dateForNewRows.toLocaleString('id-ID', { month: 'long' });
-        const yearMonthDay = `${String(dateForNewRows.getFullYear()).slice(2)}${String(dateForNewRows.getMonth() + 1).padStart(2, '0')}${String(dateForNewRows.getDate()).padStart(2, '0')}`;
-
-
         // 4. Prepare data for the append operation.
         const valuesToAppend = newRows.map((row, index) => {
+            const createdAtStr = row['Created At'];
+            const dateForNewRow = createdAtStr ? new Date(createdAtStr) : new Date();
+
+            if (isNaN(dateForNewRow.getTime())) {
+                console.warn(`Invalid 'Created At' date for row, using current date: ${createdAtStr}`);
+            }
+
+            const day = dateForNewRow.getDate(); // No padding
+            const month = String(dateForNewRow.getMonth() + 1).padStart(2, '0');
+            const year = dateForNewRow.getFullYear();
+            const dateStr = `${day}/${month}/${year}`;
+            
+            const monthStr = dateForNewRow.toLocaleString('id-ID', { month: 'long' });
+            const yearMonthDay = `${String(year).slice(2)}${month}${String(day).padStart(2, '0')}`;
+
             const currentRowNumberInSheet = lastRowIndex + index + 1; // 1-based index for the new row
             const ticketRowNumber = String(currentRowNumberInSheet - 2).padStart(5, '0');
             const generatedTicketNumber = `TKT-${yearMonthDay}-${ticketRowNumber}`;
@@ -788,3 +788,4 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     
 
     
+
