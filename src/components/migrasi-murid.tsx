@@ -213,7 +213,7 @@ export function MigrasiMurid() {
     }, [selectedRange]);
 
     const isCellSelected = useCallback((row: number, col: number) => {
-        if (!selectedRange.start) return false;
+        if (!isSelecting.current || !selectedRange.start) return false;
         const { startRow, endRow, startCol, endCol } = getNormalizedRange();
         return row >= startRow && row <= endRow && col >= startCol && col <= endCol;
     }, [getNormalizedRange, selectedRange.start]);
@@ -512,8 +512,8 @@ export function MigrasiMurid() {
 
     if (!isClient) {
         return (
-             <div className="flex-1 bg-background text-foreground p-4">
-                <Card className="shadow-lg">
+             <div className="p-4">
+                <Card>
                     <CardHeader>
                         <Skeleton className="h-8 w-64" />
                         <Skeleton className="h-4 w-full" />
@@ -533,7 +533,7 @@ export function MigrasiMurid() {
     }
 
     return (
-        <div className="p-4">
+        <div className="p-4" onMouseUp={handleMouseUp}>
             <Card>
                 <CardHeader className="flex flex-row justify-between items-start">
                     <div>
@@ -579,7 +579,7 @@ export function MigrasiMurid() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <div className="overflow-auto border rounded-md max-h-[600px]">
+                    <div onPaste={handlePaste} className="overflow-auto border rounded-md max-h-[600px]">
                         <Table className="border-collapse w-full" style={{ tableLayout: 'fixed' }}>
                             <TableHeader className="sticky top-0 z-10 bg-card">
                                 <TableRow className="border-0">
@@ -674,3 +674,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
