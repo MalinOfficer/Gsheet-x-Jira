@@ -463,7 +463,7 @@ export function MigrasiMurid() {
         const dateHeader = "Tanggal Lahir";
         const processedRows = rows
             .map((row, index) => {
-                const newRow: Record<string, any> = { ...row, No: row.Username ? String(index + 1) : '' };
+                const newRow: Record<string, any> = { ...row, No: String(index + 1) };
                 const dateValue = newRow[dateHeader];
                 if (dateValue && typeof dateValue === 'string') {
                     const parsedDate = parseDateString(dateValue);
@@ -633,7 +633,7 @@ export function MigrasiMurid() {
                                         >
                                             <Input
                                               type="text"
-                                              value={String(header === "No" ? (row["Username"] ? rowIndex + 1 : "") : row[header] || '')}
+                                              value={String(header === "No" ? rowIndex + 1 : row[header] || '')}
                                               readOnly={header === "No"}
                                               onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
                                               onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
