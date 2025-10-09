@@ -546,13 +546,23 @@ export async function importToSheet(
             
             const mainData = mainDataHeaders.map(header => row[header] || '');
 
+            const status = mainData[2]; // 'Status' is at index 2 of mainData
+            let statusCase2 = '';
+            if (status === 'L1' || status === 'L2' || status === 'L3') {
+                statusCase2 = 'UNSOLVED';
+            } else if (status === 'Solved') {
+                statusCase2 = 'SOLVED';
+            }
+
             return [
                 lastNo + index + 1,        // A - NO
                 dateStr,                   // B - DATE
                 monthStr,                  // C - MONTH
                 generatedTicketNumber,     // D - TICKET NUMBER (Generated)
                 ...mainData,               // E-O (11 columns from JSON)
-                '', '', '', '',            // P-S - Empty
+                '', '',                    // P-Q - Empty
+                statusCase2,               // R - STATUS CASE 2
+                '',                        // S - Empty
                 row['Ticket OP'] || ''     // T - Ticket OP
             ];
         });
