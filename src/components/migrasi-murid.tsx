@@ -531,7 +531,8 @@ export function MigrasiMurid() {
         const dateHeader = "Tanggal Lahir";
         const processedRows = rows
             .map((row, index) => {
-                if (index === 0 || row['Username']) {
+                // Always show row 1, or show other rows if they have a username
+                 if (index === 0 || row['Username']) {
                     const newRow: Record<string, any> = { ...row, No: String(index + 1) };
                     const dateValue = newRow[dateHeader];
                     if (dateValue && typeof dateValue === 'string') {
@@ -580,7 +581,7 @@ export function MigrasiMurid() {
 
     if (!isClient) {
         return (
-             <div className="p-4">
+             <div className="px-4 py-2">
                 <Card>
                     <CardHeader>
                         <Skeleton className="h-8 w-64" />
@@ -600,12 +601,10 @@ export function MigrasiMurid() {
     }
 
     return (
-        <div className="p-4" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+        <div className="px-4 py-2" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
             <Card>
-                <CardHeader className="flex flex-row justify-between items-start">
-                    <div>
-                        <CardTitle>Data Murid untuk Migrasi</CardTitle>
-                    </div>
+                <CardHeader className="flex flex-row justify-between items-center p-4">
+                    <CardTitle className="text-xl">Data Murid untuk Migrasi</CardTitle>
                      <div className="flex items-center gap-2">
                          <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
                             <Undo2 className="mr-2 h-4 w-4" /> Undo
@@ -643,7 +642,7 @@ export function MigrasiMurid() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <div onPaste={handlePaste} className="overflow-auto border rounded-md max-h-[500px]">
+                    <div onPaste={handlePaste} className="overflow-auto border-t rounded-t-none rounded-b-md max-h-[500px]">
                         <Table className="border-collapse w-full" style={{ tableLayout: 'fixed' }}>
                             <TableHeader className="sticky top-0 z-20 bg-card">
                                 <TableRow className="border-0">
@@ -686,11 +685,11 @@ export function MigrasiMurid() {
                                 <TableRow key={`row-${rowIndex}`} className="border-0 m-0 p-0">
                                     {tableHeaders.map((header, colIndex) => {
                                         const isSelected = isCellSelected(rowIndex, colIndex);
-                                        const isInFillPreview = isCellInFillRange(rowIndex, colIndex) && !isSelected;
+                                        const isFillPreviewing = isDraggingFill && isCellInFillRange(rowIndex, colIndex) && !isSelected;
                                         const isBottomRightOfSelection = selectedRange.start && normalizedSelectedRange.endRow === rowIndex && normalizedSelectedRange.endCol === colIndex;
 
                                         let cellValue;
-                                        if (header === "No") {
+                                         if (header === "No") {
                                             cellValue = (rowIndex === 0 || row['Username']) ? String(rowIndex + 1) : '';
                                         } else {
                                             cellValue = row[header] || '';
@@ -704,7 +703,7 @@ export function MigrasiMurid() {
                                                 "border-t border-r p-0 m-0 h-auto relative",
                                                 { "bg-muted/30": header === "No" },
                                                 isSelected && header !== "No" ? 'bg-blue-100/50 dark:bg-blue-900/50' : '',
-                                                isInFillPreview && 'bg-green-200/50 dark:bg-green-900/50'
+                                                isFillPreviewing ? 'bg-green-200/50 dark:bg-green-900/50' : ''
                                             )}
                                         >
                                             <Input
@@ -758,3 +757,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
