@@ -463,17 +463,20 @@ export function MigrasiMurid() {
         const dateHeader = "Tanggal Lahir";
         const processedRows = rows
             .map((row, index) => {
-                const newRow: Record<string, any> = { ...row, No: String(index + 1) };
-                const dateValue = newRow[dateHeader];
-                if (dateValue && typeof dateValue === 'string') {
-                    const parsedDate = parseDateString(dateValue);
-                    if (parsedDate) {
-                        newRow[dateHeader] = parsedDate;
+                 if (index === 0 || row['Username']) {
+                    const newRow: Record<string, any> = { ...row, No: String(index + 1) };
+                    const dateValue = newRow[dateHeader];
+                    if (dateValue && typeof dateValue === 'string') {
+                        const parsedDate = parseDateString(dateValue);
+                        if (parsedDate) {
+                            newRow[dateHeader] = parsedDate;
+                        }
                     }
-                }
-                return newRow;
+                    return newRow;
+                 }
+                 return null;
             })
-            .filter(row => Object.values(row).some(val => val !== null && val !== ''));
+            .filter(row => row !== null && Object.values(row).some(val => val !== null && val !== ''));
 
 
         if (processedRows.length === 0) {
@@ -530,8 +533,8 @@ export function MigrasiMurid() {
     }
 
     return (
-        <div className="flex-1 bg-background text-foreground p-4">
-            <Card className="shadow-lg">
+        <div className="p-4">
+            <Card>
                 <CardHeader className="flex flex-row justify-between items-start">
                     <div>
                         <CardTitle>Data Murid untuk Migrasi</CardTitle>
@@ -575,11 +578,7 @@ export function MigrasiMurid() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
-                    onPaste={handlePaste}
-                >
+                <CardContent className="p-0">
                     <div className="overflow-auto border rounded-md max-h-[600px]">
                         <Table className="border-collapse w-full" style={{ tableLayout: 'fixed' }}>
                             <TableHeader className="sticky top-0 z-10 bg-card">
@@ -633,7 +632,7 @@ export function MigrasiMurid() {
                                         >
                                             <Input
                                               type="text"
-                                              value={String(header === "No" ? rowIndex + 1 : row[header] || '')}
+                                              value={String(header === "No" ? (rowIndex === 0 || row['Username'] ? rowIndex + 1 : '') : row[header] || '')}
                                               readOnly={header === "No"}
                                               onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
                                               onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
@@ -656,7 +655,7 @@ export function MigrasiMurid() {
                         </Table>
                     </div>
                 </CardContent>
-                 <CardFooter>
+                 <CardFooter className="pt-4">
                     <div className="flex items-center gap-2">
                        <Input
                             type="number"
@@ -675,5 +674,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
