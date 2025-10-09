@@ -2,10 +2,10 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { Button } from '../../components/ui/button';
-import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
-import { ScrollArea } from '../../components/ui/scroll-area';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../components/ui/accordion';
+import { Button } from '@/components/ui/button';
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Download, Archive, Loader2, RefreshCw } from 'lucide-react';
 import { getProjectFileContents } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
