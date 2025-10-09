@@ -531,7 +531,7 @@ export function MigrasiMurid() {
         const dateHeader = "Tanggal Lahir";
         const processedRows = rows
             .map((row, index) => {
-                 if (index === 0 || row['Username']) {
+                if (index === 0 || row['Username']) {
                     const newRow: Record<string, any> = { ...row, No: String(index + 1) };
                     const dateValue = newRow[dateHeader];
                     if (dateValue && typeof dateValue === 'string') {
@@ -541,8 +541,8 @@ export function MigrasiMurid() {
                         }
                     }
                     return newRow;
-                 }
-                 return null;
+                }
+                return null;
             })
             .filter(row => row !== null && Object.values(row).some(val => val !== null && val !== ''));
 
@@ -592,7 +592,7 @@ export function MigrasiMurid() {
                         <Skeleton className="h-9 w-28" />
                     </div>
                     <CardContent>
-                        <Skeleton className="h-[600px] w-full" />
+                        <Skeleton className="h-[500px] w-full" />
                     </CardContent>
                 </Card>
             </div>
@@ -643,7 +643,7 @@ export function MigrasiMurid() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <div onPaste={handlePaste} className="overflow-auto border rounded-md max-h-[600px]">
+                    <div onPaste={handlePaste} className="overflow-auto border rounded-md max-h-[500px]">
                         <Table className="border-collapse w-full" style={{ tableLayout: 'fixed' }}>
                             <TableHeader className="sticky top-0 z-20 bg-card">
                                 <TableRow className="border-0">
@@ -709,7 +709,7 @@ export function MigrasiMurid() {
                                         >
                                             <Input
                                               type="text"
-                                              value={String(cellValue)}
+                                              value={cellValue}
                                               readOnly={header === "No"}
                                               onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
                                               onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
