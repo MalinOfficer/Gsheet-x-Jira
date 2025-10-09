@@ -532,51 +532,51 @@ export function MigrasiMurid() {
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <Card className="shadow-lg">
-                <CardHeader>
+                <CardHeader className="flex flex-row justify-between items-start">
                     <div>
                         <CardTitle>Data Murid untuk Migrasi</CardTitle>
                         <CardDescription className="mt-1">
                             This table behaves like a spreadsheet. Edit cells directly, select ranges, and paste data. The table will expand automatically.
                         </CardDescription>
                     </div>
-                </CardHeader>
-                <div className="px-6 pb-4 flex flex-wrap items-center gap-2 border-b">
-                     <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
-                        <Undo2 className="mr-2 h-4 w-4" /> Undo
-                    </Button>
-                    <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
-                        <Redo2 className="mr-2 h-4 w-4" /> Redo
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="destructive">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete All
+                     <div className="flex items-center gap-2">
+                         <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
+                            <Undo2 className="mr-2 h-4 w-4" /> Undo
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action will permanently delete all data from the table. You cannot undo this action.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleClearTable}>Continue</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    <Button
-                      onClick={handleExportExcel}
-                      size="sm"
-                      className="bg-green-600 text-white hover:bg-green-700"
-                    >
-                        <Download className="mr-2 h-4 w-4" />
-                        Export
-                    </Button>
-                </div>
+                        <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
+                            <Redo2 className="mr-2 h-4 w-4" /> Redo
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete All
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action will permanently delete all data from the table. You cannot undo this action.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleClearTable}>Continue</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                        <Button
+                          onClick={handleExportExcel}
+                          size="sm"
+                          className="bg-green-600 text-white hover:bg-green-700"
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Export
+                        </Button>
+                    </div>
+                </CardHeader>
                 <CardContent 
-                    className="pt-6"
+                    className="pt-2"
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseUp}
                     onPaste={handlePaste}
