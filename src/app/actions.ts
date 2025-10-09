@@ -867,7 +867,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
         const sheets = getGoogleSheetsClient();
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'All Case!B:M', // DATE to Title
+            range: 'All Case!B:T', // DATE to Ticket OP
         });
 
         const rows = response.data.values;
@@ -877,11 +877,12 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
         const dataRows = rows.slice(1);
 
-        // Hardcoded indexes based on the provided range B:M
-        const statusIndex = 5;       // STATUS CASE is in column G, which is the 6th column (index 5) in range B:M
-        const moduleIndex = 8; // Modul is in column J, which is the 9th column (index 8)
-        const titleIndex = 11;       // TITLE is in column M, which is the 12th column (index 11)
-        const dateIndex = 0;         // DATE is in column B, which is the 1st column (index 0)
+        // Hardcoded indexes based on the provided range B:T
+        const dateIndex = 0;         // DATE is in column B (index 0)
+        const statusIndex = 5;       // STATUS CASE is in column G (index 5)
+        const moduleIndex = 8;       // Modul is in column J (index 8)
+        const titleIndex = 11;       // TITLE is in column M (index 11)
+        const ticketOpIndex = 18;    // Ticket OP is in column T (index 18)
 
         const l3Cases = dataRows.filter(row => row[statusIndex] === 'L3');
 
@@ -901,18 +902,19 @@ export async function fetchL3ReportData(sheetUrl: string) {
                 }
             }
             
-            // Determine category based on 'Modul' column
             const moduleValue = row[moduleIndex] || '';
             const category = moduleValue === 'Payment' ? 'Payment' : 'Akademik';
+            const title = row[titleIndex] || '';
+            const ticketOp = row[ticketOpIndex] || '';
+            const fullTitle = [title, ticketOp].filter(Boolean).join(' ');
 
             return {
                 category: category,
-                title: row[titleIndex],
+                title: fullTitle,
                 duration: duration,
             };
         });
 
-        // Group by the new simplified category
         const groupedCases: Record<string, typeof l3CasesWithDuration> = {};
         l3CasesWithDuration.forEach(caseItem => {
             if (!groupedCases[caseItem.category]) {
@@ -947,7 +949,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
             return `${day}/${month}/${year}`;
         }
 
-        // Format the final report string
         let reportText = `Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})\n\n`;
         reportText += `Total : ${l3Cases.length}\n`;
         
@@ -971,4 +972,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
     }
 }
     
+    
+
     
