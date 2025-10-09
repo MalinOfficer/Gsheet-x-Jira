@@ -48,13 +48,9 @@ export const formatDateTime = (value: any, format: DateFormat): string => {
         }
 
         if (format === 'jam') {
-            let hours = date.getHours();
+            const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12;
-            hours = hours || 12; // Handle midnight (0) as 12 AM
-            const hoursPadded = String(hours).padStart(2, '0');
-            return `${hoursPadded}:${minutes} ${ampm}`;
+            return `${hours}:${minutes}`;
         }
 
         return value; // Should not be reached, but as a fallback
@@ -62,3 +58,4 @@ export const formatDateTime = (value: any, format: DateFormat): string => {
         return value; // Return original on any error
     }
 };
+
