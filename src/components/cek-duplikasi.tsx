@@ -469,22 +469,14 @@ export function CekDuplikasi() {
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col items-start gap-4">
-                            <Label htmlFor="file-upload" className="w-full">
-                                <Button asChild variant="outline">
-                                    <div className="w-full cursor-pointer">
-                                        <Upload className="mr-2 h-4 w-4" />
-                                        Choose Files
-                                    </div>
-                                </Button>
-                            </Label>
-                            <Input
+                             <Input
                                 id="file-upload"
                                 type="file"
                                 multiple
                                 ref={fileInputRef}
                                 onChange={handleFileChange}
                                 accept=".xls, .xlsx, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                className="hidden"
+                                className="w-full max-w-lg text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                             />
                             {filesData.length > 0 && (
                                 <div className="text-sm text-muted-foreground">
