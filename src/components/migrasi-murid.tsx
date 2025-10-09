@@ -584,7 +584,6 @@ export function MigrasiMurid() {
                 <Card>
                     <CardHeader>
                         <Skeleton className="h-8 w-64" />
-                        <Skeleton className="h-4 w-full" />
                     </CardHeader>
                     <div className="px-6 pb-4 flex flex-wrap items-center gap-2 border-b">
                         <Skeleton className="h-9 w-24" />
@@ -687,8 +686,15 @@ export function MigrasiMurid() {
                                 <TableRow key={`row-${rowIndex}`} className="border-0 m-0 p-0">
                                     {tableHeaders.map((header, colIndex) => {
                                         const isSelected = isCellSelected(rowIndex, colIndex);
-                                        const isInFillRange = isCellInFillRange(rowIndex, colIndex);
+                                        const isInFillPreview = isCellInFillRange(rowIndex, colIndex) && !isSelected;
                                         const isBottomRightOfSelection = selectedRange.start && normalizedSelectedRange.endRow === rowIndex && normalizedSelectedRange.endCol === colIndex;
+
+                                        let cellValue;
+                                        if (header === "No") {
+                                            cellValue = (rowIndex === 0 || row['Username']) ? String(rowIndex + 1) : '';
+                                        } else {
+                                            cellValue = row[header] || '';
+                                        }
 
                                         return (
                                         <TableCell 
@@ -698,12 +704,12 @@ export function MigrasiMurid() {
                                                 "border-t border-r p-0 m-0 h-auto relative",
                                                 { "bg-muted/30": header === "No" },
                                                 isSelected && header !== "No" ? 'bg-blue-100/50 dark:bg-blue-900/50' : '',
-                                                isInFillRange && 'bg-green-200/50 dark:bg-green-900/50'
+                                                isInFillPreview && 'bg-green-200/50 dark:bg-green-900/50'
                                             )}
                                         >
                                             <Input
                                               type="text"
-                                              value={String((rowIndex === 0 || row['Username']) ? rowIndex + 1 : (header !== "No" ? row[header] || '' : ''))}
+                                              value={String(cellValue)}
                                               readOnly={header === "No"}
                                               onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
                                               onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
@@ -752,5 +758,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
