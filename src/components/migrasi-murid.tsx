@@ -119,9 +119,46 @@ export function MigrasiMurid() {
     const [historyIndex, setHistoryIndex] = useState(0);
 
     const [isClient, setIsClient] = useState(false);
+    
+    const headerContainerRef = useRef<HTMLDivElement>(null);
+    const bodyContainerRef = useRef<HTMLDivElement>(null);
+    const isSyncingScroll = useRef(false);
+
 
     useEffect(() => {
         setIsClient(true);
+    }, []);
+    
+    useEffect(() => {
+        const headerEl = headerContainerRef.current;
+        const bodyEl = bodyContainerRef.current;
+
+        const syncScroll = (source: 'header' | 'body') => {
+            if (isSyncingScroll.current) return;
+            isSyncingScroll.current = true;
+            
+            if (source === 'header' && headerEl && bodyEl) {
+                bodyEl.scrollLeft = headerEl.scrollLeft;
+            } else if (source === 'body' && headerEl && bodyEl) {
+                headerEl.scrollLeft = bodyEl.scrollLeft;
+            }
+            
+            // Use rAF to avoid race conditions and performance issues
+            requestAnimationFrame(() => {
+                isSyncingScroll.current = false;
+            });
+        };
+
+        const handleHeaderScroll = () => syncScroll('header');
+        const handleBodyScroll = () => syncScroll('body');
+
+        if (headerEl) headerEl.addEventListener('scroll', handleHeaderScroll);
+        if (bodyEl) bodyEl.addEventListener('scroll', handleBodyScroll);
+
+        return () => {
+            if (headerEl) headerEl.removeEventListener('scroll', handleHeaderScroll);
+            if (bodyEl) bodyEl.removeEventListener('scroll', handleBodyScroll);
+        };
     }, []);
 
     const recordHistory = (newRows: MuridData[]) => {
@@ -339,7 +376,7 @@ export function MigrasiMurid() {
         isSelecting.current = false;
     };
 
-    const handlePaste = useCallback((event: React.ClipboardEvent<HTMLTableElement>) => {
+    const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         event.preventDefault();
         const startCell = selectedRange.start;
         if (!startCell) {
@@ -578,68 +615,77 @@ export function MigrasiMurid() {
                             Export
                         </Button>
                     </div>
-                    <CardContent className="pt-6">
-                        <div 
-                            className="relative w-full overflow-auto rounded-md border max-h-[600px]"
-                            onMouseUp={handleMouseUp}
-                            onMouseLeave={handleMouseUp}
-                        >
-                            <Table 
-                                className="border-collapse w-full" 
-                                style={{ tableLayout: 'fixed' }}
-                                onPaste={handlePaste}
-                            >
-                                <TableHeader className="sticky top-0 z-10 bg-card">
-                                    <TableRow>
-                                        {tableHeaders.map((header) => (
-                                            <TableHead 
-                                                key={header} 
-                                                style={{ width: `${columnWidths[header]}px`}}
-                                                className={cn(
-                                                    "border bg-muted/50 p-0 text-xs font-bold text-center relative select-none",
-                                                    "sticky top-0 z-10"
-                                                )}
-                                            >
-                                                <div className="px-2 py-2 flex items-center justify-center gap-1 whitespace-normal break-words">
-                                                    {header}
-                                                    {header === "Tanggal Lahir" && (
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-5 w-5">
-                                                                    <Wand2 className="h-3 w-3" />
-                                                                    <span className="sr-only">Format Menu</span>
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent>
-                                                                <DropdownMenuItem onClick={handleFormatDates}>
-                                                                    Format ke DD/MM/YYYY
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
+                    <CardContent 
+                        className="pt-6"
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseUp}
+                        onPaste={handlePaste}
+                    >
+                        <div className="border rounded-md">
+                            <div ref={headerContainerRef} className="overflow-x-auto overflow-y-hidden">
+                                <Table className="border-collapse w-full" style={{ tableLayout: 'fixed' }}>
+                                    <TableHeader>
+                                        <TableRow className="border-0">
+                                            {tableHeaders.map((header) => (
+                                                <TableHead 
+                                                    key={header} 
+                                                    style={{ width: `${columnWidths[header]}px`}}
+                                                    className={cn(
+                                                        "border-b border-r bg-muted/50 p-0 text-xs font-bold text-center relative select-none",
                                                     )}
-                                                </div>
-                                                <div
-                                                    onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
-                                                    className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize"
-                                                />
-                                            </TableHead>
-                                        ))}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                   {rows.map((row, rowIndex) => (
-                                       <TableRow key={`row-${rowIndex}`} className="border-0 m-0 p-0">
-                                           {tableHeaders.map((header, colIndex) => (
-                                               <TableCell 
-                                                   key={`cell-${rowIndex}-${colIndex}`} 
-                                                   style={{ width: `${columnWidths[header]}px`}}
-                                                   className={cn(
-                                                       "border p-0 m-0 h-auto relative",
-                                                       { "bg-muted/30": header === "No" },
-                                                       isCellSelected(rowIndex, colIndex) && header !== "No" ? 'bg-green-200/50' : ''
-                                                   )}
-                                               >
-                                                   <Input
+                                                >
+                                                    <div className="px-2 py-2 flex items-center justify-center gap-1 whitespace-normal break-words">
+                                                        {header}
+                                                        {header === "Tanggal Lahir" && (
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-5 w-5">
+                                                                        <Wand2 className="h-3 w-3" />
+                                                                        <span className="sr-only">Format Menu</span>
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent>
+                                                                    <DropdownMenuItem onClick={handleFormatDates}>
+                                                                        Format ke DD/MM/YYYY
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        )}
+                                                    </div>
+                                                    <div
+                                                        onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
+                                                        className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize"
+                                                    />
+                                                </TableHead>
+                                            ))}
+                                        </TableRow>
+                                    </TableHeader>
+                                </Table>
+                            </div>
+                            <div ref={bodyContainerRef} className="overflow-auto max-h-[550px]">
+                                <Table className="border-collapse w-full" style={{ tableLayout: 'fixed' }}>
+                                    {/* Dummy header for width alignment */}
+                                    <thead className="invisible h-0">
+                                         <tr>
+                                            {tableHeaders.map((header) => (
+                                                <th key={header} style={{ width: `${columnWidths[header]}px`, padding: 0, border: 0, height: 0 }}></th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <TableBody>
+                                    {rows.map((row, rowIndex) => (
+                                        <TableRow key={`row-${rowIndex}`} className="border-0 m-0 p-0">
+                                            {tableHeaders.map((header, colIndex) => (
+                                                <TableCell 
+                                                    key={`cell-${rowIndex}-${colIndex}`} 
+                                                    style={{ width: `${columnWidths[header]}px`}}
+                                                    className={cn(
+                                                        "border-t border-r p-0 m-0 h-auto relative",
+                                                        { "bg-muted/30": header === "No" },
+                                                        isCellSelected(rowIndex, colIndex) && header !== "No" ? 'bg-green-200/50' : ''
+                                                    )}
+                                                >
+                                                    <Input
                                                       type="text"
                                                       value={String(header === "No" ? (row["Username"] ? rowIndex + 1 : "") : row[header] || '')}
                                                       readOnly={header === "No"}
@@ -655,13 +701,14 @@ export function MigrasiMurid() {
                                                           header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
                                                           isCellSelected(rowIndex, colIndex) ? 'bg-transparent' : ''
                                                       )}
-                                                   />
-                                               </TableCell>
-                                           ))}
-                                       </TableRow>
-                                   ))}
-                                </TableBody>
-                            </Table>
+                                                    />
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                    ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </div>
                     </CardContent>
                      <CardFooter>
