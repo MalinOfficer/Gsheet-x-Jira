@@ -875,16 +875,24 @@ export async function fetchL3ReportData(sheetUrl: string) {
             return { error: 'No data found in the sheet.' };
         }
 
-        const headers = rows[0].map(h => h.trim());
         const dataRows = rows.slice(1);
 
-        const statusIndex = headers.indexOf('STATUS CASE');
-        const ticketCategoryIndex = headers.indexOf('KATEGORI');
-        const titleIndex = headers.indexOf('TITLE');
-        const dateIndex = 0; // Column B is the first column in our range (B:M)
+        // Hardcoded indexes based on the provided range B:M
+        const statusIndex = 5;       // STATUS CASE is in column G, which is the 6th column (index 5) in range B:M
+        const ticketCategoryIndex = 7; // KATEGORI is in column I, which is the 8th column (index 7)
+        const titleIndex = 11;       // TITLE is in column M, which is the 12th column (index 11)
+        const dateIndex = 0;         // DATE is in column B, which is the 1st column (index 0)
 
-        if (statusIndex < 0 || ticketCategoryIndex < 0 || titleIndex < 0) {
-            return { error: 'Required columns (STATUS CASE, KATEGORI, TITLE) not found.' };
+        // Basic validation on header row to ensure our hardcoded indexes are likely correct
+        const headers = rows[0].map((h: string) => h.trim().toUpperCase());
+        if (
+            headers[statusIndex] !== 'STATUS CASE' ||
+            headers[ticketCategoryIndex] !== 'KATEGORI' ||
+            headers[titleIndex] !== 'TITLE'
+        ) {
+            console.error('Column mismatch detected. Expected STATUS CASE, KATEGORI, TITLE at specific positions.');
+            // This error is subtle, so we return a generic one. The user may have changed the sheet structure.
+            return { error: 'Could not find the required columns in the expected order. Please check the sheet format.' };
         }
 
         const l3Cases = dataRows.filter(row => row[statusIndex] === 'L3');
@@ -984,6 +992,8 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
 
+
+    
 
     
 
