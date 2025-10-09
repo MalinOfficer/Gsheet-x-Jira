@@ -14,7 +14,7 @@ import { Label } from './ui/label';
 declare const XLSX: any;
 
 type StudentRecord = {
-    nis?: string;
+    id: string; // Combined NIS or NISN
     nama: string;
     fileName: string;
     sheetName: string;
@@ -23,6 +23,7 @@ type StudentRecord = {
 type HeaderInfo = {
     rowIndex: number;
     nisIndex: number;
+    nisnIndex: number;
     namaIndex: number;
     dobIndex: number; // Date of Birth index
 };
@@ -36,7 +37,7 @@ type FileData = {
 export function CekDuplikasi() {
     const [filesData, setFilesData] = useState<FileData[]>([]);
     const [duplicates, setDuplicates] = useState<StudentRecord[]>([]);
-    const [emptyNisRecords, setEmptyNisRecords] = useState<StudentRecord[]>([]);
+    const [emptyIdRecords, setEmptyIdRecords] = useState<StudentRecord[]>([]);
     const [emptyDobRecords, setEmptyDobRecords] = useState<StudentRecord[]>([]);
     const [isChecking, startChecking] = useTransition();
     const [hasChecked, setHasChecked] = useState(false);
@@ -47,7 +48,7 @@ export function CekDuplikasi() {
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
             setDuplicates([]);
-            setEmptyNisRecords([]);
+            setEmptyIdRecords([]);
             setEmptyDobRecords([]);
             setHasChecked(false);
             
@@ -88,13 +89,13 @@ export function CekDuplikasi() {
             const lowerCaseHeaders = row.map(h => String(h || '').toLowerCase().trim());
             
             const nisIndex = lowerCaseHeaders.findIndex(h => h === 'nis' || h === 'no. induk');
+            const nisnIndex = lowerCaseHeaders.findIndex(h => h === 'nisn');
             const namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
             const dobIndex = lowerCaseHeaders.findIndex(h => h.includes('tanggal lahir') || h.includes('tgl lahir'));
             
-            // The check for duplicates and empty NIS only requires NIS and Nama columns.
-            // DOB is optional for its own check.
-            if (nisIndex !== -1 && namaIndex !== -1) {
-                return { rowIndex: i, nisIndex, namaIndex, dobIndex };
+            // Check for duplicates and empty IDs requires Nama and at least one of NIS or NISN.
+            if (namaIndex !== -1 && (nisIndex !== -1 || nisnIndex !== -1)) {
+                return { rowIndex: i, nisIndex, nisnIndex, namaIndex, dobIndex };
             }
         }
         return null;
@@ -122,11 +123,13 @@ export function CekDuplikasi() {
 
         startChecking(async () => {
             setHasChecked(true);
-            const nisMap = new Map<string, { nama: string, fileName: string, sheetName: string }[]>();
-            const foundEmptyNis: StudentRecord[] = [];
+            const idMap = new Map<string, { nama: string, fileName: string, sheetName: string }[]>();
+            const foundEmptyId: StudentRecord[] = [];
             const foundEmptyDob: StudentRecord[] = [];
+            let filesProcessed = 0;
 
             for (const fileData of filesData) {
+                let fileHasValidSheet = false;
                 try {
                     const workbook = XLSX.read(fileData.buffer, { type: 'buffer' });
                     
@@ -139,22 +142,25 @@ export function CekDuplikasi() {
                         const headerInfo = findHeaderRow(sheetData);
 
                         if (!headerInfo) {
-                            console.warn(`Could not find a valid header row in ${fileData.name} -> ${sheetName}. Skipping sheet.`);
-                            continue;
+                            continue; // Skip sheets that don't have the required headers.
                         }
                         
-                        const { rowIndex: headerRowIndex, nisIndex, namaIndex, dobIndex } = headerInfo;
+                        fileHasValidSheet = true; // Mark that this file has at least one processable sheet.
+                        const { rowIndex: headerRowIndex, nisIndex, nisnIndex, namaIndex, dobIndex } = headerInfo;
                         const startRow = headerRowIndex + 1;
 
                         for (let i = startRow; i < sheetData.length; i++) {
                             const row = sheetData[i];
                             if (!row || row.length === 0) continue;
 
-                            const nisValue = row[nisIndex];
+                            const nisValue = nisIndex !== -1 ? String(row[nisIndex] || '').trim() : '';
+                            const nisnValue = nisnIndex !== -1 ? String(row[nisnIndex] || '').trim() : '';
                             const namaValue = String(row[namaIndex] || '').trim();
-                            const nis = String(nisValue).trim();
-
-                            const isNisEmpty = !nis || !/\d/.test(nis);
+                            
+                            // Use NIS as the primary ID, fallback to NISN
+                            const id = nisValue || nisnValue;
+                             
+                            const isIdEmpty = !id || !/\d/.test(id);
                             const isNamePresent = namaValue && namaValue.toLowerCase() !== 'nama';
                             
                             // Check for empty DOB only if the column was found
@@ -162,23 +168,33 @@ export function CekDuplikasi() {
                                 const dobValue = row[dobIndex];
                                 const isDobEmpty = !dobValue || (typeof dobValue === 'string' && dobValue.startsWith('#'));
                                 if (isNamePresent && isDobEmpty) {
-                                    foundEmptyDob.push({ nama: namaValue, fileName: fileData.name, sheetName });
+                                    foundEmptyDob.push({ id: 'N/A', nama: namaValue, fileName: fileData.name, sheetName });
                                 }
                             }
                             
-                            if (isNisEmpty) {
+                            if (isIdEmpty) {
                                 if (isNamePresent) {
-                                    foundEmptyNis.push({ nama: namaValue, fileName: fileData.name, sheetName });
+                                    foundEmptyId.push({ id: 'N/A', nama: namaValue, fileName: fileData.name, sheetName });
                                 }
                                 continue; 
                             }
                             
-                            if (!nisMap.has(nis)) {
-                                nisMap.set(nis, []);
+                            if (!idMap.has(id)) {
+                                idMap.set(id, []);
                             }
-                            nisMap.get(nis)?.push({ nama: namaValue, fileName: fileData.name, sheetName });
+                            idMap.get(id)?.push({ nama: namaValue, fileName: fileData.name, sheetName });
                         }
                     }
+                     if (fileHasValidSheet) {
+                        filesProcessed++;
+                    } else {
+                         toast({
+                            variant: 'destructive',
+                            title: `Invalid File Format: ${fileData.name}`,
+                            description: `The file must contain at least one sheet with a 'Nama' column and either a 'NIS' or 'NISN' column.`,
+                        });
+                    }
+
                 } catch (error) {
                     console.error("Error processing file:", fileData.name, error);
                     toast({
@@ -190,16 +206,16 @@ export function CekDuplikasi() {
             }
 
             const foundDuplicates: StudentRecord[] = [];
-            nisMap.forEach((records, nis) => {
+            idMap.forEach((records, id) => {
                 if (records.length > 1) {
                     records.forEach(record => {
-                        foundDuplicates.push({ nis, ...record });
+                        foundDuplicates.push({ id, ...record });
                     });
                 }
             });
 
             setDuplicates(foundDuplicates);
-            setEmptyNisRecords(foundEmptyNis);
+            setEmptyIdRecords(foundEmptyId);
             setEmptyDobRecords(foundEmptyDob);
         });
     }, [filesData, toast]);
@@ -207,7 +223,7 @@ export function CekDuplikasi() {
     const handleClear = () => {
         setFilesData([]);
         setDuplicates([]);
-        setEmptyNisRecords([]);
+        setEmptyIdRecords([]);
         setEmptyDobRecords([]);
         setHasChecked(false);
         if (fileInputRef.current) {
@@ -222,29 +238,29 @@ export function CekDuplikasi() {
 
         // Duplicates summary
         const groupedDuplicates = duplicates.reduce((acc, curr) => {
-            const { nis } = curr;
-            if (nis) {
-                if (!acc[nis]) acc[nis] = [];
-                acc[nis].push(curr);
+            const { id } = curr;
+            if (id) {
+                if (!acc[id]) acc[id] = [];
+                acc[id].push(curr);
             }
             return acc;
         }, {} as Record<string, StudentRecord[]>);
 
         const duplicateEntries = Object.entries(groupedDuplicates);
         if (duplicateEntries.length > 0) {
-            summary += "NIS yang terduplikasi:\n";
-            duplicateEntries.forEach(([nis, records]) => {
+            summary += "NIS/NISN yang terduplikasi:\n";
+            duplicateEntries.forEach(([id, records]) => {
                 const names = records.map(r => r.nama).join(' dan ');
                 const sheetNames = [...new Set(records.map(r => r.sheetName))].join(', ');
-                summary += `- ${nis} telah digunakan pada nama ${names} di sheet ${sheetNames}\n`;
+                summary += `- ${id} telah digunakan pada nama ${names} di sheet ${sheetNames}\n`;
             });
             summary += "\n";
         }
 
-        // Empty NIS summary
-        if (emptyNisRecords.length > 0) {
-            summary += "Siswa dengan NIS Kosong:\n";
-            emptyNisRecords.forEach(record => {
+        // Empty ID summary
+        if (emptyIdRecords.length > 0) {
+            summary += "Siswa dengan NIS/NISN Kosong:\n";
+            emptyIdRecords.forEach(record => {
                 summary += `- ${record.nama} sheet ${record.sheetName}\n`;
             });
             summary += "\n";
@@ -259,7 +275,7 @@ export function CekDuplikasi() {
         }
 
         return summary.trim() || "Tidak ada masalah ditemukan.";
-    }, [duplicates, emptyNisRecords, emptyDobRecords, hasChecked, isChecking]);
+    }, [duplicates, emptyIdRecords, emptyDobRecords, hasChecked, isChecking]);
 
 
     const handleCopySummary = () => {
@@ -281,139 +297,143 @@ export function CekDuplikasi() {
     };
 
     const renderResults = () => {
-        if (duplicates.length === 0 && emptyNisRecords.length === 0 && emptyDobRecords.length === 0) {
+        if (duplicates.length === 0 && emptyIdRecords.length === 0 && emptyDobRecords.length === 0) {
             return (
                 <div className="flex flex-col items-center justify-center text-center py-8">
                     <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
                     <p className="font-semibold text-lg">Tidak Ada Masalah Ditemukan</p>
-                    <p className="text-muted-foreground mt-1">Tidak ada NIS duplikat, NIS kosong, atau tanggal lahir kosong pada file yang Anda unggah.</p>
+                    <p className="text-muted-foreground mt-1">Tidak ada NIS/NISN duplikat, ID kosong, atau tanggal lahir kosong pada file yang Anda unggah.</p>
                 </div>
             );
         }
 
         return (
-            <div className="space-y-6">
-                {duplicates.length > 0 && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-destructive">
-                                <AlertTriangle />
-                                Hasil Pengecekan Duplikasi ({new Set(duplicates.map(d => d.nis)).size} NIS)
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                           <div className="relative w-full overflow-auto rounded-md border max-h-[400px]">
-                               <Table>
-                                   <TableHeader className="sticky top-0 bg-card z-10">
-                                       <TableRow>
-                                           <TableHead>NIS</TableHead>
-                                           <TableHead>Nama</TableHead>
-                                           <TableHead>Nama File</TableHead>
-                                           <TableHead>Nama Sheet</TableHead>
-                                       </TableRow>
-                                   </TableHeader>
-                                   <TableBody>
-                                       {duplicates.sort((a, b) => (a.nis || '').localeCompare(b.nis || '') || a.fileName.localeCompare(b.fileName)).map((item, index) => (
-                                           <TableRow key={index} className="bg-destructive/10">
-                                               <TableCell className="font-medium">{item.nis}</TableCell>
-                                               <TableCell>{item.nama}</TableCell>
-                                               <TableCell>{item.fileName}</TableCell>
-                                               <TableCell>{item.sheetName}</TableCell>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                 <div className="space-y-6">
+                    {duplicates.length > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-destructive">
+                                    <AlertTriangle />
+                                    NIS/NISN Duplikat ({new Set(duplicates.map(d => d.id)).size} ID)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                               <div className="relative w-full overflow-auto rounded-md border max-h-[400px]">
+                                   <Table>
+                                       <TableHeader className="sticky top-0 bg-card z-10">
+                                           <TableRow>
+                                               <TableHead>NIS/NISN</TableHead>
+                                               <TableHead>Nama</TableHead>
+                                               <TableHead>File</TableHead>
+                                               <TableHead>Sheet</TableHead>
                                            </TableRow>
-                                       ))}
-                                   </TableBody>
-                               </Table>
-                           </div>
-                        </CardContent>
-                    </Card>
-                )}
+                                       </TableHeader>
+                                       <TableBody>
+                                           {duplicates.sort((a, b) => (a.id || '').localeCompare(b.id || '') || a.fileName.localeCompare(b.fileName)).map((item, index) => (
+                                               <TableRow key={index} className="bg-destructive/10">
+                                                   <TableCell className="font-medium">{item.id}</TableCell>
+                                                   <TableCell>{item.nama}</TableCell>
+                                                   <TableCell>{item.fileName}</TableCell>
+                                                   <TableCell>{item.sheetName}</TableCell>
+                                               </TableRow>
+                                           ))}
+                                       </TableBody>
+                                   </Table>
+                               </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                {emptyNisRecords.length > 0 && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-amber-600">
-                                <FileWarning />
-                                Siswa dengan NIS Kosong ({emptyNisRecords.length} Siswa)
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                           <div className="relative w-full overflow-auto rounded-md border max-h-[400px]">
-                               <Table>
-                                   <TableHeader className="sticky top-0 bg-card z-10">
-                                       <TableRow>
-                                           <TableHead>Nama</TableHead>
-                                           <TableHead>Nama File</TableHead>
-                                           <TableHead>Nama Sheet</TableHead>
-                                       </TableRow>
-                                   </TableHeader>
-                                   <TableBody>
-                                       {emptyNisRecords.sort((a, b) => a.nama.localeCompare(b.nama)).map((item, index) => (
-                                           <TableRow key={index} className="bg-amber-100 dark:bg-amber-900/20">
-                                               <TableCell className="font-medium">{item.nama}</TableCell>
-                                               <TableCell>{item.fileName}</TableCell>
-                                               <TableCell>{item.sheetName}</TableCell>
+                    {emptyIdRecords.length > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-amber-600">
+                                    <FileWarning />
+                                    Siswa dengan NIS/NISN Kosong ({emptyIdRecords.length} Siswa)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                               <div className="relative w-full overflow-auto rounded-md border max-h-[400px]">
+                                   <Table>
+                                       <TableHeader className="sticky top-0 bg-card z-10">
+                                           <TableRow>
+                                               <TableHead>Nama</TableHead>
+                                               <TableHead>File</TableHead>
+                                               <TableHead>Sheet</TableHead>
                                            </TableRow>
-                                       ))}
-                                   </TableBody>
-                               </Table>
-                           </div>
-                        </CardContent>
-                    </Card>
-                )}
-                
-                {emptyDobRecords.length > 0 && (
-                     <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-sky-600">
-                                <Cake />
-                                Siswa dengan Tanggal Lahir Kosong ({emptyDobRecords.length} Siswa)
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                           <div className="relative w-full overflow-auto rounded-md border max-h-[400px]">
-                               <Table>
-                                   <TableHeader className="sticky top-0 bg-card z-10">
-                                       <TableRow>
-                                           <TableHead>Nama</TableHead>
-                                           <TableHead>Nama File</TableHead>
-                                           <TableHead>Nama Sheet</TableHead>
-                                       </TableRow>
-                                   </TableHeader>
-                                   <TableBody>
-                                       {emptyDobRecords.sort((a, b) => a.nama.localeCompare(b.nama)).map((item, index) => (
-                                           <TableRow key={index} className="bg-sky-100 dark:bg-sky-900/20">
-                                               <TableCell className="font-medium">{item.nama}</TableCell>
-                                               <TableCell>{item.fileName}</TableCell>
-                                               <TableCell>{item.sheetName}</TableCell>
+                                       </TableHeader>
+                                       <TableBody>
+                                           {emptyIdRecords.sort((a, b) => a.nama.localeCompare(b.nama)).map((item, index) => (
+                                               <TableRow key={index} className="bg-amber-100 dark:bg-amber-900/20">
+                                                   <TableCell className="font-medium">{item.nama}</TableCell>
+                                                   <TableCell>{item.fileName}</TableCell>
+                                                   <TableCell>{item.sheetName}</TableCell>
+                                               </TableRow>
+                                           ))}
+                                       </TableBody>
+                                   </Table>
+                               </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                    
+                    {emptyDobRecords.length > 0 && (
+                         <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-sky-600">
+                                    <Cake />
+                                    Siswa dengan Tanggal Lahir Kosong ({emptyDobRecords.length} Siswa)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                               <div className="relative w-full overflow-auto rounded-md border max-h-[400px]">
+                                   <Table>
+                                       <TableHeader className="sticky top-0 bg-card z-10">
+                                           <TableRow>
+                                               <TableHead>Nama</TableHead>
+                                               <TableHead>File</TableHead>
+                                               <TableHead>Sheet</TableHead>
                                            </TableRow>
-                                       ))}
-                                   </TableBody>
-                               </Table>
-                           </div>
-                        </CardContent>
-                    </Card>
-                )}
+                                       </TableHeader>
+                                       <TableBody>
+                                           {emptyDobRecords.sort((a, b) => a.nama.localeCompare(b.nama)).map((item, index) => (
+                                               <TableRow key={index} className="bg-sky-100 dark:bg-sky-900/20">
+                                                   <TableCell className="font-medium">{item.nama}</TableCell>
+                                                   <TableCell>{item.fileName}</TableCell>
+                                                   <TableCell>{item.sheetName}</TableCell>
+                                               </TableRow>
+                                           ))}
+                                       </TableBody>
+                                   </Table>
+                               </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
 
                 {summaryText && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Summary</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Textarea
-                                readOnly
-                                value={summaryText}
-                                className="h-48 text-xs font-mono"
-                                placeholder="Summary will appear here after checking files..."
-                            />
-                        </CardContent>
-                        <CardFooter>
-                            <Button onClick={handleCopySummary} size="sm" variant="outline" disabled={!summaryText || summaryText === "Tidak ada masalah ditemukan."}>
-                                {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                                {isCopied ? 'Copied!' : 'Copy Summary'}
-                            </Button>
-                        </CardFooter>
-                    </Card>
+                    <div className="lg:sticky lg:top-24">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Summary</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <Textarea
+                                    readOnly
+                                    value={summaryText}
+                                    className="h-96 text-xs font-mono"
+                                    placeholder="Summary will appear here after checking files..."
+                                />
+                            </CardContent>
+                            <CardFooter>
+                                <Button onClick={handleCopySummary} size="sm" variant="outline" disabled={!summaryText || summaryText === "Tidak ada masalah ditemukan."}>
+                                    {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                                    {isCopied ? 'Copied!' : 'Copy Summary'}
+                                </Button>
+                            </CardFooter>
+                        </Card>
+                    </div>
                 )}
             </div>
         );
@@ -426,7 +446,7 @@ export function CekDuplikasi() {
                 <header>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Cek Duplikasi & Validasi Data</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Upload beberapa file Excel untuk menemukan NIS duplikat, NIS kosong, dan tanggal lahir kosong di semua file dan sheet.
+                        Upload beberapa file Excel untuk menemukan NIS/NISN duplikat, ID kosong, dan tanggal lahir kosong di semua file dan sheet.
                     </p>
                 </header>
 
@@ -482,5 +502,3 @@ export function CekDuplikasi() {
         </div>
     );
 }
-
-    
