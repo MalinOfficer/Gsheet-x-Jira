@@ -886,8 +886,8 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
         const l3Cases = dataRows.filter(row => row[statusIndex] === 'L3');
 
-        const today = new Date();
         const l3CasesWithDuration = l3Cases.map(row => {
+            const today = new Date();
             const dateStr = row[dateIndex];
             let duration = -1; // Default/error value
             if (dateStr) {
@@ -896,8 +896,12 @@ export async function fetchL3ReportData(sheetUrl: string) {
                     // Assuming DD/MM/YYYY
                     const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
                     if (!isNaN(caseDate.getTime())) {
-                        const diffTime = Math.abs(today.getTime() - caseDate.getTime());
-                        duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        // Set time to 00:00:00 for both dates to get clean day difference
+                        const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                        const caseDateAtMidnight = new Date(caseDate.getFullYear(), caseDate.getMonth(), caseDate.getDate());
+                        
+                        const diffTime = Math.abs(todayAtMidnight.getTime() - caseDateAtMidnight.getTime());
+                        duration = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                     }
                 }
             }
