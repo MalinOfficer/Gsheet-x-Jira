@@ -206,7 +206,7 @@ function L3CaseReportCard() {
                   </Button>
                 </div>
                 <CardDescription>
-                    This report is generated from the verified Google Sheet and shows all 'L3' status cases.
+                    This report is generated from the verified Google Sheet and shows 'L3' status
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-grow">
@@ -217,7 +217,6 @@ function L3CaseReportCard() {
                     placeholder="L3 report data will appear here..."
                 />
             </CardContent>
-            <CardFooter />
         </Card>
     );
 }
