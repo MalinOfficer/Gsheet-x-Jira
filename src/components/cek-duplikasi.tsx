@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, useTransition, useMemo } from 'react';
+import { useState, useCallback, useTransition, useMemo, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,6 +9,7 @@ import { Upload, Loader2, CheckCircle2, AlertTriangle, Trash2, Search, FileWarni
 import { useToast } from "@/hooks/use-toast";
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
 
 declare const XLSX: any;
 
@@ -41,6 +42,7 @@ export function CekDuplikasi() {
     const [hasChecked, setHasChecked] = useState(false);
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
@@ -233,9 +235,8 @@ export function CekDuplikasi() {
         setEmptyNisRecords([]);
         setEmptyDobRecords([]);
         setHasChecked(false);
-        const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-        if (fileInput) {
-            fileInput.value = '';
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
         }
     }
 
@@ -467,19 +468,23 @@ export function CekDuplikasi() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-col gap-4">
+                        <div className="flex flex-col items-start gap-4">
+                            <Label htmlFor="file-upload" className="w-full">
+                                <Button asChild variant="outline">
+                                    <div className="w-full cursor-pointer">
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Choose Files
+                                    </div>
+                                </Button>
+                            </Label>
                             <Input
                                 id="file-upload"
                                 type="file"
                                 multiple
+                                ref={fileInputRef}
                                 onChange={handleFileChange}
                                 accept=".xls, .xlsx, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                className="block w-full text-sm text-slate-500
-                                file:mr-4 file:py-2 file:px-4
-                                file:rounded-full file:border-0
-                                file:text-sm file:font-semibold
-                                file:bg-primary/10 file:text-primary
-                                hover:file:bg-primary/20"
+                                className="hidden"
                             />
                             {filesData.length > 0 && (
                                 <div className="text-sm text-muted-foreground">
