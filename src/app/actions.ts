@@ -472,33 +472,31 @@ export async function importToSheet(
             return { error: `The target sheet named "${sheetName}" was not found in the spreadsheet.` };
         }
 
-        // 2. Get last row data for NO, DATE, and MONTH
-        const lastRowRange = `${sheetName}!A:C`;
+        // 2. Get last row data
         const lastRowResponse = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: lastRowRange,
+            range: `${sheetName}!A:C`, // Read No, Date, Month
             majorDimension: 'ROWS',
         });
         const allRows = lastRowResponse.data.values || [];
         const lastPopulatedRow = [...allRows].reverse().find(row => row.some(cell => cell !== '' && cell !== null && cell !== undefined));
 
+        let lastRowIndex = allRows.length;
         let lastNo = 0;
-        let lastDate = '';
-        let lastMonth = '';
+        let dateForNewRows: Date;
         
         if (lastPopulatedRow) {
             lastNo = parseInt(lastPopulatedRow[0] || '0', 10);
-            lastDate = lastPopulatedRow[1] || '';
-            lastMonth = lastPopulatedRow[2] || '';
+            const lastDateStr = lastPopulatedRow[1] || ''; // DD/MM/YYYY
+            if (lastDateStr && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(lastDateStr)) {
+                const parts = lastDateStr.split('/');
+                dateForNewRows = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            } else {
+                dateForNewRows = new Date();
+            }
+        } else {
+            dateForNewRows = new Date();
         }
-
-        // If date/month are empty, use today's date
-        if (!lastDate || !lastMonth) {
-            const today = new Date();
-            lastDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
-            lastMonth = today.toLocaleString('id-ID', { month: 'long' });
-        }
-
 
         // 3. Find existing titles to avoid duplicates (from column M)
         const titleRange = `${sheetName}!M:M`;
@@ -528,19 +526,18 @@ export async function importToSheet(
                 duplicates: duplicateRows
             };
         }
+        
+        const dateStr = `${String(dateForNewRows.getDate()).padStart(2, '0')}/${String(dateForNewRows.getMonth() + 1).padStart(2, '0')}/${dateForNewRows.getFullYear()}`;
+        const monthStr = dateForNewRows.toLocaleString('id-ID', { month: 'long' });
+        const yearMonthDay = `${String(dateForNewRows.getFullYear()).slice(2)}${String(dateForNewRows.getMonth() + 1).padStart(2, '0')}${String(dateForNewRows.getDate()).padStart(2, '0')}`;
+
 
         // 4. Prepare data for the append operation.
         const valuesToAppend = newRows.map((row, index) => {
-            // Re-create the main data mapping, but this time ensure "TICKET NUMBER" is included.
-            // Based on the google sheet, data starts from column E.
-            // The JSON data has headers: Client Name,Customer Name,Status,Kolom kosong1,Ticket Category,Module,Detail Module,Created At,Title,Kolom kosong2,Resolved At,Ticket OP
-            // The Sheet has columns E-O for this data.
-            // E: Client, F: PIC Client, G: Status Case, H: First Response, I: Ticket Category, J: Module, K: Detail Module, L: Created At, M: Title, N: Resolved At, O: Ticket OP
-            
-            // From the template, the expected order is: Client Name, Customer Name, Status, Kolom kosong1, Ticket Category, Module, Detail Module, Created At, Title, Kolom kosong2, Resolved At, Ticket OP
-            // From the GSheet screenshot, the order appears to be different.
-            // Let's assume the template is correct and the user wants to map based on it.
-            // D: TICKET NUMBER, E: CLIENT, F: PIC CLIENT (Customer Name?), G: STATUS CASE, ... M: Title ... T: Ticket OP
+            const currentRowNumberInSheet = lastRowIndex + index + 1; // 1-based index for the new row
+            const ticketRowNumber = String(currentRowNumberInSheet - 2).padStart(5, '0');
+            const generatedTicketNumber = `TKT-${yearMonthDay}-${ticketRowNumber}`;
+
             const mainDataHeaders = [
                 'Client Name', 'Customer Name', 'Status', 'Kolom kosong1', 
                 'Ticket Category', 'Module', 'Detail Module', 'Created At', 
@@ -551,9 +548,9 @@ export async function importToSheet(
 
             return [
                 lastNo + index + 1,        // A - NO
-                lastDate,                  // B - DATE
-                lastMonth,                 // C - MONTH
-                row['TICKET NUMBER'] || '',// D - TICKET NUMBER
+                dateStr,                   // B - DATE
+                monthStr,                  // C - MONTH
+                generatedTicketNumber,     // D - TICKET NUMBER (Generated)
                 ...mainData,               // E-O (11 columns from JSON)
                 '', '', '', '',            // P-S - Empty
                 row['Ticket OP'] || ''     // T - Ticket OP
@@ -563,7 +560,7 @@ export async function importToSheet(
         // 5. Use `append` to add the new rows.
         const appendResult = await sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: sheetName, // Append to the entire sheet, API finds the last row
+            range: sheetName,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values: valuesToAppend,
@@ -777,5 +774,7 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
   
 
       
+
+    
 
     
