@@ -44,6 +44,8 @@ type UpdatePreview = {
     newStatus: string;
     oldTicketOp: string;
     newTicketOp: string;
+    oldCheckout: string;
+    newCheckout: string;
 };
 
 type LastActionUndoData = {
@@ -619,7 +621,7 @@ export function ImportFlow() {
                         ) : (
                             <Button
                               onClick={handleAnalyzeSheet}
-                              variant={'default'}
+                              variant={isVerified ? 'secondary' : 'default'}
                               size="sm"
                               disabled={isProcessing}
                             >
@@ -676,7 +678,8 @@ export function ImportFlow() {
                                           <li key={index} className='text-foreground'>
                                             {item.title}:
                                             {item.oldStatus !== item.newStatus && <span> Status: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> {'→'} <strong>{item.newStatus}</strong></span>}
-                                            {item.oldTicketOp !== item.newTicketOp && <span> Ticket OP: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> {'→'} <strong>{item.newTicketOp}</strong></span>}
+                                            {item.oldTicketOp !== item.newTicketOp && <span>, Ticket OP: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> {'→'} <strong>{item.newTicketOp}</strong></span>}
+                                            {item.newStatus === 'Solved' && item.oldCheckout !== item.newCheckout && <span>, Check Out: <strong>{formatDateTime(item.newCheckout, 'jam')}</strong></span>}
                                           </li>
                                         ))}
                                     </ul>
@@ -800,3 +803,5 @@ export function ImportFlow() {
     </div>
   );
 }
+
+    

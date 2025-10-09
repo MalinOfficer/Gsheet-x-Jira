@@ -280,10 +280,11 @@ async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: str
     }
 
     const ticketNumberRegex = /#(\d+)/;
-    const rowMap: Record<string, { rowIndex: number, currentStatus: string; currentTicketOp: string; title: string }> = {};
+    const rowMap: Record<string, { rowIndex: number, currentStatus: string; currentTicketOp: string; title: string, currentCheckout: string; }> = {};
     sheetRows.forEach((row, index) => {
         const currentStatus = row[0] || ''; // Column G
         const detailCase = row[6]; // Column M (G is 0, so M is 6)
+        const currentCheckout = row[8] || ''; // Column O (G is 0, so O is 8)
         const currentTicketOp = row[13] || ''; // Column T (G is 0, so T is 13)
 
         if (typeof detailCase === 'string') {
@@ -295,6 +296,7 @@ async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: str
                     currentStatus: currentStatus,
                     currentTicketOp: currentTicketOp,
                     title: detailCase,
+                    currentCheckout: currentCheckout
                 };
             }
         }
@@ -322,13 +324,19 @@ export async function getUpdatePreview(
         const sheets = getGoogleSheetsClient();
         const rowMap = await getSheetRowMap(sheets, spreadsheetId, sheetName);
         
-        const changesToPreview: { title: string, oldStatus: string, newStatus: string, oldTicketOp: string, newTicketOp: string }[] = [];
+        const changesToPreview: { 
+            title: string, 
+            oldStatus: string, newStatus: string, 
+            oldTicketOp: string, newTicketOp: string,
+            oldCheckout: string, newCheckout: string 
+        }[] = [];
         const ticketNumberRegex = /#(\d+)/;
 
         for (const appRow of data.rows) {
             const detailCase = appRow['Title'];
             const newStatus = appRow['Status'];
             const newTicketOp = appRow['Ticket OP'];
+            const newCheckout = appRow['Resolved At'] || '';
 
             if (typeof detailCase === 'string') {
                 const match = detailCase.match(ticketNumberRegex);
@@ -336,14 +344,22 @@ export async function getUpdatePreview(
                     const ticketNumber = match[1];
                     const sheetRowInfo = rowMap[ticketNumber];
                     
-                    if (sheetRowInfo && (sheetRowInfo.currentStatus !== newStatus || sheetRowInfo.currentTicketOp !== newTicketOp)) {
-                        changesToPreview.push({
-                            title: sheetRowInfo.title,
-                            oldStatus: sheetRowInfo.currentStatus,
-                            newStatus: newStatus,
-                            oldTicketOp: sheetRowInfo.currentTicketOp,
-                            newTicketOp: newTicketOp,
-                        });
+                    if (sheetRowInfo) {
+                        const statusChanged = sheetRowInfo.currentStatus !== newStatus;
+                        const ticketOpChanged = sheetRowInfo.currentTicketOp !== newTicketOp;
+                        const checkoutChanged = newStatus === 'Solved' && sheetRowInfo.currentCheckout !== newCheckout;
+
+                        if (statusChanged || ticketOpChanged || checkoutChanged) {
+                             changesToPreview.push({
+                                title: sheetRowInfo.title,
+                                oldStatus: sheetRowInfo.currentStatus,
+                                newStatus: newStatus,
+                                oldTicketOp: sheetRowInfo.currentTicketOp,
+                                newTicketOp: newTicketOp,
+                                oldCheckout: sheetRowInfo.currentCheckout,
+                                newCheckout: newStatus === 'Solved' ? newCheckout : sheetRowInfo.currentCheckout,
+                            });
+                        }
                     }
                 }
             }
@@ -380,14 +396,20 @@ export async function updateSheetStatus(
         const rowMap = await getSheetRowMap(sheets, spreadsheetId, sheetName);
 
         const updateRequests = [];
-        const updatedRows: { title: string, oldStatus: string, newStatus: string, rowIndex: number, oldTicketOp: string, newTicketOp: string }[] = [];
+        const updatedRows: { 
+            title: string, 
+            rowIndex: number, 
+            oldStatus: string, newStatus: string, 
+            oldTicketOp: string, newTicketOp: string,
+            oldCheckout: string, newCheckout: string,
+        }[] = [];
         const ticketNumberRegex = /#(\d+)/;
         
         for (const appRow of data.rows) {
             const detailCase = appRow['Title'];
             const newStatus = appRow['Status'];
             const newTicketOp = appRow['Ticket OP'];
-
+            const newCheckout = appRow['Resolved At'] || '';
 
             if (typeof detailCase === 'string') {
                 const match = detailCase.match(ticketNumberRegex);
@@ -395,25 +417,43 @@ export async function updateSheetStatus(
                     const ticketNumber = match[1];
                     const sheetRowInfo = rowMap[ticketNumber];
                     
-                    if (sheetRowInfo && (sheetRowInfo.currentStatus !== newStatus || sheetRowInfo.currentTicketOp !== newTicketOp)) {
-                         updateRequests.push(
-                            { // Status
-                                range: `${sheetName}!G${sheetRowInfo.rowIndex}`,
-                                values: [[newStatus]],
-                            },
-                            { // Ticket OP
-                                range: `${sheetName}!T${sheetRowInfo.rowIndex}`,
-                                values: [[newTicketOp]],
+                    if (sheetRowInfo) {
+                        const statusChanged = sheetRowInfo.currentStatus !== newStatus;
+                        const ticketOpChanged = sheetRowInfo.currentTicketOp !== newTicketOp;
+                        const isSolvedNow = newStatus === 'Solved';
+                        const checkoutWillChange = isSolvedNow && sheetRowInfo.currentCheckout !== newCheckout;
+                        
+                        if (statusChanged || ticketOpChanged || checkoutWillChange) {
+                            if (statusChanged) {
+                                updateRequests.push({
+                                    range: `${sheetName}!G${sheetRowInfo.rowIndex}`,
+                                    values: [[newStatus]],
+                                });
                             }
-                        );
-                        updatedRows.push({ 
-                            title: detailCase, 
-                            oldStatus: sheetRowInfo.currentStatus, 
-                            newStatus, 
-                            rowIndex: sheetRowInfo.rowIndex,
-                            oldTicketOp: sheetRowInfo.currentTicketOp,
-                            newTicketOp
-                        });
+                             if (ticketOpChanged) {
+                                updateRequests.push({
+                                    range: `${sheetName}!T${sheetRowInfo.rowIndex}`,
+                                    values: [[newTicketOp]],
+                                });
+                            }
+                             if (isSolvedNow) {
+                                updateRequests.push({
+                                    range: `${sheetName}!O${sheetRowInfo.rowIndex}`,
+                                    values: [[newCheckout]],
+                                });
+                            }
+
+                            updatedRows.push({ 
+                                title: detailCase, 
+                                rowIndex: sheetRowInfo.rowIndex,
+                                oldStatus: sheetRowInfo.currentStatus, 
+                                newStatus, 
+                                oldTicketOp: sheetRowInfo.currentTicketOp,
+                                newTicketOp,
+                                oldCheckout: sheetRowInfo.currentCheckout,
+                                newCheckout: isSolvedNow ? newCheckout : sheetRowInfo.currentCheckout
+                            });
+                        }
                     }
                 }
             }
@@ -669,16 +709,32 @@ export async function undoLastAction(
         }
 
         if (undoData.operationType === 'UPDATE') {
-             const updateRequests = undoData.updatedRows.flatMap((row: { rowIndex: number, oldStatus: string, oldTicketOp: string }) => ([
-                {
-                    range: `${sheetName}!G${row.rowIndex}`,
-                    values: [[row.oldStatus]],
-                },
-                {
-                    range: `${sheetName}!T${row.rowIndex}`,
-                    values: [[row.oldTicketOp]],
+             const updateRequests = undoData.updatedRows.flatMap((row: { 
+                rowIndex: number, 
+                oldStatus: string, 
+                oldTicketOp: string,
+                oldCheckout: string,
+                newStatus: string, // to check if we need to revert checkout
+             }) => {
+                const requests = [
+                    {
+                        range: `${sheetName}!G${row.rowIndex}`,
+                        values: [[row.oldStatus]],
+                    },
+                    {
+                        range: `${sheetName}!T${row.rowIndex}`,
+                        values: [[row.oldTicketOp]],
+                    }
+                ];
+
+                if (row.newStatus === 'Solved') {
+                    requests.push({
+                         range: `${sheetName}!O${row.rowIndex}`,
+                         values: [[row.oldCheckout]],
+                    });
                 }
-            ]));
+                return requests;
+             });
 
             if (updateRequests.length > 0) {
                  await sheets.spreadsheets.values.batchUpdate({
@@ -789,3 +845,4 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
 
     
 
+    
