@@ -87,39 +87,13 @@ export function CekDuplikasi() {
 
             const lowerCaseHeaders = row.map(h => String(h || '').toLowerCase().trim());
             
-            let nisIndex = -1;
-            let namaIndex = -1;
-            let dobIndex = -1;
-
-            // Priority 1: Exact matches or very specific 'nis'
-            nisIndex = lowerCaseHeaders.findIndex(h => h === 'nis' || h === 'no. induk');
-            if (nisIndex === -1) {
-                // Priority 2: Contains 'nis' but not 'nisn'
-                nisIndex = lowerCaseHeaders.findIndex(h => h.includes('nis') && !h.includes('nisn'));
-            }
-            if (nisIndex === -1) {
-                // Priority 3: Fallback to any 'nis'
-                nisIndex = lowerCaseHeaders.findIndex(h => h.includes('nis'));
-            }
-
-            // Priority 1: Exact matches for "Nama"
-            const exactNamaMatches = ['nama', 'nama siswa', 'nama lengkap'];
-            namaIndex = lowerCaseHeaders.findIndex(h => exactNamaMatches.includes(h));
-            if (namaIndex === -1) {
-                // Priority 2: Contains 'nama' but exclude common false positives
-                const excludeKeywords = ['kelas', 'sekolah', 'wali', 'ayah', 'ibu', 'orang tua'];
-                namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama') && !excludeKeywords.some(keyword => h.includes(keyword)));
-            }
-            if (namaIndex === -1) {
-                // Priority 3: Fallback to any 'nama'
-                namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
-            }
-
-            // Find Date of Birth column by looking for headers that *include* the keywords
-            const dobKeywords = ['tanggal lahir', 'tgl lahir'];
-            dobIndex = lowerCaseHeaders.findIndex(h => dobKeywords.some(keyword => h.includes(keyword)));
+            const nisIndex = lowerCaseHeaders.findIndex(h => h === 'nis' || h === 'no. induk');
+            const namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
+            const dobIndex = lowerCaseHeaders.findIndex(h => h.includes('tanggal lahir') || h.includes('tgl lahir'));
             
-            if (nisIndex !== -1 && namaIndex !== -1 && dobIndex !== -1) {
+            // The check for duplicates and empty NIS only requires NIS and Nama columns.
+            // DOB is optional for its own check.
+            if (nisIndex !== -1 && namaIndex !== -1) {
                 return { rowIndex: i, nisIndex, namaIndex, dobIndex };
             }
         }
@@ -178,17 +152,18 @@ export function CekDuplikasi() {
 
                             const nisValue = row[nisIndex];
                             const namaValue = String(row[namaIndex] || '').trim();
-                            const dobValue = row[dobIndex];
                             const nis = String(nisValue).trim();
 
                             const isNisEmpty = !nis || !/\d/.test(nis);
                             const isNamePresent = namaValue && namaValue.toLowerCase() !== 'nama';
                             
-                            // A cell is considered empty if it's falsy (empty string, null, undefined) or an excel error string like #VALUE!
-                            const isDobEmpty = !dobValue || (typeof dobValue === 'string' && dobValue.startsWith('#'));
-
-                            if (isNamePresent && isDobEmpty) {
-                                foundEmptyDob.push({ nama: namaValue, fileName: fileData.name, sheetName });
+                            // Check for empty DOB only if the column was found
+                            if (dobIndex !== -1) {
+                                const dobValue = row[dobIndex];
+                                const isDobEmpty = !dobValue || (typeof dobValue === 'string' && dobValue.startsWith('#'));
+                                if (isNamePresent && isDobEmpty) {
+                                    foundEmptyDob.push({ nama: namaValue, fileName: fileData.name, sheetName });
+                                }
                             }
                             
                             if (isNisEmpty) {
@@ -473,7 +448,7 @@ export function CekDuplikasi() {
                                 accept=".xls, .xlsx, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                 className="hidden"
                             />
-                            <Button onClick={() => fileInputRef.current?.click()} variant="outline">
+                             <Button onClick={() => fileInputRef.current?.click()} variant="outline">
                                 <Upload className="mr-2 h-4 w-4" />
                                 {filesData.length > 0 ? `${filesData.length} file(s) chosen` : 'Choose Files'}
                             </Button>
@@ -488,7 +463,7 @@ export function CekDuplikasi() {
                             )}
                         </div>
                     </CardContent>
-                    <CardFooter className="flex gap-2">
+                    <CardFooter className="flex gap-2 border-t pt-6">
                         <Button onClick={handleCheckDuplicates} disabled={isChecking || filesData.length === 0}>
                             {isChecking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                             {isChecking ? 'Mengecek...' : 'Cek File'}
