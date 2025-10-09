@@ -112,6 +112,10 @@ export function MigrasiMurid() {
     const [numRowsToAdd, setNumRowsToAdd] = useState(1);
     const { toast } = useToast();
     const isSelecting = useRef(false);
+    
+    const [isDraggingFill, setIsDraggingFill] = useState(false);
+    const [fillRange, setFillRange] = useState<{ start: CellSelection, end: CellSelection } | null>(null);
+
 
     const [history, setHistory] = useState<MuridData[][]>([rows]);
     const [historyIndex, setHistoryIndex] = useState(0);
@@ -200,28 +204,38 @@ export function MigrasiMurid() {
         handleRowsChange(newRows);
     };
     
-    const getNormalizedRange = useCallback(() => {
-        if (!selectedRange.start) {
+    const getNormalizedRange = useCallback((range: { start: CellSelection | null, end: CellSelection | null }) => {
+        if (!range.start) {
             return { startRow: -1, endRow: -1, startCol: -1, endCol: -1 };
         }
-        const end = selectedRange.end || selectedRange.start;
-        const startRow = Math.min(selectedRange.start.row, end.row);
-        const endRow = Math.max(selectedRange.start.row, end.row);
-        const startCol = Math.min(selectedRange.start.col, end.col);
-        const endCol = Math.max(selectedRange.start.col, end.col);
+        const end = range.end || range.start;
+        const startRow = Math.min(range.start.row, end.row);
+        const endRow = Math.max(range.start.row, end.row);
+        const startCol = Math.min(range.start.col, end.col);
+        const endCol = Math.max(range.start.col, end.col);
         return { startRow, endRow, startCol, endCol };
-    }, [selectedRange]);
+    }, []);
+    
+    const normalizedSelectedRange = useMemo(() => getNormalizedRange(selectedRange), [selectedRange, getNormalizedRange]);
+    const normalizedFillRange = useMemo(() => getNormalizedRange(fillRange || { start: null, end: null }), [fillRange, getNormalizedRange]);
+
 
     const isCellSelected = useCallback((row: number, col: number) => {
-        if (!isSelecting.current || !selectedRange.start) return false;
-        const { startRow, endRow, startCol, endCol } = getNormalizedRange();
+        if (!selectedRange.start) return false;
+        const { startRow, endRow, startCol, endCol } = normalizedSelectedRange;
         return row >= startRow && row <= endRow && col >= startCol && col <= endCol;
-    }, [getNormalizedRange, selectedRange.start]);
+    }, [normalizedSelectedRange, selectedRange.start]);
+    
+    const isCellInFillRange = useCallback((row: number, col: number) => {
+        if (!isDraggingFill || !fillRange?.start) return false;
+        const { startRow, endRow, startCol, endCol } = normalizedFillRange;
+        return row >= startRow && row <= endRow && col >= startCol && col <= endCol;
+    }, [isDraggingFill, fillRange, normalizedFillRange]);
 
     const handleClearSelectedCells = () => {
          if (!selectedRange.start) return;
         const newRows = [...rows];
-        const { startRow, endRow, startCol, endCol } = getNormalizedRange();
+        const { startRow, endRow, startCol, endCol } = normalizedSelectedRange;
         for (let r = startRow; r <= endRow; r++) {
             for (let c = startCol; c <= endCol; c++) {
                 const header = tableHeaders[c];
@@ -239,7 +253,7 @@ export function MigrasiMurid() {
             return;
         }
 
-        const { startRow, endRow, startCol, endCol } = getNormalizedRange();
+        const { startRow, endRow, startCol, endCol } = normalizedSelectedRange;
         
         let copyString = "";
         for (let r = startRow; r <= endRow; r++) {
@@ -266,7 +280,7 @@ export function MigrasiMurid() {
                 description: "Could not copy data to clipboard.",
             });
         });
-    }, [rows, getNormalizedRange, toast]);
+    }, [rows, normalizedSelectedRange, toast, selectedRange]);
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, { row, col }: CellSelection) => {
         const move = (dRow: number, dCol: number) => {
@@ -309,7 +323,7 @@ export function MigrasiMurid() {
                 break;
             case "Delete":
             case "Backspace":
-                if (selectedRange.start && (selectedRange.start.row !== (selectedRange.end?.row ?? selectedRange.start.row) || selectedRange.start.col !== (selectedRange.end?.col ?? selectedRange.start.col))) {
+                if (selectedRange.start && (normalizedSelectedRange.startRow !== normalizedSelectedRange.endRow || normalizedSelectedRange.startCol !== normalizedSelectedRange.endCol)) {
                     e.preventDefault();
                     handleClearSelectedCells();
                 }
@@ -318,6 +332,7 @@ export function MigrasiMurid() {
     };
     
     const handleMouseDown = (e: MouseEvent<HTMLInputElement>, { row, col }: CellSelection) => {
+        if (isResizing.current) return;
         if (tableHeaders[col] === "No") return;
         isSelecting.current = true;
         if (e.shiftKey && selectedRange.start) {
@@ -332,11 +347,64 @@ export function MigrasiMurid() {
             e.preventDefault();
             if (tableHeaders[col] === "No") return;
             setSelectedRange(prev => ({ ...prev, end: { row, col } }));
+        } else if (isDraggingFill) {
+            const { startRow, endRow, startCol, endCol } = normalizedSelectedRange;
+            let newFillEnd: CellSelection;
+            // Determine drag direction
+            if (Math.abs(row - endRow) > Math.abs(col - endCol)) { // Vertical drag
+                 newFillEnd = { row: row, col: endCol };
+                 setFillRange({ start: { row: startRow, col: startCol }, end: newFillEnd });
+            } else { // Horizontal drag
+                 newFillEnd = { row: endRow, col: col };
+                 setFillRange({ start: { row: startRow, col: startCol }, end: newFillEnd });
+            }
         }
     };
     
     const handleMouseUp = () => {
+        if (isSelecting.current) {
+            isSelecting.current = false;
+        }
+        if (isDraggingFill) {
+            // Apply the fill
+            if (fillRange) {
+                const { startRow: selStartRow, endRow: selEndRow, startCol: selStartCol, endCol: selEndCol } = normalizedSelectedRange;
+                const { startRow: fillStartRow, endRow: fillEndRow, startCol: fillStartCol, endCol: fillEndCol } = normalizedFillRange;
+
+                let newRows = [...rows];
+                const sourceData = [];
+                for (let r = selStartRow; r <= selEndRow; r++) {
+                    const rowData = [];
+                    for (let c = selStartCol; c <= selEndCol; c++) {
+                        rowData.push(newRows[r][tableHeaders[c]]);
+                    }
+                    sourceData.push(rowData);
+                }
+
+                for (let r = fillStartRow; r <= fillEndRow; r++) {
+                    for (let c = fillStartCol; c <= fillEndCol; c++) {
+                        if (r < selStartRow || r > selEndRow || c < selStartCol || c > selEndCol) { // Don't overwrite source
+                            const sourceRow = sourceData[(r - fillStartRow) % sourceData.length];
+                            const sourceValue = sourceRow[(c - fillStartCol) % sourceRow.length];
+                            newRows[r] = { ...newRows[r], [tableHeaders[c]]: sourceValue };
+                        }
+                    }
+                }
+                handleRowsChange(newRows);
+            }
+            setIsDraggingFill(false);
+            setFillRange(null);
+        }
+    };
+    
+     const handleFillHandleMouseDown = (e: MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setIsDraggingFill(true);
         isSelecting.current = false;
+        if (selectedRange.start) {
+            setFillRange({ start: selectedRange.start, end: selectedRange.end || selectedRange.start });
+        }
     };
 
     const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
@@ -533,13 +601,14 @@ export function MigrasiMurid() {
     }
 
     return (
-        <div className="p-4" onMouseUp={handleMouseUp}>
-            <Card>
+        <div className="p-4" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+             <Card>
                 <CardHeader className="flex flex-row justify-between items-start">
                     <div>
                         <CardTitle>Data Murid untuk Migrasi</CardTitle>
                         <CardDescription className="mt-1">
-                            This table behaves like a spreadsheet. Edit cells directly, select ranges, and paste data. The table will expand automatically.
+                            This table behaves like a spreadsheet. Edit cells directly, select ranges, and paste data. The table will expand
+                            automatically.
                         </CardDescription>
                     </div>
                      <div className="flex items-center gap-2">
@@ -581,7 +650,7 @@ export function MigrasiMurid() {
                 <CardContent className="p-0">
                     <div onPaste={handlePaste} className="overflow-auto border rounded-md max-h-[600px]">
                         <Table className="border-collapse w-full" style={{ tableLayout: 'fixed' }}>
-                            <TableHeader className="sticky top-0 z-10 bg-card">
+                            <TableHeader className="sticky top-0 z-20 bg-card">
                                 <TableRow className="border-0">
                                     {tableHeaders.map((header) => (
                                         <TableHead 
@@ -611,7 +680,7 @@ export function MigrasiMurid() {
                                             </div>
                                             <div
                                                 onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
-                                                className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize"
+                                                className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
                                             />
                                         </TableHead>
                                     ))}
@@ -620,19 +689,25 @@ export function MigrasiMurid() {
                             <TableBody>
                             {rows.map((row, rowIndex) => (
                                 <TableRow key={`row-${rowIndex}`} className="border-0 m-0 p-0">
-                                    {tableHeaders.map((header, colIndex) => (
+                                    {tableHeaders.map((header, colIndex) => {
+                                        const isSelected = isCellSelected(rowIndex, colIndex);
+                                        const isInFillRange = isCellInFillRange(rowIndex, colIndex);
+                                        const isBottomRightOfSelection = selectedRange.start && normalizedSelectedRange.endRow === rowIndex && normalizedSelectedRange.endCol === colIndex;
+
+                                        return (
                                         <TableCell 
                                             key={`cell-${rowIndex}-${colIndex}`} 
                                             style={{ width: `${columnWidths[header]}px`}}
                                             className={cn(
                                                 "border-t border-r p-0 m-0 h-auto relative",
                                                 { "bg-muted/30": header === "No" },
-                                                isCellSelected(rowIndex, colIndex) && header !== "No" ? 'bg-green-200/50' : ''
+                                                isSelected && header !== "No" ? 'bg-blue-100/50 dark:bg-blue-900/50' : '',
+                                                isInFillRange && 'bg-green-200/50 dark:bg-green-900/50'
                                             )}
                                         >
                                             <Input
                                               type="text"
-                                              value={String(header === "No" ? (rowIndex === 0 || row['Username'] ? rowIndex + 1 : '') : row[header] || '')}
+                                              value={String((rowIndex === 0 && header === "No") || (header === "No" && row['Username']) ? rowIndex + 1 : (header !== "No" ? row[header] || '' : ''))}
                                               readOnly={header === "No"}
                                               onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
                                               onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
@@ -641,14 +716,21 @@ export function MigrasiMurid() {
                                               data-row={rowIndex}
                                               data-col={colIndex}
                                               className={cn(
-                                                  "w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
+                                                  "w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
                                                   "whitespace-normal break-words py-2",
                                                   header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
-                                                  isCellSelected(rowIndex, colIndex) ? 'bg-transparent' : ''
+                                                  isSelected ? 'bg-transparent' : ''
                                               )}
                                             />
+                                            {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
+                                            {isBottomRightOfSelection && !isDraggingFill && (
+                                                <div 
+                                                    onMouseDown={handleFillHandleMouseDown}
+                                                    className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
+                                                />
+                                            )}
                                         </TableCell>
-                                    ))}
+                                    )})}
                                 </TableRow>
                             ))}
                             </TableBody>
@@ -674,5 +756,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
