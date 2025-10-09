@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Copy, Check, BarChart } from 'lucide-react';
 import { formatDateTime } from '@/lib/date-utils';
@@ -216,6 +216,7 @@ function L3CaseReportCard() {
                     placeholder="L3 report data will appear here..."
                 />
             </CardContent>
+            <CardFooter />
         </Card>
     );
 }
