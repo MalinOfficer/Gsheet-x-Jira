@@ -148,7 +148,7 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
     if (!reportStats) return null;
 
     return (
-        <Card className="shadow-lg">
+        <Card className="shadow-lg flex flex-col">
             <CardHeader>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <CardTitle>Daily Report</CardTitle>
@@ -161,13 +161,14 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
                     This report is generated from the data you converted on the Import Flow page.
                 </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-grow">
                 <Textarea
                     readOnly
                     value={reportStats}
                     className="h-96 text-xs font-mono bg-muted/20"
                 />
             </CardContent>
+            <CardFooter />
         </Card>
     );
 }
@@ -195,7 +196,7 @@ function L3CaseReportCard() {
     };
 
     return (
-         <Card className="shadow-lg">
+         <Card className="shadow-lg flex flex-col">
             <CardHeader>
                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <CardTitle>L3 Case Report</CardTitle>
@@ -208,7 +209,7 @@ function L3CaseReportCard() {
                     This report is generated from the verified Google Sheet and shows all 'L3' status cases.
                 </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-grow">
                 <Textarea
                     readOnly
                     value={reportText}
@@ -239,7 +240,7 @@ export function ReportHarian() {
         {!hasAnyData ? (
           <InitialState />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <DailyReportCard />
             <L3CaseReportCard />
           </div>
@@ -248,5 +249,3 @@ export function ReportHarian() {
     </div>
   );
 }
-
-    
