@@ -531,18 +531,32 @@ export async function importToSheet(
 
         // 4. Prepare data for the append operation.
         const valuesToAppend = newRows.map((row, index) => {
-            const mainData = data.headers
-                .filter(h => h.toLowerCase() !== 'ticket op') // Exclude Ticket OP from main mapping
-                .map(header => row[header] || '');
+            // Re-create the main data mapping, but this time ensure "TICKET NUMBER" is included.
+            // Based on the google sheet, data starts from column E.
+            // The JSON data has headers: Client Name,Customer Name,Status,Kolom kosong1,Ticket Category,Module,Detail Module,Created At,Title,Kolom kosong2,Resolved At,Ticket OP
+            // The Sheet has columns E-O for this data.
+            // E: Client, F: PIC Client, G: Status Case, H: First Response, I: Ticket Category, J: Module, K: Detail Module, L: Created At, M: Title, N: Resolved At, O: Ticket OP
+            
+            // From the template, the expected order is: Client Name, Customer Name, Status, Kolom kosong1, Ticket Category, Module, Detail Module, Created At, Title, Kolom kosong2, Resolved At, Ticket OP
+            // From the GSheet screenshot, the order appears to be different.
+            // Let's assume the template is correct and the user wants to map based on it.
+            // D: TICKET NUMBER, E: CLIENT, F: PIC CLIENT (Customer Name?), G: STATUS CASE, ... M: Title ... T: Ticket OP
+            const mainDataHeaders = [
+                'Client Name', 'Customer Name', 'Status', 'Kolom kosong1', 
+                'Ticket Category', 'Module', 'Detail Module', 'Created At', 
+                'Title', 'Kolom kosong2', 'Resolved At'
+            ];
+            
+            const mainData = mainDataHeaders.map(header => row[header] || '');
 
             return [
-                lastNo + index + 1, // A - NO
-                lastDate,           // B - DATE
-                lastMonth,          // C - MONTH
-                '',                 // D - Empty
-                ...mainData,        // E-O (11 columns from JSON)
-                '', '', '', '',     // P-S - Empty
-                row['Ticket OP'] || '' // T - Ticket OP
+                lastNo + index + 1,        // A - NO
+                lastDate,                  // B - DATE
+                lastMonth,                 // C - MONTH
+                row['TICKET NUMBER'] || '',// D - TICKET NUMBER
+                ...mainData,               // E-O (11 columns from JSON)
+                '', '', '', '',            // P-S - Empty
+                row['Ticket OP'] || ''     // T - Ticket OP
             ];
         });
 
@@ -763,3 +777,5 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
   
 
       
+
+    

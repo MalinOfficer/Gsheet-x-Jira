@@ -35,7 +35,7 @@ const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1aWpDRyFyl6a8bV0-e1ddYVkcfDK5WA498OHMU2Wv9iU/edit?gid=0#gid=0';
 const LOCAL_storage_key_template = 'jsonConverterHeaderTemplate';
 const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
-const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,Kolom kosong1,Ticket Category,Module,Detail Module,Created At,Title,Kolom kosong2,Resolved At,Ticket OP';
+const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,TICKET NUMBER,Ticket Category,Module,Detail Module,Created At,Title,Kolom kosong2,Resolved At,Ticket OP';
 
 
 type UpdatePreview = {
@@ -783,5 +783,7 @@ export function ImportFlow() {
     </div>
   );
 }
+
+    
 
     
