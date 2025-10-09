@@ -883,18 +883,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
         const titleIndex = 11;       // TITLE is in column M, which is the 12th column (index 11)
         const dateIndex = 0;         // DATE is in column B, which is the 1st column (index 0)
 
-        // Basic validation on header row to ensure our hardcoded indexes are likely correct
-        const headers = rows[0].map((h: string) => h.trim().toUpperCase());
-        if (
-            headers[statusIndex] !== 'STATUS CASE' ||
-            headers[ticketCategoryIndex] !== 'KATEGORI' ||
-            headers[titleIndex] !== 'TITLE'
-        ) {
-            console.error('Column mismatch detected. Expected STATUS CASE, KATEGORI, TITLE at specific positions.');
-            // This error is subtle, so we return a generic one. The user may have changed the sheet structure.
-            return { error: 'Could not find the required columns in the expected order. Please check the sheet format.' };
-        }
-
         const l3Cases = dataRows.filter(row => row[statusIndex] === 'L3');
 
         const today = new Date();
