@@ -393,8 +393,13 @@ export function ImportFlow() {
                             case 'open': value = 'L2'; break;
                             case 'pending': value = 'L1'; break;
                             case 'on hold': case 'on-hold': value = 'L3'; break;
+                            case 'new': value = 'L1'; break;
                             default: break;
                         }
+                    }
+                     // If status is still empty after potential mapping, default to L1
+                    if (header.toLowerCase() === 'status' && !value) {
+                        value = 'L1';
                     }
                     newRow[header] = value;
                 });
@@ -787,3 +792,4 @@ export function ImportFlow() {
     
 
     
+
