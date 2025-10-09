@@ -62,34 +62,34 @@ const projectFilesForAction = [
   // Komponen UI (ShadCN)
   "src/components/ui/accordion.tsx",
   "src/components/ui/alert-dialog.tsx",
-  "src/components/ui/alert.tsx",
-  "src/components/ui/avatar.tsx",
-  "src/components/ui/badge.tsx",
-  "src/components/ui/button.tsx",
-  "src/components/ui/calendar.tsx",
-  "src/components/ui/card.tsx",
-  "src/components/ui/carousel.tsx",
-  "src/components/ui/chart.tsx",
-  "src/components/ui/checkbox.tsx",
-  "src/components/ui/collapsible.tsx",
-  "src/components/ui/command.tsx",
-  "src/components/ui/dialog.tsx",
-  "src/components/ui/dropdown-menu.tsx",
-  "src/components/ui/form.tsx",
-  "src/components/ui/input.tsx",
-  "src/components/ui/label.tsx",
-  "src/components/ui/menubar.tsx",
-  "src/components/ui/multi-select.tsx",
-  "src/components/ui/navigation-menu.tsx",
-  "src/components/ui/popover.tsx",
-  "src/components/ui/progress.tsx",
-  "src/components/ui/radio-group.tsx",
-  "src/components/ui/scroll-area.tsx",
-  "src/components/ui/select.tsx",
-  "src/components/ui/separator.tsx",
-  "src/components/ui/sheet.tsx",
-  "src/components/ui/skeleton.tsx",
-  "src/components/ui/slider.tsx",
+  "src_components/ui/alert.tsx",
+  "src_components/ui/avatar.tsx",
+  "src_components/ui/badge.tsx",
+  "src_components/ui/button.tsx",
+  "src_components/ui/calendar.tsx",
+  "src_components/ui/card.tsx",
+  "src_components/ui/carousel.tsx",
+  "src_components/ui/chart.tsx",
+  "src_components/ui/checkbox.tsx",
+  "src_components/ui/collapsible.tsx",
+  "src_components/ui/command.tsx",
+  "src_components/ui/dialog.tsx",
+  "src_components/ui/dropdown-menu.tsx",
+  "src_components/ui/form.tsx",
+  "src_components/ui/input.tsx",
+  "src_components/ui/label.tsx",
+  "src_components/ui/menubar.tsx",
+  "src_components/ui/multi-select.tsx",
+  "src_components/ui/navigation-menu.tsx",
+  "src_components/ui/popover.tsx",
+  "src_components/ui/progress.tsx",
+  "src_components/ui/radio-group.tsx",
+  "src_components/ui/scroll-area.tsx",
+  "src_components/ui/select.tsx",
+  "src_components/ui/separator.tsx",
+  "src_components/ui/sheet.tsx",
+  "src_components/ui/skeleton.tsx",
+  "src_components/ui/slider.tsx",
   "src/components/ui/switch.tsx",
   "src/components/ui/table.tsx",
   "src/components/ui/tabs.tsx",
@@ -850,6 +850,125 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     return { mergedRows, unmatchedRowsB };
 }
 
+
+// New function to fetch and format L3 report data
+export async function fetchL3ReportData(sheetUrl: string) {
+    if (!sheetUrl) {
+        return { error: "URL is empty. Please provide a Google Sheet URL." };
+    }
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
+    const match = sheetUrl.match(sheetIdRegex);
+    if (!match || !match[1]) {
+        return { error: 'Invalid Google Sheets URL format.' };
+    }
+    const spreadsheetId = match[1];
+
+    try {
+        const sheets = getGoogleSheetsClient();
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'All Case!B:M', // DATE to Title
+        });
+
+        const rows = response.data.values;
+        if (!rows || rows.length < 2) {
+            return { error: 'No data found in the sheet.' };
+        }
+
+        const headers = rows[0].map(h => h.trim());
+        const dataRows = rows.slice(1);
+
+        const statusIndex = headers.indexOf('Status') -1; // Relative to B
+        const ticketCategoryIndex = headers.indexOf('Ticket Category')-1;
+        const titleIndex = headers.indexOf('Title')-1;
+        const dateIndex = 0; // Column B is the first column in our range
+
+        if (statusIndex < 0 || ticketCategoryIndex < 0 || titleIndex < 0) {
+            return { error: 'Required columns (Status, Ticket Category, Title) not found.' };
+        }
+
+        const l3Cases = dataRows.filter(row => row[statusIndex] === 'L3');
+
+        const today = new Date();
+        const l3CasesWithDuration = l3Cases.map(row => {
+            const dateStr = row[dateIndex];
+            let duration = -1; // Default/error value
+            if (dateStr) {
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    // Assuming DD/MM/YYYY
+                    const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                    if (!isNaN(caseDate.getTime())) {
+                        const diffTime = Math.abs(today.getTime() - caseDate.getTime());
+                        duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    }
+                }
+            }
+            return {
+                category: row[ticketCategoryIndex] || 'Uncategorized',
+                title: row[titleIndex],
+                duration: duration,
+            };
+        });
+
+        // Group by category
+        const groupedCases: Record<string, typeof l3CasesWithDuration> = {};
+        l3CasesWithDuration.forEach(caseItem => {
+            if (!groupedCases[caseItem.category]) {
+                groupedCases[caseItem.category] = [];
+            }
+            groupedCases[caseItem.category].push(caseItem);
+        });
+
+        const minDate = l3Cases.reduce((min, row) => {
+             const dateStr = row[dateIndex];
+             if (!dateStr) return min;
+             const parts = dateStr.split('/');
+             if (parts.length !== 3) return min;
+             const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+             return !min || caseDate < min ? caseDate : min;
+        }, null as Date | null);
+
+        const maxDate = l3Cases.reduce((max, row) => {
+            const dateStr = row[dateIndex];
+             if (!dateStr) return max;
+             const parts = dateStr.split('/');
+             if (parts.length !== 3) return max;
+             const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+             return !max || caseDate > max ? caseDate : max;
+        }, null as Date | null);
+
+        const formatDate = (date: Date | null) => {
+            if (!date) return '';
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        // Format the final report string
+        let reportText = `Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})\n\n`;
+        reportText += `Total : ${l3Cases.length}\n`;
+        
+        const categoryCounts = Object.entries(groupedCases).map(([category, cases]) => `${category} > L3 : ${cases.length}`).join('\n');
+        reportText += `${categoryCounts}\n\n`;
+
+        Object.entries(groupedCases).forEach(([category, cases]) => {
+            reportText += `${category.toUpperCase()} > L3\n`;
+            cases.forEach((caseItem, index) => {
+                reportText += `${index + 1}. ${caseItem.title} (${caseItem.duration >= 0 ? `${caseItem.duration} hari` : 'N/A'})\n`;
+            });
+            reportText += '\n';
+        });
+
+        return { success: true, report: reportText.trim() };
+
+    } catch (error: any) {
+        console.error('Failed to fetch L3 report data:', error.message);
+        const apiError = error.errors?.[0]?.message || 'An unknown error occurred while fetching L3 report.';
+        return { error: `Report Generation Failed: ${apiError}` };
+    }
+}
     
 
   

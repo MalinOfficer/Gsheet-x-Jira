@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart } from 'lucide-react';
-import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
+import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction, fetchL3ReportData } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
-import { TableDataContext, type TableData } from '@/store/table-data-context';
+import { TableDataContext, type TableData, type L3ReportData } from '@/store/table-data-context';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import {
   AlertDialog,
@@ -54,7 +54,7 @@ type LastActionUndoData = {
 } | null;
 
 export function ImportFlow() {
-  const { tableData, setTableData, setIsProcessing: setGlobalProcessing } = useContext(TableDataContext);
+  const { tableData, setTableData, setIsProcessing: setGlobalProcessing, setL3ReportData } = useContext(TableDataContext);
   const [sheetUrl, setSheetUrl] = useState('');
   const [verifiedUrl, setVerifiedUrl] = useState('');
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
@@ -107,18 +107,34 @@ export function ImportFlow() {
     }
     setSpreadsheetTitle(null);
     setAnalysisError(null);
+    setL3ReportData(null);
     startAnalyzing(async () => {
-        const result = await getSpreadsheetTitle(sheetUrl);
-        if (result.error) {
-            setAnalysisError(result.error);
+        const [titleResult, l3Result] = await Promise.all([
+            getSpreadsheetTitle(sheetUrl),
+            fetchL3ReportData(sheetUrl)
+        ]);
+
+        if (titleResult.error) {
+            setAnalysisError(titleResult.error);
             setVerifiedUrl('');
-        } else if (result.title) {
-            setSpreadsheetTitle(result.title);
+        } else if (titleResult.title) {
+            setSpreadsheetTitle(titleResult.title);
             setVerifiedUrl(sheetUrl);
             setAnalysisError(null);
         }
+
+        if (l3Result.error) {
+            toast({
+                variant: 'destructive',
+                title: 'L3 Report Failed',
+                description: l3Result.error,
+            });
+            setL3ReportData({ error: l3Result.error });
+        } else if (l3Result.success) {
+            setL3ReportData({ report: l3Result.report });
+        }
     });
-  }, [sheetUrl, toast]);
+}, [sheetUrl, toast, setL3ReportData]);
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value;
@@ -395,10 +411,9 @@ export function ImportFlow() {
                             case 'open': value = 'L2'; break;
                             case 'pending': value = 'L1'; break;
                             case 'on hold': case 'on-hold': value = 'L3'; break;
-                            case 'new': value = 'L1'; break; // Map "new" to "L1"
+                            case 'new': value = 'L1'; break;
                             default: break;
                         }
-                        // If status is still empty after potential mapping, default to L1
                         if (!value) {
                             value = 'L1';
                         }
@@ -623,7 +638,7 @@ export function ImportFlow() {
                               onClick={handleAnalyzeSheet}
                               variant={isVerified ? 'secondary' : 'default'}
                               size="sm"
-                              disabled={isProcessing}
+                              disabled={isProcessing || !sheetUrl}
                             >
                                 {isAnalyzing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
                                 {isAnalyzing ? 'Verifying...' : 'Verify'}
