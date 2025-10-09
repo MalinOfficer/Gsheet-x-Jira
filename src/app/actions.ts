@@ -879,7 +879,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
         // Hardcoded indexes based on the provided range B:M
         const statusIndex = 5;       // STATUS CASE is in column G, which is the 6th column (index 5) in range B:M
-        const ticketCategoryIndex = 7; // KATEGORI is in column I, which is the 8th column (index 7)
+        const moduleIndex = 8; // Modul is in column J, which is the 9th column (index 8)
         const titleIndex = 11;       // TITLE is in column M, which is the 12th column (index 11)
         const dateIndex = 0;         // DATE is in column B, which is the 1st column (index 0)
 
@@ -900,14 +900,19 @@ export async function fetchL3ReportData(sheetUrl: string) {
                     }
                 }
             }
+            
+            // Determine category based on 'Modul' column
+            const moduleValue = row[moduleIndex] || '';
+            const category = moduleValue === 'Payment' ? 'Payment' : 'Akademik';
+
             return {
-                category: row[ticketCategoryIndex] || 'Uncategorized',
+                category: category,
                 title: row[titleIndex],
                 duration: duration,
             };
         });
 
-        // Group by category
+        // Group by the new simplified category
         const groupedCases: Record<string, typeof l3CasesWithDuration> = {};
         l3CasesWithDuration.forEach(caseItem => {
             if (!groupedCases[caseItem.category]) {
@@ -966,23 +971,4 @@ export async function fetchL3ReportData(sheetUrl: string) {
     }
 }
     
-
-  
-
-      
-
-    
-
-    
-
-    
-
-    
-
-
-
-    
-
-    
-
     
