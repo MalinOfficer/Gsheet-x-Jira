@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, BarChart, GanttChartSquare, Settings, Loader2, ListTree, GitBranch, Files, Combine, CodeXml, FileCog } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,7 +31,6 @@ const primaryNavItems = [
 const secondaryNavItems = [
     { href: "/cek-duplikasi", label: "Cek Duplikasi", description: "Temukan NIS duplikat atau data tidak valid di beberapa file Excel.", icon: Files },
     { href: "/data-weaver", label: "Data Weaver", description: "Gabungkan dua file Excel berdasarkan kolom yang sama.", icon: Combine },
-    { href: "/data-normalisasi", label: "Data Normalisasi", description: "Transfer data antar kolom dari dua file Excel berbeda.", icon: FileCog },
     { href: "/code-viewer", label: "Code Viewer", description: "Tampilkan dan unduh seluruh kode sumber aplikasi ini.", icon: CodeXml },
 ]
 

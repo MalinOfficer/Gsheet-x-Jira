@@ -26,7 +26,6 @@ const projectFilesForAction = [
   "src/app/migrasi-murid/page.tsx",
   "src/app/cek-duplikasi/page.tsx",
   "src/app/data-weaver/page.tsx",
-  "src/app/data-normalisasi/page.tsx",
   "src/app/settings/page.tsx",
   "src/app/code-viewer/page.tsx",
 
