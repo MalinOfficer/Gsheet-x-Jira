@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { PlusCircle, Wand2, Download, Undo2, Redo2, Trash2, Files } from "lucide-react";
+import { PlusCircle, Wand2, Download, Undo2, Redo2, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -27,7 +27,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRouter } from "next/navigation";
 
 declare const XLSX: any;
 
@@ -113,7 +112,6 @@ export function MigrasiMurid() {
     const [numRowsToAdd, setNumRowsToAdd] = useState(1);
     const { toast } = useToast();
     const isSelecting = useRef(false);
-    const router = useRouter();
 
     const [history, setHistory] = useState<MuridData[][]>([rows]);
     const [historyIndex, setHistoryIndex] = useState(0);
