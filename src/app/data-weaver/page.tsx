@@ -538,68 +538,68 @@ export default function DataWeaverPage() {
 
 
     return (
-        <div className="flex-1 bg-background text-foreground">
-             <header className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Data Weaver</h1>
-                        <p className="text-sm text-muted-foreground mt-1">Upload two Excel files, select a common column to merge on, choose headers, and merge them into a single table.</p>
+        <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+            <div className="max-w-5xl mx-auto space-y-6">
+                <header>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Data Weaver</h1>
+                            <p className="text-sm text-muted-foreground mt-1">Upload two Excel files, select a common column to merge on, choose headers, and merge them into a single table.</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                        <Settings className="h-5 w-5" />
+                                        <span className="sr-only">Settings</span>
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Merge Settings</DialogTitle>
+                                        <DialogDescription>
+                                            Choose a common column to join the files on, then select the columns you want in the final table.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-4 py-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="merge-key-dialog">Kolom Acuan</Label>
+                                            <Select value={mergeKey} onValueChange={setMergeKey}>
+                                                <SelectTrigger id="merge-key-dialog">
+                                                    <SelectValue placeholder="Select a column" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {commonHeaders.map(header => (
+                                                        <SelectItem key={header} value={header}>{header}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="headers-select-dialog">Headers to Include</Label>
+                                            <MultiSelect
+                                                id="headers-select-dialog"
+                                                options={mergedHeaders}
+                                                selected={selectedHeaders}
+                                                onChange={setSelectedHeaders}
+                                                className="w-full"
+                                                placeholder="Select headers to include..."
+                                            />
+                                        </div>
+                                        <div className="pt-4 border-t">
+                                            <Button onClick={handleSaveDefaults} size="sm" variant="outline">
+                                                <Save className="mr-2 h-4 w-4" />
+                                                Set as Default
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
                     </div>
-                     <div className="flex items-center gap-2">
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                    <Settings className="h-5 w-5" />
-                                    <span className="sr-only">Settings</span>
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Merge Settings</DialogTitle>
-                                    <DialogDescription>
-                                        Choose a common column to join the files on, then select the columns you want in the final table.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="merge-key-dialog">Kolom Acuan</Label>
-                                        <Select value={mergeKey} onValueChange={setMergeKey}>
-                                            <SelectTrigger id="merge-key-dialog">
-                                                <SelectValue placeholder="Select a column" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {commonHeaders.map(header => (
-                                                    <SelectItem key={header} value={header}>{header}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="headers-select-dialog">Headers to Include</Label>
-                                        <MultiSelect
-                                            id="headers-select-dialog"
-                                            options={mergedHeaders}
-                                            selected={selectedHeaders}
-                                            onChange={setSelectedHeaders}
-                                            className="w-full"
-                                            placeholder="Select headers to include..."
-                                        />
-                                    </div>
-                                    <div className="pt-4 border-t">
-                                        <Button onClick={handleSaveDefaults} size="sm" variant="outline">
-                                            <Save className="mr-2 h-4 w-4" />
-                                            Set as Default
-                                        </Button>
-                                    </div>
-                                </div>
-                            </DialogContent>
-                        </Dialog>
-                    </div>
-                </div>
-            </header>
+                </header>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                 <div className="px-4 sm:px-6 md:px-8 max-w-5xl mx-auto">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="p-1 rounded-lg grid w-full grid-cols-3 bg-muted">
                         <TabsTrigger 
                             value="upload" 
@@ -622,10 +622,8 @@ export default function DataWeaverPage() {
                             3. Result
                         </TabsTrigger>
                     </TabsList>
-                </div>
-                
-                <TabsContent value="upload" className="mt-4">
-                     <div className="px-4 sm:px-6 md:px-8 max-w-5xl mx-auto">
+                    
+                    <TabsContent value="upload" className="mt-4">
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <div>
@@ -697,7 +695,7 @@ export default function DataWeaverPage() {
                                     />
                                 </div>
                             </CardContent>
-                             <CardFooter>
+                                <CardFooter>
                                 <Button onClick={handleMerge} disabled={!fileA || !fileB || !mergeKey} className="w-full">
                                     <Columns className="mr-2 h-4 w-4" />
                                     Merge File
@@ -705,151 +703,149 @@ export default function DataWeaverPage() {
                                 </Button>
                             </CardFooter>
                         </Card>
-                    </div>
-                </TabsContent>
+                    </TabsContent>
 
-                <TabsContent value="review" className="mt-4">
-                    <div className="space-y-6 px-4 sm:px-6 md:px-8 max-w-5xl mx-auto">
-                        {mergedData && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Review Summary</CardTitle>
-                                    <CardDescription>
-                                        The initial merge is complete. Review the unmatched data below or proceed to the final result.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-lg">
-                                        <p><span className="font-bold text-green-600">{mergedData.length} rows</span> Matched.</p>
-                                        {unmatchedData && <p><span className="font-bold text-yellow-600">{unmatchedData.length} names</span> Unmatched.</p>}
-                                    </div>
-                                </CardContent>
-                                <CardFooter>
-                                    <Button onClick={() => setActiveTab("result")} className="w-full sm:w-auto">
-                                        Continue to Result
-                                        <Forward className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </CardFooter>
-                            </Card>
-                        )}
-
-                        {unmatchedData && unmatchedData.length > 0 && (
-                            <Card>
-                                <CardHeader className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
-                                  <div className="flex-1">
-                                      <div className="flex items-center gap-4">
-                                        <AlertCircle className="h-5 w-5 text-yellow-500 shrink-0" />
-                                        <div>
-                                            <CardTitle>Unmatched Data</CardTitle>
-                                            <CardDescription>Validate these rows manually to add them to the result.</CardDescription>
+                    <TabsContent value="review" className="mt-4">
+                        <div className="space-y-6">
+                            {mergedData && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Review Summary</CardTitle>
+                                        <CardDescription>
+                                            The initial merge is complete. Review the unmatched data below or proceed to the final result.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-lg">
+                                            <p><span className="font-bold text-green-600">{mergedData.length} rows</span> Matched.</p>
+                                            {unmatchedData && <p><span className="font-bold text-yellow-600">{unmatchedData.length} names</span> Unmatched.</p>}
                                         </div>
-                                      </div>
-                                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                          <span>Keterangan:</span>
-                                          <div className="flex items-center gap-1.5">
-                                              <div className="w-3 h-3 rounded-sm bg-green-500"></div>
-                                              <span>Kemiripan Tinggi</span>
-                                          </div>
-                                          <div className="flex items-center gap-1.5">
-                                              <div className="w-3 h-3 rounded-sm bg-blue-500"></div>
-                                              <span>Kemiripan Medium</span>
-                                          </div>
-                                          <div className="flex items-center gap-1.5">
-                                              <div className="w-3 h-3 rounded-sm bg-yellow-500"></div>
-                                              <span>Kemiripan Rendah</span>
-                                          </div>
-                                           <div className="flex items-center gap-1.5">
-                                              <div className="w-3 h-3 rounded-sm bg-muted-foreground/50"></div>
-                                              <span>Tidak Ada Kemiripan</span>
-                                          </div>
-                                      </div>
-                                  </div>
-                                  <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm" className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-950 sm:w-auto shrink-0">
-                                      <PlusCircle className="mr-2 h-4 w-4" />
-                                      Add Selected to Result
-                                  </Button>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
-                                        <Table>
-                                            <TableHeader className="sticky top-0 bg-card z-10">
-                                                <TableRow>
-                                                    <TableHead>Name from id</TableHead>
-                                                    <TableHead>Name from NISN</TableHead>
-                                                    <TableHead className="text-center">Validasi</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {(() => {
-                                                    if (!fileA || !fileB) return null;
-                                                    const fileAMergeKey = fileA.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
-                                                    const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
-                                                    
-                                                    const alreadyMatchedValues = new Set([
-                                                        ...(mergedData || []).map(row => String(row[fileAMergeKey] || '').toLowerCase()),
-                                                        ...Object.values(manualSelections).filter(Boolean).map(rowA => String(rowA[fileAMergeKey] || '').toLowerCase())
-                                                    ].filter(Boolean));
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button onClick={() => setActiveTab("result")} className="w-full sm:w-auto">
+                                            Continue to Result
+                                            <Forward className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            )}
 
-
-                                                    return unmatchedData.map((unmatchedRow, rowIndex) => {
-                                                        const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
-                                                        const currentSelection = manualSelections[originalRowBKey] || unmatchedRow.bestMatch;
-                                                        
-                                                        const availableRowsA = (fileA?.rows || []).filter(rowA => {
-                                                            const rowAValue = String(rowA[fileAMergeKey] || '').toLowerCase();
-                                                            // Show if it's not selected elsewhere, OR if it's the one currently selected for this row
-                                                            return !alreadyMatchedValues.has(rowAValue) || (currentSelection && String(currentSelection[fileAMergeKey] || '').toLowerCase() === rowAValue);
-                                                        });
-                                                        
-                                                        const score = unmatchedRow.score;
-                                                        const rowStyle = score > 95 ? 'border-l-4 border-green-500' 
-                                                                       : score >= 80 ? 'border-l-4 border-blue-500'
-                                                                       : score >= 40 ? 'border-l-4 border-yellow-500'
-                                                                       : 'border-l-4 border-muted';
-
-
-                                                        return (
-                                                            <TableRow key={rowIndex} className={cn(rowStyle)}>
-                                                                <TableCell>
-                                                                    {decodeHtml(String(unmatchedRow.rowData?.[fileBMergeKey] ?? 'No name'))}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <ManualSelectCombobox
-                                                                        rowsA={availableRowsA}
-                                                                        mergeKeyA={fileAMergeKey}
-                                                                        value={currentSelection}
-                                                                        onSelect={(selectedRowA) => {
-                                                                            handleManualSelection(unmatchedRow.rowData, selectedRowA);
-                                                                        }}
-                                                                    />
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    <Button
-                                                                        size="sm"
-                                                                        onClick={() => handleManualSelection(unmatchedRow.rowData, manualSelections[originalRowBKey] ? null : currentSelection)}
-                                                                        variant={manualSelections[originalRowBKey] ? "destructive" : "default"}
-                                                                        disabled={!manualSelections[originalRowBKey] && !currentSelection}
-                                                                        className="flex items-center justify-center gap-2 w-24"
-                                                                    >
-                                                                        {manualSelections[originalRowBKey] ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                                                                        <span>{manualSelections[originalRowBKey] ? 'Unmatch' : 'Match'}</span>
-                                                                    </Button>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        )
-                                                    })
-                                                })()}
-                                            </TableBody>
-                                        </Table>
+                            {unmatchedData && unmatchedData.length > 0 && (
+                                <Card>
+                                    <CardHeader className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-4">
+                                            <AlertCircle className="h-5 w-5 text-yellow-500 shrink-0" />
+                                            <div>
+                                                <CardTitle>Unmatched Data</CardTitle>
+                                                <CardDescription>Validate these rows manually to add them to the result.</CardDescription>
+                                            </div>
+                                        </div>
+                                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                            <span>Keterangan:</span>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-3 h-3 rounded-sm bg-green-500"></div>
+                                                <span>Kemiripan Tinggi</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-3 h-3 rounded-sm bg-blue-500"></div>
+                                                <span>Kemiripan Medium</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-3 h-3 rounded-sm bg-yellow-500"></div>
+                                                <span>Kemiripan Rendah</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-3 h-3 rounded-sm bg-muted-foreground/50"></div>
+                                                <span>Tidak Ada Kemiripan</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
-                </TabsContent>
+                                    <Button onClick={handleBulkManualMerge} disabled={Object.keys(manualSelections).length === 0} size="sm" className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-950 sm:w-auto shrink-0">
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Add Selected to Result
+                                    </Button>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="relative w-full overflow-auto rounded-md border max-h-[500px]">
+                                            <Table>
+                                                <TableHeader className="sticky top-0 bg-card z-10">
+                                                    <TableRow>
+                                                        <TableHead>Name from id</TableHead>
+                                                        <TableHead>Name from NISN</TableHead>
+                                                        <TableHead className="text-center">Validasi</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {(() => {
+                                                        if (!fileA || !fileB) return null;
+                                                        const fileAMergeKey = fileA.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
+                                                        const fileBMergeKey = fileB.headers.find(h => h.toLowerCase() === mergeKey?.toLowerCase()) || '';
+                                                        
+                                                        const alreadyMatchedValues = new Set([
+                                                            ...(mergedData || []).map(row => String(row[fileAMergeKey] || '').toLowerCase()),
+                                                            ...Object.values(manualSelections).filter(Boolean).map(rowA => String(rowA[fileAMergeKey] || '').toLowerCase())
+                                                        ].filter(Boolean));
 
-                <TabsContent value="result" className="mt-4">
-                     <div className="px-4 sm:px-6 md:px-8 max-w-5xl mx-auto">
+
+                                                        return unmatchedData.map((unmatchedRow, rowIndex) => {
+                                                            const originalRowBKey = String(unmatchedRow.rowData[fileBMergeKey]);
+                                                            const currentSelection = manualSelections[originalRowBKey] || unmatchedRow.bestMatch;
+                                                            
+                                                            const availableRowsA = (fileA?.rows || []).filter(rowA => {
+                                                                const rowAValue = String(rowA[fileAMergeKey] || '').toLowerCase();
+                                                                // Show if it's not selected elsewhere, OR if it's the one currently selected for this row
+                                                                return !alreadyMatchedValues.has(rowAValue) || (currentSelection && String(currentSelection[fileAMergeKey] || '').toLowerCase() === rowAValue);
+                                                            });
+                                                            
+                                                            const score = unmatchedRow.score;
+                                                            const rowStyle = score > 95 ? 'border-l-4 border-green-500' 
+                                                                        : score >= 80 ? 'border-l-4 border-blue-500'
+                                                                        : score >= 40 ? 'border-l-4 border-yellow-500'
+                                                                        : 'border-l-4 border-muted';
+
+
+                                                            return (
+                                                                <TableRow key={rowIndex} className={cn(rowStyle)}>
+                                                                    <TableCell>
+                                                                        {decodeHtml(String(unmatchedRow.rowData?.[fileBMergeKey] ?? 'No name'))}
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <ManualSelectCombobox
+                                                                            rowsA={availableRowsA}
+                                                                            mergeKeyA={fileAMergeKey}
+                                                                            value={currentSelection}
+                                                                            onSelect={(selectedRowA) => {
+                                                                                handleManualSelection(unmatchedRow.rowData, selectedRowA);
+                                                                            }}
+                                                                        />
+                                                                    </TableCell>
+                                                                    <TableCell className="text-center">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            onClick={() => handleManualSelection(unmatchedRow.rowData, manualSelections[originalRowBKey] ? null : currentSelection)}
+                                                                            variant={manualSelections[originalRowBKey] ? "destructive" : "default"}
+                                                                            disabled={!manualSelections[originalRowBKey] && !currentSelection}
+                                                                            className="flex items-center justify-center gap-2 w-24"
+                                                                        >
+                                                                            {manualSelections[originalRowBKey] ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                                                                            <span>{manualSelections[originalRowBKey] ? 'Unmatch' : 'Match'}</span>
+                                                                        </Button>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            )
+                                                        })
+                                                    })()}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="result" className="mt-4">
                         {mergedData && (
                             <Card className="mb-6">
                                 <CardHeader>
@@ -901,9 +897,9 @@ export default function DataWeaverPage() {
                                 </CardContent>
                             </Card>
                         )}
-                    </div>
-                </TabsContent>
-            </Tabs>
+                    </TabsContent>
+                </Tabs>
+            </div>
         </div>
     );
 }
@@ -991,6 +987,7 @@ function ManualSelectCombobox({
     
 
     
+
 
 
 
