@@ -386,20 +386,20 @@ export function ImportFlow() {
                     const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
                     let value = matchingKey ? flatRow[matchingKey] : '';
 
-                    if (header.toLowerCase() === 'status' && typeof value === 'string') {
-                        const lowerCaseValue = value.toLowerCase();
+                    if (header.toLowerCase() === 'status') {
+                        const lowerCaseValue = String(value).toLowerCase();
                         switch (lowerCaseValue) {
                             case 'resolved': value = 'Solved'; break;
                             case 'open': value = 'L2'; break;
                             case 'pending': value = 'L1'; break;
                             case 'on hold': case 'on-hold': value = 'L3'; break;
-                            case 'new': value = 'L1'; break;
+                            case 'new': value = 'L1'; break; // Map "new" to "L1"
                             default: break;
                         }
-                    }
-                     // If status is still empty after potential mapping, default to L1
-                    if (header.toLowerCase() === 'status' && !value) {
-                        value = 'L1';
+                        // If status is still empty after potential mapping, default to L1
+                        if (!value) {
+                            value = 'L1';
+                        }
                     }
                     newRow[header] = value;
                 });
@@ -611,15 +611,22 @@ export function ImportFlow() {
                       </Button>
                     </div>
                      <div className='mt-2'>
-                        <Button
-                          onClick={handleAnalyzeSheet}
-                          variant={isVerified ? 'outline' : 'default'}
-                          size="sm"
-                          disabled={isProcessing || isVerified}
-                        >
-                            {isAnalyzing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
-                            {isAnalyzing ? 'Verifying...' : 'Verify'}
-                        </Button>
+                        {isVerified ? (
+                            <Button size="sm" disabled className="bg-green-600 hover:bg-green-600 text-white">
+                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                Verified
+                            </Button>
+                        ) : (
+                            <Button
+                              onClick={handleAnalyzeSheet}
+                              variant={'default'}
+                              size="sm"
+                              disabled={isProcessing}
+                            >
+                                {isAnalyzing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
+                                {isAnalyzing ? 'Verifying...' : 'Verify'}
+                            </Button>
+                        )}
                      </div>
                     <div className="mt-1 h-5">
                       {isAnalyzing && <div className="flex items-center text-xs text-muted-foreground"><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /><span>Analyzing...</span></div>}
