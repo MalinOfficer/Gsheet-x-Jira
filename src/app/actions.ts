@@ -472,7 +472,35 @@ export async function importToSheet(
             return { error: `The target sheet named "${sheetName}" was not found in the spreadsheet.` };
         }
 
-        // 2. Find existing titles to avoid duplicates (from column M)
+        // 2. Get last row data for NO, DATE, and MONTH
+        const lastRowRange = `${sheetName}!A:C`;
+        const lastRowResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: lastRowRange,
+            majorDimension: 'ROWS',
+        });
+        const allRows = lastRowResponse.data.values || [];
+        const lastPopulatedRow = [...allRows].reverse().find(row => row.some(cell => cell !== '' && cell !== null && cell !== undefined));
+
+        let lastNo = 0;
+        let lastDate = '';
+        let lastMonth = '';
+        
+        if (lastPopulatedRow) {
+            lastNo = parseInt(lastPopulatedRow[0] || '0', 10);
+            lastDate = lastPopulatedRow[1] || '';
+            lastMonth = lastPopulatedRow[2] || '';
+        }
+
+        // If date/month are empty, use today's date
+        if (!lastDate || !lastMonth) {
+            const today = new Date();
+            lastDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
+            lastMonth = today.toLocaleString('id-ID', { month: 'long' });
+        }
+
+
+        // 3. Find existing titles to avoid duplicates (from column M)
         const titleRange = `${sheetName}!M:M`;
         const titleResponse = await sheets.spreadsheets.values.get({
             spreadsheetId,
@@ -501,26 +529,24 @@ export async function importToSheet(
             };
         }
 
-        // 3. Prepare data for the append operation.
-        // The final structure should have data up to column T.
-        // Columns A-D are empty.
-        // E-O are from the main headers.
-        // P-S are empty.
-        // T is "Ticket OP".
-        const valuesToAppend = newRows.map(row => {
+        // 4. Prepare data for the append operation.
+        const valuesToAppend = newRows.map((row, index) => {
             const mainData = data.headers
                 .filter(h => h.toLowerCase() !== 'ticket op') // Exclude Ticket OP from main mapping
                 .map(header => row[header] || '');
 
             return [
-                '', '', '', '', // A-D
-                ...mainData,   // E-O (11 columns)
-                '', '', '', '', // P-S
-                row['Ticket OP'] || '' // T
+                lastNo + index + 1, // A - NO
+                lastDate,           // B - DATE
+                lastMonth,          // C - MONTH
+                '',                 // D - Empty
+                ...mainData,        // E-O (11 columns from JSON)
+                '', '', '', '',     // P-S - Empty
+                row['Ticket OP'] || '' // T - Ticket OP
             ];
         });
 
-        // 4. Use `append` to add the new rows. This will automatically add new rows if the grid is full.
+        // 5. Use `append` to add the new rows.
         const appendResult = await sheets.spreadsheets.values.append({
             spreadsheetId,
             range: sheetName, // Append to the entire sheet, API finds the last row
@@ -530,7 +556,7 @@ export async function importToSheet(
             },
         });
 
-        // 5. Prepare data for the 'Undo' action
+        // 6. Prepare data for the 'Undo' action
         const updatedRange = appendResult.data.updates?.updatedRange;
         if (!updatedRange) {
             return {
@@ -542,7 +568,6 @@ export async function importToSheet(
             };
         }
         
-        // Regex to extract start row from a range like 'All Case'!A2414:T2414
         const rangeRegex = /!A(\d+):/; 
         const matchResult = updatedRange.match(rangeRegex);
         if (!matchResult || !matchResult[1]) {
@@ -736,3 +761,5 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     
 
   
+
+      
