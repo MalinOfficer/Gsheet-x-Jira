@@ -335,7 +335,7 @@ export async function getUpdatePreview(
         for (const appRow of data.rows) {
             const detailCase = appRow['Title'];
             const newStatus = appRow['Status'];
-            const newTicketOp = appRow['Ticket OP'];
+            const newTicketOp = appRow['Ticket OP'] || '';
             const newCheckout = appRow['Resolved At'] || '';
 
             if (typeof detailCase === 'string') {
@@ -346,7 +346,8 @@ export async function getUpdatePreview(
                     
                     if (sheetRowInfo) {
                         const statusChanged = sheetRowInfo.currentStatus !== newStatus;
-                        const ticketOpChanged = sheetRowInfo.currentTicketOp !== newTicketOp;
+                        // Only consider it a change if the new Ticket OP is not empty
+                        const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
                         const checkoutChanged = newStatus === 'Solved' && sheetRowInfo.currentCheckout !== newCheckout;
 
                         if (statusChanged || ticketOpChanged || checkoutChanged) {
@@ -355,7 +356,7 @@ export async function getUpdatePreview(
                                 oldStatus: sheetRowInfo.currentStatus,
                                 newStatus: newStatus,
                                 oldTicketOp: sheetRowInfo.currentTicketOp,
-                                newTicketOp: newTicketOp,
+                                newTicketOp: ticketOpChanged ? newTicketOp : sheetRowInfo.currentTicketOp,
                                 oldCheckout: sheetRowInfo.currentCheckout,
                                 newCheckout: newStatus === 'Solved' ? newCheckout : sheetRowInfo.currentCheckout,
                             });
@@ -408,7 +409,7 @@ export async function updateSheetStatus(
         for (const appRow of data.rows) {
             const detailCase = appRow['Title'];
             const newStatus = appRow['Status'];
-            const newTicketOp = appRow['Ticket OP'];
+            const newTicketOp = appRow['Ticket OP'] || '';
             const newCheckout = appRow['Resolved At'] || '';
 
             if (typeof detailCase === 'string') {
@@ -419,7 +420,8 @@ export async function updateSheetStatus(
                     
                     if (sheetRowInfo) {
                         const statusChanged = sheetRowInfo.currentStatus !== newStatus;
-                        const ticketOpChanged = sheetRowInfo.currentTicketOp !== newTicketOp;
+                        // Only trigger an update if the new Ticket OP from the app is not empty and different.
+                        const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
                         const isSolvedNow = newStatus === 'Solved';
                         const checkoutWillChange = isSolvedNow && sheetRowInfo.currentCheckout !== newCheckout;
                         
@@ -436,7 +438,7 @@ export async function updateSheetStatus(
                                     values: [[newTicketOp]],
                                 });
                             }
-                             if (isSolvedNow) {
+                             if (checkoutWillChange) { // Only update checkout if it's changing
                                 updateRequests.push({
                                     range: `${sheetName}!O${sheetRowInfo.rowIndex}`,
                                     values: [[newCheckout]],
@@ -449,7 +451,7 @@ export async function updateSheetStatus(
                                 oldStatus: sheetRowInfo.currentStatus, 
                                 newStatus, 
                                 oldTicketOp: sheetRowInfo.currentTicketOp,
-                                newTicketOp,
+                                newTicketOp: ticketOpChanged ? newTicketOp : sheetRowInfo.currentTicketOp,
                                 oldCheckout: sheetRowInfo.currentCheckout,
                                 newCheckout: isSolvedNow ? newCheckout : sheetRowInfo.currentCheckout
                             });
@@ -519,14 +521,21 @@ export async function importToSheet(
             majorDimension: 'ROWS',
         });
         const allRows = lastRowResponse.data.values || [];
-        const lastPopulatedRow = [...allRows].reverse().find(row => row.some(cell => cell !== '' && cell !== null && cell !== undefined));
-
+        
         let lastRowIndex = allRows.length;
         let lastNo = 0;
         
-        if (lastPopulatedRow) {
-            lastNo = parseInt(lastPopulatedRow[0] || '0', 10);
+        if (allRows.length > 0) {
+           // Find the last row with a valid 'No' in column A
+            for (let i = allRows.length - 1; i >= 0; i--) {
+                const noValue = allRows[i][0];
+                if (noValue && !isNaN(Number(noValue))) {
+                    lastNo = parseInt(noValue, 10);
+                    break;
+                }
+            }
         }
+
 
         // 3. Find existing titles to avoid duplicates (from column M)
         const titleRange = `${sheetName}!M:M`;
@@ -715,18 +724,24 @@ export async function undoLastAction(
                 oldTicketOp: string,
                 oldCheckout: string,
                 newStatus: string, // to check if we need to revert checkout
+                newTicketOp: string,
              }) => {
-                const requests = [
-                    {
-                        range: `${sheetName}!G${row.rowIndex}`,
-                        values: [[row.oldStatus]],
-                    },
-                    {
+                const requests = [];
+                // Always revert status
+                requests.push({
+                    range: `${sheetName}!G${row.rowIndex}`,
+                    values: [[row.oldStatus]],
+                });
+                
+                // Only revert Ticket OP if it was actually changed
+                if (row.newTicketOp && row.oldTicketOp !== row.newTicketOp) {
+                    requests.push({
                         range: `${sheetName}!T${row.rowIndex}`,
                         values: [[row.oldTicketOp]],
-                    }
-                ];
+                    });
+                }
 
+                // Only revert checkout if it was changed
                 if (row.newStatus === 'Solved') {
                     requests.push({
                          range: `${sheetName}!O${row.rowIndex}`,
@@ -840,6 +855,8 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
   
 
       
+
+    
 
     
 
