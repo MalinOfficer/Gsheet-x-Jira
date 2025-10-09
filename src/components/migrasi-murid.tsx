@@ -509,7 +509,7 @@ export function MigrasiMurid() {
 
     if (!isClient) {
         return (
-             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+             <div className="flex-1 bg-background text-foreground p-4">
                 <Card className="shadow-lg">
                     <CardHeader>
                         <Skeleton className="h-8 w-64" />
@@ -530,7 +530,7 @@ export function MigrasiMurid() {
     }
 
     return (
-        <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+        <div className="flex-1 bg-background text-foreground p-4">
             <Card className="shadow-lg">
                 <CardHeader className="flex flex-row justify-between items-start">
                     <div>
