@@ -54,13 +54,18 @@ type LastActionUndoData = {
 } | null;
 
 export function ImportFlow() {
-  const { tableData, setTableData, setIsProcessing: setGlobalProcessing, setL3ReportData } = useContext(TableDataContext);
-  const [sheetUrl, setSheetUrl] = useState('');
-  const [verifiedUrl, setVerifiedUrl] = useState('');
+  const { 
+    tableData, setTableData, 
+    isProcessing, setIsProcessing: setGlobalProcessing, 
+    l3ReportData, setL3ReportData,
+    sheetUrl, setSheetUrl,
+    verifiedUrl, setVerifiedUrl,
+    spreadsheetTitle, setSpreadsheetTitle
+  } = useContext(TableDataContext);
+
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
   const [lastActionUndoData, setLastActionUndoData] = useState<LastActionUndoData>(null);
-  const [spreadsheetTitle, setSpreadsheetTitle] = useState<string | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [jsonInput, setJsonInput] = useState('');
   const [templateInput, setTemplateInput] = useState(DEFAULT_TEMPLATE);
@@ -81,18 +86,20 @@ export function ImportFlow() {
   const [isAnalyzing, startAnalyzing] = useTransition();
   const [isConverting, startConverting] = useTransition();
   
-  const isProcessing = isImporting || isUpdating || isPreviewing || isUndoing || isAnalyzing || isConverting;
+  const isAnyProcessing = isImporting || isUpdating || isPreviewing || isUndoing || isAnalyzing || isConverting;
 
   useEffect(() => {
-    setGlobalProcessing(isProcessing);
-  }, [isProcessing, setGlobalProcessing]);
+    setGlobalProcessing(isAnyProcessing);
+  }, [isAnyProcessing, setGlobalProcessing]);
 
 
   const { toast } = useToast();
 
   useEffect(() => {
     const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
-    setSheetUrl(savedUrl || DEFAULT_SHEET_URL);
+    if (!sheetUrl) { // Only set from localStorage if context is empty
+        setSheetUrl(savedUrl || DEFAULT_SHEET_URL);
+    }
     const savedTemplate = localStorage.getItem(LOCAL_storage_key_template);
     setTemplateInput(savedTemplate || DEFAULT_TEMPLATE);
     const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
@@ -123,11 +130,14 @@ export function ImportFlow() {
     }
     setSpreadsheetTitle(null);
     setAnalysisError(null);
-    setL3ReportData(null);
+    if (!l3ReportData) { // Avoid re-fetching if already present
+      setL3ReportData(null);
+    }
     startAnalyzing(async () => {
         const [titleResult, l3Result] = await Promise.all([
             getSpreadsheetTitle(sheetUrl),
-            fetchL3ReportData(sheetUrl)
+            // Only fetch L3 data if it's not already in context
+            l3ReportData ? Promise.resolve({ success: true, report: l3ReportData.report }) : fetchL3ReportData(sheetUrl)
         ]);
 
         if (titleResult.error) {
@@ -150,7 +160,7 @@ export function ImportFlow() {
             setL3ReportData({ report: l3Result.report });
         }
     });
-}, [sheetUrl, toast, setL3ReportData]);
+}, [sheetUrl, toast, setSpreadsheetTitle, setVerifiedUrl, setL3ReportData, l3ReportData]);
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value;
@@ -160,6 +170,7 @@ export function ImportFlow() {
       setSpreadsheetTitle(null);
       setAnalysisError(null);
       setVerifiedUrl('');
+      setL3ReportData(null); // Clear L3 report if URL changes
     }
   };
 

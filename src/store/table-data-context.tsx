@@ -22,6 +22,12 @@ interface TableDataContextType {
     setIsProcessing: (processing: boolean) => void;
     isCodeViewerEnabled: boolean;
     toggleCodeViewer: () => void;
+    sheetUrl: string;
+    setSheetUrl: (url: string) => void;
+    verifiedUrl: string;
+    setVerifiedUrl: (url: string) => void;
+    spreadsheetTitle: string | null;
+    setSpreadsheetTitle: (title: string | null) => void;
 }
 
 export const TableDataContext = createContext<TableDataContextType>({
@@ -33,6 +39,12 @@ export const TableDataContext = createContext<TableDataContextType>({
     setIsProcessing: () => {},
     isCodeViewerEnabled: false,
     toggleCodeViewer: () => {},
+    sheetUrl: '',
+    setSheetUrl: () => {},
+    verifiedUrl: '',
+    setVerifiedUrl: () => {},
+    spreadsheetTitle: null,
+    setSpreadsheetTitle: () => {},
 });
 
 const LOCAL_STORAGE_KEY_CODE_VIEWER = 'isCodeViewerEnabled';
@@ -42,6 +54,11 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
     const [l3ReportData, setL3ReportData] = useState<L3ReportData>(null);
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
     const [isCodeViewerEnabled, setIsCodeViewerEnabled] = useState<boolean>(false);
+    
+    // Verification-related state
+    const [sheetUrl, setSheetUrl] = useState('');
+    const [verifiedUrl, setVerifiedUrl] = useState('');
+    const [spreadsheetTitle, setSpreadsheetTitle] = useState<string | null>(null);
 
     useEffect(() => {
         try {
@@ -77,6 +94,12 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
             setIsProcessing,
             isCodeViewerEnabled,
             toggleCodeViewer,
+            sheetUrl,
+            setSheetUrl,
+            verifiedUrl,
+            setVerifiedUrl,
+            spreadsheetTitle,
+            setSpreadsheetTitle,
         }}>
             {children}
         </TableDataContext.Provider>
