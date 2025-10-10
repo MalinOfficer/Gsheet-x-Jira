@@ -104,9 +104,13 @@ export function ImportFlow() {
   // Effect for auto-scrolling
   useEffect(() => {
     if (tableData && destinationCardRef.current) {
-        destinationCardRef.current.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start',
+        const headerOffset = 80; // height of sticky header + some padding
+        const elementPosition = destinationCardRef.current.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.scrollY - headerOffset;
+
+        window.scrollTo({
+            top: offsetPosition,
+            behavior: "smooth"
         });
     }
   }, [tableData]);
