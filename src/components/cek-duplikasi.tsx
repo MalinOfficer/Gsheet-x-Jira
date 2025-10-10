@@ -93,37 +93,46 @@ export function CekDuplikasi() {
     };
 
     const findHeaderRow = (sheetData: any[][]): HeaderValidationResult => {
+        let potentialHeaderRow = -1;
+        let nisIndex = -1;
+        let nisnIndex = -1;
+        let namaIndex = -1;
+
         for (let i = 0; i < Math.min(sheetData.length, 20); i++) {
             const row = sheetData[i];
             if (!Array.isArray(row)) continue;
-
+    
             const lowerCaseHeaders = row.map(h => String(h || '').toLowerCase().trim());
+            const tempNisIndex = lowerCaseHeaders.findIndex(h => h === 'nis' || h === 'no. induk');
+            const tempNisnIndex = lowerCaseHeaders.findIndex(h => h === 'nisn');
+            const tempNamaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
             
-            const nisIndex = lowerCaseHeaders.findIndex(h => h === 'nis' || h === 'no. induk');
-            const nisnIndex = lowerCaseHeaders.findIndex(h => h === 'nisn');
-            const namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
-            const dobIndex = lowerCaseHeaders.findIndex(h => h.includes('tanggal lahir') || h.includes('tgl lahir'));
-            
-            const hasId = nisIndex !== -1 || nisnIndex !== -1;
-            const hasName = namaIndex !== -1;
-
-            if (hasId && hasName) {
-                return {
-                    success: true,
-                    headerInfo: { rowIndex: i, nisIndex, nisnIndex, namaIndex, dobIndex }
-                };
-            }
-            
-            // If we find a row that might be a header, but it's incomplete
-            if (hasId || hasName) {
-                const missing: ('Nama' | 'NIS/NISN')[] = [];
-                if (!hasName) missing.push('Nama');
-                if (!hasId) missing.push('NIS/NISN');
-                return { success: false, missing };
+            if (tempNamaIndex !== -1 || tempNisIndex !== -1 || tempNisnIndex !== -1) {
+                 potentialHeaderRow = i;
+                 nisIndex = tempNisIndex;
+                 nisnIndex = tempNisnIndex;
+                 namaIndex = tempNamaIndex;
+                 break;
             }
         }
-        // If no potential header row is found at all
-        return { success: false, missing: ['Nama', 'NIS/NISN'] };
+
+        if (potentialHeaderRow === -1) {
+            return { success: false, missing: ['Nama', 'NIS/NISN'] };
+        }
+
+        const missing: ('Nama' | 'NIS/NISN')[] = [];
+        if (namaIndex === -1) missing.push('Nama');
+        if (nisIndex === -1 && nisnIndex === -1) missing.push('NIS/NISN');
+        
+        if (missing.length > 0) {
+            return { success: false, missing };
+        }
+        
+        const dobIndex = sheetData[potentialHeaderRow].map(h => String(h || '').toLowerCase().trim()).findIndex(h => h.includes('tanggal lahir') || h.includes('tgl lahir'));
+        return {
+            success: true,
+            headerInfo: { rowIndex: potentialHeaderRow, nisIndex, nisnIndex, namaIndex, dobIndex }
+        };
     };
 
 
@@ -331,7 +340,7 @@ export function CekDuplikasi() {
                     <XCircle className="w-16 h-16 text-destructive mb-4" />
                     <p className="font-semibold text-lg">Pengecekan Gagal</p>
                     <p className="text-muted-foreground mt-1 max-w-md">
-                        Tidak ada file valid yang dapat diproses. Pastikan setiap file memiliki setidaknya satu sheet dengan kolom 'Nama' dan 'NIS' atau 'NISN'.
+                        Tidak ada file valid yang dapat diproses. Pastikan setiap file memiliki kolom 'Nama' dan setidaknya salah satu dari 'NIS' atau 'NISN' sesuai petunjuk notifikasi.
                     </p>
                 </div>
             );
@@ -477,7 +486,7 @@ export function CekDuplikasi() {
                 )}
             </div>
         );
-    };
+    }
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
