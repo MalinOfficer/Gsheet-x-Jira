@@ -731,7 +731,7 @@ export function ImportFlow() {
                                 {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
                                 {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
                             </Button>
-                             <Button onClick={handleNavigateToReport} size="sm" className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white" disabled={isProcessing || !tableData}>
+                             <Button onClick={handleNavigateToReport} size="sm" className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white" disabled={isProcessing || !tableData || !isVerified}>
                                 <BarChart className="mr-2 h-4 w-4" />
                                 Report Harian
                             </Button>
@@ -818,6 +818,8 @@ export function ImportFlow() {
     </div>
   );
 }
+
+    
 
     
 
