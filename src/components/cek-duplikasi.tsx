@@ -5,7 +5,7 @@ import { useState, useCallback, useTransition, useMemo, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, CheckCircle2, AlertTriangle, Trash2, Search, FileWarning, Copy, Check, Cake } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, AlertTriangle, Trash2, Search, FileWarning, Copy, Check, Cake, XCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -41,6 +41,7 @@ export function CekDuplikasi() {
     const [emptyDobRecords, setEmptyDobRecords] = useState<StudentRecord[]>([]);
     const [isChecking, startChecking] = useTransition();
     const [hasChecked, setHasChecked] = useState(false);
+    const [processedFileCount, setProcessedFileCount] = useState(0);
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +52,7 @@ export function CekDuplikasi() {
             setEmptyIdRecords([]);
             setEmptyDobRecords([]);
             setHasChecked(false);
+            setProcessedFileCount(0);
             
             try {
                 const filePromises = Array.from(event.target.files).map(file => {
@@ -123,6 +125,7 @@ export function CekDuplikasi() {
 
         startChecking(async () => {
             setHasChecked(true);
+            setProcessedFileCount(0);
             const idMap = new Map<string, { nama: string, fileName: string, sheetName: string }[]>();
             const foundEmptyId: StudentRecord[] = [];
             const foundEmptyDob: StudentRecord[] = [];
@@ -204,6 +207,8 @@ export function CekDuplikasi() {
                     });
                 }
             }
+            
+            setProcessedFileCount(filesProcessed);
 
             const foundDuplicates: StudentRecord[] = [];
             idMap.forEach((records, id) => {
@@ -226,6 +231,7 @@ export function CekDuplikasi() {
         setEmptyIdRecords([]);
         setEmptyDobRecords([]);
         setHasChecked(false);
+        setProcessedFileCount(0);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -297,6 +303,18 @@ export function CekDuplikasi() {
     };
 
     const renderResults = () => {
+        if (processedFileCount === 0) {
+            return (
+                <div className="flex flex-col items-center justify-center text-center py-8">
+                    <XCircle className="w-16 h-16 text-destructive mb-4" />
+                    <p className="font-semibold text-lg">Pengecekan Gagal</p>
+                    <p className="text-muted-foreground mt-1 max-w-md">
+                        Tidak ada file valid yang dapat diproses. Pastikan setiap file memiliki setidaknya satu sheet dengan kolom 'Nama' dan 'NIS' atau 'NISN'.
+                    </p>
+                </div>
+            );
+        }
+
         if (duplicates.length === 0 && emptyIdRecords.length === 0 && emptyDobRecords.length === 0) {
             return (
                 <div className="flex flex-col items-center justify-center text-center py-8">
