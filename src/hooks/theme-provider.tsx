@@ -28,36 +28,41 @@ export function ThemeProvider({
   defaultTheme?: Theme;
   storageKey?: string;
 }) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme);
-
-  useEffect(() => {
-    const storedTheme = localStorage.getItem(storageKey) as Theme | null;
-    if (storedTheme) {
-      setTheme(storedTheme);
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') {
+      return defaultTheme;
     }
+    return (localStorage.getItem(storageKey) as Theme | null) || defaultTheme;
+  });
+
+  const handleSetTheme = useCallback((newTheme: Theme) => {
+    localStorage.setItem(storageKey, newTheme);
+
+    const root = window.document.documentElement;
+    root.classList.remove('default', 'dark');
+    root.classList.add(newTheme);
+
+    setTheme(newTheme);
   }, [storageKey]);
 
+  // This effect ensures that if the theme is changed in another tab,
+  // this tab will update its state.
   useEffect(() => {
-    const root = window.document.documentElement;
-    
-    root.classList.remove('default', 'dark');
-
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-        .matches ? 'dark' : 'default'
-      root.classList.add(systemTheme)
-      return
-    }
-
-    root.classList.add(theme);
-  }, [theme]);
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === storageKey) {
+        const newTheme = (event.newValue as Theme) || defaultTheme;
+        handleSetTheme(newTheme);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [storageKey, defaultTheme, handleSetTheme]);
 
   const value = {
     theme,
-    setTheme: useCallback((newTheme: Theme) => {
-      localStorage.setItem(storageKey, newTheme);
-      setTheme(newTheme);
-    }, [storageKey]),
+    setTheme: handleSetTheme,
   };
 
   return (
