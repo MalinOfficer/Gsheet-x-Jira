@@ -475,7 +475,7 @@ export function CekDuplikasi() {
                     </div>
                 )}
             </div>
-        )
+        );
     };
 
     return (
@@ -500,7 +500,7 @@ export function CekDuplikasi() {
                         </Button>
                     </CardHeader>
                     <CardContent>
-                         <div className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-lg">
+                         <div className="w-full p-6 border-2 border-dashed rounded-lg">
                             <Input
                                 ref={fileInputRef}
                                 type="file"
@@ -544,5 +544,3 @@ export function CekDuplikasi() {
         </div>
     );
 }
-
-    
