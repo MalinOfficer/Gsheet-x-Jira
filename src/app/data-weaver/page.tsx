@@ -543,7 +543,7 @@ export default function DataWeaverPage() {
                     <div className="flex justify-between items-center">
                         <div>
                             <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Data Weaver (edit file bulk)</h1>
-                            <p className="text-sm text-muted-foreground mt-1">Upload two Excel files, select a common column to merge on, choose headers, and merge them into a single table.</p>
+                            <p className="text-sm text-muted-foreground mt-1">Upload 2 data Excel, file ID dari web Bulk BO dan file NISN, File tahun ajaran atau file data yang ingin diedit pada web Bulk</p>
                         </div>
                         <div className="flex items-center gap-2">
                             <Dialog>
@@ -980,3 +980,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
