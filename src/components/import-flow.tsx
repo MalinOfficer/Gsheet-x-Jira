@@ -72,6 +72,7 @@ export function ImportFlow() {
    const [isCopied, setIsCopied] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const destinationCardRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const [isImporting, startImporting] = useTransition();
   const [isUpdating, startUpdating] = useTransition();
@@ -441,6 +442,12 @@ export function ImportFlow() {
             setTableData({ headers, rows: processedRows });
             localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, jsonInput);
             toast({ title: "Conversion Successful", description: "Your JSON has been converted and sorted." });
+            
+            // Scroll after a short delay to allow the DOM to update
+            setTimeout(() => {
+                destinationCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+
         } catch (e) {
             setJsonError(e instanceof Error ? `Invalid JSON: ${e.message}` : "An unknown error occurred during conversion.");
         }
@@ -603,7 +610,7 @@ export function ImportFlow() {
         
         {tableData && (
           <>
-            <Card className="shadow-lg">
+            <Card className="shadow-lg" ref={destinationCardRef}>
               <CardHeader>
                 <CardTitle>2. Set Destination and Export</CardTitle>
                 <CardDescription>
@@ -818,9 +825,3 @@ export function ImportFlow() {
     </div>
   );
 }
-
-    
-
-    
-
-    
