@@ -676,11 +676,18 @@ export function MigrasiMurid() {
                 </div>
             </header>
             
-            <div className="flex-grow border rounded-md overflow-hidden relative" onPaste={handlePaste}>
-                <div ref={tableContainerRef} className="h-full w-full overflow-auto">
+            <div className="flex-grow min-h-0">
+                <div 
+                    ref={tableContainerRef} 
+                    className="h-full border rounded-md overflow-auto"
+                    onPaste={handlePaste}
+                >
                     <div style={{ width: `${totalWidth}px`, height: `${totalHeight}px` }} className="relative">
                         {/* Sticky Header */}
-                         <div className="sticky top-0 z-20 bg-muted" style={{ height: '36px' }}>
+                        <div
+                            style={{ height: '36px' }}
+                            className="sticky top-0 z-20 bg-muted"
+                        >
                             {virtualColumns.map((virtualColumn) => {
                                 const header = tableHeaders[virtualColumn.index];
                                 return (
@@ -726,70 +733,68 @@ export function MigrasiMurid() {
                         </div>
 
                         {/* Virtualized Cells Body */}
-                         <div className="relative z-10" style={{top: '0px'}}>
-                            {virtualRows.map((virtualRow) => {
-                                const rowIndex = virtualRow.index;
-                                const row = rows[rowIndex];
+                        {virtualRows.map((virtualRow) => {
+                            const rowIndex = virtualRow.index;
+                            const row = rows[rowIndex];
 
-                                return virtualColumns.map((virtualColumn) => {
-                                    const colIndex = virtualColumn.index;
-                                    const header = tableHeaders[colIndex];
-                                    const isSelected = isCellSelected(rowIndex, colIndex);
-                                    const isFillPreviewing = isDraggingFill && isCellInFillRange(rowIndex, colIndex) && !isSelected;
-                                    const isBottomRightOfSelection = selectedRange.start && normalizedSelectedRange.endRow === rowIndex && normalizedSelectedRange.endCol === colIndex;
+                            return virtualColumns.map((virtualColumn) => {
+                                const colIndex = virtualColumn.index;
+                                const header = tableHeaders[colIndex];
+                                const isSelected = isCellSelected(rowIndex, colIndex);
+                                const isFillPreviewing = isDraggingFill && isCellInFillRange(rowIndex, colIndex) && !isSelected;
+                                const isBottomRightOfSelection = selectedRange.start && normalizedSelectedRange.endRow === rowIndex && normalizedSelectedRange.endCol === colIndex;
 
-                                    let cellValue;
-                                    if (header === "No") {
-                                        cellValue = (rowIndex === 0 || (row && row['Username'])) ? String(rowIndex + 1) : '';
-                                    } else {
-                                        cellValue = row ? row[header] || '' : '';
-                                    }
-                                    
-                                    return (
-                                        <div
-                                            key={`cell-${rowIndex}-${colIndex}`}
-                                            style={{
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                width: `${virtualColumn.size}px`,
-                                                height: `${virtualRow.size}px`,
-                                                transform: `translateX(${virtualColumn.start}px) translateY(${virtualRow.start}px)`,
-                                            }}
+                                let cellValue;
+                                if (header === "No") {
+                                    cellValue = (rowIndex === 0 || (row && row['Username'])) ? String(rowIndex + 1) : '';
+                                } else {
+                                    cellValue = row ? row[header] || '' : '';
+                                }
+                                
+                                return (
+                                    <div
+                                        key={`cell-${rowIndex}-${colIndex}`}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: `${virtualColumn.size}px`,
+                                            height: `${virtualRow.size}px`,
+                                            transform: `translateX(${virtualColumn.start}px) translateY(${virtualRow.start + 36}px)`,
+                                        }}
+                                        className={cn(
+                                            "border-b border-r p-0 m-0 relative flex items-center",
+                                            { "bg-muted/30": header === "No" },
+                                            isSelected && header !== "No" ? 'bg-blue-100/50 dark:bg-blue-900/50' : '',
+                                            isFillPreviewing ? 'bg-green-200/50 dark:bg-green-900/50' : ''
+                                        )}
+                                    >
+                                        <Input
+                                            type="text"
+                                            value={cellValue}
+                                            readOnly={header === "No"}
+                                            onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
+                                            onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
+                                            onMouseDown={(e) => handleMouseDown(e, { row: rowIndex, col: colIndex })}
+                                            onMouseOver={(e) => handleMouseOver(e, { row: rowIndex, col: colIndex })}
+                                            data-row={rowIndex}
+                                            data-col={colIndex}
                                             className={cn(
-                                                "border-b border-r p-0 m-0 relative flex items-center",
-                                                { "bg-muted/30": header === "No" },
-                                                isSelected && header !== "No" ? 'bg-blue-100/50 dark:bg-blue-900/50' : '',
-                                                isFillPreviewing ? 'bg-green-200/50 dark:bg-green-900/50' : ''
+                                                "w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
+                                                header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
                                             )}
-                                        >
-                                            <Input
-                                                type="text"
-                                                value={cellValue}
-                                                readOnly={header === "No"}
-                                                onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
-                                                onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
-                                                onMouseDown={(e) => handleMouseDown(e, { row: rowIndex, col: colIndex })}
-                                                onMouseOver={(e) => handleMouseOver(e, { row: rowIndex, col: colIndex })}
-                                                data-row={rowIndex}
-                                                data-col={colIndex}
-                                                className={cn(
-                                                    "w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
-                                                    header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
-                                                )}
+                                        />
+                                        {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
+                                        {isBottomRightOfSelection && !isDraggingFill && (
+                                            <div 
+                                                onMouseDown={handleFillHandleMouseDown}
+                                                className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
                                             />
-                                            {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
-                                            {isBottomRightOfSelection && !isDraggingFill && (
-                                                <div 
-                                                    onMouseDown={handleFillHandleMouseDown}
-                                                    className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
-                                                />
-                                            )}
-                                        </div>
-                                    )
-                                })
-                            })}
-                        </div>
+                                        )}
+                                    </div>
+                                )
+                            })
+                        })}
                     </div>
                 </div>
             </div>
@@ -812,6 +817,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
 
   
