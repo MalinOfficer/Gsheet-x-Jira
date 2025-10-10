@@ -46,7 +46,7 @@ type CellSelection = {
 // Helper to create an empty row
 const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ ...acc, [header]: '' }), {});
 
-const INITIAL_ROWS = 30;
+const INITIAL_ROWS = 20;
 
 const monthMap: { [key: string]: string } = {
     'januari': '01', 'februari': '02', 'maret': '03', 'april': '04',
@@ -800,3 +800,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
