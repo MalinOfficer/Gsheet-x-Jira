@@ -98,6 +98,7 @@ export function CekDuplikasi() {
         let nisnIndex = -1;
         let namaIndex = -1;
 
+        // Try to find a header row in the first 20 rows
         for (let i = 0; i < Math.min(sheetData.length, 20); i++) {
             const row = sheetData[i];
             if (!Array.isArray(row)) continue;
@@ -107,6 +108,7 @@ export function CekDuplikasi() {
             const tempNisnIndex = lowerCaseHeaders.findIndex(h => h === 'nisn');
             const tempNamaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
             
+            // If we find at least one of the key headers, we'll assume this is the header row
             if (tempNamaIndex !== -1 || tempNisIndex !== -1 || tempNisnIndex !== -1) {
                  potentialHeaderRow = i;
                  nisIndex = tempNisIndex;
@@ -116,18 +118,19 @@ export function CekDuplikasi() {
             }
         }
 
-        if (potentialHeaderRow === -1) {
-            return { success: false, missing: ['Nama', 'NIS/NISN'] };
+        const missing: ('Nama' | 'NIS/NISN')[] = [];
+        if (namaIndex === -1) {
+            missing.push('Nama');
+        }
+        if (nisIndex === -1 && nisnIndex === -1) {
+            missing.push('NIS/NISN');
         }
 
-        const missing: ('Nama' | 'NIS/NISN')[] = [];
-        if (namaIndex === -1) missing.push('Nama');
-        if (nisIndex === -1 && nisnIndex === -1) missing.push('NIS/NISN');
-        
         if (missing.length > 0) {
             return { success: false, missing };
         }
-        
+
+        // Only return success if we found everything
         const dobIndex = sheetData[potentialHeaderRow].map(h => String(h || '').toLowerCase().trim()).findIndex(h => h.includes('tanggal lahir') || h.includes('tgl lahir'));
         return {
             success: true,
@@ -175,7 +178,7 @@ export function CekDuplikasi() {
                         if (sheetData.length === 0) continue;
 
                         const headerResult = findHeaderRow(sheetData);
-
+                        
                         if (!headerResult.success) {
                             const missingMessage = `Sheet '${sheetName}' is missing required column(s): ${headerResult.missing.join(', ')}.`;
                              toast({
@@ -340,7 +343,7 @@ export function CekDuplikasi() {
                     <XCircle className="w-16 h-16 text-destructive mb-4" />
                     <p className="font-semibold text-lg">Pengecekan Gagal</p>
                     <p className="text-muted-foreground mt-1 max-w-md">
-                        Tidak ada file valid yang dapat diproses. Pastikan setiap file memiliki kolom 'Nama' dan setidaknya salah satu dari 'NIS' atau 'NISN' sesuai petunjuk notifikasi.
+                        Pastikan setiap file memiliki kolom 'Nama' dan 'NIS' atau 'NISN' sesuai petunjuk notifikasi.
                     </p>
                 </div>
             );
