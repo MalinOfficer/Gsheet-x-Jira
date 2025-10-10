@@ -906,7 +906,15 @@ export async function fetchL3ReportData(sheetUrl: string) {
             }
             
             const moduleValue = row[moduleIndex] || '';
-            const category = moduleValue === 'Payment' ? 'Payment' : 'Akademik';
+            let category = 'Akademik'; // Default category
+            if (moduleValue === 'Payment' || moduleValue === 'Pintro Pay') {
+                category = 'Payment';
+            } else if (moduleValue === 'Aplikasi/Mobile') {
+                category = 'Aplikasi/Mobile';
+            } else if (moduleValue === 'Akses Portal') {
+                category = 'Akses Portal';
+            }
+
             const title = row[titleIndex] || '';
             const ticketOp = row[ticketOpIndex] || '';
             const fullTitle = [title, ticketOp].filter(Boolean).join(' ');
@@ -978,4 +986,5 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
