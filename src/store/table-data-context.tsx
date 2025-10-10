@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useState, ReactNode } from 'react';
+import React, { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
 
 export type TableData = {
     headers: string[];
@@ -20,6 +20,8 @@ interface TableDataContextType {
     setL3ReportData: (data: L3ReportData) => void;
     isProcessing: boolean;
     setIsProcessing: (processing: boolean) => void;
+    isCodeViewerEnabled: boolean;
+    toggleCodeViewer: () => void;
 }
 
 export const TableDataContext = createContext<TableDataContextType>({
@@ -29,12 +31,41 @@ export const TableDataContext = createContext<TableDataContextType>({
     setL3ReportData: () => {},
     isProcessing: false,
     setIsProcessing: () => {},
+    isCodeViewerEnabled: false,
+    toggleCodeViewer: () => {},
 });
+
+const LOCAL_STORAGE_KEY_CODE_VIEWER = 'isCodeViewerEnabled';
 
 export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [tableData, setTableData] = useState<TableData | null>(null);
     const [l3ReportData, setL3ReportData] = useState<L3ReportData>(null);
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
+    const [isCodeViewerEnabled, setIsCodeViewerEnabled] = useState<boolean>(false);
+
+    useEffect(() => {
+        try {
+            const savedValue = localStorage.getItem(LOCAL_STORAGE_KEY_CODE_VIEWER);
+            if (savedValue) {
+                setIsCodeViewerEnabled(JSON.parse(savedValue));
+            }
+        } catch (error) {
+            console.error("Failed to parse code viewer setting from localStorage", error);
+            setIsCodeViewerEnabled(false);
+        }
+    }, []);
+
+    const toggleCodeViewer = useCallback(() => {
+        setIsCodeViewerEnabled(prev => {
+            const newValue = !prev;
+            try {
+                localStorage.setItem(LOCAL_STORAGE_KEY_CODE_VIEWER, JSON.stringify(newValue));
+            } catch (error) {
+                 console.error("Failed to save code viewer setting to localStorage", error);
+            }
+            return newValue;
+        });
+    }, []);
 
     return (
         <TableDataContext.Provider value={{ 
@@ -43,11 +74,12 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
             l3ReportData,
             setL3ReportData,
             isProcessing, 
-            setIsProcessing, 
+            setIsProcessing,
+            isCodeViewerEnabled,
+            toggleCodeViewer,
         }}>
             {children}
         </TableDataContext.Provider>
     );
 };
-
     

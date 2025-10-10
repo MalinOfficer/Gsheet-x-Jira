@@ -31,18 +31,30 @@ const primaryNavItems = [
 const secondaryNavItems = [
     { href: "/cek-duplikasi", label: "Cek Duplikasi", description: "Temukan NIS duplikat atau data tidak valid di beberapa file Excel.", icon: Files },
     { href: "/data-weaver", label: "Data Weaver (edit file bulk)", description: "Gabungkan dua file Excel berdasarkan kolom yang sama.", icon: Combine },
-    { href: "/code-viewer", label: "Code Viewer", description: "Tampilkan dan unduh seluruh kode sumber aplikasi ini.", icon: CodeXml },
+];
+
+const advancedNavItems = [
+    { href: "/code-viewer", label: "Code Viewer", description: "Tampilkan dan unduh seluruh kode sumber aplikasi ini.", icon: CodeXml, featureFlag: 'isCodeViewerEnabled' },
 ]
 
 function NavLinksDesktop() {
     const pathname = usePathname();
+    const { isCodeViewerEnabled } = useContext(TableDataContext);
+
+    const visibleAdvancedItems = advancedNavItems.filter(item => {
+        if (item.featureFlag === 'isCodeViewerEnabled') return isCodeViewerEnabled;
+        return true;
+    });
+
+    const allSecondaryItems = [...secondaryNavItems, ...visibleAdvancedItems];
+
 
     return (
       <NavigationMenu className="hidden md:flex">
         <NavigationMenuList>
           {primaryNavItems.map((item) => (
             <NavigationMenuItem key={item.label}>
-              <Link href={item.href} legacyBehavior={false} passHref={false}>
+              <Link href={item.href} legacyBehavior={false}>
                 <NavigationMenuLink
                   active={pathname === item.href}
                   className={navigationMenuTriggerStyle()}
@@ -53,25 +65,27 @@ function NavLinksDesktop() {
               </Link>
             </NavigationMenuItem>
           ))}
-          <NavigationMenuItem>
-            <NavigationMenuTrigger>
-                More Tools
-            </NavigationMenuTrigger>
-            <NavigationMenuContent>
-                <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
-                    {secondaryNavItems.map((item) => (
-                         <ListItem
-                            key={item.label}
-                            href={item.href}
-                            title={item.label}
-                            icon={item.icon}
-                        >
-                          {item.description}
-                        </ListItem>
-                    ))}
-                </ul>
-            </NavigationMenuContent>
-          </NavigationMenuItem>
+          {allSecondaryItems.length > 0 && (
+            <NavigationMenuItem>
+                <NavigationMenuTrigger>
+                    More Tools
+                </NavigationMenuTrigger>
+                <NavigationMenuContent>
+                    <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
+                        {allSecondaryItems.map((item) => (
+                            <ListItem
+                                key={item.label}
+                                href={item.href}
+                                title={item.label}
+                                icon={item.icon}
+                            >
+                            {item.description}
+                            </ListItem>
+                        ))}
+                    </ul>
+                </NavigationMenuContent>
+            </NavigationMenuItem>
+           )}
         </NavigationMenuList>
       </NavigationMenu>
     )
@@ -79,7 +93,14 @@ function NavLinksDesktop() {
 
 function NavLinksMobile() {
     const pathname = usePathname();
-    const allNavItems = [...primaryNavItems, ...secondaryNavItems];
+    const { isCodeViewerEnabled } = useContext(TableDataContext);
+
+    const visibleAdvancedItems = advancedNavItems.filter(item => {
+        if (item.featureFlag === 'isCodeViewerEnabled') return isCodeViewerEnabled;
+        return true;
+    });
+    
+    const allNavItems = [...primaryNavItems, ...secondaryNavItems, ...visibleAdvancedItems];
 
     return (
         <>
