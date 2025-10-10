@@ -230,11 +230,12 @@ export function ReportHarian() {
   return (
     <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <header className="relative">
+        <header className="relative flex justify-center items-center h-10">
             <Button
               onClick={() => router.push('/')}
-              variant="ghost"
-              className="absolute left-0 top-1/2 -translate-y-1/2 text-muted-foreground"
+              variant="outline"
+              size="sm"
+              className="absolute left-0 top-1/2 -translate-y-1/2"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Import Flow
