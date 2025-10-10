@@ -677,7 +677,7 @@ export function MigrasiMurid() {
                     <div ref={tableContainerRef} onPaste={handlePaste} className="overflow-auto border-t rounded-t-none rounded-b-md h-[500px] relative">
                          <div style={{ width: `${totalWidth}px`, height: `${totalHeight}px`, position: 'relative' }}>
                             {/* Sticky Header */}
-                            <div className="sticky top-0 z-20">
+                            <div className="sticky top-0 z-30 bg-card">
                                 {virtualColumns.map((virtualColumn) => {
                                     const header = tableHeaders[virtualColumn.index];
                                     return (
@@ -807,5 +807,7 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
 
     
