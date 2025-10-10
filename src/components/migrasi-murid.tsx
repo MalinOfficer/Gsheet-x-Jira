@@ -628,8 +628,15 @@ export function MigrasiMurid() {
     return (
         <div className="px-4 py-2" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
             <Card>
-                <CardHeader className="flex flex-row justify-between items-center p-4">
-                    <CardTitle className="text-xl">Data Murid untuk Migrasi</CardTitle>
+                <CardHeader className="flex flex-row justify-between items-start p-4">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">
+                            Data Murid untuk Migrasi
+                        </h1>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Alat bantu mirip spreadsheet untuk memasukkan dan memformat data migrasi siswa.
+                        </p>
+                    </div>
                      <div className="flex items-center gap-2">
                          <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
                             <Undo2 className="mr-2 h-4 w-4" /> Undo
