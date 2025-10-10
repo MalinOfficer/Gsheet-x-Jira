@@ -223,17 +223,28 @@ function L3CaseReportCard() {
 
 export function ReportHarian() {
   const { tableData, l3ReportData } = useContext(TableDataContext);
+  const router = useRouter();
 
   const hasAnyData = tableData || l3ReportData;
 
   return (
     <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <header>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Report Center</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            View the daily case summary and the L3 case report from your Google Sheet.
-          </p>
+        <header className="relative">
+            <Button
+              onClick={() => router.push('/')}
+              variant="ghost"
+              className="absolute left-0 top-1/2 -translate-y-1/2"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Import Flow
+            </Button>
+          <div className="text-center">
+             <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Report Center</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                View the daily case summary and the L3 case report from your Google Sheet.
+              </p>
+          </div>
         </header>
 
         {!hasAnyData ? (
