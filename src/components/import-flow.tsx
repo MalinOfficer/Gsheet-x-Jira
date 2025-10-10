@@ -560,10 +560,10 @@ export function ImportFlow() {
                         onChange={(e) => { setJsonInput(e.target.value); setTableData(null); setJsonError(null); }}
                         rows={8}
                         className="font-mono text-xs"
-                        disabled={isProcessing}
+                        disabled={isProcessing || !!tableData}
                     />
                     <div className="flex flex-wrap gap-2">
-                        <Button onClick={handleImportClick} variant="outline" size="sm" disabled={isProcessing}>
+                        <Button onClick={handleImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
                             <Upload className="mr-2 h-4 w-4" /> Import JSON
                         </Button>
                         <Button onClick={handleDeleteInput} variant="destructive" size="sm" disabled={isProcessing}>
@@ -581,10 +581,10 @@ export function ImportFlow() {
                         onChange={(e) => setTemplateInput(e.target.value)}
                         rows={4}
                         className="font-mono text-xs"
-                        disabled={isProcessing}
+                        disabled={isProcessing || !!tableData}
                     />
                     <div className="flex flex-wrap gap-2">
-                        <Button onClick={handleSaveTemplate} variant="outline" size="sm" disabled={isProcessing}>
+                        <Button onClick={handleSaveTemplate} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
                             <Save className="mr-2 h-4 w-4" /> Save Template
                         </Button>
                     </div>
@@ -592,7 +592,7 @@ export function ImportFlow() {
             </div>
 
             <div className="mt-4">
-                <Button onClick={handleConvert} size="sm" disabled={!jsonInput || isProcessing}>
+                <Button onClick={handleConvert} size="sm" disabled={!jsonInput || isProcessing || !!tableData}>
                     {isConverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Braces className="mr-2 h-4 w-4" />}
                     {isConverting ? 'Converting...' : 'Convert to Table'}
                 </Button>
