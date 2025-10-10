@@ -107,21 +107,22 @@ export function CekDuplikasi() {
             const hasId = nisIndex !== -1 || nisnIndex !== -1;
             const hasName = namaIndex !== -1;
 
-            // If we find a row that could be a header (has name or ID), we make a decision.
+            if (hasId && hasName) {
+                return {
+                    success: true,
+                    headerInfo: { rowIndex: i, nisIndex, nisnIndex, namaIndex, dobIndex }
+                };
+            }
+            
+            // If we find a row that might be a header, but it's incomplete
             if (hasId || hasName) {
-                if (hasId && hasName) {
-                    return {
-                        success: true,
-                        headerInfo: { rowIndex: i, nisIndex, nisnIndex, namaIndex, dobIndex }
-                    };
-                } else {
-                    const missing: ('Nama' | 'NIS/NISN')[] = [];
-                    if (!hasName) missing.push('Nama');
-                    if (!hasId) missing.push('NIS/NISN');
-                    return { success: false, missing };
-                }
+                const missing: ('Nama' | 'NIS/NISN')[] = [];
+                if (!hasName) missing.push('Nama');
+                if (!hasId) missing.push('NIS/NISN');
+                return { success: false, missing };
             }
         }
+        // If no potential header row is found at all
         return { success: false, missing: ['Nama', 'NIS/NISN'] };
     };
 
