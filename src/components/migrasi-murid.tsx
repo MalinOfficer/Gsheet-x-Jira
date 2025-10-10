@@ -628,7 +628,7 @@ export function MigrasiMurid() {
     return (
         <div className="px-4 py-2" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
             <Card>
-                <CardHeader className="p-4">
+                 <CardHeader className="p-4">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                         <div>
                             <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">
@@ -679,7 +679,7 @@ export function MigrasiMurid() {
                     <div ref={tableContainerRef} onPaste={handlePaste} className="overflow-auto border-t rounded-t-none rounded-b-md h-[500px] relative">
                          <div style={{ width: `${totalWidth}px`, height: `${totalHeight}px`, position: 'relative' }}>
                             {/* Sticky Header */}
-                            <div className="sticky top-0 z-20 bg-muted/50">
+                            <div className="sticky top-0 z-20 bg-muted">
                                 {virtualColumns.map((virtualColumn) => {
                                     const header = tableHeaders[virtualColumn.index];
                                     return (
@@ -697,7 +697,7 @@ export function MigrasiMurid() {
                                                 "border-b border-r text-xs font-bold text-center relative select-none flex items-center justify-center",
                                             )}
                                         >
-                                            <div className="px-2 py-2 flex items-center justify-center gap-1 whitespace-normal break-words">
+                                            <div className="px-2 py-2 flex items-center justify-center gap-1 whitespace-normal break-words w-full h-full">
                                                 <Input
                                                     readOnly
                                                     value={header}
@@ -706,7 +706,7 @@ export function MigrasiMurid() {
                                                 {header === "Tanggal Lahir" && (
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-5 w-5">
+                                                            <Button variant="ghost" size="icon" className="h-5 w-5 absolute right-1 top-1/2 -translate-y-1/2">
                                                                 <Wand2 className="h-3 w-3" />
                                                                 <span className="sr-only">Format Menu</span>
                                                             </Button>
@@ -815,3 +815,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
