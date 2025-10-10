@@ -628,7 +628,7 @@ export function MigrasiMurid() {
 
     return (
         <div className="flex flex-col h-full p-4 sm:p-6" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
-            <header className="pb-4">
+            <header className="pb-4 shrink-0">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">
@@ -680,7 +680,7 @@ export function MigrasiMurid() {
                 <div ref={tableContainerRef} className="h-full w-full overflow-auto">
                     <div style={{ width: `${totalWidth}px`, height: `${totalHeight}px` }} className="relative">
                         {/* Sticky Header */}
-                        <div className="sticky top-0 z-20 bg-muted" style={{ height: '36px' }}>
+                         <div className="sticky top-0 z-20 bg-muted" style={{ height: '36px' }}>
                             {virtualColumns.map((virtualColumn) => {
                                 const header = tableHeaders[virtualColumn.index];
                                 return (
@@ -726,7 +726,7 @@ export function MigrasiMurid() {
                         </div>
 
                         {/* Virtualized Cells Body */}
-                        <div className="relative" style={{top: '0px'}}>
+                         <div className="relative z-10" style={{top: '0px'}}>
                             {virtualRows.map((virtualRow) => {
                                 const rowIndex = virtualRow.index;
                                 const row = rows[rowIndex];
@@ -794,7 +794,7 @@ export function MigrasiMurid() {
                 </div>
             </div>
 
-            <footer className="pt-4">
+            <footer className="pt-4 shrink-0">
                 <div className="flex items-center gap-2">
                     <Input
                         type="number"
@@ -812,5 +812,6 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
 
   
