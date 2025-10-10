@@ -3,7 +3,6 @@
 
 import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
@@ -677,9 +676,9 @@ export function MigrasiMurid() {
                 </CardHeader>
                 <CardContent className="p-0">
                     <div ref={tableContainerRef} onPaste={handlePaste} className="overflow-auto border-t rounded-t-none rounded-b-md h-[500px] relative">
-                         <div style={{ width: `${totalWidth}px`, height: `${totalHeight}px`, position: 'relative' }}>
+                         <div style={{ width: `${totalWidth}px`, height: `${totalHeight}px` }} className="relative">
                             {/* Sticky Header */}
-                            <div className="sticky top-0 z-20 bg-muted">
+                            <div className="sticky top-0 z-20 bg-muted" style={{ height: '49px' }}>
                                 {virtualColumns.map((virtualColumn) => {
                                     const header = tableHeaders[virtualColumn.index];
                                     return (
@@ -693,9 +692,7 @@ export function MigrasiMurid() {
                                                 height: '49px', // header height
                                                 transform: `translateX(${virtualColumn.start}px)`,
                                             }}
-                                            className={cn(
-                                                "border-b border-r text-xs font-bold text-center relative select-none flex items-center justify-center",
-                                            )}
+                                            className="border-b border-r text-xs font-bold text-center relative select-none flex items-center justify-center"
                                         >
                                             <div className="px-2 py-2 flex items-center justify-center gap-1 whitespace-normal break-words w-full h-full">
                                                 <Input
@@ -728,8 +725,8 @@ export function MigrasiMurid() {
                                 })}
                             </div>
 
-                            {/* Virtualized Cells */}
-                            <div className="relative" style={{top: '49px'}}>
+                            {/* Virtualized Cells Body */}
+                            <div className="relative" style={{top: '0px'}}>
                                 {virtualRows.map((virtualRow) => {
                                     const rowIndex = virtualRow.index;
                                     const row = rows[rowIndex];
@@ -817,3 +814,5 @@ export function MigrasiMurid() {
 }
 
     
+
+  
