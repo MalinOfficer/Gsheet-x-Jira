@@ -27,8 +27,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useVirtualizer } from '@tanstack/react-virtual';
 
-declare const XLSX: any;
 
 const tableHeaders = [
     "No", "Username", "NIS", "NISN", "NIK", "Kode", "Asal Sekolah", "Nama", "L/P",
@@ -121,6 +121,7 @@ export function MigrasiMurid() {
     const [historyIndex, setHistoryIndex] = useState(0);
 
     const [isClient, setIsClient] = useState(false);
+    const tableContainerRef = useRef<HTMLDivElement>(null);
     
 
     useEffect(() => {
@@ -579,6 +580,30 @@ export function MigrasiMurid() {
         toast({ title: "Table Cleared", description: "All data has been cleared from the table." });
     };
 
+    // --- VIRTUALIZATION ---
+    const rowVirtualizer = useVirtualizer({
+        count: rows.length,
+        getScrollElement: () => tableContainerRef.current,
+        estimateSize: () => 36, // Estimate row height
+        overscan: 5,
+    });
+
+    const columnVirtualizer = useVirtualizer({
+        horizontal: true,
+        count: tableHeaders.length,
+        getScrollElement: () => tableContainerRef.current,
+        estimateSize: (index) => columnWidths[tableHeaders[index]],
+        overscan: 2,
+    });
+
+    const virtualRows = rowVirtualizer.getVirtualItems();
+    const virtualColumns = columnVirtualizer.getVirtualItems();
+
+    const totalWidth = columnVirtualizer.getTotalSize();
+    const totalHeight = rowVirtualizer.getTotalSize();
+    // --- END VIRTUALIZATION ---
+
+
     if (!isClient) {
         return (
              <div className="px-4 py-2">
@@ -642,16 +667,25 @@ export function MigrasiMurid() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <div onPaste={handlePaste} className="overflow-auto border-t rounded-t-none rounded-b-md max-h-[500px]">
-                        <Table className="border-collapse w-full" style={{ tableLayout: 'fixed' }}>
-                            <TableHeader className="sticky top-0 z-20 bg-card">
-                                <TableRow className="border-0">
-                                    {tableHeaders.map((header) => (
-                                        <TableHead 
-                                            key={header} 
-                                            style={{ width: `${columnWidths[header]}px`}}
+                    <div ref={tableContainerRef} onPaste={handlePaste} className="overflow-auto border-t rounded-t-none rounded-b-md h-[500px] relative">
+                         <div style={{ width: `${totalWidth}px`, height: `${totalHeight}px`, position: 'relative' }}>
+                            {/* Sticky Header */}
+                            <div className="sticky top-0 z-20">
+                                {virtualColumns.map((virtualColumn) => {
+                                    const header = tableHeaders[virtualColumn.index];
+                                    return (
+                                        <div
+                                            key={header}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: `${virtualColumn.size}px`,
+                                                height: '49px', // header height
+                                                transform: `translateX(${virtualColumn.start}px)`,
+                                            }}
                                             className={cn(
-                                                "border-b border-r bg-muted/50 p-0 text-xs font-bold text-center relative select-none",
+                                                "border-b border-r bg-muted/50 text-xs font-bold text-center relative select-none flex items-center justify-center",
                                             )}
                                         >
                                             <div className="px-2 py-2 flex items-center justify-center gap-1 whitespace-normal break-words">
@@ -676,52 +710,62 @@ export function MigrasiMurid() {
                                                 onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
                                                 className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
                                             />
-                                        </TableHead>
-                                    ))}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                            {rows.map((row, rowIndex) => (
-                                <TableRow key={`row-${rowIndex}`} className="border-0 m-0 p-0">
-                                    {tableHeaders.map((header, colIndex) => {
-                                        const isSelected = isCellSelected(rowIndex, colIndex);
-                                        const isFillPreviewing = isDraggingFill && isCellInFillRange(rowIndex, colIndex) && !isSelected;
-                                        const isBottomRightOfSelection = selectedRange.start && normalizedSelectedRange.endRow === rowIndex && normalizedSelectedRange.endCol === colIndex;
+                                        </div>
+                                    )
+                                })}
+                            </div>
 
-                                        let cellValue;
-                                         if (header === "No") {
-                                            cellValue = (rowIndex === 0 || row['Username']) ? String(rowIndex + 1) : '';
-                                        } else {
-                                            cellValue = row[header] || '';
-                                        }
+                            {/* Virtualized Cells */}
+                            {virtualRows.map((virtualRow) => {
+                                const rowIndex = virtualRow.index;
+                                const row = rows[rowIndex];
 
-                                        return (
-                                        <TableCell 
-                                            key={`cell-${rowIndex}-${colIndex}`} 
-                                            style={{ width: `${columnWidths[header]}px`}}
+                                return virtualColumns.map((virtualColumn) => {
+                                    const colIndex = virtualColumn.index;
+                                    const header = tableHeaders[colIndex];
+                                    const isSelected = isCellSelected(rowIndex, colIndex);
+                                    const isFillPreviewing = isDraggingFill && isCellInFillRange(rowIndex, colIndex) && !isSelected;
+                                    const isBottomRightOfSelection = selectedRange.start && normalizedSelectedRange.endRow === rowIndex && normalizedSelectedRange.endCol === colIndex;
+
+                                    let cellValue;
+                                    if (header === "No") {
+                                        cellValue = (rowIndex === 0 || (row && row['Username'])) ? String(rowIndex + 1) : '';
+                                    } else {
+                                        cellValue = row ? row[header] || '' : '';
+                                    }
+                                    
+                                    return (
+                                        <div
+                                            key={`cell-${rowIndex}-${colIndex}`}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: `${virtualColumn.size}px`,
+                                                height: `${virtualRow.size}px`,
+                                                transform: `translateX(${virtualColumn.start}px) translateY(${virtualRow.start + 49}px)`, // +49 for header height
+                                            }}
                                             className={cn(
-                                                "border-t border-r p-0 m-0 h-auto relative",
+                                                "border-b border-r p-0 m-0 relative flex items-center",
                                                 { "bg-muted/30": header === "No" },
                                                 isSelected && header !== "No" ? 'bg-blue-100/50 dark:bg-blue-900/50' : '',
                                                 isFillPreviewing ? 'bg-green-200/50 dark:bg-green-900/50' : ''
                                             )}
                                         >
                                             <Input
-                                              type="text"
-                                              value={cellValue}
-                                              readOnly={header === "No"}
-                                              onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
-                                              onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
-                                              onMouseDown={(e) => handleMouseDown(e, { row: rowIndex, col: colIndex })}
-                                              onMouseOver={(e) => handleMouseOver(e, { row: rowIndex, col: colIndex })}
-                                              data-row={rowIndex}
-                                              data-col={colIndex}
-                                              className={cn(
-                                                  "w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
-                                                  "whitespace-normal break-words py-2",
-                                                  header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
-                                                  isSelected ? 'bg-transparent' : ''
-                                              )}
+                                                type="text"
+                                                value={cellValue}
+                                                readOnly={header === "No"}
+                                                onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
+                                                onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
+                                                onMouseDown={(e) => handleMouseDown(e, { row: rowIndex, col: colIndex })}
+                                                onMouseOver={(e) => handleMouseOver(e, { row: rowIndex, col: colIndex })}
+                                                data-row={rowIndex}
+                                                data-col={colIndex}
+                                                className={cn(
+                                                    "w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
+                                                    header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
+                                                )}
                                             />
                                             {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
                                             {isBottomRightOfSelection && !isDraggingFill && (
@@ -730,12 +774,11 @@ export function MigrasiMurid() {
                                                     className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
                                                 />
                                             )}
-                                        </TableCell>
-                                    )})}
-                                </TableRow>
-                            ))}
-                            </TableBody>
-                        </Table>
+                                        </div>
+                                    )
+                                })
+                            })}
+                        </div>
                     </div>
                 </CardContent>
                  <CardFooter className="pt-4">
@@ -757,5 +800,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
