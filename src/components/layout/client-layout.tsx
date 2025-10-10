@@ -42,7 +42,7 @@ function NavLinksDesktop() {
         <NavigationMenuList>
           {primaryNavItems.map((item) => (
             <NavigationMenuItem key={item.label}>
-              <Link href={item.href} legacyBehavior passHref>
+              <Link href={item.href} legacyBehavior={false} passHref={false}>
                 <NavigationMenuLink
                   active={pathname === item.href}
                   className={navigationMenuTriggerStyle()}
