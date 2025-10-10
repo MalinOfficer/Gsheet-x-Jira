@@ -30,7 +30,7 @@ const primaryNavItems = [
 
 const secondaryNavItems = [
     { href: "/cek-duplikasi", label: "Cek Duplikasi", description: "Temukan NIS duplikat atau data tidak valid di beberapa file Excel.", icon: Files },
-    { href: "/data-weaver", label: "Data Weaver", description: "Gabungkan dua file Excel berdasarkan kolom yang sama.", icon: Combine },
+    { href: "/data-weaver", label: "Data Weaver (edit file bulk)", description: "Gabungkan dua file Excel berdasarkan kolom yang sama.", icon: Combine },
     { href: "/code-viewer", label: "Code Viewer", description: "Tampilkan dan unduh seluruh kode sumber aplikasi ini.", icon: CodeXml },
 ]
 
