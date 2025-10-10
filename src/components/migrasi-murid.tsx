@@ -706,7 +706,7 @@ export function MigrasiMurid() {
                                         <Input
                                             readOnly
                                             value={header}
-                                            className="w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-0 text-center font-bold cursor-default"
+                                            className="h-9 w-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-0 text-center font-bold cursor-default"
                                         />
                                         {header === "Tanggal Lahir" && (
                                             <DropdownMenu>
@@ -780,7 +780,7 @@ export function MigrasiMurid() {
                                             data-row={rowIndex}
                                             data-col={colIndex}
                                             className={cn(
-                                                "w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
+                                                "w-full h-9 text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
                                                 header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
                                             )}
                                         />
@@ -817,5 +817,7 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+  
 
   
