@@ -582,7 +582,7 @@ export function MigrasiMurid() {
     const rowVirtualizer = useVirtualizer({
         count: rows.length,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 36, // Estimate row height
+        estimateSize: () => 28, // Estimate row height
         overscan: 5,
     });
 
@@ -685,7 +685,7 @@ export function MigrasiMurid() {
                     <div style={{ width: `${totalWidth}px`, height: `${totalHeight}px` }} className="relative">
                         {/* Sticky Header */}
                         <div
-                            style={{ height: '36px' }}
+                            style={{ height: '28px' }}
                             className="sticky top-0 z-20 bg-muted"
                         >
                             {virtualColumns.map((virtualColumn) => {
@@ -698,7 +698,7 @@ export function MigrasiMurid() {
                                             top: 0,
                                             left: 0,
                                             width: `${virtualColumn.size}px`,
-                                            height: '36px',
+                                            height: '28px',
                                             transform: `translateX(${virtualColumn.start}px)`,
                                         }}
                                         className="border-b border-r text-xs font-bold text-center relative select-none flex items-center justify-center"
@@ -706,7 +706,7 @@ export function MigrasiMurid() {
                                         <Input
                                             readOnly
                                             value={header}
-                                            className="h-9 w-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-0 text-center font-bold cursor-default"
+                                            className="h-7 w-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-0 text-center font-bold cursor-default"
                                         />
                                         {header === "Tanggal Lahir" && (
                                             <DropdownMenu>
@@ -760,7 +760,7 @@ export function MigrasiMurid() {
                                             left: 0,
                                             width: `${virtualColumn.size}px`,
                                             height: `${virtualRow.size}px`,
-                                            transform: `translateX(${virtualColumn.start}px) translateY(${virtualRow.start + 36}px)`,
+                                            transform: `translateX(${virtualColumn.start}px) translateY(${virtualRow.start + 28}px)`,
                                         }}
                                         className={cn(
                                             "border-b border-r p-0 m-0 relative flex items-center",
@@ -780,7 +780,7 @@ export function MigrasiMurid() {
                                             data-row={rowIndex}
                                             data-col={colIndex}
                                             className={cn(
-                                                "w-full h-9 text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
+                                                "w-full h-7 text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
                                                 header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
                                             )}
                                         />
@@ -817,6 +817,8 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+  
 
   
 
