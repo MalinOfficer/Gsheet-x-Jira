@@ -101,6 +101,17 @@ export function ImportFlow() {
     }
   }, []);
 
+  // Effect for auto-scrolling
+  useEffect(() => {
+    if (tableData && destinationCardRef.current) {
+        destinationCardRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+        });
+    }
+  }, [tableData]);
+
+
   const handleAnalyzeSheet = useCallback(async () => {
     if (!sheetUrl) {
         toast({ variant: 'destructive', title: 'URL is missing', description: 'Please enter a Google Sheet URL to verify.' });
@@ -442,11 +453,6 @@ export function ImportFlow() {
             setTableData({ headers, rows: processedRows });
             localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, jsonInput);
             toast({ title: "Conversion Successful", description: "Your JSON has been converted and sorted." });
-            
-            // Scroll after a short delay to allow the DOM to update
-            setTimeout(() => {
-                destinationCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 100);
 
         } catch (e) {
             setJsonError(e instanceof Error ? `Invalid JSON: ${e.message}` : "An unknown error occurred during conversion.");
@@ -825,3 +831,5 @@ export function ImportFlow() {
     </div>
   );
 }
+
+    
