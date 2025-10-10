@@ -679,7 +679,7 @@ export function MigrasiMurid() {
                     <div ref={tableContainerRef} onPaste={handlePaste} className="overflow-auto border-t rounded-t-none rounded-b-md h-[500px] relative">
                          <div style={{ width: `${totalWidth}px`, height: `${totalHeight}px`, position: 'relative' }}>
                             {/* Sticky Header */}
-                            <div className="sticky top-0 z-20 bg-card">
+                            <div className="sticky top-0 z-20 bg-muted/50">
                                 {virtualColumns.map((virtualColumn) => {
                                     const header = tableHeaders[virtualColumn.index];
                                     return (
@@ -694,7 +694,7 @@ export function MigrasiMurid() {
                                                 transform: `translateX(${virtualColumn.start}px)`,
                                             }}
                                             className={cn(
-                                                "border-b border-r bg-muted/50 text-xs font-bold text-center relative select-none flex items-center justify-center",
+                                                "border-b border-r text-xs font-bold text-center relative select-none flex items-center justify-center",
                                             )}
                                         >
                                             <div className="px-2 py-2 flex items-center justify-center gap-1 whitespace-normal break-words">
@@ -811,9 +811,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
-
-    
-
-    
