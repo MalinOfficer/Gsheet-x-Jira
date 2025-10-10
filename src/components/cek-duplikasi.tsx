@@ -34,6 +34,15 @@ type FileData = {
 };
 
 
+type HeaderValidationResult = {
+    success: true;
+    headerInfo: HeaderInfo;
+} | {
+    success: false;
+    missing: ('Nama' | 'NIS/NISN')[];
+};
+
+
 export function CekDuplikasi() {
     const [filesData, setFilesData] = useState<FileData[]>([]);
     const [duplicates, setDuplicates] = useState<StudentRecord[]>([]);
@@ -83,7 +92,7 @@ export function CekDuplikasi() {
         }
     };
 
-    const findHeaderRow = (sheetData: any[][]): HeaderInfo | null => {
+    const findHeaderRow = (sheetData: any[][]): HeaderValidationResult => {
         for (let i = 0; i < Math.min(sheetData.length, 20); i++) {
             const row = sheetData[i];
             if (!Array.isArray(row)) continue;
@@ -95,12 +104,25 @@ export function CekDuplikasi() {
             const namaIndex = lowerCaseHeaders.findIndex(h => h.includes('nama'));
             const dobIndex = lowerCaseHeaders.findIndex(h => h.includes('tanggal lahir') || h.includes('tgl lahir'));
             
-            // Check for duplicates and empty IDs requires Nama and at least one of NIS or NISN.
-            if (namaIndex !== -1 && (nisIndex !== -1 || nisnIndex !== -1)) {
-                return { rowIndex: i, nisIndex, nisnIndex, namaIndex, dobIndex };
+            const hasId = nisIndex !== -1 || nisnIndex !== -1;
+            const hasName = namaIndex !== -1;
+
+            // If we find a row that could be a header (has name or ID), we make a decision.
+            if (hasId || hasName) {
+                if (hasId && hasName) {
+                    return {
+                        success: true,
+                        headerInfo: { rowIndex: i, nisIndex, nisnIndex, namaIndex, dobIndex }
+                    };
+                } else {
+                    const missing: ('Nama' | 'NIS/NISN')[] = [];
+                    if (!hasName) missing.push('Nama');
+                    if (!hasId) missing.push('NIS/NISN');
+                    return { success: false, missing };
+                }
             }
         }
-        return null;
+        return { success: false, missing: ['Nama', 'NIS/NISN'] };
     };
 
 
@@ -142,13 +164,20 @@ export function CekDuplikasi() {
 
                         if (sheetData.length === 0) continue;
 
-                        const headerInfo = findHeaderRow(sheetData);
+                        const headerResult = findHeaderRow(sheetData);
 
-                        if (!headerInfo) {
-                            continue; // Skip sheets that don't have the required headers.
+                        if (!headerResult.success) {
+                            const missingMessage = `Sheet '${sheetName}' is missing required column(s): ${headerResult.missing.join(', ')}.`;
+                             toast({
+                                variant: 'destructive',
+                                title: `Invalid Format: ${fileData.name}`,
+                                description: missingMessage,
+                            });
+                            continue; // Skip this sheet
                         }
                         
-                        fileHasValidSheet = true; // Mark that this file has at least one processable sheet.
+                        fileHasValidSheet = true;
+                        const { headerInfo } = headerResult;
                         const { rowIndex: headerRowIndex, nisIndex, nisnIndex, namaIndex, dobIndex } = headerInfo;
                         const startRow = headerRowIndex + 1;
 
@@ -160,13 +189,11 @@ export function CekDuplikasi() {
                             const nisnValue = nisnIndex !== -1 ? String(row[nisnIndex] || '').trim() : '';
                             const namaValue = String(row[namaIndex] || '').trim();
                             
-                            // Use NIS as the primary ID, fallback to NISN
                             const id = nisValue || nisnValue;
                              
                             const isIdEmpty = !id || !/\d/.test(id);
                             const isNamePresent = namaValue && namaValue.toLowerCase() !== 'nama';
                             
-                            // Check for empty DOB only if the column was found
                             if (dobIndex !== -1) {
                                 const dobValue = row[dobIndex];
                                 const isDobEmpty = !dobValue || (typeof dobValue === 'string' && dobValue.startsWith('#'));
@@ -190,12 +217,6 @@ export function CekDuplikasi() {
                     }
                      if (fileHasValidSheet) {
                         filesProcessed++;
-                    } else {
-                         toast({
-                            variant: 'destructive',
-                            title: `Invalid File Format: ${fileData.name}`,
-                            description: `The file must contain at least one sheet with a 'Nama' column and either a 'NIS' or 'NISN' column.`,
-                        });
                     }
 
                 } catch (error) {
@@ -454,69 +475,74 @@ export function CekDuplikasi() {
                     </div>
                 )}
             </div>
-        );
-    }
-
+        )
+    };
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
                 <header>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Cek Duplikasi & Validasi Data</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Cek Duplikasi</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Upload beberapa file Excel untuk menemukan NIS/NISN duplikat, ID kosong, dan tanggal lahir kosong di semua file dan sheet.
+                      Unggah beberapa file Excel untuk menemukan NIS/NISN duplikat, atau siswa tanpa NIS/NISN atau tanggal lahir.
                     </p>
                 </header>
 
                 <Card>
-                    <CardHeader>
-                        <CardTitle>1. Upload Files</CardTitle>
-                        <CardDescription>
-                            Pilih file Excel (.xls, .xlsx) yang ingin Anda periksa. Anda dapat memilih beberapa file sekaligus.
-                        </CardDescription>
+                    <CardHeader className="flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>1. Upload Files</CardTitle>
+                            <CardDescription>Pilih satu atau lebih file Excel (.xlsx, .xls) untuk diperiksa.</CardDescription>
+                        </div>
+                        <Button onClick={handleClear} variant="destructive" size="sm" disabled={isChecking || filesData.length === 0}>
+                            <Trash2 className="mr-2 h-4 w-4"/>
+                            Clear
+                        </Button>
                     </CardHeader>
                     <CardContent>
-                         <div className="flex flex-col items-start gap-4">
+                         <div className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-lg">
                             <Input
-                                id="file-upload"
+                                ref={fileInputRef}
                                 type="file"
                                 multiple
-                                ref={fileInputRef}
                                 onChange={handleFileChange}
-                                accept=".xls, .xlsx, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                 className="hidden"
+                                id="file-upload"
+                                accept=".xlsx, .xls"
                             />
-                             <Button onClick={() => fileInputRef.current?.click()} variant="outline">
+                             <Button onClick={() => document.getElementById('file-upload')?.click()} variant="outline" disabled={isChecking}>
                                 <Upload className="mr-2 h-4 w-4" />
-                                {filesData.length > 0 ? `${filesData.length} file(s) chosen` : 'Choose Files'}
+                                {filesData.length > 0 ? `Selected ${filesData.length} files` : 'Select Files'}
                             </Button>
-                            
                             {filesData.length > 0 && (
-                                <div className="text-sm text-muted-foreground">
-                                    <p className='font-medium'>Selected files:</p>
-                                    <ul className='list-disc pl-5 mt-1'>
-                                        {filesData.map(f => <li key={f.name}>{f.name}</li>)}
-                                    </ul>
-                                </div>
+                                <ul className="mt-4 text-xs text-muted-foreground list-disc pl-5">
+                                    {filesData.map(f => <li key={f.name}>{f.name}</li>)}
+                                </ul>
                             )}
                         </div>
                     </CardContent>
-                    <CardFooter className="flex gap-2 border-t pt-6">
-                        <Button onClick={handleCheckDuplicates} disabled={isChecking || filesData.length === 0}>
+                    <CardFooter>
+                        <Button onClick={handleCheckDuplicates} disabled={isChecking || filesData.length === 0} className="w-full sm:w-auto">
                             {isChecking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-                            {isChecking ? 'Mengecek...' : 'Cek File'}
-                        </Button>
-                        <Button onClick={handleClear} variant="outline" disabled={isChecking || filesData.length === 0}>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Clear
+                            {isChecking ? 'Checking...' : 'Check Files'}
                         </Button>
                     </CardFooter>
                 </Card>
 
-                {hasChecked && !isChecking && (
-                    renderResults()
+                 {hasChecked && !isChecking && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>2. Hasil Pengecekan</CardTitle>
+                            <CardDescription>Berikut adalah ringkasan dari hasil pengecekan file yang Anda unggah.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {renderResults()}
+                        </CardContent>
+                    </Card>
                 )}
             </div>
         </div>
     );
 }
+
+    
