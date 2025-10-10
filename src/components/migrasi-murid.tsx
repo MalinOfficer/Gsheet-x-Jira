@@ -349,15 +349,15 @@ export function MigrasiMurid() {
             if (tableHeaders[col] === "No") return;
             setSelectedRange(prev => ({ ...prev, end: { row, col } }));
         } else if (isDraggingFill) {
-            const { startRow, endRow, startCol, endCol } = normalizedSelectedRange;
+            const { startRow, endRow, startCol: selStartCol, endCol: selEndCol } = normalizedSelectedRange;
             let newFillEnd: CellSelection;
             // Determine drag direction
-            if (Math.abs(row - endRow) > Math.abs(col - endCol)) { // Vertical drag
-                 newFillEnd = { row: row, col: endCol };
-                 setFillRange({ start: { row: startRow, col: startCol }, end: newFillEnd });
+            if (Math.abs(row - endRow) > Math.abs(col - selEndCol)) { // Vertical drag
+                 newFillEnd = { row: row, col: selEndCol };
+                 setFillRange({ start: { row: startRow, col: selStartCol }, end: newFillEnd });
             } else { // Horizontal drag
                  newFillEnd = { row: endRow, col: col };
-                 setFillRange({ start: { row: startRow, col: startCol }, end: newFillEnd });
+                 setFillRange({ start: { row: startRow, col: selStartCol }, end: newFillEnd });
             }
         }
     };
@@ -698,7 +698,11 @@ export function MigrasiMurid() {
                                             )}
                                         >
                                             <div className="px-2 py-2 flex items-center justify-center gap-1 whitespace-normal break-words">
-                                                {header}
+                                                <Input
+                                                    readOnly
+                                                    value={header}
+                                                    className="w-full h-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-0 text-center font-bold cursor-default"
+                                                />
                                                 {header === "Tanggal Lahir" && (
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
@@ -725,7 +729,7 @@ export function MigrasiMurid() {
                             </div>
 
                             {/* Virtualized Cells */}
-                            <div className="relative z-10" style={{top: '49px'}}>
+                            <div className="relative" style={{top: '49px'}}>
                                 {virtualRows.map((virtualRow) => {
                                     const rowIndex = virtualRow.index;
                                     const row = rows[rowIndex];
