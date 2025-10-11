@@ -725,7 +725,7 @@ export function MigrasiMurid() {
 
                                 let cellValue;
                                 if (header === "No") {
-                                    cellValue = !isRowEmptyForNumbering(row, rowIndex) ? String(rowIndex + 1) : '';
+                                    cellValue = (rowIndex === 0 || row["Username"]) ? String(rowIndex + 1) : '';
                                 } else {
                                     cellValue = row ? row[header] || '' : '';
                                 }
