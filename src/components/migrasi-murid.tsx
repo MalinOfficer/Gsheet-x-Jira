@@ -521,6 +521,14 @@ export function MigrasiMurid() {
         return date;
     };
 
+    const isRowEmptyForNumbering = (row: MuridData, rowIndex: number) => {
+        // The first row (rowIndex 0) is never considered empty for numbering.
+        if (rowIndex === 0) return false;
+        // Other rows are considered empty if they don't have a username.
+        return !row["Username"];
+    };
+
+
     const handleExportExcel = () => {
         if (typeof XLSX === 'undefined') {
             toast({ variant: 'destructive', title: "Library Not Loaded", description: "The Excel library is still loading. Please try again in a moment."});
@@ -528,13 +536,11 @@ export function MigrasiMurid() {
         }
         const dateHeader = "Tanggal Lahir";
         
-        const isRowEmpty = (row: MuridData) => {
-            return Object.entries(row).every(([key, value]) => key === 'No' || !value);
-        };
-
         const processedRows = rows
-            .map((row, index) => {
-                const newRow: Record<string, any> = { ...row, No: String(index + 1) };
+            .map((row, index) => ({...row, No: String(index + 1)}))
+            .filter((row, index) => !isRowEmptyForNumbering(row, index))
+            .map(row => {
+                const newRow: Record<string, any> = {...row};
                 const dateValue = newRow[dateHeader];
                 if (dateValue && typeof dateValue === 'string') {
                     const parsedDate = parseDateString(dateValue);
@@ -543,8 +549,7 @@ export function MigrasiMurid() {
                     }
                 }
                 return newRow;
-            })
-            .filter(row => !isRowEmpty(row));
+            });
 
 
         if (processedRows.length === 0) {
@@ -720,7 +725,7 @@ export function MigrasiMurid() {
 
                                 let cellValue;
                                 if (header === "No") {
-                                    cellValue = String(rowIndex + 1);
+                                    cellValue = !isRowEmptyForNumbering(row, rowIndex) ? String(rowIndex + 1) : '';
                                 } else {
                                     cellValue = row ? row[header] || '' : '';
                                 }
