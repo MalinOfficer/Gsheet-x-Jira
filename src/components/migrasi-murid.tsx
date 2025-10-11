@@ -527,23 +527,24 @@ export function MigrasiMurid() {
             return;
         }
         const dateHeader = "Tanggal Lahir";
+        
+        const isRowEmpty = (row: MuridData) => {
+            return Object.entries(row).every(([key, value]) => key === 'No' || !value);
+        };
+
         const processedRows = rows
             .map((row, index) => {
-                // Always show row 1, or show other rows if they have a username
-                 if (index === 0 || row['Username']) {
-                    const newRow: Record<string, any> = { ...row, No: String(index + 1) };
-                    const dateValue = newRow[dateHeader];
-                    if (dateValue && typeof dateValue === 'string') {
-                        const parsedDate = parseDateString(dateValue);
-                        if (parsedDate) {
-                            newRow[dateHeader] = parsedDate;
-                        }
+                const newRow: Record<string, any> = { ...row, No: String(index + 1) };
+                const dateValue = newRow[dateHeader];
+                if (dateValue && typeof dateValue === 'string') {
+                    const parsedDate = parseDateString(dateValue);
+                    if (parsedDate) {
+                        newRow[dateHeader] = parsedDate;
                     }
-                    return newRow;
                 }
-                return null;
+                return newRow;
             })
-            .filter(row => row !== null && Object.values(row).some(val => val !== null && val !== ''));
+            .filter(row => !isRowEmpty(row));
 
 
         if (processedRows.length === 0) {
@@ -719,7 +720,7 @@ export function MigrasiMurid() {
 
                                 let cellValue;
                                 if (header === "No") {
-                                    cellValue = (rowIndex === 0 || (row && row['Username'])) ? String(rowIndex + 1) : '';
+                                    cellValue = String(rowIndex + 1);
                                 } else {
                                     cellValue = row ? row[header] || '' : '';
                                 }
