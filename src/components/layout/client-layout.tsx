@@ -158,7 +158,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     }
     
     return (
-        <div className={cn("grid min-h-screen w-full grid-rows-[auto_1fr]", isProcessing && "pointer-events-none")}>
+        <div className={cn("grid h-screen w-full grid-rows-[auto_1fr]", isProcessing && "pointer-events-none")}>
              <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-card px-4 md:px-6">
                 <div className="flex items-center gap-4">
                     {/* Hamburger Menu for Mobile */}
@@ -229,7 +229,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     </Link>
                 </div>
             </header>
-            <main className="flex flex-col bg-background min-h-0">{children}</main>
+            <main className="bg-background min-h-0 overflow-auto">{children}</main>
         </div>
     );
 }
