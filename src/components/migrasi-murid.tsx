@@ -625,7 +625,7 @@ export function MigrasiMurid() {
                                     <TableHead
                                         key={header}
                                         style={{ width: columnWidths[header], minWidth: columnWidths[header] }}
-                                        className="relative select-none border-r text-center"
+                                        className="relative select-none border-r text-center text-xs"
                                     >
                                         <div className="flex items-center justify-center">
                                             <span className="truncate">{header}</span>
@@ -654,7 +654,9 @@ export function MigrasiMurid() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {rows.map((row, rowIndex) => (
+                            {rows.map((row, rowIndex) => {
+                                const isRowEmpty = !(row["Username"] && String(row["Username"]).trim() !== "");
+                                return (
                                 <TableRow key={rowIndex}>
                                     {tableHeaders.map((header, colIndex) => {
                                         const isSelected = isCellSelected(rowIndex, colIndex);
@@ -671,11 +673,7 @@ export function MigrasiMurid() {
                                             >
                                                 <Input
                                                     type="text"
-                                                    value={
-                                                        header === "No"
-                                                          ? (rowIndex === 0 || row["Username"] ? String(rowIndex + 1) : "")
-                                                          : String(row[header] || "")
-                                                    }
+                                                    value={header === "No" ? (rowIndex === 0 || row["Username"] ? String(rowIndex + 1) : "") : String(row[header] || "")}
                                                     readOnly={header === "No"}
                                                     onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
                                                     onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
@@ -701,7 +699,7 @@ export function MigrasiMurid() {
                                         );
                                     })}
                                 </TableRow>
-                            ))}
+                            )})}
                         </TableBody>
                     </Table>
                 </div>
@@ -726,3 +724,4 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
