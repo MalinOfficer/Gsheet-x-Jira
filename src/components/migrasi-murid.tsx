@@ -521,10 +521,8 @@ export function MigrasiMurid() {
         return date;
     };
 
-    const isRowEmptyForNumbering = (row: MuridData, rowIndex: number) => {
-        // The first row (rowIndex 0) is never considered empty for numbering.
-        if (rowIndex === 0) return false;
-        // Other rows are considered empty if they don't have a username.
+    const isRowEmptyForNumbering = (row: MuridData) => {
+        // A row is considered empty if it doesn't have a username.
         return !row["Username"];
     };
 
@@ -537,10 +535,10 @@ export function MigrasiMurid() {
         const dateHeader = "Tanggal Lahir";
         
         const processedRows = rows
-            .map((row, index) => ({...row, No: String(index + 1)}))
-            .filter((row, index) => !isRowEmptyForNumbering(row, index))
-            .map(row => {
+            .filter((row, index) => !isRowEmptyForNumbering(row))
+            .map((row, index) => {
                 const newRow: Record<string, any> = {...row};
+                 newRow["No"] = index + 1; // Assign number based on filtered position
                 const dateValue = newRow[dateHeader];
                 if (dateValue && typeof dateValue === 'string') {
                     const parsedDate = parseDateString(dateValue);
@@ -725,7 +723,7 @@ export function MigrasiMurid() {
 
                                 let cellValue;
                                 if (header === "No") {
-                                    cellValue = (rowIndex === 0 || row["Username"]) ? String(rowIndex + 1) : '';
+                                    cellValue = String(rowIndex + 1);
                                 } else {
                                     cellValue = row ? row[header] || '' : '';
                                 }
