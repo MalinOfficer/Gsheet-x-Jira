@@ -617,7 +617,7 @@ export function MigrasiMurid() {
             
             {/* Table Content */}
             <div className="flex-grow min-h-0 relative">
-                 <div ref={tableContainerRef} className="w-full h-full border overflow-auto" onPaste={handlePaste}>
+                 <div ref={tableContainerRef} className="relative h-full overflow-auto border">
                     <Table style={{ tableLayout: 'fixed' }}>
                         <TableHeader className="sticky top-0 z-20 bg-muted">
                             <TableRow>
@@ -625,14 +625,14 @@ export function MigrasiMurid() {
                                     <TableHead
                                         key={header}
                                         style={{ width: columnWidths[header], minWidth: columnWidths[header] }}
-                                        className="relative select-none border-r"
+                                        className="relative select-none border-r text-center"
                                     >
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-center">
                                             <span className="truncate">{header}</span>
                                             {header === "Tanggal Lahir" && (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-5 w-5">
+                                                        <Button variant="ghost" size="icon" className="h-5 w-5 ml-1">
                                                             <Wand2 className="h-3 w-3" />
                                                             <span className="sr-only">Format Menu</span>
                                                         </Button>
@@ -673,7 +673,7 @@ export function MigrasiMurid() {
                                             >
                                                 <Input
                                                     type="text"
-                                                    value={header === "No" ? String(rowIndex + 1) : row[header] || ''}
+                                                    value={String(rowIndex + 1)}
                                                     readOnly={header === "No"}
                                                     onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
                                                     onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
@@ -721,5 +721,6 @@ export function MigrasiMurid() {
             </div>
         </div>
     );
-
 }
+
+    
