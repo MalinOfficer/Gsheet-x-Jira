@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { PlusCircle, Wand2, Download, Undo2, Redo2, Trash2 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -582,7 +582,7 @@ export function MigrasiMurid() {
     const rowVirtualizer = useVirtualizer({
         count: rows.length,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 28, // Estimate row height
+        estimateSize: () => 28,
         overscan: 5,
     });
 
@@ -602,214 +602,194 @@ export function MigrasiMurid() {
     // --- END VIRTUALIZATION ---
 
 
-    if (!isClient) {
-        return (
-             <div className="flex flex-col h-full p-4 sm:p-6">
-                <header className="pb-4">
-                    <Skeleton className="h-8 w-64 mb-2" />
-                    <Skeleton className="h-4 w-96" />
-                </header>
-                <div className="flex items-center gap-2 mb-4">
-                    <Skeleton className="h-9 w-24" />
-                    <Skeleton className="h-9 w-24" />
-                    <Skeleton className="h-9 w-28" />
-                    <Skeleton className="h-9 w-28" />
-                </div>
-                <div className="flex-grow">
-                    <Skeleton className="h-full w-full" />
-                </div>
-                 <footer className="pt-4 flex items-center gap-2">
-                    <Skeleton className="h-9 w-24" />
-                    <Skeleton className="h-9 w-32" />
-                </footer>
-            </div>
-        )
-    }
-
     return (
-        <div className="flex flex-col h-full bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
-            <header className="shrink-0 p-4 border-b">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tight text-foreground font-headline">
-                            Data Murid untuk Migrasi
-                        </h1>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
-                            <Undo2 className="mr-2 h-4 w-4" /> Undo
-                        </Button>
-                        <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
-                            <Redo2 className="mr-2 h-4 w-4" /> Redo
-                        </Button>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="destructive">
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete All
-                            </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                This action will permanently delete all data from the table. You cannot undo this action.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleClearTable}>Continue</AlertDialogAction>
-                            </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                        <Button
-                            onClick={handleExportExcel}
-                            size="sm"
-                            className="bg-green-600 text-white hover:bg-green-700"
-                        >
-                            <Download className="mr-2 h-4 w-4" />
-                            Export
-                        </Button>
-                    </div>
-                </div>
-            </header>
-            
-            <div className="flex-grow min-h-0">
-                <div 
-                    ref={tableContainerRef} 
-                    className="h-full border-b overflow-auto"
-                    onPaste={handlePaste}
-                >
-                    <div style={{ width: `${totalWidth}px`, height: `${totalHeight}px` }} className="relative">
-                        {/* Sticky Header */}
-                        <div
-                            style={{ height: '28px' }}
-                            className="sticky top-0 z-20 bg-muted"
-                        >
-                            {virtualColumns.map((virtualColumn) => {
-                                const header = tableHeaders[virtualColumn.index];
-                                return (
-                                    <div
-                                        key={header}
-                                        style={{
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            width: `${virtualColumn.size}px`,
-                                            height: '28px',
-                                            transform: `translateX(${virtualColumn.start}px)`,
-                                        }}
-                                        className="border-b border-r text-xs font-bold text-center relative select-none flex items-center justify-center"
-                                    >
-                                        <Input
-                                            readOnly
-                                            value={header}
-                                            className="h-7 w-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-0 text-center font-bold cursor-default"
-                                        />
-                                        {header === "Tanggal Lahir" && (
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-5 w-5 absolute right-1 top-1/2 -translate-y-1/2">
-                                                        <Wand2 className="h-3 w-3" />
-                                                        <span className="sr-only">Format Menu</span>
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent>
-                                                    <DropdownMenuItem onClick={handleFormatDates}>
-                                                        Format ke DD/MM/YYYY
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        )}
-                                        <div
-                                            onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
-                                            className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
-                                        />
-                                    </div>
-                                )
-                            })}
+        <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+            <div className="max-w-7xl mx-auto space-y-6">
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between gap-4">
+                             <div>
+                                <CardTitle>Data Murid</CardTitle>
+                                <CardDescription>
+                                    Input dan format data migrasi siswa seperti menggunakan spreadsheet.
+                                </CardDescription>
+                             </div>
+                             <div className="flex items-center gap-2 flex-shrink-0">
+                                <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
+                                    <Undo2 className="mr-2 h-4 w-4" /> Undo
+                                </Button>
+                                <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
+                                    <Redo2 className="mr-2 h-4 w-4" /> Redo
+                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                    <Button size="sm" variant="destructive">
+                                        <Trash2 className="mr-2 h-4 w-4" /> Delete All
+                                    </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                        This action will permanently delete all data from the table. You cannot undo this action.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleClearTable}>Continue</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                                <Button
+                                    onClick={handleExportExcel}
+                                    size="sm"
+                                    className="bg-green-600 text-white hover:bg-green-700"
+                                >
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Export
+                                </Button>
+                            </div>
                         </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div 
+                            ref={tableContainerRef} 
+                            className="w-full border-t border-l border-r overflow-auto"
+                            style={{ height: 'calc(100vh - 300px)' }}
+                            onPaste={handlePaste}
+                        >
+                            <div style={{ width: `${totalWidth}px`, height: `${totalHeight}px` }} className="relative">
+                                {/* Sticky Header */}
+                                <div
+                                    style={{ height: '28px' }}
+                                    className="sticky top-0 z-20 bg-muted"
+                                >
+                                    {virtualColumns.map((virtualColumn) => {
+                                        const header = tableHeaders[virtualColumn.index];
+                                        return (
+                                            <div
+                                                key={header}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    width: `${virtualColumn.size}px`,
+                                                    height: '28px',
+                                                    transform: `translateX(${virtualColumn.start}px)`,
+                                                }}
+                                                className="border-b border-r text-xs font-bold text-center relative select-none flex items-center justify-center"
+                                            >
+                                                <Input
+                                                    readOnly
+                                                    value={header}
+                                                    className="h-7 w-full text-xs p-1 rounded-none border-0 bg-transparent focus-visible:ring-0 text-center font-bold cursor-default"
+                                                />
+                                                {header === "Tanggal Lahir" && (
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-5 w-5 absolute right-1 top-1/2 -translate-y-1/2">
+                                                                <Wand2 className="h-3 w-3" />
+                                                                <span className="sr-only">Format Menu</span>
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent>
+                                                            <DropdownMenuItem onClick={handleFormatDates}>
+                                                                Format ke DD/MM/YYYY
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                )}
+                                                <div
+                                                    onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
+                                                    className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
+                                                />
+                                            </div>
+                                        )
+                                    })}
+                                </div>
 
-                        {/* Virtualized Cells Body */}
-                        {virtualRows.map((virtualRow) => {
-                            const rowIndex = virtualRow.index;
-                            const row = rows[rowIndex];
+                                {/* Virtualized Cells Body */}
+                                {virtualRows.map((virtualRow) => {
+                                    const rowIndex = virtualRow.index;
+                                    const row = rows[rowIndex];
 
-                            return virtualColumns.map((virtualColumn) => {
-                                const colIndex = virtualColumn.index;
-                                const header = tableHeaders[colIndex];
-                                const isSelected = isCellSelected(rowIndex, colIndex);
-                                const isFillPreviewing = isDraggingFill && isCellInFillRange(rowIndex, colIndex) && !isSelected;
-                                const isBottomRightOfSelection = selectedRange.start && normalizedSelectedRange.endRow === rowIndex && normalizedSelectedRange.endCol === colIndex;
+                                    return virtualColumns.map((virtualColumn) => {
+                                        const colIndex = virtualColumn.index;
+                                        const header = tableHeaders[colIndex];
+                                        const isSelected = isCellSelected(rowIndex, colIndex);
+                                        const isFillPreviewing = isDraggingFill && isCellInFillRange(rowIndex, colIndex) && !isSelected;
+                                        const isBottomRightOfSelection = selectedRange.start && normalizedSelectedRange.endRow === rowIndex && normalizedSelectedRange.endCol === colIndex;
 
-                                let cellValue;
-                                if (header === "No") {
-                                    cellValue = (rowIndex === 0 || (row && row['Username'])) ? String(rowIndex + 1) : '';
-                                } else {
-                                    cellValue = row ? row[header] || '' : '';
-                                }
-                                
-                                return (
-                                    <div
-                                        key={`cell-${rowIndex}-${colIndex}`}
-                                        style={{
-                                            position: 'absolute',
-                                            top: `${virtualRow.start}px`,
-                                            left: `${virtualColumn.start}px`,
-                                            width: `${virtualColumn.size}px`,
-                                            height: `${virtualRow.size}px`,
-                                        }}
-                                        className={cn(
-                                            "border-b border-r p-0 m-0 relative flex items-center",
-                                            { "bg-muted/30": header === "No" },
-                                            isSelected && header !== "No" ? 'bg-blue-100/50 dark:bg-blue-900/50' : '',
-                                            isFillPreviewing ? 'bg-green-200/50 dark:bg-green-900/50' : ''
-                                        )}
-                                    >
-                                        <Input
-                                            type="text"
-                                            value={cellValue}
-                                            readOnly={header === "No"}
-                                            onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
-                                            onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
-                                            onMouseDown={(e) => handleMouseDown(e, { row: rowIndex, col: colIndex })}
-                                            onMouseOver={(e) => handleMouseOver(e, { row: rowIndex, col: colIndex })}
-                                            data-row={rowIndex}
-                                            data-col={colIndex}
-                                            className={cn(
-                                                "w-full h-7 text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
-                                                header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
-                                            )}
-                                        />
-                                        {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
-                                        {isBottomRightOfSelection && !isDraggingFill && (
-                                            <div 
-                                                onMouseDown={handleFillHandleMouseDown}
-                                                className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
-                                            />
-                                        )}
-                                    </div>
-                                )
-                            })
-                        })}
-                    </div>
-                </div>
+                                        let cellValue;
+                                        if (header === "No") {
+                                            cellValue = (rowIndex === 0 || (row && row['Username'])) ? String(rowIndex + 1) : '';
+                                        } else {
+                                            cellValue = row ? row[header] || '' : '';
+                                        }
+                                        
+                                        return (
+                                            <div
+                                                key={`cell-${rowIndex}-${colIndex}`}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: `${virtualRow.start}px`,
+                                                    left: `${virtualColumn.start}px`,
+                                                    width: `${virtualColumn.size}px`,
+                                                    height: `${virtualRow.size}px`,
+                                                }}
+                                                className={cn(
+                                                    "border-b border-r p-0 m-0 relative flex items-center",
+                                                    { "bg-muted/30": header === "No" },
+                                                    isSelected && header !== "No" ? 'bg-blue-100/50 dark:bg-blue-900/50' : '',
+                                                    isFillPreviewing ? 'bg-green-200/50 dark:bg-green-900/50' : ''
+                                                )}
+                                            >
+                                                <Input
+                                                    type="text"
+                                                    value={cellValue}
+                                                    readOnly={header === "No"}
+                                                    onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
+                                                    onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
+                                                    onMouseDown={(e) => handleMouseDown(e, { row: rowIndex, col: colIndex })}
+                                                    onMouseOver={(e) => handleMouseOver(e, { row: rowIndex, col: colIndex })}
+                                                    data-row={rowIndex}
+                                                    data-col={colIndex}
+                                                    className={cn(
+                                                        "w-full h-7 text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
+                                                        header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
+                                                    )}
+                                                />
+                                                {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
+                                                {isBottomRightOfSelection && !isDraggingFill && (
+                                                    <div 
+                                                        onMouseDown={handleFillHandleMouseDown}
+                                                        className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
+                                                    />
+                                                )}
+                                            </div>
+                                        )
+                                    })
+                                })}
+                            </div>
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                       <div className="flex items-center gap-2">
+                            <Input
+                                type="number"
+                                value={numRowsToAdd}
+                                onChange={(e) => setNumRowsToAdd(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                                className="w-24 h-9"
+                                min="1"
+                            />
+                            <Button onClick={handleAddRows} size="sm" variant="outline">
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Tambah Baris
+                            </Button>
+                        </div>
+                    </CardFooter>
+                </Card>
             </div>
-
-            <footer className="shrink-0 p-2 border-t">
-                <div className="flex items-center gap-2">
-                    <Input
-                        type="number"
-                        value={numRowsToAdd}
-                        onChange={(e) => setNumRowsToAdd(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                        className="w-24 h-9"
-                        min="1"
-                    />
-                    <Button onClick={handleAddRows} size="sm" variant="outline">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Tambah Baris
-                    </Button>
-                </div>
-            </footer>
         </div>
     );
 }
