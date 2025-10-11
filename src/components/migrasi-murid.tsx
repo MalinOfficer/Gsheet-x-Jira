@@ -627,12 +627,12 @@ export function MigrasiMurid() {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+        <div className="flex flex-col h-full bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
             <header className="shrink-0 p-4 border-b">
                 <div className="flex items-center justify-between gap-4">
                     <div>
                         <h1 className="text-xl font-bold tracking-tight text-foreground font-headline">
-                            Data Murid
+                            Data Murid untuk Migrasi
                         </h1>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -813,3 +813,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
