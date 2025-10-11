@@ -117,13 +117,7 @@ export function MigrasiMurid() {
     const [history, setHistory] = useState<MuridData[][]>([rows]);
     const [historyIndex, setHistoryIndex] = useState(0);
 
-    const [isClient, setIsClient] = useState(false);
     const tableContainerRef = useRef<HTMLDivElement>(null);
-    
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
     
 
     const recordHistory = (newRows: MuridData[]) => {
@@ -521,12 +515,6 @@ export function MigrasiMurid() {
         return date;
     };
 
-    const isRowEmptyForNumbering = (row: MuridData) => {
-        // A row is considered empty if it doesn't have a username.
-        return !row["Username"];
-    };
-
-
     const handleExportExcel = () => {
         if (typeof XLSX === 'undefined') {
             toast({ variant: 'destructive', title: "Library Not Loaded", description: "The Excel library is still loading. Please try again in a moment."});
@@ -535,10 +523,10 @@ export function MigrasiMurid() {
         const dateHeader = "Tanggal Lahir";
         
         const processedRows = rows
-            .filter((row, index) => !isRowEmptyForNumbering(row))
+            .filter((row) => row["Username"]) // Filter rows that have a username
             .map((row, index) => {
                 const newRow: Record<string, any> = {...row};
-                 newRow["No"] = index + 1; // Assign number based on filtered position
+                newRow["No"] = index + 1; // Re-number based on filtered position
                 const dateValue = newRow[dateHeader];
                 if (dateValue && typeof dateValue === 'string') {
                     const parsedDate = parseDateString(dateValue);
@@ -549,12 +537,11 @@ export function MigrasiMurid() {
                 return newRow;
             });
 
-
         if (processedRows.length === 0) {
             toast({
                 variant: "destructive",
                 title: "No Data to Export",
-                description: "The table is empty. Please add some data before exporting.",
+                description: "The table is empty or no rows have a username. Please add some data before exporting.",
             });
             return;
         }
@@ -582,9 +569,9 @@ export function MigrasiMurid() {
     };
 
     return (
-        <div className="flex flex-col h-full p-2" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+        <div className="flex flex-col h-full p-2 bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
             {/* Header */}
-            <div className="flex-shrink-0 p-4 bg-background border-b">
+            <div className="flex-shrink-0 p-4 border-b">
                 <div className="flex items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Data Murid</h1>
@@ -629,10 +616,10 @@ export function MigrasiMurid() {
             </div>
             
             {/* Table Content */}
-            <div className="flex-grow min-h-0">
+            <div className="flex-grow min-h-0 relative">
                  <div ref={tableContainerRef} className="w-full h-full border overflow-auto" onPaste={handlePaste}>
                     <Table style={{ tableLayout: 'fixed' }}>
-                        <TableHeader className="sticky top-0 z-10 bg-muted">
+                        <TableHeader className="sticky top-0 z-20 bg-muted">
                             <TableRow>
                                 {tableHeaders.map((header) => (
                                     <TableHead
@@ -717,7 +704,7 @@ export function MigrasiMurid() {
             </div>
 
             {/* Footer */}
-            <div className="flex-shrink-0 p-2 bg-background border-t">
+            <div className="flex-shrink-0 p-2 border-t">
                 <div className="flex items-center gap-2">
                     <Input
                         type="number"
@@ -734,6 +721,5 @@ export function MigrasiMurid() {
             </div>
         </div>
     );
-}
 
-    
+}
