@@ -569,7 +569,7 @@ export function MigrasiMurid() {
     };
 
     return (
-        <div className="flex flex-col h-full p-2 bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+        <div className="flex flex-col h-full bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onPaste={handlePaste}>
             {/* Header */}
             <div className="flex-shrink-0 p-4 border-b">
                 <div className="flex items-center justify-between gap-4">
@@ -666,14 +666,16 @@ export function MigrasiMurid() {
                                                 key={`${rowIndex}-${colIndex}`}
                                                 className={cn(
                                                     "p-0 m-0 border-r relative",
-                                                    { "bg-muted/30": header === "No" },
-                                                    isSelected && header !== "No" ? 'bg-blue-100/50 dark:bg-blue-900/50' : '',
-                                                    isFillPreviewing ? 'bg-green-200/50 dark:bg-green-900/50' : ''
+                                                    header === "No" && "bg-muted/30"
                                                 )}
                                             >
                                                 <Input
                                                     type="text"
-                                                    value={String(rowIndex + 1)}
+                                                    value={
+                                                        header === "No"
+                                                          ? (rowIndex === 0 || row["Username"] ? String(rowIndex + 1) : "")
+                                                          : String(row[header] || "")
+                                                    }
                                                     readOnly={header === "No"}
                                                     onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
                                                     onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
@@ -684,6 +686,8 @@ export function MigrasiMurid() {
                                                     className={cn(
                                                         "w-full h-7 text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
                                                         header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
+                                                        isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
+                                                        isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50"
                                                     )}
                                                 />
                                                 {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
@@ -722,5 +726,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
