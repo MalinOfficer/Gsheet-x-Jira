@@ -627,19 +627,16 @@ export function MigrasiMurid() {
     }
 
     return (
-        <div className="flex flex-col h-full p-4 sm:p-6" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
-            <header className="pb-4 shrink-0">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex flex-col h-screen bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+            <header className="shrink-0 p-4 border-b">
+                <div className="flex items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">
+                        <h1 className="text-xl font-bold tracking-tight text-foreground font-headline">
                             Data Murid
                         </h1>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            Alat bantu mirip spreadsheet untuk memasukkan dan memformat data migrasi siswa.
-                        </p>
                     </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                            <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
                             <Undo2 className="mr-2 h-4 w-4" /> Undo
                         </Button>
                         <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
@@ -679,7 +676,7 @@ export function MigrasiMurid() {
             <div className="flex-grow min-h-0">
                 <div 
                     ref={tableContainerRef} 
-                    className="h-full border rounded-md overflow-auto"
+                    className="h-full border-b overflow-auto"
                     onPaste={handlePaste}
                 >
                     <div style={{ width: `${totalWidth}px`, height: `${totalHeight}px` }} className="relative">
@@ -756,11 +753,10 @@ export function MigrasiMurid() {
                                         key={`cell-${rowIndex}-${colIndex}`}
                                         style={{
                                             position: 'absolute',
-                                            top: 0,
-                                            left: 0,
+                                            top: `${virtualRow.start}px`,
+                                            left: `${virtualColumn.start}px`,
                                             width: `${virtualColumn.size}px`,
                                             height: `${virtualRow.size}px`,
-                                            transform: `translateX(${virtualColumn.start}px) translateY(${virtualRow.start + 28}px)`,
                                         }}
                                         className={cn(
                                             "border-b border-r p-0 m-0 relative flex items-center",
@@ -799,7 +795,7 @@ export function MigrasiMurid() {
                 </div>
             </div>
 
-            <footer className="pt-4 shrink-0">
+            <footer className="shrink-0 p-2 border-t">
                 <div className="flex items-center gap-2">
                     <Input
                         type="number"
@@ -817,9 +813,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-  
-
-  
-
-  
