@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect } from "react";
@@ -619,7 +620,7 @@ export function MigrasiMurid() {
             <div className="flex-grow min-h-0 relative">
                  <div ref={tableContainerRef} className="h-full w-full overflow-auto border-t">
                     <Table style={{ tableLayout: 'fixed' }}>
-                        <TableHeader className="sticky top-0 z-20 bg-muted">
+                        <TableHeader className="sticky top-0 z-20 bg-slate-100 dark:bg-slate-800">
                             <TableRow>
                                 {tableHeaders.map((header) => (
                                     <TableHead
@@ -722,5 +723,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
