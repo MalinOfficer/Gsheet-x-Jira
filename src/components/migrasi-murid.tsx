@@ -628,7 +628,7 @@ export function MigrasiMurid() {
                                     <TableHead
                                         key={header}
                                         style={{ width: columnWidths[header], minWidth: columnWidths[header] }}
-                                        className="relative select-none border-r text-center text-xs"
+                                        className="relative select-none border-r text-foreground text-center"
                                     >
                                         <div className="flex items-center justify-center">
                                             <span className="truncate">{header}</span>
@@ -712,12 +712,9 @@ export function MigrasiMurid() {
                     <Input
                         type="number"
                         value={numRowsToAdd}
-                        onChange={(e) => setNumRowsToAdd(e.target.value)}
-                        onBlur={(e) => {
-                            const val = parseInt(e.target.value, 10);
-                            if (isNaN(val) || val < 1) {
-                                setNumRowsToAdd(1);
-                            }
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            setNumRowsToAdd(value === '' ? '' : Math.max(1, parseInt(value, 10)));
                         }}
                         className="w-24 h-9"
                         min="1"
@@ -731,5 +728,7 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
 
     
