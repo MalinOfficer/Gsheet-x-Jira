@@ -620,7 +620,7 @@ export function MigrasiMurid() {
             
             {/* Table Content */}
             <div className="flex-grow min-h-0 relative">
-                 <div ref={tableContainerRef} className="h-full w-full overflow-auto border-t">
+                 <div ref={tableContainerRef} className="h-full w-full overflow-auto border-t border-b">
                     <div style={{ transform: 'scale(0.9)', transformOrigin: 'top left', width: '111.11%' }}>
                         <Table style={{ tableLayout: 'fixed' }}>
                             <TableHeader className="sticky top-0 z-20 bg-slate-100 dark:bg-slate-800">
@@ -729,6 +729,8 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
 
     
 
