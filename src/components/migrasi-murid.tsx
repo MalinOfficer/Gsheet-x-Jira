@@ -571,23 +571,23 @@ export function MigrasiMurid() {
     return (
         <div className="flex flex-col h-full bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onPaste={handlePaste}>
             {/* Header */}
-            <div className="flex-shrink-0 p-4 border-b">
+            <div className="flex-shrink-0 p-2 border-b">
                 <div className="flex items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Data Murid</h1>
-                        <p className="text-sm text-muted-foreground mt-1">Input dan format data migrasi siswa seperti menggunakan spreadsheet.</p>
+                        <h1 className="text-xl font-bold tracking-tight">Data Murid</h1>
+                        <p className="text-xs text-muted-foreground mt-1">Input dan format data migrasi siswa seperti menggunakan spreadsheet.</p>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                         <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
-                            <Undo2 className="mr-2 h-4 w-4" /> Undo
+                            <Undo2 className="mr-1 h-3 w-3" /> Undo
                         </Button>
                         <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
-                            <Redo2 className="mr-2 h-4 w-4" /> Redo
+                            <Redo2 className="mr-1 h-3 w-3" /> Redo
                         </Button>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                             <Button size="sm" variant="destructive">
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete All
+                                <Trash2 className="mr-1 h-3 w-3" /> Delete All
                             </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -608,7 +608,7 @@ export function MigrasiMurid() {
                             size="sm"
                             className="bg-green-600 text-white hover:bg-green-700"
                         >
-                            <Download className="mr-2 h-4 w-4" />
+                            <Download className="mr-1 h-3 w-3" />
                             Export
                         </Button>
                     </div>
@@ -617,7 +617,7 @@ export function MigrasiMurid() {
             
             {/* Table Content */}
             <div className="flex-grow min-h-0 relative">
-                 <div ref={tableContainerRef} className="relative h-full overflow-auto border">
+                 <div ref={tableContainerRef} className="h-full w-full overflow-auto border-t">
                     <Table style={{ tableLayout: 'fixed' }}>
                         <TableHeader className="sticky top-0 z-20 bg-muted">
                             <TableRow>
@@ -654,9 +654,7 @@ export function MigrasiMurid() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {rows.map((row, rowIndex) => {
-                                const isRowEmpty = !(row["Username"] && String(row["Username"]).trim() !== "");
-                                return (
+                            {rows.map((row, rowIndex) => (
                                 <TableRow key={rowIndex}>
                                     {tableHeaders.map((header, colIndex) => {
                                         const isSelected = isCellSelected(rowIndex, colIndex);
@@ -699,7 +697,7 @@ export function MigrasiMurid() {
                                         );
                                     })}
                                 </TableRow>
-                            )})}
+                            ))}
                         </TableBody>
                     </Table>
                 </div>
@@ -725,3 +723,4 @@ export function MigrasiMurid() {
     );
 }
 
+    
