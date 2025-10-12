@@ -106,7 +106,7 @@ const parseAndFormatDate = (dateStr: string): string | null => {
 export function MigrasiMurid() {
     const [rows, setRows] = useState<MuridData[]>(() => Array.from({ length: INITIAL_ROWS }, (_, i) => createEmptyRow()));
     const [selectedRange, setSelectedRange] = useState<{ start: CellSelection | null, end: CellSelection | null }>({ start: null, end: null });
-    const [numRowsToAdd, setNumRowsToAdd] = useState<number | string>(1);
+    const [numRowsToAdd, setNumRowsToAdd] = useState<number | string>("");
     const { toast } = useToast();
     const isSelecting = useRef(false);
     
@@ -464,7 +464,7 @@ export function MigrasiMurid() {
     }, [selectedRange.start, toast, rows, handleRowsChange]);
 
     const handleAddRows = () => {
-        const count = Number(numRowsToAdd);
+        const count = Number(numRowsToAdd) || 1;
         if (isNaN(count) || count < 1) {
             toast({ variant: 'destructive', title: 'Invalid Number', description: 'Please enter a valid number of rows to add.' });
             return;
@@ -628,7 +628,7 @@ export function MigrasiMurid() {
                                     <TableHead
                                         key={header}
                                         style={{ width: columnWidths[header], minWidth: columnWidths[header] }}
-                                        className="relative select-none border-r text-foreground text-center"
+                                        className="relative select-none border-r text-foreground text-center text-xs py-1"
                                     >
                                         <div className="flex items-center justify-center">
                                             <span className="truncate">{header}</span>
@@ -710,14 +710,13 @@ export function MigrasiMurid() {
             <div className="flex-shrink-0 p-2 border-t">
                 <div className="flex items-center gap-2">
                     <Input
-                        type="number"
+                        type="text"
                         value={numRowsToAdd}
                         onChange={(e) => {
-                            const value = e.target.value;
-                            setNumRowsToAdd(value === '' ? '' : Math.max(1, parseInt(value, 10)));
+                            setNumRowsToAdd(e.target.value);
                         }}
+                        placeholder="1"
                         className="w-24 h-9"
-                        min="1"
                     />
                     <Button onClick={handleAddRows} size="sm" variant="outline">
                         <PlusCircle className="mr-2 h-4 w-4" />
