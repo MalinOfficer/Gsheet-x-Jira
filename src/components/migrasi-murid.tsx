@@ -659,7 +659,7 @@ export function MigrasiMurid() {
                             </TableHeader>
                             <TableBody>
                                 {rows.map((row, rowIndex) => (
-                                    <TableRow key={rowIndex}>
+                                    <TableRow key={rowIndex} className="border-b">
                                         {tableHeaders.map((header, colIndex) => {
                                             const isSelected = isCellSelected(rowIndex, colIndex);
                                             const isFillPreviewing = isDraggingFill && isCellInFillRange(rowIndex, colIndex) && !isSelected;
