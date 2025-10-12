@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect } from "react";
@@ -107,7 +106,7 @@ const parseAndFormatDate = (dateStr: string): string | null => {
 export function MigrasiMurid() {
     const [rows, setRows] = useState<MuridData[]>(() => Array.from({ length: INITIAL_ROWS }, (_, i) => createEmptyRow()));
     const [selectedRange, setSelectedRange] = useState<{ start: CellSelection | null, end: CellSelection | null }>({ start: null, end: null });
-    const [numRowsToAdd, setNumRowsToAdd] = useState(1);
+    const [numRowsToAdd, setNumRowsToAdd] = useState<number | string>(1);
     const { toast } = useToast();
     const isSelecting = useRef(false);
     
@@ -466,7 +465,10 @@ export function MigrasiMurid() {
 
     const handleAddRows = () => {
         const count = Number(numRowsToAdd);
-        if (isNaN(count) || count < 1) return;
+        if (isNaN(count) || count < 1) {
+            toast({ variant: 'destructive', title: 'Invalid Number', description: 'Please enter a valid number of rows to add.' });
+            return;
+        }
         const newRows = [...rows, ...Array.from({ length: count }, createEmptyRow)];
         handleRowsChange(newRows);
         toast({ title: "Rows Added", description: `${count} empty rows have been added.` });
@@ -573,7 +575,7 @@ export function MigrasiMurid() {
         <div className="flex flex-col h-full bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onPaste={handlePaste}>
             {/* Header */}
             <div className="flex-shrink-0 p-2 border-b">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                     <div>
                         <h1 className="text-xl font-bold tracking-tight">Data Murid</h1>
                         <p className="text-xs text-muted-foreground mt-1">Input dan format data migrasi siswa seperti menggunakan spreadsheet.</p>
@@ -710,7 +712,13 @@ export function MigrasiMurid() {
                     <Input
                         type="number"
                         value={numRowsToAdd}
-                        onChange={(e) => setNumRowsToAdd(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                        onChange={(e) => setNumRowsToAdd(e.target.value)}
+                        onBlur={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (isNaN(val) || val < 1) {
+                                setNumRowsToAdd(1);
+                            }
+                        }}
                         className="w-24 h-9"
                         min="1"
                     />
@@ -723,3 +731,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
