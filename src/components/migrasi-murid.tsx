@@ -106,7 +106,7 @@ const parseAndFormatDate = (dateStr: string): string | null => {
 export function MigrasiMurid() {
     const [rows, setRows] = useState<MuridData[]>(() => Array.from({ length: INITIAL_ROWS }, (_, i) => createEmptyRow()));
     const [selectedRange, setSelectedRange] = useState<{ start: CellSelection | null, end: CellSelection | null }>({ start: null, end: null });
-    const [numRowsToAdd, setNumRowsToAdd] = useState<number | string>("");
+    const [numRowsToAdd, setNumRowsToAdd] = useState<number | string>(1);
     const { toast } = useToast();
     const isSelecting = useRef(false);
     
@@ -584,12 +584,8 @@ export function MigrasiMurid() {
     };
 
 
-    const handleMouseLeave = () => {
-        isSelecting.current = false;
-    };
-
     return (
-        <div className="h-full flex flex-col bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseLeave} onPaste={handlePaste}>
+        <div className="h-full flex flex-col bg-background" onMouseUp={handleMouseUp} onPaste={handlePaste}>
             <div className="flex-shrink-0 p-4 border-b">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                     <div>
@@ -738,7 +734,7 @@ export function MigrasiMurid() {
                         onChange={(e) => {
                             setNumRowsToAdd(e.target.value);
                         }}
-                        placeholder="1"
+                        placeholder=""
                         className="w-24 h-9"
                     />
                     <Button onClick={handleAddRows} size="sm" variant="outline">
