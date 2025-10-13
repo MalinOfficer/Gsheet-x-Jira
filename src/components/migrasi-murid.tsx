@@ -641,7 +641,7 @@ export function MigrasiMurid() {
                             <div
                                 key={header}
                                 style={{ width: columnWidths[header] }}
-                                className="relative select-none border-r border-b text-foreground text-center py-1 flex items-center justify-center font-medium text-sm"
+                                className="relative select-none border-r border-b py-1 flex items-center justify-center font-medium text-sm text-foreground"
                             >
                                 <span className="truncate">{header}</span>
                                 {header === "Tanggal Lahir" && (
@@ -671,7 +671,6 @@ export function MigrasiMurid() {
                     <div className="relative" style={{ height: `${totalHeight}px` }}>
                         {virtualRows.map(virtualRow => {
                             const row = rows[virtualRow.index];
-                            const isBottomRightOfSelection = selectedRange.start && normalizedSelectedRange.endRow === virtualRow.index && normalizedSelectedRange.endCol === tableHeaders.length -1;
                              return (
                                 <div
                                     key={virtualRow.key}
@@ -704,7 +703,7 @@ export function MigrasiMurid() {
                                                     data-row={virtualRow.index}
                                                     data-col={colIndex}
                                                     className={cn(
-                                                        "w-full h-full text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
+                                                        "w-full h-7 text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
                                                         header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
                                                         isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
                                                         isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50"
