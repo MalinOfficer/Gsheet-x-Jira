@@ -809,13 +809,14 @@ function PreviewTable({
             </CardHeader>
             <CardContent>
                 <ScrollArea className="w-full h-[500px] border rounded-md">
-                    <Table>
+                    <Table style={{ minWidth: '1800px' }}>
                         <TableHeader className="sticky top-0 z-10 bg-card">
                             <TableRow>
                                 {tableData.headers.map((header, index) => (
                                     <TableHead 
                                       key={`${header}-${index}`} 
                                       className="font-bold bg-muted/50 whitespace-nowrap p-2"
+                                      style={{ width: header === 'Title' ? '384px' : '128px' }}
                                     >
                                         {(header === 'Created At' || header === 'Resolved At') ? (
                                             <DropdownMenu>
@@ -849,7 +850,7 @@ function PreviewTable({
                                         <TableCell 
                                             key={`${header}-${headerIndex}-${rowIndex}`} 
                                             className="text-xs p-1"
-                                            style={{ minWidth: header === 'Title' ? '300px' : '120px' }}
+                                            style={{ width: header === 'Title' ? '384px' : '128px' }}
                                         >
                                            {header === 'Status' ? (
                                                 <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(rowIndex, header, newStatus)} disabled={isProcessing}>
