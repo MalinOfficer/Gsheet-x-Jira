@@ -869,7 +869,7 @@ function PreviewTable({
                                         className="flex items-center"
                                     >
                                         {tableData.headers.map((header, headerIndex) => (
-                                            <TableCell key={`${header}-${headerIndex}-${virtualRow.index}`} className={cn("text-xs h-full flex items-center p-2", header === "Title" ? "flex-1" : "w-32")}>
+                                            <TableCell key={`${header}-${headerIndex}-${virtualRow.index}`} className={cn("text-xs h-full flex items-center p-2", header === "Title" ? "w-96" : "w-32")}>
                                                {header === 'Status' ? (
                                                     <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(virtualRow.index, header, newStatus)} disabled={isProcessing}>
                                                         <SelectTrigger className="w-[120px] h-8 text-xs">
@@ -910,3 +910,5 @@ function PreviewTable({
         </Card>
     )
 }
+
+    
