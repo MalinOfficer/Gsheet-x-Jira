@@ -622,7 +622,7 @@ export function MigrasiMurid() {
             {/* Table Content */}
             <div
                 ref={tableContainerRef}
-                className="flex-grow min-h-0 overflow-auto border-t"
+                className="flex-grow overflow-auto border-t"
                 style={{ transform: 'scale(0.9)', transformOrigin: 'top left', width: '111.11%' }}
             >
                 <Table style={{ tableLayout: 'fixed' }}>
@@ -730,11 +730,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
-
-    
-
-    
-
-    
