@@ -632,7 +632,6 @@ export function MigrasiMurid() {
             <div 
                 ref={tableContainerRef}
                 className="flex-grow overflow-auto border-t"
-                style={{ transform: 'scale(0.9)', transformOrigin: 'top left', width: '111.11%' }}
             >
                 <div style={{ width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`}}>
                     {/* Header Row */}
