@@ -387,6 +387,10 @@ export function MigrasiMurid() {
             setFillRange(null);
         }
     };
+
+    const handleMouseLeave = () => {
+        // This function might be useful later to cancel selection if the mouse leaves the component area
+    };
     
      const handleFillHandleMouseDown = (e: MouseEvent) => {
         e.stopPropagation();
@@ -585,7 +589,7 @@ export function MigrasiMurid() {
     };
 
     return (
-        <div className="h-full flex flex-col bg-background" onMouseUp={handleMouseUp} onPaste={handlePaste}>
+        <div className="h-full flex flex-col bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseLeave} onPaste={handlePaste}>
             <div className="flex-shrink-0 p-4 border-b">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                     <div>
@@ -636,9 +640,10 @@ export function MigrasiMurid() {
                         width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
                         height: `${totalHeight}px`,
                         position: 'relative',
+                        paddingTop: '36px',
                     }}
                 >
-                    <div className="sticky top-0 z-20 flex bg-secondary">
+                    <div className="sticky top-0 z-20 flex bg-secondary" style={{height: '36px'}}>
                         {tableHeaders.map((header) => (
                             <div
                                 key={header}
@@ -678,7 +683,7 @@ export function MigrasiMurid() {
                                 style={{
                                     width: '100%',
                                     height: `${virtualRow.size}px`,
-                                    transform: `translateY(${virtualRow.start + 28}px)`, // +28px offset for header
+                                    transform: `translateY(${virtualRow.start}px)`,
                                 }}
                             >
                                 {tableHeaders.map((header, colIndex) => {
@@ -746,5 +751,7 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
 
     
