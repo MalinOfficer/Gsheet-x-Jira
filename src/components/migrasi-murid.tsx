@@ -46,24 +46,32 @@ const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ 
 const INITIAL_ROWS = 23;
 
 const monthMap: { [key: string]: string } = {
-    'januari': '01', 'februari': '02', 'maret': '03', 'april': '04',
-    'mei': '05', 'juni': '06', 'juli': '07', 'agustus': '08',
-    'september': '09', 'oktober': '10', 'november': '11', 'desember': '12',
-    'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
-    'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+    'januari': '01', 'janu': '01', 'jan': '01',
+    'februari': '02', 'feb': '02',
+    'maret': '03', 'mar': '03',
+    'april': '04', 'apr': '04',
+    'mei': '05',
+    'juni': '06', 'jun': '06',
+    'juli': '07', 'jul': '07',
+    'agustus': '08', 'agu': '08', 'ags': '08',
+    'september': '09', 'sep': '09',
+    'oktober': '10', 'okt': '10',
+    'november': '11', 'nov': '11',
+    'desember': '12', 'des': '12',
 };
 
 const parseAndFormatDate = (dateStr: string): string | null => {
     if (!dateStr || typeof dateStr !== 'string') return null;
 
-    const trimmedDate = dateStr.trim();
+    const trimmedDate = dateStr.trim().toLowerCase();
     
     // Check if it's already in DD/MM/YYYY format
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmedDate)) {
         const parts = trimmedDate.split('/');
         const day = parts[0].padStart(2, '0');
         const month = parts[1].padStart(2, '0');
-        if (parseInt(month, 10) > 12) { // Likely MM/DD/YYYY format
+        // Handle potential MM/DD/YYYY to DD/MM/YYYY swap
+        if (parseInt(month, 10) > 12) {
              return `${parts[1].padStart(2, '0')}/${parts[0].padStart(2, '0')}/${parts[2]}`;
         }
         return `${day}/${month}/${parts[2]}`;
@@ -78,13 +86,25 @@ const parseAndFormatDate = (dateStr: string): string | null => {
         return `${day}/${month}/${year}`;
     }
 
-    // Try parsing DD-MonthName-YYYY (e.g., 03-Januari-2009)
-    const monthMatch = trimmedDate.match(/^(\d{1,2})[-.\s]([a-zA-Z]+)[-.\s](\d{4})$/);
-    if (monthMatch) {
-        const day = monthMatch[1].padStart(2, '0');
-        const monthName = monthMatch[2].toLowerCase();
-        const year = monthMatch[3];
-        const month = monthMap[monthName];
+    // Try parsing DD-MonthName-YYYY (e.g., 03-Januari-2009) or MonthName DD YYYY
+    const datePartsMatch = trimmedDate.match(/^(?:(\d{1,2})[-.\s])?([a-zA-Z]+)[-.\s](\d{1,2})?[-.\s](\d{4})$/);
+    if (datePartsMatch) {
+        const potentialDay1 = datePartsMatch[1];
+        const monthName = datePartsMatch[2];
+        const potentialDay2 = datePartsMatch[3];
+        const year = datePartsMatch[4];
+
+        const day = (potentialDay1 || potentialDay2)?.padStart(2, '0');
+        
+        let month: string | undefined = undefined;
+        // Find a matching month prefix
+        for (const key in monthMap) {
+            if (monthName.startsWith(key)) {
+                month = monthMap[key];
+                break;
+            }
+        }
+
         if (day && month && year) {
             return `${day}/${month}/${year}`;
         }
@@ -102,10 +122,18 @@ const parseAndFormatDate = (dateStr: string): string | null => {
     // Try parsing MonthName DD YYYY (e.g., januari 21 2000)
     const monthFirstMatch = trimmedDate.match(/^([a-zA-Z]+)\s(\d{1,2})\s(\d{4})$/);
     if (monthFirstMatch) {
-        const monthName = monthFirstMatch[1].toLowerCase();
+        const monthName = monthFirstMatch[1];
         const day = monthFirstMatch[2].padStart(2, '0');
         const year = monthFirstMatch[3];
-        const month = monthMap[monthName];
+        
+        let month: string | undefined = undefined;
+        for (const key in monthMap) {
+            if (monthName.startsWith(key)) {
+                month = monthMap[key];
+                break;
+            }
+        }
+
         if (day && month && year) {
             return `${day}/${month}/${year}`;
         }
