@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect } from "react";
@@ -588,23 +587,23 @@ export function MigrasiMurid() {
 
     return (
         <div className="flex flex-col h-full bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onPaste={handlePaste}>
-            <div className="flex-shrink-0 p-2 border-b">
+            <div className="flex-shrink-0 p-4 border-b">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                     <div>
                         <h1 className="text-xl font-bold tracking-tight">Data Murid</h1>
-                        <p className="text-xs text-muted-foreground mt-1">Input dan format data migrasi siswa seperti menggunakan spreadsheet.</p>
+                        <p className="text-sm text-muted-foreground mt-1">Input dan format data migrasi siswa seperti menggunakan spreadsheet.</p>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
-                            <Undo2 className="mr-1 h-3 w-3" /> Undo
+                            <Undo2 className="mr-2 h-4 w-4" /> Undo
                         </Button>
                         <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
-                            <Redo2 className="mr-1 h-3 w-3" /> Redo
+                            <Redo2 className="mr-2 h-4 w-4" /> Redo
                         </Button>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                             <Button size="sm" variant="destructive">
-                                <Trash2 className="mr-1 h-3 w-3" /> Delete All
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete All
                             </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -625,15 +624,15 @@ export function MigrasiMurid() {
                             size="sm"
                             className="bg-green-600 text-white hover:bg-green-700"
                         >
-                            <Download className="mr-1 h-3 w-3" />
+                            <Download className="mr-2 h-4 w-4" />
                             Export
                         </Button>
                     </div>
                 </div>
             </div>
 
-             <div className="flex-grow overflow-auto border-t" ref={tableContainerRef}>
-                <div 
+            <div className="flex-grow overflow-auto" ref={tableContainerRef}>
+                 <div 
                     style={{ 
                         width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
                     }}
@@ -643,7 +642,7 @@ export function MigrasiMurid() {
                             <div
                                 key={header}
                                 style={{ width: columnWidths[header] }}
-                                className="relative select-none border-r border-b py-1 flex items-center justify-center font-medium text-sm text-foreground"
+                                className="relative select-none border-r border-b px-2 py-2 flex items-center justify-center font-semibold text-xs text-foreground"
                             >
                                 <span className="truncate">{header}</span>
                                 {header === "Tanggal Lahir" && (
@@ -705,7 +704,6 @@ export function MigrasiMurid() {
                                                     data-col={colIndex}
                                                     className={cn(
                                                         "w-full h-7 text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
-                                                        "text-[0.7rem]", // Use rem for scalable text
                                                         header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
                                                         isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
                                                         isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50"
@@ -750,4 +748,3 @@ export function MigrasiMurid() {
     );
 }
 
-    
