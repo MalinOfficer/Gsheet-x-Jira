@@ -29,8 +29,7 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
-import { useVirtualizer } from '@tanstack/react-virtual';
-import { cn } from '@/lib/utils';
+import { ScrollArea } from './ui/scroll-area';
 
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
@@ -785,22 +784,6 @@ function PreviewTable({
     isCopied: boolean;
     handleNavigateToReport: () => void;
 }) {
-    const tableContainerRef = useRef<HTMLDivElement>(null);
-
-    const rowVirtualizer = useVirtualizer({
-        count: tableData.rows.length,
-        getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 45, // Estimate row height
-        overscan: 5,
-    });
-
-    const virtualRows = rowVirtualizer.getVirtualItems();
-    const totalHeight = rowVirtualizer.getTotalSize();
-
-    const columnWidths: Record<string, number> = {
-        'Title': 384,
-        'default': 128
-    };
 
     return (
          <Card className="shadow-lg mt-6">
@@ -825,15 +808,14 @@ function PreviewTable({
                 </div>
             </CardHeader>
             <CardContent>
-                <div ref={tableContainerRef} className="relative w-full overflow-auto rounded-md border h-[500px]">
-                    <Table className="table-fixed w-full">
+                <ScrollArea className="w-full h-[500px] border rounded-md">
+                    <Table>
                         <TableHeader className="sticky top-0 z-10 bg-card">
-                            <TableRow className="flex">
+                            <TableRow>
                                 {tableData.headers.map((header, index) => (
                                     <TableHead 
                                       key={`${header}-${index}`} 
-                                      className="font-bold bg-muted/50 whitespace-nowrap p-2 flex items-center"
-                                      style={{ width: `${columnWidths[header] || columnWidths['default']}px` }}
+                                      className="font-bold bg-muted/50 whitespace-nowrap p-2"
                                     >
                                         {(header === 'Created At' || header === 'Resolved At') ? (
                                             <DropdownMenu>
@@ -860,62 +842,47 @@ function PreviewTable({
                                 ))}
                              </TableRow>
                         </TableHeader>
-                         <TableBody style={{ height: `${totalHeight}px`, position: 'relative' }}>
-                            {virtualRows.map((virtualRow) => {
-                                const row = tableData.rows[virtualRow.index];
-                                return (
-                                    <TableRow
-                                        key={virtualRow.key}
-                                        data-index={virtualRow.index}
-                                        style={{
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            width: '100%',
-                                            height: `${virtualRow.size}px`,
-                                            transform: `translateY(${virtualRow.start}px)`,
-                                        }}
-                                        className="flex"
-                                    >
-                                        {tableData.headers.map((header, headerIndex) => (
-                                            <TableCell 
-                                                key={`${header}-${headerIndex}-${virtualRow.index}`} 
-                                                className="text-xs h-full flex items-center p-2 truncate"
-                                                style={{ width: `${columnWidths[header] || columnWidths['default']}px` }}
-                                            >
-                                               {header === 'Status' ? (
-                                                    <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(virtualRow.index, header, newStatus)} disabled={isProcessing}>
-                                                        <SelectTrigger className="w-full h-8 text-xs">
-                                                            <SelectValue placeholder="Select status" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="L1">L1</SelectItem>
-                                                            <SelectItem value="L2">L2</SelectItem>
-                                                            <SelectItem value="L3">L3</SelectItem>
-                                                            <SelectItem value="Solved">Solved</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                ) : header === 'Ticket OP' ? (
-                                                    <Input
-                                                        type="text"
-                                                        value={row[header] || ''}
-                                                        onChange={(e) => handleStatusChange(virtualRow.index, header, e.target.value)}
-                                                        className="w-full h-8 text-xs"
-                                                        disabled={isProcessing}
-                                                    />
-                                                ) : (header === 'Created At' || header === 'Resolved At') ? (
-                                                    <span className="truncate">{formatDateTime(row[header], dateFormats[header] || 'report')}</span>
-                                                ) : (
-                                                    <span className="truncate">{String(row[header] || '')}</span>
-                                                )}
-                                            </TableCell>
-                                        ))}
-                                    </TableRow>
-                                );
-                            })}
+                         <TableBody>
+                            {tableData.rows.map((row, rowIndex) => (
+                                <TableRow key={rowIndex}>
+                                    {tableData.headers.map((header, headerIndex) => (
+                                        <TableCell 
+                                            key={`${header}-${headerIndex}-${rowIndex}`} 
+                                            className="text-xs p-1"
+                                            style={{ minWidth: header === 'Title' ? '300px' : '120px' }}
+                                        >
+                                           {header === 'Status' ? (
+                                                <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(rowIndex, header, newStatus)} disabled={isProcessing}>
+                                                    <SelectTrigger className="w-full h-8 text-xs">
+                                                        <SelectValue placeholder="Select status" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="L1">L1</SelectItem>
+                                                        <SelectItem value="L2">L2</SelectItem>
+                                                        <SelectItem value="L3">L3</SelectItem>
+                                                        <SelectItem value="Solved">Solved</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : header === 'Ticket OP' ? (
+                                                <Input
+                                                    type="text"
+                                                    value={row[header] || ''}
+                                                    onChange={(e) => handleStatusChange(rowIndex, header, e.target.value)}
+                                                    className="w-full h-8 text-xs"
+                                                    disabled={isProcessing}
+                                                />
+                                            ) : (header === 'Created At' || header === 'Resolved At') ? (
+                                                <span className="truncate px-2">{formatDateTime(row[header], dateFormats[header] || 'report')}</span>
+                                            ) : (
+                                                <span className="truncate px-2">{String(row[header] || '')}</span>
+                                            )}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))}
                         </TableBody>
                     </Table>
-                </div>
+                </ScrollArea>
             </CardContent>
             <CardFooter>
                 <p className="text-sm text-muted-foreground">Showing {tableData.rows.length} rows.</p>
@@ -923,7 +890,5 @@ function PreviewTable({
         </Card>
     )
 }
-
-    
 
     
