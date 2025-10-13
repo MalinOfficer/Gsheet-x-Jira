@@ -44,7 +44,7 @@ type CellSelection = {
 // Helper to create an empty row
 const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ ...acc, [header]: '' }), {});
 
-const INITIAL_ROWS = 18;
+const INITIAL_ROWS = 17;
 
 const monthMap: { [key: string]: string } = {
     'januari': '01', 'februari': '02', 'maret': '03', 'april': '04',
@@ -581,10 +581,14 @@ export function MigrasiMurid() {
     
     const virtualRows = rowVirtualizer.getVirtualItems();
     const totalHeight = rowVirtualizer.getTotalSize();
+    
+    const getRowNumberValue = (row: MuridData, index: number) => {
+        if (index === 0) return "1";
+        return row["Username"] ? String(index + 1) : "";
+    };
 
     return (
         <div className="flex flex-col h-full bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onPaste={handlePaste}>
-            {/* Header */}
             <div className="flex-shrink-0 p-2 border-b">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                     <div>
@@ -629,13 +633,8 @@ export function MigrasiMurid() {
                 </div>
             </div>
 
-            {/* Table Content */}
-            <div 
-                ref={tableContainerRef}
-                className="flex-grow overflow-auto border-t"
-            >
+            <div className="flex-grow overflow-auto border-t" ref={tableContainerRef}>
                 <div style={{ width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`}}>
-                    {/* Header Row */}
                     <div className="sticky top-0 z-20 flex bg-secondary">
                         {tableHeaders.map((header) => (
                             <div
@@ -667,7 +666,6 @@ export function MigrasiMurid() {
                         ))}
                     </div>
 
-                    {/* Virtualized Body */}
                     <div className="relative" style={{ height: `${totalHeight}px` }}>
                         {virtualRows.map(virtualRow => {
                             const row = rows[virtualRow.index];
@@ -685,12 +683,6 @@ export function MigrasiMurid() {
                                         const isSelected = isCellSelected(virtualRow.index, colIndex);
                                         const isFillPreviewing = isDraggingFill && isCellInFillRange(virtualRow.index, colIndex) && !isSelected;
                                         const isBottomRightCell = selectedRange.start && normalizedSelectedRange.endRow === virtualRow.index && normalizedSelectedRange.endCol === colIndex;
-
-                                        const getRowNumberValue = () => {
-                                            if (header !== "No") return String(row[header] || "");
-                                            if (virtualRow.index === 0) return "1";
-                                            return row["Username"] ? String(virtualRow.index + 1) : "";
-                                        };
                                         
                                         return (
                                             <div
@@ -700,7 +692,7 @@ export function MigrasiMurid() {
                                             >
                                                 <Input
                                                     type="text"
-                                                    value={getRowNumberValue()}
+                                                    value={header === "No" ? getRowNumberValue(row, virtualRow.index) : String(row[header] || "")}
                                                     readOnly={header === "No"}
                                                     onChange={(e) => handleCellChange(virtualRow.index, header, e.target.value)}
                                                     onKeyDown={(e) => handleKeyDown(e, { row: virtualRow.index, col: colIndex })}
@@ -733,7 +725,6 @@ export function MigrasiMurid() {
             </div>
 
 
-            {/* Footer */}
             <div className="flex-shrink-0 p-2 border-t">
                 <div className="flex items-center gap-2">
                     <Input
@@ -754,3 +745,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
