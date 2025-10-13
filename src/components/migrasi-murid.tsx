@@ -634,6 +634,8 @@ export function MigrasiMurid() {
                  <div 
                     style={{ 
                         width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
+                        height: `${totalHeight}px`,
+                        position: 'relative',
                     }}
                 >
                     <div className="sticky top-0 z-20 flex bg-secondary">
@@ -666,62 +668,60 @@ export function MigrasiMurid() {
                             </div>
                         ))}
                     </div>
-
-                    <div className="relative" style={{ height: `${totalHeight}px` }}>
-                        {virtualRows.map(virtualRow => {
-                            const row = rows[virtualRow.index];
-                            return (
-                                <div
-                                    key={virtualRow.key}
-                                    className="flex absolute top-0 left-0"
-                                    style={{
-                                        width: '100%',
-                                        height: `${virtualRow.size}px`,
-                                        transform: `translateY(${virtualRow.start}px)`,
-                                    }}
-                                >
-                                    {tableHeaders.map((header, colIndex) => {
-                                        const isSelected = isCellSelected(virtualRow.index, colIndex);
-                                        const isFillPreviewing = isDraggingFill && isCellInFillRange(virtualRow.index, colIndex) && !isSelected;
-                                        const isBottomRightCell = selectedRange.start && normalizedSelectedRange.endRow === virtualRow.index && normalizedSelectedRange.endCol === colIndex;
-                                        
-                                        return (
-                                            <div
-                                                key={`${virtualRow.index}-${colIndex}`}
-                                                style={{ width: columnWidths[header] }}
-                                                className={cn("p-0 m-0 border-r border-b relative flex items-center")}
-                                            >
-                                                <Input
-                                                    type="text"
-                                                    value={header === "No" ? getRowNumberValue(row, virtualRow.index) : String(row[header] || "")}
-                                                    readOnly={header === "No"}
-                                                    onChange={(e) => handleCellChange(virtualRow.index, header, e.target.value)}
-                                                    onKeyDown={(e) => handleKeyDown(e, { row: virtualRow.index, col: colIndex })}
-                                                    onMouseDown={(e) => handleMouseDown(e, { row: virtualRow.index, col: colIndex })}
-                                                    onMouseOver={(e) => handleMouseOver(e, { row: virtualRow.index, col: colIndex })}
-                                                    data-row={virtualRow.index}
-                                                    data-col={colIndex}
-                                                    className={cn(
-                                                        "w-full h-7 text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
-                                                        header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
-                                                        isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
-                                                        isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50"
-                                                    )}
-                                                />
-                                                {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
-                                                {isBottomRightCell && !isDraggingFill && (
-                                                    <div 
-                                                        onMouseDown={handleFillHandleMouseDown}
-                                                        className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
-                                                    />
+                    
+                    {virtualRows.map(virtualRow => {
+                        const row = rows[virtualRow.index];
+                        return (
+                            <div
+                                key={virtualRow.key}
+                                className="flex absolute top-0 left-0"
+                                style={{
+                                    width: '100%',
+                                    height: `${virtualRow.size}px`,
+                                    transform: `translateY(${virtualRow.start + 28}px)`, // +28px offset for header
+                                }}
+                            >
+                                {tableHeaders.map((header, colIndex) => {
+                                    const isSelected = isCellSelected(virtualRow.index, colIndex);
+                                    const isFillPreviewing = isDraggingFill && isCellInFillRange(virtualRow.index, colIndex) && !isSelected;
+                                    const isBottomRightCell = selectedRange.start && normalizedSelectedRange.endRow === virtualRow.index && normalizedSelectedRange.endCol === colIndex;
+                                    
+                                    return (
+                                        <div
+                                            key={`${virtualRow.index}-${colIndex}`}
+                                            style={{ width: columnWidths[header] }}
+                                            className={cn("p-0 m-0 border-r border-b relative flex items-center")}
+                                        >
+                                            <Input
+                                                type="text"
+                                                value={header === "No" ? getRowNumberValue(row, virtualRow.index) : String(row[header] || "")}
+                                                readOnly={header === "No"}
+                                                onChange={(e) => handleCellChange(virtualRow.index, header, e.target.value)}
+                                                onKeyDown={(e) => handleKeyDown(e, { row: virtualRow.index, col: colIndex })}
+                                                onMouseDown={(e) => handleMouseDown(e, { row: virtualRow.index, col: colIndex })}
+                                                onMouseOver={(e) => handleMouseOver(e, { row: virtualRow.index, col: colIndex })}
+                                                data-row={virtualRow.index}
+                                                data-col={colIndex}
+                                                className={cn(
+                                                    "w-full h-7 text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
+                                                    header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
+                                                    isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
+                                                    isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50"
                                                 )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            );
-                        })}
-                    </div>
+                                            />
+                                            {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
+                                            {isBottomRightCell && !isDraggingFill && (
+                                                <div 
+                                                    onMouseDown={handleFillHandleMouseDown}
+                                                    className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
+                                                />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
