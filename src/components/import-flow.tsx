@@ -797,6 +797,11 @@ function PreviewTable({
     const virtualRows = rowVirtualizer.getVirtualItems();
     const totalHeight = rowVirtualizer.getTotalSize();
 
+    const columnWidths: Record<string, number> = {
+        'Title': 384,
+        'default': 128
+    };
+
     return (
          <Card className="shadow-lg mt-6">
             <CardHeader>
@@ -821,11 +826,15 @@ function PreviewTable({
             </CardHeader>
             <CardContent>
                 <div ref={tableContainerRef} className="relative w-full overflow-auto rounded-md border h-[500px]">
-                    <Table>
+                    <Table className="table-fixed w-full">
                         <TableHeader className="sticky top-0 z-10 bg-card">
-                            <TableRow>
+                            <TableRow className="flex">
                                 {tableData.headers.map((header, index) => (
-                                    <TableHead key={`${header}-${index}`} className="font-bold bg-muted/50 whitespace-nowrap">
+                                    <TableHead 
+                                      key={`${header}-${index}`} 
+                                      className="font-bold bg-muted/50 whitespace-nowrap p-2 flex items-center"
+                                      style={{ width: `${columnWidths[header] || columnWidths['default']}px` }}
+                                    >
                                         {(header === 'Created At' || header === 'Resolved At') ? (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
@@ -846,7 +855,7 @@ function PreviewTable({
                                                     </DropdownMenuRadioGroup>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
-                                        ) : header}
+                                        ) : <span className="truncate">{header}</span>}
                                     </TableHead>
                                 ))}
                              </TableRow>
@@ -866,13 +875,17 @@ function PreviewTable({
                                             height: `${virtualRow.size}px`,
                                             transform: `translateY(${virtualRow.start}px)`,
                                         }}
-                                        className="flex items-center"
+                                        className="flex"
                                     >
                                         {tableData.headers.map((header, headerIndex) => (
-                                            <TableCell key={`${header}-${headerIndex}-${virtualRow.index}`} className={cn("text-xs h-full flex items-center p-2", header === "Title" ? "w-96" : "w-32")}>
+                                            <TableCell 
+                                                key={`${header}-${headerIndex}-${virtualRow.index}`} 
+                                                className="text-xs h-full flex items-center p-2 truncate"
+                                                style={{ width: `${columnWidths[header] || columnWidths['default']}px` }}
+                                            >
                                                {header === 'Status' ? (
                                                     <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(virtualRow.index, header, newStatus)} disabled={isProcessing}>
-                                                        <SelectTrigger className="w-[120px] h-8 text-xs">
+                                                        <SelectTrigger className="w-full h-8 text-xs">
                                                             <SelectValue placeholder="Select status" />
                                                         </SelectTrigger>
                                                         <SelectContent>
@@ -887,11 +900,11 @@ function PreviewTable({
                                                         type="text"
                                                         value={row[header] || ''}
                                                         onChange={(e) => handleStatusChange(virtualRow.index, header, e.target.value)}
-                                                        className="w-[120px] h-8 text-xs"
+                                                        className="w-full h-8 text-xs"
                                                         disabled={isProcessing}
                                                     />
                                                 ) : (header === 'Created At' || header === 'Resolved At') ? (
-                                                    formatDateTime(row[header], dateFormats[header] || 'report')
+                                                    <span className="truncate">{formatDateTime(row[header], dateFormats[header] || 'report')}</span>
                                                 ) : (
                                                     <span className="truncate">{String(row[header] || '')}</span>
                                                 )}
@@ -910,5 +923,7 @@ function PreviewTable({
         </Card>
     )
 }
+
+    
 
     
