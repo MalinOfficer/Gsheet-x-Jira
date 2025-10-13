@@ -43,7 +43,7 @@ type CellSelection = {
 // Helper to create an empty row
 const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ ...acc, [header]: '' }), {});
 
-const INITIAL_ROWS = 16;
+const INITIAL_ROWS = 17;
 
 const monthMap: { [key: string]: string } = {
     'januari': '01', 'februari': '02', 'maret': '03', 'april': '04',
@@ -388,20 +388,6 @@ export function MigrasiMurid() {
         }
     };
 
-    const handleMouseLeave = () => {
-        // This function might be useful later to cancel selection if the mouse leaves the component area
-    };
-    
-     const handleFillHandleMouseDown = (e: MouseEvent) => {
-        e.stopPropagation();
-        e.preventDefault();
-        setIsDraggingFill(true);
-        isSelecting.current = false;
-        if (selectedRange.start) {
-            setFillRange({ start: selectedRange.start, end: selectedRange.end || selectedRange.start });
-        }
-    };
-
     const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         event.preventDefault();
         const startCell = selectedRange.start;
@@ -589,7 +575,7 @@ export function MigrasiMurid() {
     };
 
     return (
-        <div className="h-full flex flex-col bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseLeave} onPaste={handlePaste}>
+        <div className="h-full flex flex-col bg-background" onMouseUp={handleMouseUp} onPaste={handlePaste}>
             <div className="flex-shrink-0 p-4 border-b">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                     <div>
@@ -638,9 +624,8 @@ export function MigrasiMurid() {
                  <div 
                     style={{ 
                         width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
-                        height: `${totalHeight}px`,
+                        height: `${totalHeight + 36}px`,
                         position: 'relative',
-                        paddingTop: '36px',
                     }}
                 >
                     <div className="sticky top-0 z-20 flex bg-secondary" style={{height: '36px'}}>
@@ -683,7 +668,7 @@ export function MigrasiMurid() {
                                 style={{
                                     width: '100%',
                                     height: `${virtualRow.size}px`,
-                                    transform: `translateY(${virtualRow.start}px)`,
+                                    transform: `translateY(${virtualRow.start + 36}px)`,
                                 }}
                             >
                                 {tableHeaders.map((header, colIndex) => {
@@ -751,7 +736,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
-
-    
