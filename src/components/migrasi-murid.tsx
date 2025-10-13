@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect } from "react";
@@ -619,93 +620,93 @@ export function MigrasiMurid() {
             </div>
             
             {/* Table Content */}
-            <div className="flex-grow min-h-0 relative">
-                 <div ref={tableContainerRef} className="h-full w-full overflow-auto border-t">
-                    <div style={{ transform: 'scale(0.9)', transformOrigin: 'top left', width: '111.11%' }}>
-                        <Table style={{ tableLayout: 'fixed' }}>
-                            <TableHeader className="sticky top-0 z-20 bg-secondary">
-                                <TableRow>
-                                    {tableHeaders.map((header) => (
-                                        <TableHead
-                                            key={header}
-                                            style={{ width: columnWidths[header], minWidth: columnWidths[header] }}
-                                            className="relative select-none border-r text-foreground text-center text-xs py-1"
+            <div
+                ref={tableContainerRef}
+                className="flex-grow min-h-0 overflow-auto border-t"
+                style={{ transform: 'scale(0.9)', transformOrigin: 'top left', width: '111.11%' }}
+            >
+                <Table style={{ tableLayout: 'fixed' }}>
+                    <TableHeader className="sticky top-0 z-20 bg-secondary">
+                        <TableRow>
+                            {tableHeaders.map((header) => (
+                                <TableHead
+                                    key={header}
+                                    style={{ width: columnWidths[header], minWidth: columnWidths[header] }}
+                                    className="relative select-none border-r text-foreground text-center py-1"
+                                >
+                                    <div className="flex items-center justify-center">
+                                        <span className="truncate">{header}</span>
+                                        {header === "Tanggal Lahir" && (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-5 w-5 ml-1">
+                                                        <Wand2 className="h-3 w-3" />
+                                                        <span className="sr-only">Format Menu</span>
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent>
+                                                    <DropdownMenuItem onClick={handleFormatDates}>
+                                                        Format ke DD/MM/YYYY
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        )}
+                                    </div>
+                                    <div
+                                        onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
+                                        className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
+                                    />
+                                </TableHead>
+                            ))}
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {rows.map((row, rowIndex) => (
+                            <TableRow key={rowIndex} className="border-b">
+                                {tableHeaders.map((header, colIndex) => {
+                                    const isSelected = isCellSelected(rowIndex, colIndex);
+                                    const isFillPreviewing = isDraggingFill && isCellInFillRange(rowIndex, colIndex) && !isSelected;
+                                    const isBottomRightOfSelection = selectedRange.start && normalizedSelectedRange.endRow === rowIndex && normalizedSelectedRange.endCol === colIndex;
+                                    
+                                    return (
+                                        <TableCell
+                                            key={`${rowIndex}-${colIndex}`}
+                                            className={cn(
+                                                "p-0 m-0 border-r relative",
+                                                header === "No" && "bg-muted/30"
+                                            )}
                                         >
-                                            <div className="flex items-center justify-center">
-                                                <span className="truncate">{header}</span>
-                                                {header === "Tanggal Lahir" && (
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-5 w-5 ml-1">
-                                                                <Wand2 className="h-3 w-3" />
-                                                                <span className="sr-only">Format Menu</span>
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent>
-                                                            <DropdownMenuItem onClick={handleFormatDates}>
-                                                                Format ke DD/MM/YYYY
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                            <Input
+                                                type="text"
+                                                value={header === "No" ? (rowIndex === 0 || row["Username"] ? String(rowIndex + 1) : "") : String(row[header] || "")}
+                                                readOnly={header === "No"}
+                                                onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
+                                                onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
+                                                onMouseDown={(e) => handleMouseDown(e, { row: rowIndex, col: colIndex })}
+                                                onMouseOver={(e) => handleMouseOver(e, { row: rowIndex, col: colIndex })}
+                                                data-row={rowIndex}
+                                                data-col={colIndex}
+                                                className={cn(
+                                                    "w-full h-7 text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
+                                                    header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
+                                                    isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
+                                                    isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50"
                                                 )}
-                                            </div>
-                                            <div
-                                                onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
-                                                className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
                                             />
-                                        </TableHead>
-                                    ))}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {rows.map((row, rowIndex) => (
-                                    <TableRow key={rowIndex} className="border-b">
-                                        {tableHeaders.map((header, colIndex) => {
-                                            const isSelected = isCellSelected(rowIndex, colIndex);
-                                            const isFillPreviewing = isDraggingFill && isCellInFillRange(rowIndex, colIndex) && !isSelected;
-                                            const isBottomRightOfSelection = selectedRange.start && normalizedSelectedRange.endRow === rowIndex && normalizedSelectedRange.endCol === colIndex;
-                                            
-                                            return (
-                                                <TableCell
-                                                    key={`${rowIndex}-${colIndex}`}
-                                                    className={cn(
-                                                        "p-0 m-0 border-r relative",
-                                                        header === "No" && "bg-muted/30"
-                                                    )}
-                                                >
-                                                    <Input
-                                                        type="text"
-                                                        value={header === "No" ? (rowIndex === 0 || row["Username"] ? String(rowIndex + 1) : "") : String(row[header] || "")}
-                                                        readOnly={header === "No"}
-                                                        onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
-                                                        onKeyDown={(e) => handleKeyDown(e, { row: rowIndex, col: colIndex })}
-                                                        onMouseDown={(e) => handleMouseDown(e, { row: rowIndex, col: colIndex })}
-                                                        onMouseOver={(e) => handleMouseOver(e, { row: rowIndex, col: colIndex })}
-                                                        data-row={rowIndex}
-                                                        data-col={colIndex}
-                                                        className={cn(
-                                                            "w-full h-7 text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
-                                                            header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
-                                                            isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
-                                                            isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50"
-                                                        )}
-                                                    />
-                                                    {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
-                                                    {isBottomRightOfSelection && !isDraggingFill && (
-                                                        <div 
-                                                            onMouseDown={handleFillHandleMouseDown}
-                                                            className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
-                                                        />
-                                                    )}
-                                                </TableCell>
-                                            );
-                                        })}
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </div>
+                                            {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
+                                            {isBottomRightOfSelection && !isDraggingFill && (
+                                                <div 
+                                                    onMouseDown={handleFillHandleMouseDown}
+                                                    className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
+                                                />
+                                            )}
+                                        </TableCell>
+                                    );
+                                })}
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </div>
 
             {/* Footer */}
@@ -735,3 +736,4 @@ export function MigrasiMurid() {
     
 
     
+
