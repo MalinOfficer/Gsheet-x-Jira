@@ -43,7 +43,7 @@ type CellSelection = {
 // Helper to create an empty row
 const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ ...acc, [header]: '' }), {});
 
-const INITIAL_ROWS = 25;
+const INITIAL_ROWS = 16;
 
 const monthMap: { [key: string]: string } = {
     'januari': '01', 'februari': '02', 'maret': '03', 'april': '04',
@@ -586,7 +586,7 @@ export function MigrasiMurid() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onPaste={handlePaste}>
+        <div className="flex flex-col h-full bg-background" onMouseUp={handleMouseUp} onPaste={handlePaste}>
             <div className="flex-shrink-0 p-4 border-b">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                     <div>
