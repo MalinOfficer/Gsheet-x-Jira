@@ -786,7 +786,7 @@ function PreviewTable({
 }) {
 
     return (
-         <Card className="shadow-lg mt-6">
+         <Card className="shadow-lg mt-6 flex flex-col" style={{ height: '600px' }}>
             <CardHeader>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <div>
@@ -807,8 +807,8 @@ function PreviewTable({
                     </div>
                 </div>
             </CardHeader>
-            <CardContent>
-                <ScrollArea className="w-full h-[500px] border rounded-md">
+            <CardContent className="flex-1 flex flex-col min-h-0">
+                <div className="flex-1 overflow-auto border rounded-md">
                     <Table style={{ minWidth: '1800px' }}>
                         <TableHeader className="sticky top-0 z-10 bg-card">
                             <TableRow>
@@ -883,19 +883,11 @@ function PreviewTable({
                             ))}
                         </TableBody>
                     </Table>
-                </ScrollArea>
+                </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="pt-4">
                 <p className="text-sm text-muted-foreground">Showing {tableData.rows.length} rows.</p>
             </CardFooter>
         </Card>
     )
 }
-
-    
-
-    
-
-    
-
-    
