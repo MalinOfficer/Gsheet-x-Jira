@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect } from "react";
@@ -47,15 +48,15 @@ const INITIAL_ROWS = 23;
 
 const monthMap: { [key: string]: string } = {
     'januari': '01', 'janu': '01', 'jan': '01',
-    'februari': '02', 'feb': '02',
+    'februari': '02', 'feb': '02', 'febr': '02',
     'maret': '03', 'mar': '03',
     'april': '04', 'apr': '04',
     'mei': '05',
     'juni': '06', 'jun': '06',
     'juli': '07', 'jul': '07',
     'agustus': '08', 'agu': '08', 'ags': '08',
-    'september': '09', 'sep': '09',
-    'oktober': '10', 'okt': '10',
+    'september': '09', 'sep': '09', 'sept': '09',
+    'oktober': '10', 'okt': '10', 'oct': '10',
     'november': '11', 'nov': '11',
     'desember': '12', 'des': '12',
 };
@@ -447,16 +448,18 @@ export function MigrasiMurid() {
         let newRows = [...rows];
         let changes = 0;
         const dateHeader = "Tanggal Lahir";
+        
+        const requiredRowCount = startCell.row + pastedLines.length;
+        if (requiredRowCount > newRows.length) {
+            const rowsToAdd = requiredRowCount - newRows.length;
+            newRows = [...newRows, ...Array.from({ length: rowsToAdd }, createEmptyRow)];
+        }
 
         pastedLines.forEach((line, lineIndex) => {
             const rowIndex = startCell.row + lineIndex;
-            if (rowIndex >= newRows.length) {
-                newRows = [...newRows, ...Array.from({ length: rowIndex - newRows.length + 1 }, createEmptyRow)];
-            }
-
-            const values = line.split('\t');
             let updatedRow = { ...newRows[rowIndex] };
 
+            const values = line.split('\t');
             values.forEach((value, valueIndex) => {
                 const colIndex = startCell.col + valueIndex;
                 if (colIndex >= tableHeaders.length) return;
@@ -788,5 +791,7 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
 
     
