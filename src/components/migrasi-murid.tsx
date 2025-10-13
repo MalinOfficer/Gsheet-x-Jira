@@ -114,6 +114,8 @@ export function MigrasiMurid() {
     const [isDraggingFill, setIsDraggingFill] = useState(false);
     const [fillRange, setFillRange] = useState<{ start: CellSelection, end: CellSelection } | null>(null);
 
+    const [zoomScale, setZoomScale] = useState(1);
+
 
     const [history, setHistory] = useState<MuridData[][]>([rows]);
     const [historyIndex, setHistoryIndex] = useState(0);
@@ -163,6 +165,22 @@ export function MigrasiMurid() {
     const isResizing = useRef<string | null>(null);
     const startX = useRef(0);
     const startWidth = useRef(0);
+
+    useEffect(() => {
+        const updateZoom = () => {
+          if (window.devicePixelRatio !== 1) {
+            setZoomScale(1 / window.devicePixelRatio);
+          } else {
+            setZoomScale(1);
+          }
+        };
+    
+        const mql = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+        mql.addEventListener("change", updateZoom);
+        updateZoom();
+    
+        return () => mql.removeEventListener("change", updateZoom);
+      }, []);
 
     const handleResizeMouseDown = (header: string, e: MouseEvent) => {
         isResizing.current = header;
@@ -634,7 +652,13 @@ export function MigrasiMurid() {
             </div>
 
             <div className="flex-grow overflow-auto border-t" ref={tableContainerRef}>
-                <div style={{ width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`}}>
+                <div 
+                    style={{ 
+                        width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
+                        transform: `scale(${zoomScale})`,
+                        transformOrigin: 'top left',
+                    }}
+                >
                     <div className="sticky top-0 z-20 flex bg-secondary">
                         {tableHeaders.map((header) => (
                             <div
@@ -702,6 +726,7 @@ export function MigrasiMurid() {
                                                     data-col={colIndex}
                                                     className={cn(
                                                         "w-full h-7 text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
+                                                        "text-[0.7rem]", // Use rem for scalable text
                                                         header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
                                                         isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
                                                         isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50"
@@ -745,5 +770,7 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
 
     
