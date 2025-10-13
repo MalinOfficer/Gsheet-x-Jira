@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect } from "react";
@@ -685,6 +686,12 @@ export function MigrasiMurid() {
                                         const isFillPreviewing = isDraggingFill && isCellInFillRange(virtualRow.index, colIndex) && !isSelected;
                                         const isBottomRightCell = selectedRange.start && normalizedSelectedRange.endRow === virtualRow.index && normalizedSelectedRange.endCol === colIndex;
 
+                                        const getRowNumberValue = () => {
+                                            if (header !== "No") return String(row[header] || "");
+                                            if (virtualRow.index === 0) return "1";
+                                            return row["Username"] ? String(virtualRow.index + 1) : "";
+                                        };
+                                        
                                         return (
                                             <div
                                                 key={`${virtualRow.index}-${colIndex}`}
@@ -693,7 +700,7 @@ export function MigrasiMurid() {
                                             >
                                                 <Input
                                                     type="text"
-                                                    value={header === "No" ? (row["Username"] ? String(virtualRow.index + 1) : "") : String(row[header] || "")}
+                                                    value={getRowNumberValue()}
                                                     readOnly={header === "No"}
                                                     onChange={(e) => handleCellChange(virtualRow.index, header, e.target.value)}
                                                     onKeyDown={(e) => handleKeyDown(e, { row: virtualRow.index, col: colIndex })}
