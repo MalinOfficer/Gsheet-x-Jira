@@ -672,7 +672,7 @@ export function MigrasiMurid() {
                                         <TableCell
                                             key={`${rowIndex}-${colIndex}`}
                                             className={cn(
-                                                "p-0 m-0 border-r relative",
+                                                "p-0 m-0 border-r relative h-7",
                                                 header === "No" && "bg-muted/30"
                                             )}
                                         >
