@@ -581,12 +581,11 @@ export function MigrasiMurid() {
     const totalHeight = rowVirtualizer.getTotalSize();
     
     const getRowNumberValue = (row: MuridData, index: number) => {
-        if (index === 0) return "1";
-        return row["Username"] ? String(index + 1) : "";
+        return (row["Username"] || index === 0) ? String(index + 1) : "";
     };
 
     return (
-        <div className="flex flex-col h-full bg-background" onMouseUp={handleMouseUp} onPaste={handlePaste}>
+        <div className="h-full flex flex-col bg-background" onMouseUp={handleMouseUp} onPaste={handlePaste}>
             <div className="flex-shrink-0 p-4 border-b">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                     <div>
@@ -747,7 +746,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
 
     
