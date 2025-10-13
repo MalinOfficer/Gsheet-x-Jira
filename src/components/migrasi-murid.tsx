@@ -43,7 +43,7 @@ type CellSelection = {
 // Helper to create an empty row
 const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ ...acc, [header]: '' }), {});
 
-const INITIAL_ROWS = 17;
+const INITIAL_ROWS = 16;
 
 const monthMap: { [key: string]: string } = {
     'januari': '01', 'februari': '02', 'maret': '03', 'april': '04',
@@ -574,8 +574,22 @@ export function MigrasiMurid() {
         return (row["Username"] || index === 0) ? String(index + 1) : "";
     };
 
+    const handleFillHandleMouseDown = (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingFill(true);
+        if (selectedRange.start) {
+            setFillRange({ start: selectedRange.start, end: selectedRange.end || selectedRange.start });
+        }
+    };
+
+
+    const handleMouseLeave = () => {
+        isSelecting.current = false;
+    };
+
     return (
-        <div className="h-full flex flex-col bg-background" onMouseUp={handleMouseUp} onPaste={handlePaste}>
+        <div className="h-full flex flex-col bg-background" onMouseUp={handleMouseUp} onMouseLeave={handleMouseLeave} onPaste={handlePaste}>
             <div className="flex-shrink-0 p-4 border-b">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                     <div>

@@ -2,7 +2,7 @@ import { MigrasiMurid } from "@/components/migrasi-murid";
 
 export default function MigrasiMuridPage() {
     return (
-        <main>
+        <main className="h-full">
             <MigrasiMurid />
         </main>
     );
