@@ -511,7 +511,7 @@ export function MigrasiMurid() {
         const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS
         const year = parseInt(parts[2], 10);
         const date = new Date(Date.UTC(year, month, day));
-        if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day) {
+        if (date.getUTCFullYear() !== year || date.getUTCFullMonth() !== month || date.getUTCDate() !== day) {
             return null;
         }
         return date;
@@ -748,3 +748,4 @@ export function MigrasiMurid() {
     );
 }
 
+    
