@@ -99,6 +99,18 @@ const parseAndFormatDate = (dateStr: string): string | null => {
         return `${day}/${month}/${year}`;
     }
 
+    // Try parsing MonthName DD YYYY (e.g., januari 21 2000)
+    const monthFirstMatch = trimmedDate.match(/^([a-zA-Z]+)\s(\d{1,2})\s(\d{4})$/);
+    if (monthFirstMatch) {
+        const monthName = monthFirstMatch[1].toLowerCase();
+        const day = monthFirstMatch[2].padStart(2, '0');
+        const year = monthFirstMatch[3];
+        const month = monthMap[monthName];
+        if (day && month && year) {
+            return `${day}/${month}/${year}`;
+        }
+    }
+
     return null; // Return null if no format matches
 };
 
@@ -729,12 +741,12 @@ export function MigrasiMurid() {
             <div className="flex-shrink-0 p-2 border-t">
                 <div className="flex items-center gap-2">
                     <Input
-                        type="text"
+                        type="number"
                         value={numRowsToAdd}
                         onChange={(e) => {
                             setNumRowsToAdd(e.target.value);
                         }}
-                        placeholder=""
+                        placeholder="1"
                         className="w-24 h-9"
                     />
                     <Button onClick={handleAddRows} size="sm" variant="outline">
@@ -746,3 +758,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
