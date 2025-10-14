@@ -566,9 +566,9 @@ export function MigrasiMurid() {
         XLSX.utils.book_append_sheet(workbook, worksheet, "Data Murid");
         
         const date = new Date().toISOString().slice(0, 10);
-        const filename = `Data_Murid_${date}.xls`;
+        const filename = `Data_Murid_${date}.xlsx`;
 
-        XLSX.writeFile(workbook, filename, { bookType: "biff8" });
+        XLSX.writeFile(workbook, filename);
         
         toast({
             title: "Export Successful",
