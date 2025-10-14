@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { cn } from '@/lib/utils';
 
 declare const XLSX: any;
 
@@ -485,7 +486,7 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
     const rowVirtualizer = useVirtualizer({
         count: sortedData.length,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 36, // Row height
+        estimateSize: () => 37, // Row height
         overscan: 5,
     });
     
@@ -504,11 +505,12 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
                           : type === 'emptyId' ? 'text-amber-600'
                           : 'text-sky-600';
 
+    const headers = type === 'duplicate' ? ['NIS/NISN', 'Nama', 'File', 'Sheet'] : ['Nama', 'File', 'Sheet'];
 
     return (
         <Card>
             <CardHeader>
-                <CardTitle className={`flex items-center gap-2 ${titleColorClass}`}>
+                <CardTitle className={cn('flex items-center gap-2', titleColorClass)}>
                     <Icon />
                     {titleText}
                 </CardTitle>
@@ -518,10 +520,9 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
                    <Table>
                        <TableHeader className="sticky top-0 bg-card z-10">
                            <TableRow>
-                               {type === 'duplicate' && <TableHead>NIS/NISN</TableHead>}
-                               <TableHead>Nama</TableHead>
-                               <TableHead>File</TableHead>
-                               <TableHead>Sheet</TableHead>
+                               {headers.map(header => (
+                                   <TableHead key={header}>{header}</TableHead>
+                               ))}
                            </TableRow>
                        </TableHeader>
                        <TableBody style={{ height: `${totalHeight}px`, position: 'relative' }}>
