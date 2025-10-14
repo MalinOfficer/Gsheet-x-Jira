@@ -114,7 +114,7 @@ export function ImportFlow() {
     if (tableData && destinationCardRef.current) {
         const mainContainer = destinationCardRef.current.closest('main');
         if (mainContainer) {
-            const headerOffset = 16; 
+            const headerOffset = 80; 
             const elementPosition = destinationCardRef.current.offsetTop;
             const offsetPosition = elementPosition - headerOffset;
 
@@ -896,4 +896,5 @@ function PreviewTable({
         </Card>
     );
 }
+
 
