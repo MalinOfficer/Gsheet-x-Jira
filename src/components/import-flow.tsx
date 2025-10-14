@@ -846,7 +846,7 @@ function PreviewTable({
                                 ))}
                              </TableRow>
                         </TableHeader>
-                         <TableBody>
+                         <tbody className="align-top">
                             {tableData.rows.map((row, rowIndex) => (
                                 <TableRow key={rowIndex}>
                                     {tableData.headers.map((header, headerIndex) => (
@@ -884,7 +884,7 @@ function PreviewTable({
                                     ))}
                                 </TableRow>
                             ))}
-                        </TableBody>
+                        </tbody>
                     </Table>
                 </ScrollArea>
             </CardContent>
@@ -897,6 +897,8 @@ function PreviewTable({
 
 
 
+
+    
 
     
 
