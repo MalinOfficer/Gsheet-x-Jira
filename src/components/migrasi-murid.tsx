@@ -35,7 +35,7 @@ const tableHeaders = [
     "Wali", "Pekerjaan Wali", "No Kartu Keluarga"
 ];
 
-type MuridData = Record<string, string | number>;
+type MuridData = Record<string, string | number | Date>;
 type CellSelection = {
     row: number;
     col: number;
@@ -543,15 +543,30 @@ export function MigrasiMurid() {
             return;
         }
         
-        const processedRows = rows
+        const filteredAndProcessedRows = rows
             .filter((row) => row["Username"])
             .map((row, index) => {
-                const newRow: Record<string, any> = {...row};
+                const newRow: Record<string, any> = { ...row };
                 newRow["No"] = index + 1;
+
+                const dateValue = newRow["Tanggal Lahir"];
+                if (dateValue && typeof dateValue === 'string') {
+                    const dateParts = dateValue.split('/');
+                    if (dateParts.length === 3) {
+                        const day = parseInt(dateParts[0], 10);
+                        const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
+                        const year = parseInt(dateParts[2], 10);
+                        const jsDate = new Date(year, month, day);
+                        // Check if the created date is valid
+                        if (!isNaN(jsDate.getTime())) {
+                            newRow["Tanggal Lahir"] = jsDate;
+                        }
+                    }
+                }
                 return newRow;
             });
 
-        if (processedRows.length === 0) {
+        if (filteredAndProcessedRows.length === 0) {
             toast({
                 variant: "destructive",
                 title: "No Data to Export",
@@ -560,7 +575,7 @@ export function MigrasiMurid() {
             return;
         }
 
-        const worksheet = XLSX.utils.json_to_sheet(processedRows, { header: tableHeaders, skipHeader: false, cellDates: true });
+        const worksheet = XLSX.utils.json_to_sheet(filteredAndProcessedRows, { header: tableHeaders, skipHeader: false, cellDates: true });
         
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Data Murid");
@@ -572,7 +587,7 @@ export function MigrasiMurid() {
         
         toast({
             title: "Export Successful",
-            description: `${processedRows.length} rows have been exported to ${filename}.`,
+            description: `${filteredAndProcessedRows.length} rows have been exported to ${filename}.`,
         });
     };
 
@@ -593,6 +608,9 @@ export function MigrasiMurid() {
     const totalHeight = rowVirtualizer.getTotalSize();
     
     const getRowNumberValue = (row: MuridData, index: number) => {
+        // This logic is a bit complex, let's simplify for now.
+        // It should show a number if the row is not empty.
+        // A simple check on 'Username' is a good proxy for non-empty.
         return (row["Username"] || index === 0) ? String(index + 1) : "";
     };
 
@@ -709,6 +727,17 @@ export function MigrasiMurid() {
                                         const isFillPreviewing = isDraggingFill && isCellInFillRange(virtualRow.index, colIndex) && !isSelected;
                                         const isBottomRightCell = selectedRange.start && normalizedSelectedRange.endRow === virtualRow.index && normalizedSelectedRange.endCol === colIndex;
                                         
+                                        const cellValue = row[header];
+                                        let displayValue = "";
+                                        if (cellValue instanceof Date) {
+                                            const day = String(cellValue.getDate()).padStart(2, '0');
+                                            const month = String(cellValue.getMonth() + 1).padStart(2, '0');
+                                            const year = cellValue.getFullYear();
+                                            displayValue = `${day}/${month}/${year}`;
+                                        } else {
+                                            displayValue = String(cellValue || "");
+                                        }
+
                                         return (
                                             <div
                                                 key={`${virtualRow.index}-${colIndex}`}
@@ -717,7 +746,7 @@ export function MigrasiMurid() {
                                             >
                                                 <Input
                                                     type="text"
-                                                    value={header === "No" ? getRowNumberValue(row, virtualRow.index) : String(row[header] || "")}
+                                                    value={header === "No" ? getRowNumberValue(row, virtualRow.index) : displayValue}
                                                     readOnly={header === "No"}
                                                     onChange={(e) => handleCellChange(virtualRow.index, header, e.target.value)}
                                                     onKeyDown={(e) => handleKeyDown(e, { row: virtualRow.index, col: colIndex })}
@@ -776,3 +805,4 @@ export function MigrasiMurid() {
     
 
     
+
