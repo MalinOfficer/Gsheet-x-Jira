@@ -537,38 +537,17 @@ export function MigrasiMurid() {
         }
     };
     
-    const parseDateString = (dateString: string): Date | null => {
-        if (typeof dateString !== 'string' || !/^\d{2}\/\d{2}\/\d{4}$/.test(dateString.trim())) return null;
-        const parts = dateString.trim().split('/');
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS
-        const year = parseInt(parts[2], 10);
-        const date = new Date(Date.UTC(year, month, day));
-        if (date.getUTCFullYear() !== year || date.getUTCFullMonth() !== month || date.getUTCDate() !== day) {
-            return null;
-        }
-        return date;
-    };
-
     const handleExportExcel = () => {
         if (typeof XLSX === 'undefined') {
             toast({ variant: 'destructive', title: "Library Not Loaded", description: "The Excel library is still loading. Please try again in a moment."});
             return;
         }
-        const dateHeader = "Tanggal Lahir";
         
         const processedRows = rows
-            .filter((row) => row["Username"]) // Filter rows that have a username
+            .filter((row) => row["Username"])
             .map((row, index) => {
                 const newRow: Record<string, any> = {...row};
-                newRow["No"] = index + 1; // Re-number based on filtered position
-                const dateValue = newRow[dateHeader];
-                if (dateValue && typeof dateValue === 'string') {
-                    const parsedDate = parseDateString(dateValue);
-                    if (parsedDate) {
-                        newRow[dateHeader] = parsedDate;
-                    }
-                }
+                newRow["No"] = index + 1;
                 return newRow;
             });
 
@@ -581,7 +560,7 @@ export function MigrasiMurid() {
             return;
         }
 
-        const worksheet = XLSX.utils.json_to_sheet(processedRows, { header: tableHeaders, skipHeader: false });
+        const worksheet = XLSX.utils.json_to_sheet(processedRows, { header: tableHeaders, skipHeader: false, cellDates: true });
         
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Data Murid");
@@ -791,6 +770,8 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
 
     
 
