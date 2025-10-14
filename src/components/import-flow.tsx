@@ -29,7 +29,6 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
-import { ScrollArea } from './ui/scroll-area';
 
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
@@ -804,7 +803,7 @@ function PreviewTable({
                 </div>
             </CardHeader>
              <CardContent>
-                <ScrollArea className="w-full h-[500px] border rounded-md">
+                <div className="overflow-auto w-full h-[500px] border rounded-md">
                     <table className="caption-bottom text-sm" style={{ minWidth: '1800px' }}>
                         <thead>
                             <tr className="border-b transition-colors hover:bg-muted/50">
@@ -879,7 +878,7 @@ function PreviewTable({
                             ))}
                         </tbody>
                     </table>
-                </ScrollArea>
+                </div>
             </CardContent>
             <CardFooter className="pt-4">
                 <p className="text-sm text-muted-foreground">Showing {tableData.rows.length} rows.</p>
@@ -896,6 +895,7 @@ function PreviewTable({
     
 
     
+
 
 
 
