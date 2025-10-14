@@ -486,7 +486,7 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
     const rowVirtualizer = useVirtualizer({
         count: sortedData.length,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 37, // Row height
+        estimateSize: () => 41, // Estimate row height (p-2 y-padding + line-height)
         overscan: 5,
     });
     
@@ -506,6 +506,10 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
                           : 'text-sky-600';
 
     const headers = type === 'duplicate' ? ['NIS/NISN', 'Nama', 'File', 'Sheet'] : ['Nama', 'File', 'Sheet'];
+    const columnWidths = type === 'duplicate' 
+        ? "1fr 2fr 1.5fr 1.5fr" 
+        : "2fr 1.5fr 1.5fr";
+
 
     return (
         <Card>
@@ -517,7 +521,12 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
             </CardHeader>
             <CardContent>
                <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[400px]">
-                   <Table>
+                   <Table className="table-fixed">
+                        <colgroup>
+                            {type === 'duplicate' && <col style={{ width: '25%' }} />}
+                            <col style={{ width: '40%' }} />
+                            <col style={{ width: '35%' }} />
+                        </colgroup>
                        <TableHeader className="sticky top-0 bg-card z-10">
                            <TableRow>
                                {headers.map(header => (
@@ -542,9 +551,9 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
                                    className={rowBgClass}
                                >
                                   {type === 'duplicate' && <TableCell className="font-medium">{item.id}</TableCell>}
-                                  <TableCell>{item.nama}</TableCell>
-                                  <TableCell>{item.fileName}</TableCell>
-                                  <TableCell>{item.sheetName}</TableCell>
+                                  <TableCell className="break-words">{item.nama}</TableCell>
+                                  <TableCell className="break-words">{item.fileName}</TableCell>
+                                  <TableCell className="break-words">{item.sheetName}</TableCell>
                                </TableRow>
                               )
                            })}
@@ -555,3 +564,5 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
         </Card>
     );
 }
+
+    
