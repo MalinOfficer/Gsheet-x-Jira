@@ -112,16 +112,20 @@ export function ImportFlow() {
   // Effect for auto-scrolling
   useEffect(() => {
     if (tableData && destinationCardRef.current) {
-        const headerOffset = 80; // height of sticky header + some padding
-        const elementPosition = destinationCardRef.current.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.scrollY - headerOffset;
+        // The scrollable container is the <main> element, which is the parent of this component's wrapper.
+        const mainContainer = destinationCardRef.current.closest('main');
+        if (mainContainer) {
+            const headerOffset = 16; // A small offset to not have the card stick to the very top
+            const elementPosition = destinationCardRef.current.offsetTop;
+            const offsetPosition = elementPosition - headerOffset;
 
-        window.scrollTo({
-            top: offsetPosition,
-            behavior: "smooth"
-        });
+            mainContainer.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth',
+            });
+        }
     }
-  }, [tableData]);
+}, [tableData]);
 
 
   const handleAnalyzeSheet = useCallback(async () => {
@@ -807,7 +811,7 @@ function PreviewTable({
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col min-h-0">
+             <CardContent className="flex flex-col flex-1 min-h-0">
                 <div className="flex-1 border rounded-md overflow-hidden">
                     <ScrollArea className="w-full h-full">
                         <Table style={{ minWidth: '1800px' }}>
