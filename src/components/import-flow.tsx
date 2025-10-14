@@ -812,13 +812,13 @@ function PreviewTable({
             </CardHeader>
              <CardContent>
                 <ScrollArea className="w-full h-[500px] border rounded-md">
-                    <Table style={{ minWidth: '1800px' }}>
-                        <TableHeader className="sticky top-0 z-10 bg-card">
-                            <TableRow>
+                    <table className="w-full caption-bottom text-sm" style={{ minWidth: '1800px' }}>
+                        <thead className="[&_tr]:border-b sticky top-0 z-10 bg-card">
+                            <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                                 {tableData.headers.map((header, index) => (
-                                    <TableHead 
+                                    <th 
                                       key={`${header}-${index}`} 
-                                      className="font-bold bg-muted/50 whitespace-nowrap p-2"
+                                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 font-bold bg-muted/50 whitespace-nowrap p-2"
                                       style={{ width: header === 'Title' ? '384px' : '128px' }}
                                     >
                                         {(header === 'Created At' || header === 'Resolved At') ? (
@@ -842,17 +842,17 @@ function PreviewTable({
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         ) : <span className="truncate">{header}</span>}
-                                    </TableHead>
+                                    </th>
                                 ))}
-                             </TableRow>
-                        </TableHeader>
+                             </tr>
+                        </thead>
                          <tbody className="align-top">
                             {tableData.rows.map((row, rowIndex) => (
-                                <TableRow key={rowIndex}>
+                                <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                                     {tableData.headers.map((header, headerIndex) => (
-                                        <TableCell 
+                                        <td 
                                             key={`${header}-${headerIndex}-${rowIndex}`} 
-                                            className="text-xs p-1"
+                                            className="align-middle [&:has([role=checkbox])]:pr-0 text-xs p-1"
                                             style={{ width: header === 'Title' ? '384px' : '128px' }}
                                         >
                                            {header === 'Status' ? (
@@ -880,12 +880,12 @@ function PreviewTable({
                                             ) : (
                                                 <span className="truncate px-2">{String(row[header] || '')}</span>
                                             )}
-                                        </TableCell>
+                                        </td>
                                     ))}
-                                </TableRow>
+                                </tr>
                             ))}
                         </tbody>
-                    </Table>
+                    </table>
                 </ScrollArea>
             </CardContent>
             <CardFooter className="pt-4">
