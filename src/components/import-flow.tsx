@@ -112,10 +112,9 @@ export function ImportFlow() {
   // Effect for auto-scrolling
   useEffect(() => {
     if (tableData && destinationCardRef.current) {
-        // The scrollable container is the <main> element, which is the parent of this component's wrapper.
         const mainContainer = destinationCardRef.current.closest('main');
         if (mainContainer) {
-            const headerOffset = 16; // A small offset to not have the card stick to the very top
+            const headerOffset = 16; 
             const elementPosition = destinationCardRef.current.offsetTop;
             const offsetPosition = elementPosition - headerOffset;
 
@@ -897,3 +896,4 @@ function PreviewTable({
         </Card>
     );
 }
+
