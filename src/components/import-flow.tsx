@@ -806,12 +806,12 @@ function PreviewTable({
              <CardContent>
                 <ScrollArea className="w-full h-[500px] border rounded-md">
                     <table className="caption-bottom text-sm" style={{ minWidth: '1800px' }}>
-                        <thead className="sticky top-0 z-10">
+                        <thead>
                             <tr className="border-b transition-colors hover:bg-muted/50">
                                 {tableData.headers.map((header, index) => (
                                     <th 
                                       key={`${header}-${index}`} 
-                                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-b border-r sticky top-0 z-10 bg-muted/50"
+                                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-b border-r sticky top-0 z-20 bg-muted"
                                       style={{ width: header === 'Title' ? '384px' : '128px' }}
                                     >
                                         {(header === 'Created At' || header === 'Resolved At') ? (
@@ -896,5 +896,6 @@ function PreviewTable({
     
 
     
+
 
 
