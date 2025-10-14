@@ -515,42 +515,40 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
             </CardHeader>
             <CardContent>
                <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[400px]">
-                   <div className="relative" style={{ height: `${totalHeight}px` }}>
-                       <Table>
-                           <TableHeader className="sticky top-0 bg-card z-10">
-                               <TableRow>
-                                   {type === 'duplicate' && <TableHead>NIS/NISN</TableHead>}
-                                   <TableHead>Nama</TableHead>
-                                   <TableHead>File</TableHead>
-                                   <TableHead>Sheet</TableHead>
+                   <Table>
+                       <TableHeader className="sticky top-0 bg-card z-10">
+                           <TableRow>
+                               {type === 'duplicate' && <TableHead>NIS/NISN</TableHead>}
+                               <TableHead>Nama</TableHead>
+                               <TableHead>File</TableHead>
+                               <TableHead>Sheet</TableHead>
+                           </TableRow>
+                       </TableHeader>
+                       <TableBody style={{ height: `${totalHeight}px`, position: 'relative' }}>
+                           {virtualRows.map((virtualRow) => {
+                               const item = sortedData[virtualRow.index];
+                               return (
+                               <TableRow 
+                                   key={virtualRow.key}
+                                   style={{
+                                       position: 'absolute',
+                                       top: 0,
+                                       left: 0,
+                                       width: '100%',
+                                       height: `${virtualRow.size}px`,
+                                       transform: `translateY(${virtualRow.start}px)`,
+                                   }}
+                                   className={rowBgClass}
+                               >
+                                  {type === 'duplicate' && <TableCell className="font-medium">{item.id}</TableCell>}
+                                  <TableCell>{item.nama}</TableCell>
+                                  <TableCell>{item.fileName}</TableCell>
+                                  <TableCell>{item.sheetName}</TableCell>
                                </TableRow>
-                           </TableHeader>
-                           <TableBody>
-                               {virtualRows.map((virtualRow) => {
-                                   const item = sortedData[virtualRow.index];
-                                   return (
-                                   <TableRow 
-                                       key={virtualRow.key}
-                                       style={{
-                                           position: 'absolute',
-                                           top: 0,
-                                           left: 0,
-                                           width: '100%',
-                                           height: `${virtualRow.size}px`,
-                                           transform: `translateY(${virtualRow.start}px)`,
-                                       }}
-                                       className={rowBgClass}
-                                   >
-                                      {type === 'duplicate' && <TableCell className="font-medium">{item.id}</TableCell>}
-                                      <TableCell>{item.nama}</TableCell>
-                                      <TableCell>{item.fileName}</TableCell>
-                                      <TableCell>{item.sheetName}</TableCell>
-                                   </TableRow>
-                                  )
-                               })}
-                           </TableBody>
-                       </Table>
-                   </div>
+                              )
+                           })}
+                       </TableBody>
+                   </Table>
                </div>
             </CardContent>
         </Card>
