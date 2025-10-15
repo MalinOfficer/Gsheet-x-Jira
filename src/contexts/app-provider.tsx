@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useState, ReactNode, useContext, useCallback } from 'react';
+import React, { createContext, useState, ReactNode, useContext, useCallback, useEffect } from 'react';
 
 export type TableData = {
     headers: string[];
@@ -17,6 +17,9 @@ interface AppContextType {
     resetState: () => void;
 }
 
+const LOCAL_STORAGE_KEY_FILE_A = 'dataWeaverFileA';
+const LOCAL_STORAGE_KEY_FILE_B = 'dataWeaverFileB';
+
 export const AppContext = createContext<AppContextType>({
     fileA: null,
     setFileA: () => {},
@@ -29,17 +32,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [fileA, setFileA] = useState<TableData | null>(null);
     const [fileB, setFileB] = useState<TableData | null>(null);
 
+    // Load data from localStorage on initial mount
+    useEffect(() => {
+        try {
+            const savedFileA = localStorage.getItem(LOCAL_STORAGE_KEY_FILE_A);
+            if (savedFileA) {
+                setFileA(JSON.parse(savedFileA));
+            }
+            const savedFileB = localStorage.getItem(LOCAL_STORAGE_KEY_FILE_B);
+            if (savedFileB) {
+                setFileB(JSON.parse(savedFileB));
+            }
+        } catch (error) {
+            console.error("Failed to load data from localStorage", error);
+            localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_A);
+            localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_B);
+        }
+    }, []);
+
     const handleSetFileA = useCallback((data: TableData | null) => {
         setFileA(data);
+        try {
+            if (data) {
+                localStorage.setItem(LOCAL_STORAGE_KEY_FILE_A, JSON.stringify(data));
+            } else {
+                localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_A);
+            }
+        } catch (error) {
+            console.error("Failed to save File A to localStorage", error);
+        }
     }, []);
 
     const handleSetFileB = useCallback((data: TableData | null) => {
         setFileB(data);
+        try {
+            if (data) {
+                localStorage.setItem(LOCAL_STORAGE_KEY_FILE_B, JSON.stringify(data));
+            } else {
+                localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_B);
+            }
+        } catch (error) {
+            console.error("Failed to save File B to localStorage", error);
+        }
     }, []);
 
     const resetState = useCallback(() => {
         setFileA(null);
         setFileB(null);
+        try {
+            localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_A);
+            localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_B);
+        } catch (error) {
+            console.error("Failed to clear localStorage", error);
+        }
     }, []);
 
     const contextValue = {
