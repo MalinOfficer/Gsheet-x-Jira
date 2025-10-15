@@ -448,6 +448,15 @@ export function ImportFlow() {
             };
 
             processedRows.sort((a, b) => {
+                // Primary sort: by "Created At" date
+                const dateA = new Date(a['Created At']);
+                const dateB = new Date(b['Created At']);
+                
+                if (dateA.getTime() !== dateB.getTime()) {
+                    return dateA.getTime() - dateB.getTime();
+                }
+
+                // Secondary sort: by ticket number
                 const numA = extractTicketNumber(a.Title);
                 const numB = extractTicketNumber(b.Title);
                 if (numA === null && numB === null) return 0;
@@ -741,7 +750,6 @@ export function ImportFlow() {
                 initialData={tableData}
                 dateFormats={dateFormats}
                 isProcessing={isProcessing}
-                onDataChange={setTableData}
                 onUndoDataChange={setLastActionUndoData}
                 handleDateFormatChange={handleDateFormatChange}
                 handleCopyToClipboard={handleCopyToClipboard}
@@ -760,7 +768,6 @@ function PreviewTable({
     initialData,
     dateFormats,
     isProcessing,
-    onDataChange,
     onUndoDataChange,
     handleDateFormatChange,
     handleCopyToClipboard,
@@ -770,13 +777,13 @@ function PreviewTable({
     initialData: TableData;
     dateFormats: Record<string, DateFormat>;
     isProcessing: boolean;
-    onDataChange: (data: TableData | null) => void;
     onUndoDataChange: (data: LastActionUndoData) => void;
     handleDateFormatChange: (header: string, format: string) => void;
     handleCopyToClipboard: () => void;
     isCopied: boolean;
     handleNavigateToReport: () => void;
 }) {
+    const { setTableData } = useContext(TableDataContext);
     const [localTableData, setLocalTableData] = useState<TableData>(initialData);
 
     useEffect(() => {
@@ -789,7 +796,8 @@ function PreviewTable({
         const newTableData = { ...localTableData, rows: newRows };
         
         setLocalTableData(newTableData);
-        onDataChange(newTableData);
+        // This is the key change: update the global state as well so export functions have the latest data
+        setTableData(newTableData);
         onUndoDataChange(null);
     };
 
@@ -910,6 +918,7 @@ function PreviewTable({
     
 
     
+
 
 
 
