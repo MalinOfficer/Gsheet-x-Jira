@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -817,10 +818,9 @@ export default function DataWeaverPage() {
                     </TabsContent>
 
                     <TabsContent value="result" className="mt-4">
-                        {mergedData && (
+                        {mergedData && editMode && (
                             <ResultTable
                                 mergedData={mergedData}
-                                selectedHeaders={selectedHeaders}
                                 onDownload={handleDownload}
                                 editMode={editMode}
                             />
@@ -940,8 +940,13 @@ function UnmatchedReviewTable({ unmatchedData, fileA, fileB, mergeKey, mergedDat
     );
 }
 
-function ResultTable({ mergedData, selectedHeaders, onDownload, editMode }: { mergedData: any[], selectedHeaders: string[], onDownload: () => void, editMode: EditMode }) {
+function ResultTable({ mergedData, onDownload, editMode }: { mergedData: any[], onDownload: () => void, editMode: EditMode }) {
     const tableContainerRef = useRef<HTMLDivElement>(null);
+
+    const dynamicKey = editMode;
+    const dynamicKeyCapitalized = dynamicKey.charAt(0).toUpperCase() + dynamicKey.slice(1);
+    const tableHeaders = ['Id', 'Username', dynamicKeyCapitalized];
+
     const rowVirtualizer = useVirtualizer({
         count: mergedData.length,
         getScrollElement: () => tableContainerRef.current,
@@ -951,6 +956,9 @@ function ResultTable({ mergedData, selectedHeaders, onDownload, editMode }: { me
 
     const virtualRows = rowVirtualizer.getVirtualItems();
     const totalHeight = rowVirtualizer.getTotalSize();
+
+    // Helper to find a header key case-insensitively from a row object
+    const findKey = (row: any, key: string) => Object.keys(row).find(k => k.toLowerCase() === key.toLowerCase());
 
     return (
         <Card className="mb-6">
@@ -968,39 +976,50 @@ function ResultTable({ mergedData, selectedHeaders, onDownload, editMode }: { me
             </CardHeader>
             <CardContent>
                 <div ref={tableContainerRef} className="relative w-full overflow-auto rounded-md border h-[500px]">
-                    <Table>
-                        <TableHeader className="sticky top-0 bg-card z-10">
-                            <TableRow>
-                                {selectedHeaders.map((header) => (
-                                    <TableHead key={header}>{header}</TableHead>
-                                ))}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody style={{ height: `${totalHeight}px`, position: 'relative' }}>
-                            {mergedData.length > 0 ? (
-                                virtualRows.map((virtualRow) => {
-                                    const row = mergedData[virtualRow.index];
-                                    return (
-                                        <TableRow key={'merged-row-' + virtualRow.index} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}>
-                                            {selectedHeaders.map(header => {
-                                                const headerKey = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase());
-                                                const cellValue = headerKey ? row[headerKey] : '';
-                                                return (
-                                                    <TableCell key={header + '-' + virtualRow.index}>{decodeHtml(String(cellValue ?? ''))}</TableCell>
-                                                );
-                                            })}
-                                        </TableRow>
-                                    );
-                                })
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={selectedHeaders.length} className="text-center">
-                                        No merged data. Add data from the Review tab.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                    <div style={{ height: `${totalHeight}px`, width: '100%', position: 'relative' }}>
+                        {/* Header */}
+                        <div className="flex sticky top-0 bg-card z-10 font-medium border-b">
+                            {tableHeaders.map((header) => (
+                                <div key={header} className="p-2 text-left text-sm flex-1">
+                                    {header}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Virtualized Rows */}
+                        {mergedData.length > 0 ? (
+                            virtualRows.map((virtualRow) => {
+                                const row = mergedData[virtualRow.index];
+                                const idKey = findKey(row, 'id');
+                                const namaKey = findKey(row, 'nama');
+                                const dynamicHeaderKey = findKey(row, dynamicKey);
+                                
+                                const cells = [
+                                    idKey ? row[idKey] : '',
+                                    namaKey ? row[namaKey] : '',
+                                    dynamicHeaderKey ? row[dynamicHeaderKey] : '',
+                                ];
+
+                                return (
+                                    <div 
+                                      key={'merged-row-' + virtualRow.index} 
+                                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start + 37}px)` }}
+                                      className="flex items-center text-sm border-b"
+                                    >
+                                        {cells.map((cellContent, cellIndex) => (
+                                            <div key={cellIndex} className="p-2 break-words flex-1">
+                                                {decodeHtml(String(cellContent ?? ''))}
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                           <div className="flex items-center justify-center h-full text-muted-foreground">
+                                No merged data. Add data from the Review tab.
+                           </div>
+                        )}
+                    </div>
                 </div>
             </CardContent>
         </Card>
