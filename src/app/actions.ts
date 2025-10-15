@@ -513,26 +513,31 @@ export async function importToSheet(
             return { error: `The target sheet named "${sheetName}" was not found in the spreadsheet.` };
         }
 
-        // 2. Get last row data
+        // 2. Get last row data by reading the entire 'No' column (A)
         const lastRowResponse = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: `${sheetName}!A:C`, // Read No
+            range: `${sheetName}!A:A`, // Read the entire 'No' column
             majorDimension: 'ROWS',
         });
-        const allRows = lastRowResponse.data.values || [];
+        const columnA = lastRowResponse.data.values || [];
         
-        let lastRowIndex = allRows.length;
+        let lastRowIndex = 0;
         let lastNo = 0;
         
-        if (allRows.length > 0) {
-           // Find the last row with a valid 'No' in column A
-            for (let i = allRows.length - 1; i >= 0; i--) {
-                const noValue = allRows[i][0];
-                if (noValue && !isNaN(Number(noValue))) {
-                    lastNo = parseInt(noValue, 10);
-                    break;
-                }
+        // Find the last row that has a numerical value in column A.
+        for (let i = columnA.length - 1; i >= 0; i--) {
+            const noValue = columnA[i][0];
+            if (noValue && !isNaN(Number(noValue))) {
+                lastNo = parseInt(noValue, 10);
+                lastRowIndex = i + 1; // 1-based index of the last row with a number
+                break;
             }
+        }
+        
+        // If the sheet is completely empty or has no numbers in column A, start from row 0.
+        // The API call to `append` will place it after the header automatically if the range is just the sheet name.
+        if (lastRowIndex === 0) {
+            lastRowIndex = columnA.length;
         }
 
 
@@ -986,5 +991,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
 
