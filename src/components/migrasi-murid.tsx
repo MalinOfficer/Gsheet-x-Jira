@@ -626,9 +626,9 @@ export function MigrasiMurid() {
         XLSX.utils.book_append_sheet(workbook, worksheet, "Data Murid");
         
         const date = new Date().toISOString().slice(0, 10);
-        const filename = `Data_Murid_${date}.xlsx`;
+        const filename = `Data_Murid_${date}.xls`;
 
-        XLSX.writeFile(workbook, filename);
+        XLSX.writeFile(workbook, filename, { bookType: "xls" });
         
         toast({
             title: "Export Successful",
@@ -847,3 +847,4 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
