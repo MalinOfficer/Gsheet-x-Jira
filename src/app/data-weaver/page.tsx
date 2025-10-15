@@ -491,57 +491,32 @@ export default function DataWeaverPage() {
             toast({ variant: 'destructive', title: "Download Failed", description: "No merged data or edit mode selected." });
             return;
         }
-
+    
+        // Helper to find a header key case-insensitively from a row object
+        const findKey = (row: any, key: string) => Object.keys(row).find(k => k.toLowerCase() === key.toLowerCase());
+    
+        // The dynamic key based on editMode ('nis', 'nisn', 'year')
+        const dynamicKey = editMode;
+        const dynamicKeyCapitalized = dynamicKey.charAt(0).toUpperCase() + dynamicKey.slice(1);
+    
+        // Headers for the Excel file
+        const headerRow1 = ['id', 'username', dynamicKey];
+        const headerRow2 = ['Id', 'Username', dynamicKeyCapitalized];
+    
         const dataForSheet = mergedData.map(row => {
-            const rowData: any[] = [];
-            selectedHeaders.forEach(header => {
-                const headerKey = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase());
-                const cellValue = headerKey ? row[headerKey] : '';
-                rowData.push(cellValue ?? '');
-            });
-            return rowData;
+            const idKey = findKey(row, 'id');
+            const namaKey = findKey(row, 'nama');
+            const dynamicHeaderKey = findKey(row, dynamicKey);
+    
+            return [
+                idKey ? row[idKey] : '',
+                namaKey ? row[namaKey] : '',
+                dynamicHeaderKey ? row[dynamicHeaderKey] : '',
+            ];
         });
-
-        const headerKeyMap: Record<string, string> = {
-            id: 'id',
-            nama: 'username',
-            nis: 'nis',
-            nisn: 'nisn'
-        };
-
-        const headerRow1 = selectedHeaders.map(h => {
-            const lowerH = h.toLowerCase();
-            // Special mapping for 'nama' to 'username'
-            if (lowerH === 'nama') return 'username';
-            
-            // Check if it's one of the primary keys
-            if (headerKeyMap[lowerH]) {
-                // If it's the specific key for the current edit mode, return it
-                if (editMode === 'nis' && lowerH === 'nis') return 'nis';
-                if (editMode === 'nisn' && lowerH === 'nisn') return 'nisn';
-                // For 'id', it's always 'id'
-                if (lowerH === 'id') return 'id';
-            }
-            // For all other headers, return the original
-            return h;
-        });
-        
-        const headerRow2 = selectedHeaders.map(h => {
-            const lowerH = h.toLowerCase();
-            if (lowerH === 'nama') return 'Username';
-
-            // Check if it's one of the primary keys
-            if (headerKeyMap[lowerH]) {
-                 if (editMode === 'nis' && lowerH === 'nis') return 'Nis';
-                 if (editMode === 'nisn' && lowerH === 'nisn') return 'Nisn';
-                 if (lowerH === 'id') return 'Id';
-            }
-            // Return empty for all other columns
-            return '';
-        });
-
+    
         const worksheetData = [headerRow1, headerRow2, ...dataForSheet];
-
+    
         const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Merged Data");
@@ -847,6 +822,7 @@ export default function DataWeaverPage() {
                                 mergedData={mergedData}
                                 selectedHeaders={selectedHeaders}
                                 onDownload={handleDownload}
+                                editMode={editMode}
                             />
                         )}
                     </TabsContent>
@@ -964,7 +940,7 @@ function UnmatchedReviewTable({ unmatchedData, fileA, fileB, mergeKey, mergedDat
     );
 }
 
-function ResultTable({ mergedData, selectedHeaders, onDownload }: { mergedData: any[], selectedHeaders: string[], onDownload: () => void }) {
+function ResultTable({ mergedData, selectedHeaders, onDownload, editMode }: { mergedData: any[], selectedHeaders: string[], onDownload: () => void, editMode: EditMode }) {
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizer = useVirtualizer({
         count: mergedData.length,
