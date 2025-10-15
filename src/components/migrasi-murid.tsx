@@ -69,13 +69,16 @@ const parseAndFormatDate = (dateStr: string): string | null => {
     // Check if it's already in DD/MM/YYYY format
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmedDate)) {
         const parts = trimmedDate.split('/');
-        const day = parts[0].padStart(2, '0');
-        const month = parts[1].padStart(2, '0');
-        // Handle potential MM/DD/YYYY to DD/MM/YYYY swap
-        if (parseInt(month, 10) > 12) {
-             return `${parts[1].padStart(2, '0')}/${parts[0].padStart(2, '0')}/${parts[2]}`;
+        if (parts.length === 3) {
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
+            const year = parts[2];
+            // Handle potential MM/DD/YYYY to DD/MM/YYYY swap
+            if (parseInt(month, 10) > 12) {
+                 return `${parts[1].padStart(2, '0')}/${day}/${year}`;
+            }
+            return `${day}/${month}/${year}`;
         }
-        return `${day}/${month}/${parts[2]}`;
     }
 
     // Try parsing MM/DD/YYYY or M/D/YYYY
@@ -87,7 +90,26 @@ const parseAndFormatDate = (dateStr: string): string | null => {
         return `${day}/${month}/${year}`;
     }
 
-    // Try parsing DD-MonthName-YYYY (e.g., 03-Januari-2009) or MonthName DD YYYY
+    // Try parsing DD NamaBulan YYYY (e.g., 21 januari 2000)
+    const dayFirstMatch = trimmedDate.match(/^(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})$/);
+    if (dayFirstMatch) {
+        const day = dayFirstMatch[1].padStart(2, '0');
+        const monthName = dayFirstMatch[2];
+        const year = dayFirstMatch[3];
+
+        let month: string | undefined;
+        for (const key in monthMap) {
+            if (monthName.startsWith(key)) {
+                month = monthMap[key];
+                break;
+            }
+        }
+        if (day && month && year) {
+            return `${day}/${month}/${year}`;
+        }
+    }
+
+    // Try parsing DD-MonthName-YYYY or MonthName DD YYYY
     const datePartsMatch = trimmedDate.match(/^(?:(\d{1,2})[-.\s])?([a-zA-Z]+)[-.\s](\d{1,2})?[-.\s](\d{4})$/);
     if (datePartsMatch) {
         const potentialDay1 = datePartsMatch[1];
@@ -97,8 +119,7 @@ const parseAndFormatDate = (dateStr: string): string | null => {
 
         const day = (potentialDay1 || potentialDay2)?.padStart(2, '0');
         
-        let month: string | undefined = undefined;
-        // Find a matching month prefix
+        let month: string | undefined;
         for (const key in monthMap) {
             if (monthName.startsWith(key)) {
                 month = monthMap[key];
@@ -127,7 +148,7 @@ const parseAndFormatDate = (dateStr: string): string | null => {
         const day = monthFirstMatch[2].padStart(2, '0');
         const year = monthFirstMatch[3];
         
-        let month: string | undefined = undefined;
+        let month: string | undefined;
         for (const key in monthMap) {
             if (monthName.startsWith(key)) {
                 month = monthMap[key];
@@ -543,30 +564,9 @@ export function MigrasiMurid() {
             return;
         }
         
-        const filteredAndProcessedRows = rows
-            .filter((row) => row["Username"])
-            .map((row, index) => {
-                const newRow: Record<string, any> = { ...row };
-                newRow["No"] = index + 1;
+        const filteredRows = rows.filter(row => row["Username"]);
 
-                const dateValue = newRow["Tanggal Lahir"];
-                if (dateValue && typeof dateValue === 'string') {
-                    const dateParts = dateValue.split('/');
-                    if (dateParts.length === 3) {
-                        const day = parseInt(dateParts[0], 10);
-                        const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
-                        const year = parseInt(dateParts[2], 10);
-                        const jsDate = new Date(year, month, day);
-                        // Check if the created date is valid
-                        if (!isNaN(jsDate.getTime())) {
-                            newRow["Tanggal Lahir"] = jsDate;
-                        }
-                    }
-                }
-                return newRow;
-            });
-
-        if (filteredAndProcessedRows.length === 0) {
+        if (filteredRows.length === 0) {
             toast({
                 variant: "destructive",
                 title: "No Data to Export",
@@ -575,7 +575,52 @@ export function MigrasiMurid() {
             return;
         }
 
-        const worksheet = XLSX.utils.json_to_sheet(filteredAndProcessedRows, { header: tableHeaders, skipHeader: false, cellDates: true });
+        const dataForSheet = filteredRows.map((row, index) => {
+            const newRow: (string | number | Date | null)[] = [];
+            tableHeaders.forEach(header => {
+                if (header === "No") {
+                    newRow.push(index + 1);
+                } else if (header === "Tanggal Lahir") {
+                    const dateStr = row[header];
+                    if (dateStr && typeof dateStr === 'string') {
+                        const parts = dateStr.split('/');
+                        if (parts.length === 3) {
+                            const day = parseInt(parts[0], 10);
+                            const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
+                            const year = parseInt(parts[2], 10);
+                            // Use Date.UTC to avoid timezone issues
+                            const utcDate = new Date(Date.UTC(year, month, day));
+                            if (!isNaN(utcDate.getTime())) {
+                                newRow.push(utcDate);
+                            } else {
+                                newRow.push(dateStr); // Push original string if invalid
+                            }
+                        } else {
+                            newRow.push(dateStr); // Push original string if not DD/MM/YYYY
+                        }
+                    } else {
+                        newRow.push(null);
+                    }
+                } else {
+                    newRow.push(String(row[header] || ''));
+                }
+            });
+            return newRow;
+        });
+
+        const worksheet = XLSX.utils.aoa_to_sheet([tableHeaders, ...dataForSheet], { cellDates: true });
+
+        // Apply date format to the "Tanggal Lahir" column
+        const dateColumnIndex = tableHeaders.indexOf("Tanggal Lahir");
+        if (dateColumnIndex > -1) {
+            const columnLetter = XLSX.utils.encode_col(dateColumnIndex);
+            for (let i = 2; i <= dataForSheet.length + 1; i++) { // Start from row 2 (data starts at A2)
+                const cellAddress = `${columnLetter}${i}`;
+                if (worksheet[cellAddress] && worksheet[cellAddress].t === 'd') {
+                    worksheet[cellAddress].z = 'dd/mm/yyyy';
+                }
+            }
+        }
         
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Data Murid");
@@ -587,7 +632,7 @@ export function MigrasiMurid() {
         
         toast({
             title: "Export Successful",
-            description: `${filteredAndProcessedRows.length} rows have been exported to ${filename}.`,
+            description: `${filteredRows.length} rows have been exported to ${filename}.`,
         });
     };
 
@@ -608,10 +653,7 @@ export function MigrasiMurid() {
     const totalHeight = rowVirtualizer.getTotalSize();
     
     const getRowNumberValue = (row: MuridData, index: number) => {
-        // This logic is a bit complex, let's simplify for now.
-        // It should show a number if the row is not empty.
-        // A simple check on 'Username' is a good proxy for non-empty.
-        return (row["Username"] || index === 0) ? String(index + 1) : "";
+        return (row["Username"]) ? String(index + 1) : "";
     };
 
     const handleFillHandleMouseDown = (e: MouseEvent) => {
@@ -641,7 +683,7 @@ export function MigrasiMurid() {
                         </Button>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="destructive">
+                            <Button size="sm" variant="destructive" suppressHydrationWarning>
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete All
                             </Button>
                             </AlertDialogTrigger>
@@ -662,6 +704,7 @@ export function MigrasiMurid() {
                             onClick={handleExportExcel}
                             size="sm"
                             className="bg-green-600 text-white hover:bg-green-700"
+                            suppressHydrationWarning
                         >
                             <Download className="mr-2 h-4 w-4" />
                             Export
@@ -730,9 +773,9 @@ export function MigrasiMurid() {
                                         const cellValue = row[header];
                                         let displayValue = "";
                                         if (cellValue instanceof Date) {
-                                            const day = String(cellValue.getDate()).padStart(2, '0');
-                                            const month = String(cellValue.getMonth() + 1).padStart(2, '0');
-                                            const year = cellValue.getFullYear();
+                                            const day = String(cellValue.getUTCDate()).padStart(2, '0');
+                                            const month = String(cellValue.getUTCMonth() + 1).padStart(2, '0');
+                                            const year = cellValue.getUTCFullYear();
                                             displayValue = `${day}/${month}/${year}`;
                                         } else {
                                             displayValue = String(cellValue || "");
@@ -789,8 +832,9 @@ export function MigrasiMurid() {
                         }}
                         placeholder=""
                         className="w-24 h-9"
+                        suppressHydrationWarning
                     />
-                    <Button onClick={handleAddRows} size="sm" variant="outline">
+                    <Button onClick={handleAddRows} size="sm" variant="outline" suppressHydrationWarning>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Tambah Baris
                     </Button>
@@ -805,4 +849,5 @@ export function MigrasiMurid() {
     
 
     
+
 
