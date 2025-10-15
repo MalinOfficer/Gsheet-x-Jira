@@ -653,7 +653,10 @@ export function MigrasiMurid() {
     const totalHeight = rowVirtualizer.getTotalSize();
     
     const getRowNumberValue = (row: MuridData, index: number) => {
-        return (row["Username"]) ? String(index + 1) : "";
+        if (index === 0) {
+            return "1";
+        }
+        return row["Username"] ? String(index + 1) : "";
     };
 
     const handleFillHandleMouseDown = (e: MouseEvent) => {
@@ -797,6 +800,7 @@ export function MigrasiMurid() {
                                                     onMouseOver={(e) => handleMouseOver(e, { row: virtualRow.index, col: colIndex })}
                                                     data-row={virtualRow.index}
                                                     data-col={colIndex}
+                                                    suppressHydrationWarning
                                                     className={cn(
                                                         "w-full h-7 text-xs px-1 rounded-none border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
                                                         header === "No" && "text-center cursor-default bg-muted/30 focus-visible:ring-0",
@@ -843,11 +847,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
-
-    
-
-    
-
-
