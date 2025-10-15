@@ -611,7 +611,7 @@ export async function importToSheet(
             const currentRowNumberInSheet = lastRowIndex + index + 1;
             const ticketFormula = `=CONCATENATE("TKT-", TEXT(B${currentRowNumberInSheet}, "YYMMDD"), "-", TEXT(ROW()-2, "00000"))`;
             const statusCase2Formula = `=IF(G${currentRowNumberInSheet}="solved","SOLVED",IF(OR(G${currentRowNumberInSheet}="L1",G${currentRowNumberInSheet}="L2",G${currentRowNumberInSheet}="L3",G${currentRowNumberInSheet}="PM"),"UNSOLVED",""))`;
-
+            const durationFormula = `=IF(R${currentRowNumberInSheet}="UNSOLVED", TODAY() - B${currentRowNumberInSheet}, "")`;
 
             const mainDataHeaders = [
                 'Client Name', 'Customer Name', 'Status', 'Kolom kosong1', 
@@ -630,7 +630,9 @@ export async function importToSheet(
                 '', '',                    // P-Q - Empty
                 statusCase2Formula,        // R - STATUS CASE 2 (Formula)
                 '',                        // S - Empty
-                row['Ticket OP'] || ''     // T - Ticket OP
+                row['Ticket OP'] || '',    // T - Ticket OP
+                '',                        // U - Empty
+                durationFormula            // V - Umur Case/Hari (Formula)
             ];
         });
 
@@ -1003,5 +1005,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
 
+
+    
 
     
