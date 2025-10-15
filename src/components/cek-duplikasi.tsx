@@ -15,7 +15,8 @@ import { cn } from '@/lib/utils';
 declare const XLSX: any;
 
 type StudentRecord = {
-    id: string; // Combined NIS or NISN
+    type: 'NIS' | 'NISN' | 'ID Kosong' | 'TTL Kosong';
+    value: string;
     nama: string;
     fileName: string;
     sheetName: string;
@@ -162,7 +163,11 @@ export function CekDuplikasi() {
         startChecking(async () => {
             setHasChecked(true);
             setProcessedFileCount(0);
-            const idMap = new Map<string, { nama: string, fileName: string, sheetName: string }[]>();
+            
+            type RecordInfo = { nama: string; fileName: string; sheetName: string };
+            const nisMap = new Map<string, RecordInfo[]>();
+            const nisnMap = new Map<string, RecordInfo[]>();
+            
             const foundEmptyId: StudentRecord[] = [];
             const foundEmptyDob: StudentRecord[] = [];
             let filesProcessed = 0;
@@ -205,30 +210,33 @@ export function CekDuplikasi() {
                             const nisnValue = nisnIndex !== -1 ? String(row[nisnIndex] || '').trim() : '';
                             const namaValue = String(row[namaIndex] || '').trim();
                             
-                            const id = nisValue || nisnValue;
-                             
-                            const isIdEmpty = !id || !/\d/.test(id);
+                            const recordInfo = { nama: namaValue, fileName: fileData.name, sheetName };
+
+                            const isIdEmpty = !nisValue && !nisnValue;
                             const isNamePresent = namaValue && namaValue.toLowerCase() !== 'nama';
                             
                             if (dobIndex !== -1) {
                                 const dobValue = row[dobIndex];
                                 const isDobEmpty = !dobValue || (typeof dobValue === 'string' && dobValue.startsWith('#'));
                                 if (isNamePresent && isDobEmpty) {
-                                    foundEmptyDob.push({ id: 'N/A', nama: namaValue, fileName: fileData.name, sheetName });
+                                    foundEmptyDob.push({ type: 'TTL Kosong', value: 'N/A', ...recordInfo });
                                 }
                             }
                             
                             if (isIdEmpty) {
                                 if (isNamePresent) {
-                                    foundEmptyId.push({ id: 'N/A', nama: namaValue, fileName: fileData.name, sheetName });
+                                    foundEmptyId.push({ type: 'ID Kosong', value: 'N/A', ...recordInfo });
                                 }
-                                continue; 
+                            } else {
+                                if (nisValue) {
+                                    if (!nisMap.has(nisValue)) nisMap.set(nisValue, []);
+                                    nisMap.get(nisValue)!.push(recordInfo);
+                                }
+                                if (nisnValue) {
+                                    if (!nisnMap.has(nisnValue)) nisnMap.set(nisnValue, []);
+                                    nisnMap.get(nisnValue)!.push(recordInfo);
+                                }
                             }
-                            
-                            if (!idMap.has(id)) {
-                                idMap.set(id, []);
-                            }
-                            idMap.get(id)?.push({ nama: namaValue, fileName: fileData.name, sheetName });
                         }
                     }
                      if (fileHasValidSheet) {
@@ -248,11 +256,14 @@ export function CekDuplikasi() {
             setProcessedFileCount(filesProcessed);
 
             const foundDuplicates: StudentRecord[] = [];
-            idMap.forEach((records, id) => {
+            nisMap.forEach((records, nis) => {
                 if (records.length > 1) {
-                    records.forEach(record => {
-                        foundDuplicates.push({ id, ...record });
-                    });
+                    records.forEach(record => foundDuplicates.push({ type: 'NIS', value: nis, ...record }));
+                }
+            });
+            nisnMap.forEach((records, nisn) => {
+                if (records.length > 1) {
+                    records.forEach(record => foundDuplicates.push({ type: 'NISN', value: nisn, ...record }));
                 }
             });
 
@@ -276,35 +287,34 @@ export function CekDuplikasi() {
 
     const summaryText = useMemo(() => {
         if (!hasChecked || isChecking) return "";
-
+    
         let summary = "";
-
+    
         // Duplicates summary
         const groupedDuplicates = duplicates.reduce((acc, curr) => {
-            const { id } = curr;
-            if (id) {
-                if (!acc[id]) acc[id] = [];
-                acc[id].push(curr);
-            }
+            const key = `${curr.type}:${curr.value}`;
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(curr);
             return acc;
         }, {} as Record<string, StudentRecord[]>);
-
-        const duplicateEntries = Object.entries(groupedDuplicates);
+    
+        const duplicateEntries = Object.values(groupedDuplicates);
         if (duplicateEntries.length > 0) {
-            summary += "NIS/NISN yang terduplikasi:\n";
-            duplicateEntries.forEach(([id, records]) => {
-                const names = records.map(r => r.nama).join(' dan ');
+            summary += "Data yang terduplikasi:\n";
+            duplicateEntries.forEach((records) => {
+                const { type, value } = records[0];
+                const names = [...new Set(records.map(r => r.nama))].join(' dan ');
                 const sheetNames = [...new Set(records.map(r => r.sheetName))].join(', ');
-                summary += `- ${id} telah digunakan pada nama ${names} di sheet ${sheetNames}\n`;
+                summary += `- ${type} ${value} telah digunakan pada nama ${names} di sheet ${sheetNames}\n`;
             });
             summary += "\n";
         }
-
+    
         // Empty ID summary
         if (emptyIdRecords.length > 0) {
             summary += "Siswa dengan NIS/NISN Kosong:\n";
             emptyIdRecords.forEach(record => {
-                summary += `- ${record.nama} sheet ${record.sheetName}\n`;
+                summary += `- ${record.nama} di sheet ${record.sheetName}\n`;
             });
             summary += "\n";
         }
@@ -313,10 +323,10 @@ export function CekDuplikasi() {
         if (emptyDobRecords.length > 0) {
             summary += "Siswa dengan Tanggal Lahir Kosong:\n";
             emptyDobRecords.forEach(record => {
-                summary += `- ${record.nama} sheet ${record.sheetName}\n`;
+                summary += `- ${record.nama} di sheet ${record.sheetName}\n`;
             });
         }
-
+    
         return summary.trim() || "Tidak ada masalah ditemukan.";
     }, [duplicates, emptyIdRecords, emptyDobRecords, hasChecked, isChecking]);
 
@@ -366,7 +376,7 @@ export function CekDuplikasi() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                  <div className="space-y-6">
                     {duplicates.length > 0 && (
-                        <ResultTable title="NIS/NISN Duplikat" icon={AlertTriangle} count={new Set(duplicates.map(d => d.id)).size} data={duplicates} type="duplicate" />
+                        <ResultTable title="Data Duplikat" icon={AlertTriangle} count={new Set(duplicates.map(d => `${d.type}:${d.value}`)).size} data={duplicates} type="duplicate" />
                     )}
 
                     {emptyIdRecords.length > 0 && (
@@ -495,7 +505,7 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
     const totalHeight = rowVirtualizer.getTotalSize();
 
     let titleText = title;
-    if (type === 'duplicate') titleText = `${title} (${count} ID)`;
+    if (type === 'duplicate') titleText = `${title} (${count} ID unik)`;
     if (type === 'emptyId' || type === 'emptyDob') titleText = `${title} (${count} Siswa)`;
 
     const rowBgClass = type === 'duplicate' ? 'bg-destructive/10' 
@@ -507,11 +517,11 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
                           : 'text-sky-600';
 
     const headers = type === 'duplicate' 
-        ? ['NIS/NISN', 'Nama', 'File', 'Sheet'] 
+        ? ['Jenis Duplikat', 'Nama', 'File', 'Sheet'] 
         : ['Nama', 'File', 'Sheet'];
     
     const columnWidths = type === 'duplicate' 
-        ? ['20%', '30%', '30%', '20%'] 
+        ? ['25%', '30%', '25%', '20%'] 
         : ['40%', '40%', '20%'];
 
 
@@ -539,7 +549,7 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
                        {virtualRows.map((virtualRow) => {
                            const item = sortedData[virtualRow.index];
                            const cells = type === 'duplicate' 
-                               ? [item.id, item.nama, item.fileName, item.sheetName]
+                               ? [`${item.type}: ${item.value}`, item.nama, item.fileName, item.sheetName]
                                : [item.nama, item.fileName, item.sheetName];
                            
                            return (
@@ -573,4 +583,7 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
         </Card>
     );
 }
+    
+
+
     
