@@ -2,10 +2,10 @@
 
 "use client";
 
-import { useState, useCallback, useTransition, useMemo, useRef } from 'react';
+import { useState, useCallback, useTransition, useMemo, useRef, DragEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Upload, Loader2, CheckCircle2, AlertTriangle, Trash2, Search, FileWarning, Copy, Check, Cake, XCircle, Rocket } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, AlertTriangle, Trash2, Search, FileWarning, Copy, Check, Cake, XCircle, FileText, X } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,6 +33,7 @@ type HeaderInfo = {
 type FileData = {
     name: string;
     buffer: ArrayBuffer;
+    size: number;
 };
 
 
@@ -56,43 +57,85 @@ export function CekDuplikasi() {
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
 
-    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            setDuplicates([]);
-            setEmptyIdRecords([]);
-            setEmptyDobRecords([]);
-            setHasChecked(false);
-            setProcessedFileCount(0);
-            
-            try {
-                const filePromises = Array.from(event.target.files).map(file => {
-                    return new Promise<FileData>((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            if (e.target?.result instanceof ArrayBuffer) {
-                                resolve({ name: file.name, buffer: e.target.result });
-                            } else {
-                                reject(new Error('Failed to read file as ArrayBuffer.'));
-                            }
-                        };
-                        reader.onerror = (e) => reject(new Error('File reading error: ' + reader.error));
-                        reader.readAsArrayBuffer(file);
+
+    const processFiles = useCallback(async (files: FileList | null) => {
+        if (!files || files.length === 0) return;
+
+        setDuplicates([]);
+        setEmptyIdRecords([]);
+        setEmptyDobRecords([]);
+        setHasChecked(false);
+        setProcessedFileCount(0);
+
+        try {
+            const filePromises = Array.from(files).map(file => {
+                if (!file.type.includes('spreadsheet') && !file.name.endsWith('.xls') && !file.name.endsWith('.xlsx')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Invalid File Type',
+                        description: `Skipping '${file.name}' as it is not a valid Excel file.`,
                     });
-                });
+                    return Promise.resolve(null);
+                }
 
-                const allFilesData = await Promise.all(filePromises);
-                setFilesData(allFilesData);
-
-            } catch (error) {
-                 toast({
-                    variant: 'destructive',
-                    title: 'Error Reading Files',
-                    description: `Could not read the selected files. Please try again. Error: ${error instanceof Error ? error.message : 'Unknown'}`,
+                return new Promise<FileData>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        if (e.target?.result instanceof ArrayBuffer) {
+                            resolve({ name: file.name, buffer: e.target.result, size: file.size });
+                        } else {
+                            reject(new Error('Failed to read file as ArrayBuffer.'));
+                        }
+                    };
+                    reader.onerror = (e) => reject(new Error('File reading error: ' + reader.error));
+                    reader.readAsArrayBuffer(file);
                 });
-            }
+            });
+
+            const allFilesData = (await Promise.all(filePromises)).filter((f): f is FileData => f !== null);
+            setFilesData(allFilesData);
+
+        } catch (error) {
+             toast({
+                variant: 'destructive',
+                title: 'Error Reading Files',
+                description: `Could not read the selected files. Please try again. Error: ${error instanceof Error ? error.message : 'Unknown'}`,
+            });
+        }
+    }, [toast]);
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        processFiles(event.target.files);
+    };
+
+    const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsDragging(false);
+        if (event.dataTransfer.files) {
+            processFiles(event.dataTransfer.files);
         }
     };
+
+    const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+    };
+
+    const handleDragEnter = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsDragging(false);
+    };
+
 
     const findHeaderRow = (sheetData: any[][]): HeaderValidationResult => {
         let potentialHeaderRow = -1;
@@ -415,6 +458,14 @@ export function CekDuplikasi() {
             </div>
         );
     }
+    
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -434,11 +485,21 @@ export function CekDuplikasi() {
                         </div>
                         <Button onClick={handleClear} variant="destructive" size="sm" disabled={isChecking || filesData.length === 0}>
                             <Trash2 className="mr-2 h-4 w-4"/>
-                            Clear
+                            Clear All
                         </Button>
                     </CardHeader>
                     <CardContent>
-                         <div className="w-full p-6 border-2 border-dashed rounded-lg">
+                        <div
+                            onDrop={handleDrop}
+                            onDragOver={handleDragOver}
+                            onDragEnter={handleDragEnter}
+                            onDragLeave={handleDragLeave}
+                            onClick={() => fileInputRef.current?.click()}
+                            className={cn(
+                                "w-full p-6 border-2 border-dashed rounded-lg transition-colors duration-200 cursor-pointer",
+                                isDragging ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+                            )}
+                        >
                             <Input
                                 ref={fileInputRef}
                                 type="file"
@@ -446,20 +507,45 @@ export function CekDuplikasi() {
                                 onChange={handleFileChange}
                                 className="hidden"
                                 id="file-upload"
-                                accept=".xlsx, .xls"
+                                accept=".xlsx, .xls, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                disabled={isChecking}
                             />
-                             <label htmlFor="file-upload" className="cursor-pointer">
-                                <Button asChild variant="outline" disabled={isChecking} className="pointer-events-none">
-                                    <span>
-                                        <Upload className="mr-2 h-4 w-4" />
-                                        {filesData.length > 0 ? `Selected ${filesData.length} files` : 'Select Files'}
-                                    </span>
-                                </Button>
-                             </label>
-                            {filesData.length > 0 && (
-                                <ul className="mt-4 text-xs text-muted-foreground list-disc pl-5">
-                                    {filesData.map(f => <li key={f.name}>{f.name}</li>)}
-                                </ul>
+                            {filesData.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
+                                    <Upload className="w-10 h-10 mb-2" />
+                                    <p className="font-semibold">Click to browse or drag and drop files here</p>
+                                    <p className="text-xs mt-1">Supports .xlsx and .xls</p>
+                                </div>
+                            ) : (
+                                <div>
+                                    <p className="font-semibold mb-3 text-center sm:text-left">Selected Files:</p>
+                                    <div className="space-y-2">
+                                        {filesData.map((file, index) => (
+                                            <div key={index} className="flex items-center justify-between p-2 rounded-md bg-muted/50 text-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <FileText className="h-5 w-5 text-muted-foreground" />
+                                                    <div className='flex flex-col'>
+                                                        <span className="font-medium text-foreground truncate">{file.name}</span>
+                                                        <span className='text-xs text-muted-foreground'>{formatFileSize(file.size)}</span>
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setFilesData(filesData.filter((_, i) => i !== index));
+                                                    }}
+                                                    disabled={isChecking}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-center text-xs text-muted-foreground mt-4">Click area to add more files.</p>
+                                </div>
                             )}
                         </div>
                     </CardContent>
@@ -489,10 +575,11 @@ export function CekDuplikasi() {
 
 function ResultTable({ title, icon: Icon, count, data, type }: { title: string, icon: React.ElementType, count: number, data: StudentRecord[], type: 'duplicate' | 'emptyId' | 'emptyDob' }) {
     const tableContainerRef = useRef<HTMLDivElement>(null);
+    
     const sortedData = useMemo(() => {
-        // Sort by 'nama' for all types to ensure consistent ordering
         return [...data].sort((a, b) => a.nama.localeCompare(b.nama));
     }, [data]);
+    
 
     const rowVirtualizer = useVirtualizer({
         count: sortedData.length,
