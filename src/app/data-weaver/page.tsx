@@ -503,22 +503,26 @@ export default function DataWeaverPage() {
             return rowData;
         });
 
-        // Create the two header rows based on the image provided
+        // These are the special headers that get different capitalization in the two header rows
+        const specialSystemHeaders = ['id', 'name', 'nis', 'nisn'];
+
         const headerRow1 = selectedHeaders.map(h => {
             const lowerH = h.toLowerCase();
-            if (['id', 'name', 'nisn'].includes(lowerH)) {
+            if (specialSystemHeaders.includes(lowerH)) {
                 return lowerH;
             }
             return h;
         });
+
         const headerRow2 = selectedHeaders.map(h => {
             const lowerH = h.toLowerCase();
-            if (['id', 'name', 'nisn'].includes(lowerH)) {
+            if (specialSystemHeaders.includes(lowerH)) {
+                // Capitalize the first letter
                 return h.charAt(0).toUpperCase() + h.slice(1);
             }
-            return ''; // Empty cell for headers not in the special list
+            // For other headers, the second row is empty
+            return ''; 
         });
-
 
         const worksheetData = [headerRow1, headerRow2, ...dataForSheet];
 
@@ -527,7 +531,6 @@ export default function DataWeaverPage() {
         XLSX.utils.book_append_sheet(workbook, worksheet, "Merged Data");
         XLSX.writeFile(workbook, "Merged_Data.xls");
     };
-
     
     const handleSaveDefaults = () => {
         if (!mergeKey) {
