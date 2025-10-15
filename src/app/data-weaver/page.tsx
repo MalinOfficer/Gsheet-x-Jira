@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -252,7 +252,7 @@ export default function DataWeaverPage() {
                 const lowercasedHeaders = headers.map(h => h.toLowerCase());
 
                 // Validation logic
-                if (fileType === 'A' && !lowercasedHeaders.some(h => h === 'nisn')) {
+                if (fileType === 'A' && editMode === 'nisn' && !lowercasedHeaders.some(h => h === 'nisn')) {
                     toast({ variant: 'destructive', title: "Invalid File A", description: "File NISN must contain a 'NISN' column." });
                     if (fileAInputRef.current) fileAInputRef.current.value = "";
                     return;
@@ -265,7 +265,7 @@ export default function DataWeaverPage() {
                 }
                 
                 let processedJson = json;
-                if (fileType === 'B') {
+                if (fileType === 'B' && editMode === 'nisn') {
                     const nisnHeader = headers.find(h => h.toLowerCase() === 'nisn');
                     if (nisnHeader) {
                         const originalCount = processedJson.length;
@@ -556,6 +556,17 @@ export default function DataWeaverPage() {
         nis: "Upload file untuk mengedit NIS siswa secara massal."
     }
 
+    const fileALabels = useMemo(() => {
+        if (!editMode) return { title: 'File A', button: 'Upload File A' };
+        switch (editMode) {
+            case 'nisn': return { title: 'File NISN (File A)', button: 'Upload File NISN' };
+            case 'nis': return { title: 'File NIS (File A)', button: 'Upload File NIS' };
+            case 'year': return { title: 'File Tahun Angkatan (File A)', button: 'Upload File Tahun Angkatan' };
+            default: return { title: 'File A', button: 'Upload File A' };
+        }
+    }, [editMode]);
+
+
     if (!editMode) {
         return (
              <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -715,7 +726,7 @@ export default function DataWeaverPage() {
                             </CardHeader>
                             <CardContent className="grid md:grid-cols-2 gap-6">
                                 <div className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg min-h-[100px]">
-                                    <h3 className="font-semibold">File NISN (File A)</h3>
+                                    <h3 className="font-semibold">{fileALabels.title}</h3>
                                     {fileA ? (
                                         <div className="flex items-center gap-2 text-sm font-medium text-green-600">
                                             <CheckCircle className="h-5 w-5" />
@@ -724,7 +735,7 @@ export default function DataWeaverPage() {
                                     ) : (
                                         <Button onClick={() => fileAInputRef.current?.click()} variant="outline">
                                             <Upload className="mr-2 h-4 w-4" />
-                                            Upload File NISN
+                                            {fileALabels.button}
                                         </Button>
                                     )}
                                     <Input
@@ -1074,5 +1085,7 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
 
     
