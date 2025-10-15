@@ -511,31 +511,32 @@ export default function DataWeaverPage() {
 
         const headerRow1 = selectedHeaders.map(h => {
             const lowerH = h.toLowerCase();
+            // Special mapping for 'nama' to 'username'
+            if (lowerH === 'nama') return 'username';
+            
+            // Check if it's one of the primary keys
             if (headerKeyMap[lowerH]) {
-                // Special mapping for 'nama' to 'username'
-                if (lowerH === 'nama') return 'username';
-                return lowerH;
+                // If it's the specific key for the current edit mode, return it
+                if (editMode === 'nis' && lowerH === 'nis') return 'nis';
+                if (editMode === 'nisn' && lowerH === 'nisn') return 'nisn';
+                // For 'id', it's always 'id'
+                if (lowerH === 'id') return 'id';
             }
-            // For the conditional nis/nisn, check editMode
-            if (editMode === 'nis' && lowerH === 'nis') return 'nis';
-            if (editMode === 'nisn' && lowerH === 'nisn') return 'nisn';
-
-            // Return original header for non-special columns
+            // For all other headers, return the original
             return h;
         });
-
+        
         const headerRow2 = selectedHeaders.map(h => {
             const lowerH = h.toLowerCase();
-            if (headerKeyMap[lowerH]) {
-                // Capitalize first letter for display
-                const key = headerKeyMap[lowerH];
-                return key.charAt(0).toUpperCase() + key.slice(1);
-            }
-             // For the conditional nis/nisn, check editMode
-            if (editMode === 'nis' && lowerH === 'nis') return 'Nis';
-            if (editMode === 'nisn' && lowerH === 'nisn') return 'Nisn';
+            if (lowerH === 'nama') return 'Username';
 
-            // Return empty for non-special columns
+            // Check if it's one of the primary keys
+            if (headerKeyMap[lowerH]) {
+                 if (editMode === 'nis' && lowerH === 'nis') return 'Nis';
+                 if (editMode === 'nisn' && lowerH === 'nisn') return 'Nisn';
+                 if (lowerH === 'id') return 'Id';
+            }
+            // Return empty for all other columns
             return '';
         });
 
@@ -1107,5 +1108,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
+    
     
