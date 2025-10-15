@@ -607,12 +607,10 @@ export async function importToSheet(
             const dateStr = `${day}/${month}/${year}`;
             
             const monthStr = dateForNewRow.toLocaleString('id-ID', { month: 'long' });
-            const yearMonthDay = `${String(year).slice(2)}${month}${String(day).padStart(2, '0')}`;
+            
+            const currentRowNumberInSheet = lastRowIndex + index + 1;
+            const ticketFormula = `=CONCATENATE("TKT-", TEXT(B${currentRowNumberInSheet}, "YYMMDD"), "-", TEXT(ROW()-2, "00000"))`;
 
-            const currentRowNumberInSheet = lastRowIndex + index + 1; // 1-based index for the new row
-            // The ticket number logic seems to depend on the row number in the sheet, assuming header is row 1
-            const ticketRowNumber = String(Math.max(0, currentRowNumberInSheet - 1)).padStart(5, '0');
-            const generatedTicketNumber = `TKT-${yearMonthDay}-${ticketRowNumber}`;
 
             const mainDataHeaders = [
                 'Client Name', 'Customer Name', 'Status', 'Kolom kosong1', 
@@ -634,7 +632,7 @@ export async function importToSheet(
                 lastNo + index + 1,        // A - NO
                 dateStr,                   // B - DATE
                 monthStr,                  // C - MONTH
-                generatedTicketNumber,     // D - TICKET NUMBER (Generated)
+                ticketFormula,             // D - TICKET NUMBER (Formula)
                 ...mainData,               // E-O (11 columns from JSON)
                 '', '',                    // P-Q - Empty
                 statusCase2,               // R - STATUS CASE 2
@@ -650,7 +648,7 @@ export async function importToSheet(
         const updateResult = await sheets.spreadsheets.values.update({
             spreadsheetId,
             range: updateRange,
-            valueInputOption: 'USER_ENTERED',
+            valueInputOption: 'USER_ENTERED', // This is crucial for formulas
             requestBody: {
                 values: valuesToAppend,
             },
