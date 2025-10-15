@@ -416,8 +416,8 @@ export function CekDuplikasi() {
         }
 
         return (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                 <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-6">
                     {duplicates.length > 0 && (
                         <ResultTable title="Data Duplikat" icon={AlertTriangle} count={new Set(duplicates.map(d => `${d.type}:${d.value}`)).size} data={duplicates} type="duplicate" />
                     )}
@@ -433,7 +433,7 @@ export function CekDuplikasi() {
                 </div>
 
                 {summaryText && (
-                    <div className="lg:sticky lg:top-24">
+                    <div>
                         <Card>
                             <CardHeader>
                                 <CardTitle>Summary</CardTitle>
@@ -577,7 +577,7 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
     const tableContainerRef = useRef<HTMLDivElement>(null);
     
     const sortedData = useMemo(() => {
-        return [...data].sort((a, b) => a.nama.localeCompare(b.nama));
+        return [...data].sort((a, b) => (a.nama || '').localeCompare(b.nama || ''));
     }, [data]);
     
 
@@ -603,13 +603,13 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
                           : type === 'emptyId' ? 'text-amber-600'
                           : 'text-sky-600';
 
-    const headers = type === 'duplicate' 
+    const headers = useMemo(() => type === 'duplicate' 
         ? ['Jenis Duplikat', 'Nama', 'File', 'Sheet'] 
-        : ['Nama', 'File', 'Sheet'];
+        : ['Nama', 'File', 'Sheet'], [type]);
     
-    const columnWidths = type === 'duplicate' 
+    const columnWidths = useMemo(() => type === 'duplicate' 
         ? ['25%', '30%', '25%', '20%'] 
-        : ['40%', '40%', '20%'];
+        : ['40%', '40%', '20%'], [type]);
 
 
     return (
@@ -674,3 +674,4 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
 
 
     
+
