@@ -1,11 +1,11 @@
 
+
 "use client";
 
 import { useState, useCallback, useTransition, useMemo, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, CheckCircle2, AlertTriangle, Trash2, Search, FileWarning, Copy, Check, Cake, XCircle } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, AlertTriangle, Trash2, Search, FileWarning, Copy, Check, Cake, XCircle, Rocket } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -480,7 +480,8 @@ export function CekDuplikasi() {
 function ResultTable({ title, icon: Icon, count, data, type }: { title: string, icon: React.ElementType, count: number, data: StudentRecord[], type: 'duplicate' | 'emptyId' | 'emptyDob' }) {
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const sortedData = useMemo(() => {
-        return [...data].sort((a, b) => (a.id || a.nama).localeCompare(b.id || b.nama));
+        // Sort by 'nama' for all types to ensure consistent ordering
+        return [...data].sort((a, b) => a.nama.localeCompare(b.nama));
     }, [data]);
 
     const rowVirtualizer = useVirtualizer({
@@ -505,7 +506,14 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
                           : type === 'emptyId' ? 'text-amber-600'
                           : 'text-sky-600';
 
-    const headers = type === 'duplicate' ? ['NIS/NISN', 'Nama', 'File', 'Sheet'] : ['Nama', 'File', 'Sheet'];
+    const headers = type === 'duplicate' 
+        ? ['NIS/NISN', 'Nama', 'File', 'Sheet'] 
+        : ['Nama', 'File', 'Sheet'];
+    
+    const columnWidths = type === 'duplicate' 
+        ? ['20%', '30%', '30%', '20%'] 
+        : ['40%', '40%', '20%'];
+
 
     return (
         <Card>
@@ -517,25 +525,25 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
             </CardHeader>
             <CardContent>
                <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[400px]">
-                   <Table style={{ tableLayout: 'fixed' }}>
-                       <colgroup>
-                           {type === 'duplicate' && <col style={{ width: '20%' }} />}
-                           <col style={{ width: type === 'duplicate' ? '30%' : '40%' }} />
-                           <col style={{ width: '30%' }} />
-                           <col style={{ width: '20%' }} />
-                       </colgroup>
-                       <TableHeader className="sticky top-0 bg-card z-10">
-                           <TableRow>
-                               {headers.map(header => (
-                                   <TableHead key={header}>{header}</TableHead>
-                               ))}
-                           </TableRow>
-                       </TableHeader>
-                       <TableBody style={{ height: `${totalHeight}px`, position: 'relative' }}>
-                           {virtualRows.map((virtualRow) => {
-                               const item = sortedData[virtualRow.index];
-                               return (
-                               <TableRow 
+                   <div style={{ height: `${totalHeight}px`, position: 'relative' }}>
+                       {/* Header */}
+                       <div className="flex sticky top-0 bg-card z-10 font-medium text-muted-foreground text-sm border-b">
+                           {headers.map((header, index) => (
+                               <div key={header} style={{ width: columnWidths[index] }} className="p-4 text-left">
+                                   {header}
+                               </div>
+                           ))}
+                       </div>
+
+                       {/* Virtualized Rows */}
+                       {virtualRows.map((virtualRow) => {
+                           const item = sortedData[virtualRow.index];
+                           const cells = type === 'duplicate' 
+                               ? [item.id, item.nama, item.fileName, item.sheetName]
+                               : [item.nama, item.fileName, item.sheetName];
+                           
+                           return (
+                               <div 
                                    key={virtualRow.key}
                                    style={{
                                        position: 'absolute',
@@ -543,23 +551,26 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
                                        left: 0,
                                        width: '100%',
                                        height: `${virtualRow.size}px`,
-                                       transform: `translateY(${virtualRow.start}px)`,
+                                       transform: `translateY(${virtualRow.start + 49}px)`, // +49px to offset for header height
                                    }}
-                                   className={rowBgClass}
+                                   className={cn("flex items-center text-sm border-b", rowBgClass)}
                                >
-                                  {type === 'duplicate' && <TableCell className="font-medium break-words">{item.id}</TableCell>}
-                                  <TableCell className="break-words">{item.nama}</TableCell>
-                                  <TableCell className="break-words">{item.fileName}</TableCell>
-                                  <TableCell className="break-words">{item.sheetName}</TableCell>
-                               </TableRow>
-                              )
-                           })}
-                       </TableBody>
-                   </Table>
+                                  {cells.map((cellContent, cellIndex) => (
+                                      <div 
+                                        key={cellIndex} 
+                                        style={{ width: columnWidths[cellIndex] }}
+                                        className="p-4 break-words"
+                                      >
+                                          {cellContent}
+                                      </div>
+                                  ))}
+                               </div>
+                           );
+                       })}
+                   </div>
                </div>
             </CardContent>
         </Card>
     );
 }
-
     
