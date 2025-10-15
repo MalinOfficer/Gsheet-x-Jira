@@ -78,6 +78,7 @@ export function ImportFlow() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const destinationCardRef = useRef<HTMLDivElement>(null);
+  const hasScrolledRef = useRef(false);
   const router = useRouter();
   const [isImporting, startImporting] = useTransition();
   const [isUpdating, startUpdating] = useTransition();
@@ -109,14 +110,15 @@ export function ImportFlow() {
   }, []);
 
   // Effect for auto-scrolling
-    useEffect(() => {
-        if (tableData && destinationCardRef.current) {
-            destinationCardRef.current.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start',
-            });
-        }
-    }, [tableData]);
+  useEffect(() => {
+    if (tableData && destinationCardRef.current && !hasScrolledRef.current) {
+        destinationCardRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+        });
+        hasScrolledRef.current = true;
+    }
+  }, [tableData]);
 
 
   const handleAnalyzeSheet = useCallback(async () => {
@@ -392,6 +394,7 @@ export function ImportFlow() {
     startConverting(() => {
         setJsonError(null);
         setTableData(null);
+        hasScrolledRef.current = false; // Reset scroll flag
 
         if (!jsonInput.trim()) {
             setJsonError("JSON input cannot be empty.");
@@ -785,12 +788,8 @@ function PreviewTable({
         newRows[rowIndex] = { ...newRows[rowIndex], [header]: value };
         const newTableData = { ...localTableData, rows: newRows };
         
-        // This is the key change: only update local state
         setLocalTableData(newTableData);
-        // We still need to pass the updated data to the parent for export, so we call onDataChange
         onDataChange(newTableData);
-        
-        // Changing a status invalidates the undo data for a previous export/update
         onUndoDataChange(null);
     };
 
@@ -911,6 +910,7 @@ function PreviewTable({
     
 
     
+
 
 
 
