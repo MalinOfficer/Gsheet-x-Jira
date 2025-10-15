@@ -988,12 +988,12 @@ function ResultTable({ mergedData, onDownload, editMode }: { mergedData: any[], 
                             virtualRows.map((virtualRow) => {
                                 const row = mergedData[virtualRow.index];
                                 const idKey = findKey(row, 'id');
-                                const usernameKey = findKey(row, 'username'); // Use 'username' which comes from 'nama'
+                                const usernameKey = findKey(row, 'nama'); // Correctly find the 'nama' key for the username value
                                 const dynamicHeaderKey = findKey(row, dynamicKey);
                                 
                                 const cells = [
                                     idKey ? row[idKey] : '',
-                                    usernameKey ? row[usernameKey] : '',
+                                    usernameKey ? row[usernameKey] : '', // Use the found key to get the value
                                     dynamicHeaderKey ? row[dynamicHeaderKey] : '',
                                 ];
 
@@ -1102,3 +1102,4 @@ function ManualSelectCombobox({
 }
     
     
+
