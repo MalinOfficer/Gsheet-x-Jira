@@ -785,8 +785,12 @@ function PreviewTable({
         newRows[rowIndex] = { ...newRows[rowIndex], [header]: value };
         const newTableData = { ...localTableData, rows: newRows };
         
+        // This is the key change: only update local state
         setLocalTableData(newTableData);
+        // We still need to pass the updated data to the parent for export, so we call onDataChange
         onDataChange(newTableData);
+        
+        // Changing a status invalidates the undo data for a previous export/update
         onUndoDataChange(null);
     };
 
@@ -907,6 +911,7 @@ function PreviewTable({
     
 
     
+
 
 
 
