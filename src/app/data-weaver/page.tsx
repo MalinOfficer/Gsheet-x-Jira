@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, FileDown, Columns, AlertCircle, Check, RefreshCw, ChevronsUpDown, PlusCircle, CheckCircle, ArrowRight, Settings, Save, Forward, X } from 'lucide-react';
+import { Upload, FileDown, Columns, AlertCircle, Check, RefreshCw, ChevronsUpDown, PlusCircle, CheckCircle, ArrowRight, Settings, Save, Forward, X, Bot, ArrowLeft } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,8 @@ type SelectOption = {
     label: string;
 };
 
+type EditMode = 'nisn' | 'year' | 'nis';
+
 // This represents a row from File B that couldn't be matched
 type UnmatchedRow = {
     rowData: any; // Data from File B (unmatched)
@@ -71,6 +73,7 @@ const decodeHtml = (html: string | null | undefined): string => {
 
 export default function DataWeaverPage() {
     const { fileA, setFileA, fileB, setFileB, resetState } = useApp();
+    const [editMode, setEditMode] = useState<EditMode | null>(null);
     const [activeTab, setActiveTab] = useState("upload");
     const [mergedHeaders, setMergedHeaders] = useState<SelectOption[]>([]);
     const [selectedHeaders, setSelectedHeaders] = useState<string[]>([]);
@@ -123,6 +126,11 @@ export default function DataWeaverPage() {
     const handleReset = () => {
         resetState();
     };
+    
+    const handleBackToSelection = () => {
+        resetState();
+        setEditMode(null);
+    }
 
     const updateCommonHeaders = useCallback((headersA?: string[], headersB?: string[]) => {
         if (headersA && headersB) {
@@ -536,15 +544,69 @@ export default function DataWeaverPage() {
         });
     };
 
+    const editModeTitles: Record<EditMode, string> = {
+        nisn: "Edit Bulk NISN",
+        year: "Edit Bulk Tahun Angkatan (Year)",
+        nis: "Edit Bulk NIS",
+    };
+
+    const editModeDescriptions: Record<EditMode, string> = {
+        nisn: "Upload 2 data Excel, file ID dari web Bulk BO dan file NISN, untuk mencocokkan dan mengisi data NISN.",
+        year: "Upload file untuk mengedit tahun angkatan siswa secara massal.",
+        nis: "Upload file untuk mengedit NIS siswa secara massal."
+    }
+
+    if (!editMode) {
+        return (
+             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+                <div className="max-w-5xl mx-auto space-y-6">
+                    <header>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Data Weaver (edit file bulk)</h1>
+                        <p className="text-sm text-muted-foreground mt-1">Pilih jenis pengeditan yang ingin Anda lakukan.</p>
+                    </header>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
+                        <Card onClick={() => setEditMode('nisn')} className="cursor-pointer hover:shadow-lg hover:border-primary transition-all">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Bot /> {editModeTitles.nisn}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">{editModeDescriptions.nisn}</p>
+                            </CardContent>
+                        </Card>
+                         <Card onClick={() => setEditMode('year')} className="cursor-pointer hover:shadow-lg hover:border-primary transition-all">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Columns /> {editModeTitles.year}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">{editModeDescriptions.year}</p>
+                            </CardContent>
+                        </Card>
+                         <Card onClick={() => setEditMode('nis')} className="cursor-pointer hover:shadow-lg hover:border-primary transition-all">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Columns /> {editModeTitles.nis}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">{editModeDescriptions.nis}</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-5xl mx-auto space-y-6">
                 <header>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-start">
                         <div>
-                            <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Data Weaver (edit file bulk)</h1>
-                            <p className="text-sm text-muted-foreground mt-1">Upload 2 data Excel, file ID dari web Bulk BO dan file NISN, File tahun ajaran atau file data yang ingin diedit pada web Bulk</p>
+                             <Button variant="ghost" size="sm" onClick={handleBackToSelection} className="mb-2 -ml-4">
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Kembali ke Pilihan
+                            </Button>
+                            <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">{editModeTitles[editMode]}</h1>
+                            <p className="text-sm text-muted-foreground mt-1">{editModeDescriptions[editMode]}</p>
                         </div>
                         <div className="flex items-center gap-2">
                             <Dialog>
@@ -1012,3 +1074,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
+
+    
