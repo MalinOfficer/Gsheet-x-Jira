@@ -496,17 +496,14 @@ export default function DataWeaverPage() {
         // Helper to find a header key case-insensitively from a row object
         const findKey = (row: any, key: string) => Object.keys(row).find(k => k.toLowerCase() === key.toLowerCase());
     
-        // The dynamic key based on editMode ('nis', 'nisn', 'year')
         const dynamicKey = editMode;
-        const dynamicKeyCapitalized = dynamicKey.charAt(0).toUpperCase() + dynamicKey.slice(1);
     
-        // Headers for the Excel file
         const headerRow1 = ['id', 'username', dynamicKey];
-        const headerRow2 = ['Id', 'Username', dynamicKeyCapitalized];
+        const headerRow2 = ['Id', 'Username', dynamicKey.charAt(0).toUpperCase() + dynamicKey.slice(1)];
     
         const dataForSheet = mergedData.map(row => {
             const idKey = findKey(row, 'id');
-            const namaKey = findKey(row, 'nama');
+            const namaKey = findKey(row, 'nama'); // Find the original "Nama" key for username
             const dynamicHeaderKey = findKey(row, dynamicKey);
     
             return [
@@ -991,12 +988,12 @@ function ResultTable({ mergedData, onDownload, editMode }: { mergedData: any[], 
                             virtualRows.map((virtualRow) => {
                                 const row = mergedData[virtualRow.index];
                                 const idKey = findKey(row, 'id');
-                                const namaKey = findKey(row, 'nama');
+                                const usernameKey = findKey(row, 'username'); // Use 'username' which comes from 'nama'
                                 const dynamicHeaderKey = findKey(row, dynamicKey);
                                 
                                 const cells = [
                                     idKey ? row[idKey] : '',
-                                    namaKey ? row[namaKey] : '',
+                                    usernameKey ? row[usernameKey] : '',
                                     dynamicHeaderKey ? row[dynamicHeaderKey] : '',
                                 ];
 

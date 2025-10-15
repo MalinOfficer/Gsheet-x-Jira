@@ -803,7 +803,7 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     const fileBMergeKey = findHeader(fileBData.headers, mergeKey);
     
     // Dynamic key based on editMode
-    const requiredKey = editMode === 'nis' ? 'nis' : 'nisn';
+    const requiredKey = editMode === 'nis' ? 'nis' : editMode === 'nisn' ? 'nisn' : 'year';
     const requiredHeaderA = findHeader(fileAData.headers, requiredKey);
 
     if (!fileAMergeKey || !fileBMergeKey) {
@@ -828,7 +828,7 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         const key = String(rowA[fileAMergeKey] || '').toLowerCase().trim();
         const requiredValue = String(rowA[requiredHeaderA] || '').trim();
         
-        // Only add to map if the key is valid and it has the required value (NIS/NISN).
+        // Only add to map if the key is valid and it has the required value (NIS/NISN/YEAR).
         if (key && requiredValue) { 
             if (!fileAMap.has(key)) {
                 fileAMap.set(key, []);
@@ -840,7 +840,8 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
 
     const mergedRows: any[] = [];
     const unmatchedRowsB: any[] = [];
-    
+    const namaKey = findHeader(fileAData.headers, 'nama') || findHeader(fileBData.headers, 'nama');
+
     for (const rowB of fileBData.rows) {
         const key = String(rowB[fileBMergeKey] || '').toLowerCase().trim();
         let matchFound = false;
@@ -854,6 +855,9 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
             if (firstValidMatch) {
                 // Match found and it has a NIS/NISN.
                 const mergedRow = { ...firstValidMatch, ...rowB };
+                if (namaKey && mergedRow[namaKey]) {
+                    mergedRow['username'] = mergedRow[namaKey];
+                }
                 mergedRows.push(mergedRow);
                 matchFound = true;
             }
