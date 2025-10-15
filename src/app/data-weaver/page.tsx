@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -488,11 +487,11 @@ export default function DataWeaverPage() {
     }, [unmatchedData, fileB, mergeKey, manualSelections, mergedData, toast]);
 
     const handleDownload = () => {
-        if (!mergedData || mergedData.length === 0 || typeof XLSX === 'undefined') {
-            toast({ variant: 'destructive', title: "Download Failed", description: "No merged data to download." });
+        if (!mergedData || mergedData.length === 0 || typeof XLSX === 'undefined' || !editMode) {
+            toast({ variant: 'destructive', title: "Download Failed", description: "No merged data or edit mode selected." });
             return;
         }
-    
+
         const dataForSheet = mergedData.map(row => {
             const rowData: any[] = [];
             selectedHeaders.forEach(header => {
@@ -503,25 +502,41 @@ export default function DataWeaverPage() {
             return rowData;
         });
 
-        // These are the special headers that get different capitalization in the two header rows
-        const specialSystemHeaders = ['id', 'name', 'nis', 'nisn'];
+        const headerKeyMap: Record<string, string> = {
+            id: 'id',
+            nama: 'username',
+            nis: 'nis',
+            nisn: 'nisn'
+        };
 
         const headerRow1 = selectedHeaders.map(h => {
             const lowerH = h.toLowerCase();
-            if (specialSystemHeaders.includes(lowerH)) {
+            if (headerKeyMap[lowerH]) {
+                // Special mapping for 'nama' to 'username'
+                if (lowerH === 'nama') return 'username';
                 return lowerH;
             }
+            // For the conditional nis/nisn, check editMode
+            if (editMode === 'nis' && lowerH === 'nis') return 'nis';
+            if (editMode === 'nisn' && lowerH === 'nisn') return 'nisn';
+
+            // Return original header for non-special columns
             return h;
         });
 
         const headerRow2 = selectedHeaders.map(h => {
             const lowerH = h.toLowerCase();
-            if (specialSystemHeaders.includes(lowerH)) {
-                // Capitalize the first letter
-                return h.charAt(0).toUpperCase() + h.slice(1);
+            if (headerKeyMap[lowerH]) {
+                // Capitalize first letter for display
+                const key = headerKeyMap[lowerH];
+                return key.charAt(0).toUpperCase() + key.slice(1);
             }
-            // For other headers, the second row is empty
-            return ''; 
+             // For the conditional nis/nisn, check editMode
+            if (editMode === 'nis' && lowerH === 'nis') return 'Nis';
+            if (editMode === 'nisn' && lowerH === 'nisn') return 'Nisn';
+
+            // Return empty for non-special columns
+            return '';
         });
 
         const worksheetData = [headerRow1, headerRow2, ...dataForSheet];
@@ -531,7 +546,7 @@ export default function DataWeaverPage() {
         XLSX.utils.book_append_sheet(workbook, worksheet, "Merged Data");
         XLSX.writeFile(workbook, "Merged_Data.xls");
     };
-    
+
     const handleSaveDefaults = () => {
         if (!mergeKey) {
             toast({ variant: "destructive", title: "Cannot Save Defaults", description: "Please select a merge key first." });
@@ -1092,7 +1107,5 @@ function ManualSelectCombobox({
         </Popover>
     )
 }
-
-    
 
     
