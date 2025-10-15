@@ -610,6 +610,7 @@ export async function importToSheet(
             
             const currentRowNumberInSheet = lastRowIndex + index + 1;
             const ticketFormula = `=CONCATENATE("TKT-", TEXT(B${currentRowNumberInSheet}, "YYMMDD"), "-", TEXT(ROW()-2, "00000"))`;
+            const statusCase2Formula = `=IF(G${currentRowNumberInSheet}="solved","SOLVED",IF(OR(G${currentRowNumberInSheet}="L1",G${currentRowNumberInSheet}="L2",G${currentRowNumberInSheet}="L3",G${currentRowNumberInSheet}="PM"),"UNSOLVED",""))`;
 
 
             const mainDataHeaders = [
@@ -620,14 +621,6 @@ export async function importToSheet(
             
             const mainData = mainDataHeaders.map(header => row[header] || '');
 
-            const status = mainData[2]; // 'Status' is at index 2 of mainData
-            let statusCase2 = '';
-            if (status === 'L1' || status === 'L2' || status === 'L3') {
-                statusCase2 = 'UNSOLVED';
-            } else if (status === 'Solved') {
-                statusCase2 = 'SOLVED';
-            }
-
             return [
                 lastNo + index + 1,        // A - NO
                 dateStr,                   // B - DATE
@@ -635,7 +628,7 @@ export async function importToSheet(
                 ticketFormula,             // D - TICKET NUMBER (Formula)
                 ...mainData,               // E-O (11 columns from JSON)
                 '', '',                    // P-Q - Empty
-                statusCase2,               // R - STATUS CASE 2
+                statusCase2Formula,        // R - STATUS CASE 2 (Formula)
                 '',                        // S - Empty
                 row['Ticket OP'] || ''     // T - Ticket OP
             ];
