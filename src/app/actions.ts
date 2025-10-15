@@ -481,15 +481,16 @@ export async function updateSheetStatus(
     }
 }
 
-async function getSheetIdByName(sheets: any, spreadsheetId: string, sheetName: string) {
+async function getSheetProperties(sheets: any, spreadsheetId: string, sheetName: string) {
     const response = await sheets.spreadsheets.get({
         spreadsheetId,
-        fields: 'sheets.properties.sheetId,sheets.properties.title',
+        ranges: [sheetName],
+        fields: 'sheets.properties',
     });
     const sheet = response.data.sheets?.find(
         (s: any) => s.properties?.title?.trim().toLowerCase() === sheetName.trim().toLowerCase()
     );
-    return sheet?.properties?.sheetId ?? null;
+    return sheet?.properties ?? null;
 }
 
 export async function importToSheet(
@@ -507,11 +508,14 @@ export async function importToSheet(
     try {
         const sheets = getGoogleSheetsClient();
 
-        // 1. Get sheetId for Undo operation later
-        const sheetId = await getSheetIdByName(sheets, spreadsheetId, sheetName);
-        if (sheetId === null) {
+        // 1. Get sheet properties for sheetId and rowCount
+        const sheetProperties = await getSheetProperties(sheets, spreadsheetId, sheetName);
+        if (!sheetProperties || typeof sheetProperties.sheetId !== 'number') {
             return { error: `The target sheet named "${sheetName}" was not found in the spreadsheet.` };
         }
+        const sheetId = sheetProperties.sheetId;
+        const currentTotalRows = sheetProperties.gridProperties?.rowCount || 0;
+
 
         // 2. Get last row data by reading the entire 'No' column (A)
         const lastRowResponse = await sheets.spreadsheets.values.get({
@@ -569,7 +573,26 @@ export async function importToSheet(
             };
         }
         
-        // 4. Prepare data for the operation.
+        // 4. Check if we need to add more rows to the sheet
+        const requiredRowCount = lastRowIndex + newRows.length;
+        if (requiredRowCount > currentTotalRows) {
+            const rowsToAdd = requiredRowCount - currentTotalRows;
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId,
+                requestBody: {
+                    requests: [{
+                        appendDimension: {
+                            sheetId: sheetId,
+                            dimension: 'ROWS',
+                            length: rowsToAdd
+                        }
+                    }]
+                }
+            });
+        }
+
+
+        // 5. Prepare data for the operation.
         const valuesToAppend = newRows.map((row, index) => {
             const createdAtStr = row['Created At'];
             const dateForNewRow = createdAtStr ? new Date(createdAtStr) : new Date();
@@ -620,7 +643,7 @@ export async function importToSheet(
             ];
         });
 
-        // 5. Use `update` instead of `append` to be resistant to filters.
+        // 6. Use `update` instead of `append` to be resistant to filters.
         const startRowForUpdate = lastRowIndex + 1;
         const updateRange = `${sheetName}!A${startRowForUpdate}`;
 
@@ -634,7 +657,7 @@ export async function importToSheet(
         });
 
 
-        // 6. Prepare data for the 'Undo' action
+        // 7. Prepare data for the 'Undo' action
         const updatedRange = updateResult.data.updatedRange;
         if (!updatedRange) {
             return {
@@ -988,3 +1011,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
 
+
+
+    
