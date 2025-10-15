@@ -535,7 +535,6 @@ export async function importToSheet(
         }
         
         // If the sheet is completely empty or has no numbers in column A, start from row 0.
-        // The API call to `append` will place it after the header automatically if the range is just the sheet name.
         if (lastRowIndex === 0) {
             lastRowIndex = columnA.length;
         }
@@ -570,7 +569,7 @@ export async function importToSheet(
             };
         }
         
-        // 4. Prepare data for the append operation.
+        // 4. Prepare data for the operation.
         const valuesToAppend = newRows.map((row, index) => {
             const createdAtStr = row['Created At'];
             const dateForNewRow = createdAtStr ? new Date(createdAtStr) : new Date();
@@ -588,7 +587,8 @@ export async function importToSheet(
             const yearMonthDay = `${String(year).slice(2)}${month}${String(day).padStart(2, '0')}`;
 
             const currentRowNumberInSheet = lastRowIndex + index + 1; // 1-based index for the new row
-            const ticketRowNumber = String(currentRowNumberInSheet - 2).padStart(5, '0');
+            // The ticket number logic seems to depend on the row number in the sheet, assuming header is row 1
+            const ticketRowNumber = String(Math.max(0, currentRowNumberInSheet - 1)).padStart(5, '0');
             const generatedTicketNumber = `TKT-${yearMonthDay}-${ticketRowNumber}`;
 
             const mainDataHeaders = [
@@ -620,18 +620,22 @@ export async function importToSheet(
             ];
         });
 
-        // 5. Use `append` to add the new rows.
-        const appendResult = await sheets.spreadsheets.values.append({
+        // 5. Use `update` instead of `append` to be resistant to filters.
+        const startRowForUpdate = lastRowIndex + 1;
+        const updateRange = `${sheetName}!A${startRowForUpdate}`;
+
+        const updateResult = await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: sheetName,
+            range: updateRange,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values: valuesToAppend,
             },
         });
 
+
         // 6. Prepare data for the 'Undo' action
-        const updatedRange = appendResult.data.updates?.updatedRange;
+        const updatedRange = updateResult.data.updatedRange;
         if (!updatedRange) {
             return {
                 success: true,
@@ -642,18 +646,7 @@ export async function importToSheet(
             };
         }
         
-        const rangeRegex = /!A(\d+):/; 
-        const matchResult = updatedRange.match(rangeRegex);
-        if (!matchResult || !matchResult[1]) {
-             return {
-                success: true,
-                message: `Import complete, but could not parse the updated range for undo action.`,
-                importedCount: newRows.length,
-                duplicateCount: duplicateRows.length,
-                duplicates: duplicateRows,
-            };
-        }
-        const startRowIndex = parseInt(matchResult[1], 10) -1; // 0-indexed for API
+        const startRowIndex = startRowForUpdate -1; // 0-indexed for API
 
         const undoData = {
             operationType: 'IMPORT',
@@ -991,6 +984,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
 
 
