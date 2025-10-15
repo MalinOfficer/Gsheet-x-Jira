@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -252,10 +253,13 @@ export default function DataWeaverPage() {
                 const lowercasedHeaders = headers.map(h => h.toLowerCase());
 
                 // Validation logic
-                if (fileType === 'A' && editMode === 'nisn' && !lowercasedHeaders.some(h => h === 'nisn')) {
-                    toast({ variant: 'destructive', title: "Invalid File A", description: "File NISN must contain a 'NISN' column." });
-                    if (fileAInputRef.current) fileAInputRef.current.value = "";
-                    return;
+                if (fileType === 'A' && editMode) {
+                    const requiredHeader = editMode === 'nisn' ? 'nisn' : editMode === 'nis' ? 'nis' : null;
+                    if (requiredHeader && !lowercasedHeaders.some(h => h === requiredHeader)) {
+                        toast({ variant: 'destructive', title: "Invalid File A", description: `File A must contain a '${requiredHeader.toUpperCase()}' column for this edit mode.` });
+                        if (fileAInputRef.current) fileAInputRef.current.value = "";
+                        return;
+                    }
                 }
 
                 if (fileType === 'B' && !lowercasedHeaders.some(h => h.toLowerCase().includes('id'))) {
@@ -368,7 +372,7 @@ export default function DataWeaverPage() {
     }, [toast]);
 
     const handleMerge = async () => {
-        if (!fileA || !fileB || !mergeKey) {
+        if (!fileA || !fileB || !mergeKey || !editMode) {
             toast({
                 variant: 'destructive',
                 title: "Merge Failed",
@@ -386,7 +390,7 @@ export default function DataWeaverPage() {
         const plainFileA = JSON.parse(JSON.stringify({ headers: fileA.headers, rows: fileA.rows }));
         const plainFileB = JSON.parse(JSON.stringify({ headers: fileB.headers, rows: fileB.rows }));
 
-        const serverResult = await mergeFilesOnServer(plainFileA, plainFileB, mergeKey);
+        const serverResult = await mergeFilesOnServer(plainFileA, plainFileB, mergeKey, editMode);
         
         if (serverResult.error) {
             toast({ variant: "destructive", title: "Server Error", description: serverResult.error });
