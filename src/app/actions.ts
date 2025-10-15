@@ -21,6 +21,7 @@ const projectFilesForAction = [
   // Struktur Aplikasi & Halaman Utama
   "src/app/layout.tsx",
   "src/app/globals.css",
+  "src/app/icon.svg",
   "src/app/page.tsx", // Halaman root untuk Import Flow
   "src/app/report-harian/page.tsx",
   "src/app/migrasi-murid/page.tsx",
