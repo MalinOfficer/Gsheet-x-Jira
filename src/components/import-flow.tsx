@@ -335,14 +335,6 @@ export function ImportFlow() {
     toast({ title: "URL Saved", description: "Google Sheet URL has been saved as your default." });
   };
   
-  const handleStatusChange = (rowIndex: number, header: string, value: string) => {
-    if (!tableData) return;
-    const newRows = [...tableData.rows];
-    newRows[rowIndex][header] = value;
-    setTableData({ ...tableData, rows: newRows });
-    setLastActionUndoData(null);
-};
-  
     const handleDateFormatChange = (header: string, format: string) => {
         if (format === 'origin' || format === 'jam' || format === 'report') {
             setDateFormats(prev => ({
@@ -743,10 +735,11 @@ export function ImportFlow() {
             </Card>
 
             <PreviewTable
-                tableData={tableData}
+                initialData={tableData}
                 dateFormats={dateFormats}
                 isProcessing={isProcessing}
-                handleStatusChange={handleStatusChange}
+                onDataChange={setTableData}
+                onUndoDataChange={setLastActionUndoData}
                 handleDateFormatChange={handleDateFormatChange}
                 handleCopyToClipboard={handleCopyToClipboard}
                 isCopied={isCopied}
@@ -761,24 +754,41 @@ export function ImportFlow() {
 
 
 function PreviewTable({
-    tableData,
+    initialData,
     dateFormats,
     isProcessing,
-    handleStatusChange,
+    onDataChange,
+    onUndoDataChange,
     handleDateFormatChange,
     handleCopyToClipboard,
     isCopied,
     handleNavigateToReport,
 } : {
-    tableData: TableData;
+    initialData: TableData;
     dateFormats: Record<string, DateFormat>;
     isProcessing: boolean;
-    handleStatusChange: (rowIndex: number, header: string, value: string) => void;
+    onDataChange: (data: TableData | null) => void;
+    onUndoDataChange: (data: LastActionUndoData) => void;
     handleDateFormatChange: (header: string, format: string) => void;
     handleCopyToClipboard: () => void;
     isCopied: boolean;
     handleNavigateToReport: () => void;
 }) {
+    const [localTableData, setLocalTableData] = useState<TableData>(initialData);
+
+    useEffect(() => {
+        setLocalTableData(initialData);
+    }, [initialData]);
+
+    const handleStatusChange = (rowIndex: number, header: string, value: string) => {
+        const newRows = [...localTableData.rows];
+        newRows[rowIndex] = { ...newRows[rowIndex], [header]: value };
+        const newTableData = { ...localTableData, rows: newRows };
+        
+        setLocalTableData(newTableData);
+        onDataChange(newTableData);
+        onUndoDataChange(null);
+    };
 
     return (
          <Card className="shadow-lg mt-6">
@@ -795,7 +805,7 @@ function PreviewTable({
                             {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
                             {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
                         </Button>
-                         <Button onClick={handleNavigateToReport} size="sm" className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white" disabled={isProcessing || !tableData}>
+                         <Button onClick={handleNavigateToReport} size="sm" className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white" disabled={isProcessing || !localTableData}>
                             <BarChart className="mr-2 h-4 w-4" />
                             Report Harian
                         </Button>
@@ -808,7 +818,7 @@ function PreviewTable({
                         <table className="table-fixed" style={{ minWidth: '1800px' }}>
                             <thead>
                                 <tr className="border-b transition-colors hover:bg-muted/50">
-                                    {tableData.headers.map((header, index) => (
+                                    {localTableData.headers.map((header, index) => (
                                         <th 
                                           key={`${header}-${index}`} 
                                           className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-b border-r sticky top-0 bg-muted z-10"
@@ -840,9 +850,9 @@ function PreviewTable({
                                  </tr>
                             </thead>
                              <tbody>
-                                {tableData.rows.map((row, rowIndex) => (
+                                {localTableData.rows.map((row, rowIndex) => (
                                     <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                        {tableData.headers.map((header, headerIndex) => (
+                                        {localTableData.headers.map((header, headerIndex) => (
                                             <td 
                                                 key={`${header}-${headerIndex}-${rowIndex}`} 
                                                 className="align-middle p-1 border-r"
@@ -883,7 +893,7 @@ function PreviewTable({
                 </div>
             </CardContent>
             <CardFooter className="pt-4">
-                <p className="text-sm text-muted-foreground">Showing {tableData.rows.length} rows.</p>
+                <p className="text-sm text-muted-foreground">Showing {localTableData.rows.length} rows.</p>
             </CardFooter>
         </Card>
     );
@@ -897,6 +907,7 @@ function PreviewTable({
     
 
     
+
 
 
 
