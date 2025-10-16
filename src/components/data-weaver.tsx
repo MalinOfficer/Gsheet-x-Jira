@@ -347,11 +347,23 @@ export function DataWeaver() {
     }
 
     const resultHeaders = useMemo(() => {
-        if (mergedRows.length === 0) return [];
-        const allHeaders = new Set([...(fileA?.headers || []), ...(fileB?.headers || [])]);
-        const allHeadersArray = Array.from(allHeaders);
+        if (!mergedRows.length || !fileA || !fileB) return [];
+
+        const headersA = fileA.headers || [];
+        const headersB = fileB.headers || [];
         
-        const findHeader = (names: string[]) => allHeadersArray.find(h => names.includes(h.toLowerCase()));
+        // Headers from B that are not in A (except for 'id', 'Nama', and dynamic column)
+        // These are the columns from the ID file we don't want to show
+        const irrelevantBHeaders = new Set(['nis', 'nisn', 'tahun ajaran', 'year']);
+
+        const uniqueBHeaders = headersB.filter(h => {
+            const hLower = h.toLowerCase();
+            return !headersA.some(hA => hA.toLowerCase() === hLower) && !irrelevantBHeaders.has(hLower);
+        });
+        
+        const combinedHeaders = [...headersA, ...uniqueBHeaders];
+        
+        const findHeader = (names: string[]) => combinedHeaders.find(h => names.map(n => n.toLowerCase()).includes(h.toLowerCase()));
 
         let dynamicColName: string | undefined;
         if (editMode === 'nisn') dynamicColName = findHeader(['nisn']);
@@ -363,9 +375,10 @@ export function DataWeaver() {
 
         const priorityHeaders = [idCol, nameCol, dynamicColName].filter((h): h is string => !!h);
         
-        const remainingHeaders = allHeadersArray.filter(h => !priorityHeaders.includes(h));
+        const remainingHeaders = combinedHeaders.filter(h => !priorityHeaders.includes(h));
 
-        return [...priorityHeaders, ...remainingHeaders];
+        return [...new Set([...priorityHeaders, ...remainingHeaders])];
+
     }, [mergedRows, fileA, fileB, editMode]);
     
     const unmatchedHeaders = useMemo(() => fileB?.headers || [], [fileB]);
