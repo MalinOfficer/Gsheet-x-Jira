@@ -77,9 +77,17 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
         try {
             const data = await readFile(file);
 
-            // Validation logic for both files
             if (editMode) {
-                const requiredColumn = editMode === 'year' ? 'Tahun Ajaran' : editMode.toUpperCase();
+                let requiredColumn: string;
+
+                if (fileId === 'B') {
+                    // File B (File ID) must always contain an 'id' column
+                    requiredColumn = 'id';
+                } else {
+                    // File A validation depends on the selected mode
+                    requiredColumn = editMode === 'year' ? 'Tahun Ajaran' : editMode.toUpperCase();
+                }
+
                 const hasRequiredColumn = data.headers.some(h => h.toLowerCase() === requiredColumn.toLowerCase());
                 
                 if (!hasRequiredColumn) {
