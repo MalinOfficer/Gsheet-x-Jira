@@ -280,13 +280,19 @@ export function DataWeaver() {
     const { fileA, setFileA, fileB, setFileB, resetState } = useApp();
     const { toast } = useToast();
     const [isMerging, startMerging] = useTransition();
-    const [mergeKey, setMergeKey] = useState<string>("Nama");
     
     const [mergedRows, setMergedRows] = useState<ExcelRow[]>([]);
     const [unmatchedRows, setUnmatchedRows] = useState<ExcelRow[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     const [editMode, setEditMode] = useState<EditMode | null>(null);
+    const [mergeKey, setMergeKey] = useState('Nama');
+
+    useEffect(() => {
+        if (editMode === 'nisn') setMergeKey('NISN');
+        else if (editMode === 'nis') setMergeKey('NIS');
+        else if (editMode === 'year') setMergeKey('Tahun Ajaran');
+    }, [editMode]);
 
     const handleFileProcessed = useCallback((id: 'A' | 'B', data: TableData) => {
         if (id === 'A') {
@@ -312,19 +318,18 @@ export function DataWeaver() {
     }, [editMode]);
 
     const fileADescription = useMemo(() => {
-        if (editMode === 'nisn') return 'File harus memiliki kolom "NISN".';
-        if (editMode === 'year') return 'File harus memiliki kolom "Tahun Ajaran" atau "Year".';
-        if (editMode === 'nis') return 'File harus memiliki kolom "NIS".';
+        if (editMode === 'nisn') {
+            return 'File harus memiliki kolom "NISN".';
+        }
+        if (editMode === 'year') {
+            return 'File harus memiliki kolom "Tahun Ajaran" atau "Year".';
+        }
+        if (editMode === 'nis') {
+            return 'File harus memiliki kolom "NIS".';
+        }
         return 'Select an Excel file (.xlsx, .csv).';
     }, [editMode]);
-
-    useEffect(() => {
-        if (editMode === 'nisn') setMergeKey('NISN');
-        else if (editMode === 'nis') setMergeKey('NIS');
-        else if (editMode === 'year') setMergeKey('Tahun Ajaran');
-        else setMergeKey('Nama');
-    }, [editMode]);
-
+    
     const handleMerge = useCallback(async () => {
         if (!fileA || !fileB) {
             toast({ variant: 'destructive', title: 'File Hilang', description: 'Mohon unggah kedua file yang diperlukan.' });
@@ -357,14 +362,8 @@ export function DataWeaver() {
     
     const resultHeaders = useMemo(() => {
         if (!fileA || !fileB) return [];
-
-        const findHeader = (headers: string[], names: string[]) => {
-            const lowerNames = names.map(n => n.toLowerCase());
-            return headers.find(h => lowerNames.includes(h.toLowerCase()));
-        };
         
-        // Define headers from File B that are irrelevant to the current mode.
-        const irrelevantBHeaders = new Set(['nama']); // Always exclude 'nama' from File B.
+        const irrelevantBHeaders = new Set(['nama']);
         if (editMode === 'nisn') {
             irrelevantBHeaders.add('nis').add('tahun ajaran').add('year');
         } else if (editMode === 'nis') {
@@ -374,17 +373,15 @@ export function DataWeaver() {
         }
 
         const headersA = fileA.headers;
-        const headersB = fileB.headers;
-        const headersALower = headersA.map(h => h.toLowerCase());
-
-        // Get unique headers from File B, excluding irrelevant ones and those already in File A
-        const uniqueBHeaders = headersB.filter(h => {
-            const hLower = h.toLowerCase();
-            return !headersALower.includes(hLower) && !irrelevantBHeaders.has(hLower);
-        });
-
-        const combinedHeaders = [...headersA, ...uniqueBHeaders];
+        const headersB = fileB.headers.filter(h => !irrelevantBHeaders.has(h.toLowerCase()));
         
+        const combinedHeaders = [...headersA, ...headersB.filter(h => !headersA.some(hA => hA.toLowerCase() === h.toLowerCase()))];
+        
+        const findHeader = (headers: string[], names: string[]) => {
+            const lowerNames = names.map(n => n.toLowerCase());
+            return headers.find(h => lowerNames.includes(h.toLowerCase()));
+        };
+
         let dynamicColName: string | undefined;
         if (editMode === 'nisn') dynamicColName = findHeader(combinedHeaders, ['nisn']);
         else if (editMode === 'nis') dynamicColName = findHeader(combinedHeaders, ['nis']);
@@ -394,9 +391,8 @@ export function DataWeaver() {
         const nameCol = findHeader(combinedHeaders, ['nama']);
 
         const priorityHeaders = [idCol, nameCol, dynamicColName].filter((h): h is string => !!h);
-        const priorityHeadersLower = priorityHeaders.map(h => h.toLowerCase());
-
-        const remainingHeaders = combinedHeaders.filter(h => !priorityHeadersLower.includes(h.toLowerCase()));
+        
+        const remainingHeaders = combinedHeaders.filter(h => !priorityHeaders.some(pH => pH.toLowerCase() === h.toLowerCase()));
         
         return [...new Set([...priorityHeaders, ...remainingHeaders])];
     }, [fileA, fileB, editMode]);
@@ -406,21 +402,22 @@ export function DataWeaver() {
             toast({ variant: 'destructive', title: 'Tidak Ada Data untuk Diunduh', description: 'Tidak ada baris gabungan untuk diunduh.' });
             return;
         }
-        if (typeof XLSX === 'undefined') {
-            toast({ variant: 'destructive', title: 'Library Belum Dimuat', description: 'Library ekspor Excel belum tersedia.' });
+        if (typeof XLSX === 'undefined' || !fileA || !fileB) {
+            toast({ variant: 'destructive', title: 'Library atau Data Belum Dimuat', description: 'Pastikan library Excel telah dimuat dan kedua file telah diunggah.' });
             return;
         }
 
-        // Create a new array of rows with columns ordered according to resultHeaders
-        const dataToExport = mergedRows.map(row => {
-            const orderedRow: ExcelRow = {};
-            resultHeaders.forEach(header => {
-                orderedRow[header] = row[header];
-            });
-            return orderedRow;
+        const headerRow1 = resultHeaders.map(header => fileB.headers.find(h => h.toLowerCase() === header.toLowerCase()) || '');
+        const headerRow2 = resultHeaders.map(header => fileA.headers.find(h => h.toLowerCase() === header.toLowerCase()) || '');
+
+        const dataRows = mergedRows.map(row => {
+            return resultHeaders.map(header => row[header] ?? '');
         });
 
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport, { header: resultHeaders });
+        const dataToExport = [headerRow1, headerRow2, ...dataRows];
+        
+        const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Merged Data');
         XLSX.writeFile(workbook, 'Merged_Data.xlsx');
@@ -464,14 +461,14 @@ export function DataWeaver() {
                     <ModeSelectionScreen onSelectMode={setEditMode} />
                 ) : (
                     <>
-                        <Card>
-                             <CardHeader>
+                         <Card>
+                            <CardHeader>
                                 <CardTitle>Langkah 1: Unggah & Konfigurasi</CardTitle>
-                                <CardDescription>Unggah kedua file yang diperlukan untuk memulai proses penggabungan.</CardDescription>
+                                <CardDescription>Unggah file sumber dan file ID untuk memulai proses penggabungan.</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
-                                    <FileUploader 
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                     <FileUploader 
                                         fileId="A" 
                                         onFileProcessed={handleFileProcessed}
                                         onFileRemoved={handleFileRemoved}
@@ -493,7 +490,7 @@ export function DataWeaver() {
                                     />
                                 </div>
                             </CardContent>
-                            <CardFooter className="flex justify-between flex-wrap gap-2">
+                             <CardFooter className="flex justify-between flex-wrap gap-2">
                                 <Button onClick={handleMerge} disabled={!fileA || !fileB || isMerging}>
                                     {isMerging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Combine className="mr-2 h-4 w-4" />}
                                     {isMerging ? 'Menggabungkan...' : 'Gabungkan File'}
@@ -503,6 +500,7 @@ export function DataWeaver() {
                                 </Button>
                             </CardFooter>
                         </Card>
+
 
                         {isMerging && (
                             <div className="flex items-center justify-center p-12">
