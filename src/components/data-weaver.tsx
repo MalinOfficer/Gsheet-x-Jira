@@ -7,14 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Upload, Loader2, Trash2, Combine, Download, AlertCircle, CheckCircle2, FileText, X } from 'lucide-react';
-import { useApp } from '@/contexts/app-provider';
-import { useToast } from '@/hooks/use-toast';
+import { Upload, Loader2, Trash2, Combine, Download, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 import { mergeFilesOnServer } from '@/app/actions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from '@/lib/utils';
-
 
 declare const XLSX: any;
 
@@ -24,7 +22,7 @@ type TableData = {
     rows: ExcelRow[];
 };
 
-const readFile = (file: File): Promise<{ headers: string[], rows: ExcelRow[] }> => {
+const readFile = (file: File): Promise<TableData> => {
     return new Promise((resolve, reject) => {
         if (typeof XLSX === 'undefined') {
             return reject(new Error("Excel library (XLSX) not loaded."));
@@ -61,7 +59,7 @@ const readFile = (file: File): Promise<{ headers: string[], rows: ExcelRow[] }> 
     });
 };
 
-function FileUploader({ fileId, onFileProcessed, currentFile, disabled }: { fileId: 'A' | 'B', onFileProcessed: (data: { headers: string[], rows: ExcelRow[], fileName: string }) => void, currentFile: { name: string, size: number } | null, disabled: boolean }) {
+function FileUploader({ fileId, onFileProcessed, currentFile, disabled }: { fileId: 'A' | 'B', onFileProcessed: (data: TableData) => void, currentFile: File | null, disabled: boolean }) {
     const [isUploading, setIsUploading] = useState(false);
     const { toast } = useToast();
     const inputRef = useRef<HTMLInputElement>(null);
@@ -72,8 +70,8 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled }: { file
 
         setIsUploading(true);
         try {
-            const { headers, rows } = await readFile(file);
-            onFileProcessed({ headers, rows, fileName: file.name });
+            const data = await readFile(file);
+            onFileProcessed({ ...data });
             toast({
                 title: `File ${fileId} Uploaded`,
                 description: `'${file.name}' has been processed.`,
@@ -179,7 +177,10 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
 };
 
 export function DataWeaver() {
-    const { fileA, setFileA, fileB, setFileB, resetState } = useApp();
+    const [fileA, setFileA] = useState<TableData | null>(null);
+    const [fileB, setFileB] = useState<TableData | null>(null);
+    const [rawFileA, setRawFileA] = useState<File | null>(null);
+    const [rawFileB, setRawFileB] = useState<File | null>(null);
     const { toast } = useToast();
     const [isMerging, startMerging] = useTransition();
     const [mergeKey, setMergeKey] = useState<string>("Nama");
@@ -188,12 +189,14 @@ export function DataWeaver() {
     const [unmatchedRows, setUnmatchedRows] = useState<ExcelRow[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const handleFileAProcessed = (data: { headers: string[]; rows: ExcelRow[], fileName: string }) => {
-        setFileA({ ...data, fileName: data.fileName });
+    const handleFileAProcessed = (data: TableData, file: File) => {
+        setFileA(data);
+        setRawFileA(file);
     };
 
-    const handleFileBProcessed = (data: { headers: string[]; rows: ExcelRow[], fileName: string }) => {
-        setFileB({ ...data, fileName: data.fileName });
+    const handleFileBProcessed = (data: TableData, file: File) => {
+        setFileB(data);
+        setRawFileB(file);
     };
 
     const handleMerge = useCallback(async () => {
@@ -239,7 +242,10 @@ export function DataWeaver() {
     };
 
     const handleClear = () => {
-        resetState();
+        setFileA(null);
+        setFileB(null);
+        setRawFileA(null);
+        setRawFileB(null);
         setMergedRows([]);
         setUnmatchedRows([]);
         setError(null);
@@ -273,14 +279,14 @@ export function DataWeaver() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FileUploader 
                         fileId="A" 
-                        onFileProcessed={handleFileAProcessed}
-                        currentFile={fileA ? { name: fileA.fileName, size: 0 } : null}
+                        onFileProcessed={(data: TableData, file: File) => handleFileAProcessed(data, file)}
+                        currentFile={rawFileA}
                         disabled={isMerging} 
                     />
                     <FileUploader 
                         fileId="B" 
-                        onFileProcessed={handleFileBProcessed}
-                        currentFile={fileB ? { name: fileB.fileName, size: 0 } : null}
+                        onFileProcessed={(data: TableData, file: File) => handleFileBProcessed(data, file)}
+                        currentFile={rawFileB}
                         disabled={isMerging} 
                     />
                 </div>
@@ -370,3 +376,66 @@ export function DataWeaver() {
         </div>
     );
 }
+
+// Overwrite the FileUploader to pass the raw file object
+const newFileUploader = ({ fileId, onFileProcessed, currentFile, disabled }: { fileId: 'A' | 'B', onFileProcessed: (data: TableData, file: File) => void, currentFile: File | null, disabled: boolean }) => {
+    const [isUploading, setIsUploading] = useState(false);
+    const { toast } = useToast();
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            const data = await readFile(file);
+            onFileProcessed(data, file); // Pass the raw file object
+            toast({
+                title: `File ${fileId} Uploaded`,
+                description: `'${file.name}' has been processed.`,
+            });
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: `Error Processing File ${fileId}`,
+                description: error instanceof Error ? error.message : "An unknown error occurred.",
+            });
+        } finally {
+            setIsUploading(false);
+            if (inputRef.current) inputRef.current.value = '';
+        }
+    };
+    
+    // The rest of the FileUploader component's JSX is the same as before
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Upload File {fileId}</CardTitle>
+                <CardDescription>
+                    {currentFile ? `Current file: ${currentFile.name}` : `Select an Excel file (.xlsx, .csv).`}
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div
+                    className="w-full p-6 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => inputRef.current?.click()}
+                >
+                    <input ref={inputRef} type="file" className="hidden" onChange={handleFileChange} disabled={disabled || isUploading} accept=".xlsx,.xls,.csv" />
+                    {isUploading ? (
+                        <>
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <p className="mt-2 text-sm text-muted-foreground">Processing...</p>
+                        </>
+                    ) : (
+                        <>
+                            <Upload className="h-8 w-8 text-muted-foreground" />
+                            <p className="mt-2 text-sm font-semibold">Click or drag to upload</p>
+                            <p className="text-xs text-muted-foreground">.xlsx, .xls, or .csv</p>
+                        </>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
