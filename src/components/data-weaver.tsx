@@ -205,8 +205,8 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
     }
     
     return (
-        <div className="space-y-2">
-            <h3 className="font-semibold">{title} ({data.length} baris)</h3>
+        <div className="space-y-4">
+            <h3 className="font-semibold text-sm text-muted-foreground">{title}</h3>
             <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[500px]">
                 <div style={{ height: `${totalHeight}px`, width: `${headers.length * 150}px`, position: 'relative' }}>
                     <div className="flex sticky top-0 bg-muted z-10 font-medium text-sm">
@@ -258,17 +258,17 @@ function ModeSelectionScreen({ onSelectMode }: { onSelectMode: (mode: EditMode) 
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {modes.map(({ mode, title, icon: Icon, description }) => (
-                    <div
+                    <button
                         key={mode}
-                        className="relative flex flex-col items-center justify-center rounded-lg border bg-background p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-1 cursor-pointer"
+                        className="relative flex flex-col items-center justify-start text-center rounded-lg border bg-background p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 h-full"
                         onClick={() => onSelectMode(mode)}
                     >
                          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                             <Icon className="h-6 w-6" />
                         </div>
-                        <h3 className="mb-1 text-lg font-semibold">{title}</h3>
-                        <p className="text-center text-sm text-muted-foreground">{description}</p>
-                    </div>
+                        <h3 className="mb-2 text-lg font-semibold">{title}</h3>
+                        <p className="text-sm text-muted-foreground flex-grow">{description}</p>
+                    </button>
                 ))}
             </CardContent>
         </Card>
@@ -286,12 +286,10 @@ export function DataWeaver() {
     const [error, setError] = useState<string | null>(null);
 
     const [editMode, setEditMode] = useState<EditMode | null>(null);
-    const [mergeKey, setMergeKey] = useState('Nama');
 
     useEffect(() => {
-        if (editMode === 'nisn') setMergeKey('NISN');
-        else if (editMode === 'nis') setMergeKey('NIS');
-        else if (editMode === 'year') setMergeKey('Tahun Ajaran');
+        // This effect can be used if mergeKey needs to be dynamic in the future
+        // For now, it's always 'Nama'
     }, [editMode]);
 
     const handleFileProcessed = useCallback((id: 'A' | 'B', data: TableData) => {
@@ -523,35 +521,39 @@ export function DataWeaver() {
                         {hasResults && !isMerging && (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Langkah 2: Hasil Penggabungan</CardTitle>
-                                    <div className="flex justify-between items-center">
-                                        <CardDescription>
-                                            Tinjau baris yang cocok dan tidak cocok. Unduh hasilnya jika sudah sesuai.
-                                        </CardDescription>
+                                    <div className="flex justify-between items-start gap-4">
+                                        <div>
+                                            <CardTitle>Langkah 2: Hasil Penggabungan</CardTitle>
+                                            <CardDescription>
+                                                Tinjau baris yang cocok dan tidak cocok. Unduh hasilnya jika sudah sesuai.
+                                            </CardDescription>
+                                        </div>
                                         <Button onClick={handleDownload} variant="outline" size="sm" disabled={mergedRows.length === 0}>
                                             <Download className="mr-2 h-4 w-4" /> Unduh Data Gabungan
                                         </Button>
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    <Alert variant={mergedRows.length > 0 ? "default" : "destructive"} className="mb-4 bg-opacity-20">
-                                        {mergedRows.length > 0 ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                                        <AlertTitle>Ringkasan</AlertTitle>
-                                        <AlertDescription>
+                                    <Alert variant={mergedRows.length > 0 ? "default" : "destructive"} className="mb-6">
+                                        <div className='flex items-center gap-2'>
+                                            {mergedRows.length > 0 ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                                            <AlertTitle>Ringkasan</AlertTitle>
+                                        </div>
+                                        <AlertDescription className="pl-6">
                                             <p>{mergedRows.length} baris Cocok.</p>
                                             <p>{unmatchedRows.length} nama dari File ID Tidak Cocok.</p>
                                         </AlertDescription>
                                     </Alert>
                                     <Tabs defaultValue="matched">
-                                        <TabsList>
+                                        <TabsList className="grid w-full grid-cols-2">
                                             <TabsTrigger value="matched">Cocok ({mergedRows.length})</TabsTrigger>
                                             <TabsTrigger value="unmatched">Tidak Cocok ({unmatchedRows.length})</TabsTrigger>
                                         </TabsList>
-                                        <TabsContent value="matched">
-                                            <ResultsTable title="Data Cocok" data={mergedRows} headers={resultHeaders} />
+                                        <TabsContent value="matched" className="mt-4">
+                                            <ResultsTable title="" data={mergedRows} headers={resultHeaders} />
                                         </TabsContent>
-                                        <TabsContent value="unmatched">
-                                            <ResultsTable title="Data Tidak Cocok dari File ID" data={unmatchedRows} headers={unmatchedHeaders} />
+                                        <TabsContent value="unmatched" className="mt-4">
+                                            <ResultsTable title="" data={unmatchedRows} headers={unmatchedHeaders} />
                                         </TabsContent>
                                     </Tabs>
                                 </CardContent>
@@ -563,3 +565,5 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
