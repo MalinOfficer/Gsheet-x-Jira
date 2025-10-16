@@ -349,44 +349,36 @@ export function DataWeaver() {
     const resultHeaders = useMemo(() => {
         if (mergedRows.length === 0) return [];
         const allHeaders = new Set([...(fileA?.headers || []), ...(fileB?.headers || [])]);
+        const allHeadersArray = Array.from(allHeaders);
 
-        const getDynamicColumn = () => {
-            if (!editMode) return null;
-
-            const lowerCaseHeaders = Array.from(allHeaders).map(h => h.toLowerCase());
-            
-            if (editMode === 'nisn' && lowerCaseHeaders.includes('nisn')) return 'NISN';
-            if (editMode === 'nis' && lowerCaseHeaders.includes('nis')) return 'NIS';
-            if (editMode === 'year') {
-                if (lowerCaseHeaders.includes('tahun ajaran')) return 'Tahun Ajaran';
-                if (lowerCaseHeaders.includes('year')) return 'Year';
-            }
-            return null;
+        // Find the correct dynamic column name (case-insensitive)
+        let dynamicCol: string | null = null;
+        if (editMode === 'nisn') {
+            dynamicCol = allHeadersArray.find(h => h.toLowerCase() === 'nisn') || null;
+        } else if (editMode === 'nis') {
+            dynamicCol = allHeadersArray.find(h => h.toLowerCase() === 'nis') || null;
+        } else if (editMode === 'year') {
+            dynamicCol = allHeadersArray.find(h => h.toLowerCase() === 'tahun ajaran') || allHeadersArray.find(h => h.toLowerCase() === 'year') || null;
         }
         
-        const dynamicCol = getDynamicColumn();
-
         const priorityOrder = ['id', 'Nama'];
-        if (dynamicCol && !priorityOrder.includes(dynamicCol)) {
+        if (dynamicCol) {
             priorityOrder.push(dynamicCol);
         }
         
-        const orderedHeaders = [...priorityOrder];
+        const orderedHeaders = [...new Set(priorityOrder)]; // Use Set to handle cases where names might be duplicated
+
         allHeaders.forEach(header => {
-            // Find if header (case-insensitive) is already in orderedHeaders
-            const alreadyExists = orderedHeaders.some(h => h.toLowerCase() === header.toLowerCase());
-            if (!alreadyExists) {
+            if (!orderedHeaders.find(h => h.toLowerCase() === header.toLowerCase())) {
                 orderedHeaders.push(header);
             }
         });
 
-        // Ensure original casing from allHeaders is preserved
-        const finalHeaders = orderedHeaders.map(h => {
-             const originalHeader = Array.from(allHeaders).find(ah => ah.toLowerCase() === h.toLowerCase());
-             return originalHeader || h;
-        });
+        // Ensure original casing is preserved by mapping back to original headers
+        return orderedHeaders.map(h => {
+             return allHeadersArray.find(ah => ah.toLowerCase() === h.toLowerCase()) || h;
+        }).filter((value, index, self) => self.findIndex(t => t.toLowerCase() === value.toLowerCase()) === index); // Final unique check
 
-        return finalHeaders;
     }, [mergedRows, fileA, fileB, editMode]);
     
     const unmatchedHeaders = useMemo(() => fileB?.headers || [], [fileB]);
@@ -528,9 +520,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
-
-    
-
-    
