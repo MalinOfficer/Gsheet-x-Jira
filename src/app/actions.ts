@@ -788,7 +788,6 @@ export async function undoLastAction(
 }
 
 export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKey: string) {
-    // Helper to find header case-insensitively
     const findHeader = (headers: string[] | undefined, key: string) => {
         if (!headers) return undefined;
         return headers.find(h => h.toLowerCase() === key.toLowerCase());
@@ -799,11 +798,10 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         return name
             .toLowerCase()
             .trim()
-            .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "") // Remove punctuation
-            .replace(/\s{2,}/g, " "); // Replace multiple spaces with a single space
+            .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+            .replace(/\s{2,}/g, " ");
     };
 
-    // 1. Validasi Input
     if (!fileAData?.rows || !fileBData?.rows || !mergeKey) {
         return { mergedRows: [], unmatchedRowsB: fileBData?.rows || [], error: "Missing file data or merge key." };
     }
@@ -811,22 +809,9 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     const fileAKey = findHeader(fileAData.headers, mergeKey);
     const fileBKey = findHeader(fileBData.headers, mergeKey);
     
-    if (!fileAKey) {
-        return { 
-            mergedRows: [], 
-            unmatchedRowsB: fileBData.rows,
-            error: `Merge key '${mergeKey}' not found in File A.`
-        };
-    }
-    if (!fileBKey) {
-        return { 
-            mergedRows: [], 
-            unmatchedRowsB: fileBData.rows,
-            error: `Merge key '${mergeKey}' not found in File B.`
-        };
-    }
+    if (!fileAKey) return { mergedRows: [], unmatchedRowsB: fileBData.rows, error: `Merge key '${mergeKey}' not found in File A.` };
+    if (!fileBKey) return { mergedRows: [], unmatchedRowsB: fileBData.rows, error: `Merge key '${mergeKey}' not found in File B.` };
     
-    // 2. Buat Peta dari File A untuk pencocokan cepat
     const fileAMap = new Map<string, any[]>();
     for (const rowA of fileAData.rows) {
         const keyA = rowA[fileAKey];
@@ -840,10 +825,9 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     }
 
     const mergedRows: any[] = [];
-    const unmatchedRowsB: any[] = [];
+    let unmatchedRowsB: any[] = [];
     const matchedBKeys = new Set<string>();
 
-    // 3. Iterasi File B dan Lakukan Pencocokan Tepat (Exact Match)
     for (const rowB of fileBData.rows) {
         const keyB = rowB[fileBKey];
         if (keyB) {
@@ -855,20 +839,25 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
                     mergedRows.push(mergedRow);
                 }
                 matchedBKeys.add(normalizedKeyB);
+            } else {
+                unmatchedRowsB.push(rowB);
             }
+        } else {
+            unmatchedRowsB.push(rowB);
         }
     }
 
-    // 4. Lakukan Fuzzy Match untuk baris di File B yang belum cocok
-    const remainingRowsB = fileBData.rows.filter(rowB => {
+    const remainingRowsB = unmatchedRowsB.filter(rowB => {
         const keyB = rowB[fileBKey];
         return keyB && !matchedBKeys.has(normalizeName(keyB));
     });
 
+    const finalUnmatchedRows: any[] = [];
+
     for (const rowB of remainingRowsB) {
         const normalizedKeyB = normalizeName(rowB[fileBKey]);
         let bestMatch: any = null;
-        let highestScore = 0.8; // Ambang batas, bisa disesuaikan
+        let highestScore = 0.8;
 
         const wordsB = new Set(normalizedKeyB.split(' ').filter(Boolean));
 
@@ -877,11 +866,11 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
             
             const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
             const union = new Set([...wordsA, ...wordsB]);
-            const score = union.size > 0 ? intersection.size / union.size : 0; // Jaccard Similarity
+            const score = union.size > 0 ? intersection.size / union.size : 0;
 
             if (score > highestScore) {
                 highestScore = score;
-                bestMatch = rowsA[0]; // Ambil baris pertama sebagai kandidat terbaik
+                bestMatch = rowsA[0];
             }
         }
 
@@ -889,11 +878,11 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
             const mergedRow = { ...bestMatch, ...rowB };
             mergedRows.push(mergedRow);
         } else {
-            unmatchedRowsB.push(rowB);
+            finalUnmatchedRows.push(rowB);
         }
     }
     
-    return { mergedRows, unmatchedRowsB };
+    return { mergedRows, unmatchedRowsB: finalUnmatchedRows };
 }
 
 
@@ -1042,6 +1031,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
 
 
