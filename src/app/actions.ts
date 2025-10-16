@@ -808,21 +808,29 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         return { mergedRows: [], unmatchedRowsB: fileBData?.rows || [], error: "Missing file data or merge key." };
     }
 
-    const fileAMergeKey = findHeader(fileAData.headers, mergeKey);
-    const fileBMergeKey = findHeader(fileBData.headers, mergeKey);
+    // Perbaikan: Gunakan 'username' untuk File A dan 'Nama' (mergeKey) untuk File B
+    const fileAKey = findHeader(fileAData.headers, 'username');
+    const fileBKey = findHeader(fileBData.headers, mergeKey);
     
-    if (!fileAMergeKey || !fileBMergeKey) {
+    if (!fileAKey) {
         return { 
             mergedRows: [], 
             unmatchedRowsB: fileBData.rows,
-            error: `Merge key "${mergeKey}" not found in one or both files.`
+            error: `Merge key 'username' not found in File A.`
+        };
+    }
+    if (!fileBKey) {
+        return { 
+            mergedRows: [], 
+            unmatchedRowsB: fileBData.rows,
+            error: `Merge key '${mergeKey}' not found in File B.`
         };
     }
     
     // 2. Buat Peta dari File A untuk pencocokan cepat
     const fileAMap = new Map<string, any[]>();
     for (const rowA of fileAData.rows) {
-        const keyA = rowA[fileAMergeKey];
+        const keyA = rowA[fileAKey];
         if (keyA) {
             const normalizedKey = normalizeName(keyA);
             if (!fileAMap.has(normalizedKey)) {
@@ -838,13 +846,14 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
 
     // 3. Iterasi File B dan Lakukan Pencocokan Tepat (Exact Match)
     for (const rowB of fileBData.rows) {
-        const keyB = rowB[fileBMergeKey];
+        const keyB = rowB[fileBKey];
         if (keyB) {
             const normalizedKeyB = normalizeName(keyB);
             if (fileAMap.has(normalizedKeyB)) {
                 const matchesA = fileAMap.get(normalizedKeyB) || [];
                 for (const rowA of matchesA) {
-                    const mergedRow = { ...rowA, ...rowB, 'username': rowA[fileAMergeKey] }; 
+                    // Perbaikan: Gunakan nilai asli dari File A sebagai 'username'
+                    const mergedRow = { ...rowA, ...rowB, 'username': rowA[fileAKey] }; 
                     mergedRows.push(mergedRow);
                 }
                 matchedBKeys.add(normalizedKeyB);
@@ -854,12 +863,12 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
 
     // 4. Lakukan Fuzzy Match untuk baris di File B yang belum cocok
     const remainingRowsB = fileBData.rows.filter(rowB => {
-        const keyB = rowB[fileBMergeKey];
+        const keyB = rowB[fileBKey];
         return keyB && !matchedBKeys.has(normalizeName(keyB));
     });
 
     for (const rowB of remainingRowsB) {
-        const normalizedKeyB = normalizeName(rowB[fileBMergeKey]);
+        const normalizedKeyB = normalizeName(rowB[fileBKey]);
         let bestMatch: any = null;
         let highestScore = 0.8; // Ambang batas, bisa disesuaikan
 
@@ -879,7 +888,8 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         }
 
         if (bestMatch) {
-            const mergedRow = { ...bestMatch, ...rowB, 'username': (bestMatch as any)[fileAMergeKey] };
+            // Perbaikan: Gunakan nilai asli dari File A sebagai 'username'
+            const mergedRow = { ...bestMatch, ...rowB, 'username': (bestMatch as any)[fileAKey] };
             mergedRows.push(mergedRow);
         } else {
             unmatchedRowsB.push(rowB);
@@ -1035,5 +1045,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
 
