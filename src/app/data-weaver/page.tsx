@@ -74,7 +74,7 @@ const decodeHtml = (html: string | null | undefined): string => {
 
 export default function DataWeaverPage() {
     const { fileA, setFileA, fileB, setFileB, resetState } = useApp();
-    const [editMode, setEditMode] = useState<EditMode | null>(null);
+    const [editMode, setEditMode] = useState<EditMode | null>('nisn');
     const [activeTab, setActiveTab] = useState("upload");
     const [mergedHeaders, setMergedHeaders] = useState<SelectOption[]>([]);
     const [selectedHeaders, setSelectedHeaders] = useState<string[]>([]);
@@ -254,16 +254,16 @@ export default function DataWeaverPage() {
 
                 // Validation logic
                 if (fileType === 'A' && editMode) {
-                    const requiredHeader = editMode === 'nisn' ? 'nisn' : editMode === 'nis' ? 'nis' : null;
-                    if (requiredHeader && !lowercasedHeaders.some(h => h === requiredHeader)) {
-                        toast({ variant: 'destructive', title: "Invalid File A", description: `File A must contain a '${requiredHeader.toUpperCase()}' column for this edit mode.` });
-                        if (fileAInputRef.current) fileAInputRef.current.value = "";
-                        return;
+                    // File A (data source) only needs the merge key (e.g., Nama)
+                    if (!lowercasedHeaders.some(h => h.toLowerCase() === mergeKey.toLowerCase())) {
+                       toast({ variant: 'destructive', title: "Invalid File A", description: `File A must contain a '${mergeKey}' column.` });
+                       if (fileAInputRef.current) fileAInputRef.current.value = "";
+                       return;
                     }
                 }
 
                 if (fileType === 'B' && !lowercasedHeaders.some(h => h.toLowerCase().includes('id'))) {
-                    toast({ variant: 'destructive', title: "Invalid File B", description: "File id Bulk must contain an 'id' column." });
+                    toast({ variant: 'destructive', title: "Invalid File B", description: "File B (File ID Bulk) must contain an 'ID' column." });
                      if (fileBInputRef.current) fileBInputRef.current.value = "";
                     return;
                 }
@@ -372,7 +372,7 @@ export default function DataWeaverPage() {
     }, [toast]);
 
     const handleMerge = async () => {
-        if (!fileA || !fileB || !mergeKey || !editMode) {
+        if (!fileA || !fileB || !mergeKey) {
             toast({
                 variant: 'destructive',
                 title: "Merge Failed",
@@ -390,7 +390,7 @@ export default function DataWeaverPage() {
         const plainFileA = JSON.parse(JSON.stringify({ headers: fileA.headers, rows: fileA.rows }));
         const plainFileB = JSON.parse(JSON.stringify({ headers: fileB.headers, rows: fileB.rows }));
 
-        const serverResult = await mergeFilesOnServer(plainFileA, plainFileB, mergeKey, editMode);
+        const serverResult = await mergeFilesOnServer(plainFileA, plainFileB, mergeKey);
         
         if (serverResult.error) {
             toast({ variant: "destructive", title: "Server Error", description: serverResult.error });
@@ -988,12 +988,12 @@ function ResultTable({ mergedData, onDownload, editMode }: { mergedData: any[], 
                             virtualRows.map((virtualRow) => {
                                 const row = mergedData[virtualRow.index];
                                 const idKey = findKey(row, 'id');
-                                const usernameKey = findKey(row, 'nama'); // Correctly find the 'nama' key for the username value
+                                const usernameKey = findKey(row, 'username');
                                 const dynamicHeaderKey = findKey(row, dynamicKey);
                                 
                                 const cells = [
                                     idKey ? row[idKey] : '',
-                                    usernameKey ? row[usernameKey] : '', // Use the found key to get the value
+                                    usernameKey ? row[usernameKey] : '',
                                     dynamicHeaderKey ? row[dynamicHeaderKey] : '',
                                 ];
 
@@ -1102,4 +1102,3 @@ function ManualSelectCombobox({
 }
     
     
-

@@ -77,7 +77,7 @@ const projectFilesForAction = [
   "src/components/ui/dialog.tsx",
   "src/components/ui/dropdown-menu.tsx",
   "src/components/ui/form.tsx",
-  "src/components/ui/input.tsx",
+  "src/componentsui/input.tsx",
   "src/components/ui/label.tsx",
   "src_components/ui/menubar.tsx",
   "src/components/ui/multi-select.tsx",
@@ -787,14 +787,19 @@ export async function undoLastAction(
     }
 }
 
-export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKey: string, editMode: 'nis' | 'nisn' | 'year') {
+export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKey: string) {
     // Helper to find header case-insensitively
     const findHeader = (headers: string[] | undefined, key: string) => {
         if (!headers) return undefined;
         return headers.find(h => h.toLowerCase() === key.toLowerCase());
     };
-    
-    // Validate required data and headers
+
+    const normalizeName = (name: any) => {
+        if (typeof name !== 'string') return '';
+        return name.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").replace(/\s{2,}/g," ").trim();
+    };
+
+    // 1. Validasi Input
     if (!fileAData?.rows || !fileBData?.rows || !mergeKey) {
         return { mergedRows: [], unmatchedRowsB: fileBData?.rows || [], error: "Missing file data or merge key." };
     }
@@ -802,10 +807,6 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     const fileAMergeKey = findHeader(fileAData.headers, mergeKey);
     const fileBMergeKey = findHeader(fileBData.headers, mergeKey);
     
-    // Dynamic key based on editMode
-    const requiredKey = editMode === 'nis' ? 'nis' : editMode === 'nisn' ? 'nisn' : 'year';
-    const requiredHeaderA = findHeader(fileAData.headers, requiredKey);
-
     if (!fileAMergeKey || !fileBMergeKey) {
         return { 
             mergedRows: [], 
@@ -813,58 +814,65 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
             error: `Merge key "${mergeKey}" not found in one or both files.`
         };
     }
-     if (!requiredHeaderA) {
-        return { 
-            mergedRows: [], 
-            unmatchedRowsB: fileBData.rows,
-            error: `Required "${requiredKey.toUpperCase()}" header not found in File A.`
-        };
-    }
-
-    // Create a map of File A for efficient lookups.
-    // Key: lowercase mergeKey value. Value: Array of rows from File A that match the key.
+    
+    // 2. Buat Peta dari File A untuk pencocokan cepat
     const fileAMap = new Map<string, any[]>();
     for (const rowA of fileAData.rows) {
-        const key = String(rowA[fileAMergeKey] || '').toLowerCase().trim();
-        const requiredValue = String(rowA[requiredHeaderA] || '').trim();
-        
-        // Only add to map if the key is valid and it has the required value (NIS/NISN/YEAR).
-        if (key && requiredValue) { 
-            if (!fileAMap.has(key)) {
-                fileAMap.set(key, []);
+        const normalizedKey = normalizeName(rowA[fileAMergeKey]);
+        if (normalizedKey) {
+            if (!fileAMap.has(normalizedKey)) {
+                fileAMap.set(normalizedKey, []);
             }
-            // Add the row to the array for that key. We'll handle multiple matches later.
-            fileAMap.get(key)?.push(rowA);
+            fileAMap.get(normalizedKey)?.push(rowA);
         }
     }
 
     const mergedRows: any[] = [];
     const unmatchedRowsB: any[] = [];
-    const namaKey = findHeader(fileAData.headers, 'nama') || findHeader(fileBData.headers, 'nama');
 
+    // 3. Iterasi File B dan Lakukan Pencocokan
     for (const rowB of fileBData.rows) {
-        const key = String(rowB[fileBMergeKey] || '').toLowerCase().trim();
+        const normalizedKeyB = normalizeName(rowB[fileBMergeKey]);
         let matchFound = false;
 
-        if (key && fileAMap.has(key)) {
-            const potentialMatches = fileAMap.get(key) || [];
-            // For simplicity, we take the first valid match.
-            // More complex logic could be added here to handle multiple matches if needed.
-            const firstValidMatch = potentialMatches.find(match => match[requiredHeaderA]);
-
-            if (firstValidMatch) {
-                // Match found and it has a NIS/NISN.
-                const mergedRow = { ...firstValidMatch, ...rowB };
-                if (namaKey && mergedRow[namaKey]) {
-                    mergedRow['username'] = mergedRow[namaKey];
-                }
+        if (normalizedKeyB && fileAMap.has(normalizedKeyB)) {
+            // A. Exact Match (setelah normalisasi)
+            const matches = fileAMap.get(normalizedKeyB) || [];
+            // Ambil yang pertama, bisa dikembangkan untuk menangani multiple matches
+            if (matches.length > 0) {
+                const mergedRow = { ...matches[0], ...rowB, 'username': matches[0][fileAMergeKey] }; 
                 mergedRows.push(mergedRow);
                 matchFound = true;
             }
         }
         
         if (!matchFound) {
-            // No match in File A OR the match in File A had no NIS/NISN
+            // B. Fuzzy Match untuk yang tidak ketemu
+            let bestMatch = null;
+            let highestScore = 0.75; // Ambang batas, bisa disesuaikan
+
+            const wordsB = new Set(normalizedKeyB.split(' '));
+
+            for (const [normalizedKeyA, rowsA] of fileAMap.entries()) {
+                const wordsA = new Set(normalizedKeyA.split(' '));
+                const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
+                const union = new Set([...wordsA, ...wordsB]);
+                const score = intersection.size / union.size; // Jaccard Similarity
+
+                if (score > highestScore) {
+                    highestScore = score;
+                    bestMatch = rowsA[0]; // Ambil baris pertama sebagai kandidat
+                }
+            }
+
+            if (bestMatch) {
+                const mergedRow = { ...bestMatch, ...rowB, 'username': (bestMatch as any)[fileAMergeKey] };
+                mergedRows.push(mergedRow);
+                matchFound = true;
+            }
+        }
+
+        if (!matchFound) {
             unmatchedRowsB.push(rowB);
         }
     }
@@ -1018,3 +1026,4 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
