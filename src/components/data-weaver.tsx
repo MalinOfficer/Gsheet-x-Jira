@@ -348,11 +348,36 @@ export function DataWeaver() {
 
     const resultHeaders = useMemo(() => {
         if (mergedRows.length === 0) return [];
-        const headersA = fileA?.headers || [];
-        const headersB = fileB?.headers || [];
-        const combined = new Set([...headersA, ...headersB]);
-        return Array.from(combined);
-    }, [mergedRows, fileA, fileB]);
+        const allHeaders = new Set([...(fileA?.headers || []), ...(fileB?.headers || [])]);
+
+        const getDynamicColumn = () => {
+            if (!editMode) return null;
+            if (editMode === 'nisn') return 'NISN';
+            if (editMode === 'nis') return 'NIS';
+            if (editMode === 'year') {
+                 if (allHeaders.has('Tahun Ajaran')) return 'Tahun Ajaran';
+                 if (allHeaders.has('Year')) return 'Year';
+                 if (allHeaders.has('year')) return 'year';
+            }
+            return null;
+        }
+        
+        const dynamicCol = getDynamicColumn();
+
+        const priorityOrder = ['id', 'Nama'];
+        if (dynamicCol) {
+            priorityOrder.push(dynamicCol);
+        }
+        
+        const orderedHeaders = [...priorityOrder];
+        allHeaders.forEach(header => {
+            if (!orderedHeaders.includes(header)) {
+                orderedHeaders.push(header);
+            }
+        });
+
+        return orderedHeaders;
+    }, [mergedRows, fileA, fileB, editMode]);
     
     const unmatchedHeaders = useMemo(() => fileB?.headers || [], [fileB]);
 
@@ -493,5 +518,7 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
 
     
