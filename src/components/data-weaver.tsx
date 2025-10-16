@@ -122,13 +122,13 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
 
             onFileProcessed(fileId, data);
             toast({
-                title: `File ${fileId} Diunggah`,
+                title: `File ${fileId === 'A' ? 'A' : 'ID'} Diunggah`,
                 description: `'${file.name}' telah berhasil diproses.`,
             });
         } catch (error) {
             toast({
                 variant: 'destructive',
-                title: `Error Memproses File ${fileId}`,
+                title: `Error Memproses File ${fileId === 'A' ? 'A' : 'ID'}`,
                 description: error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui.",
             });
         } finally {
@@ -138,34 +138,32 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>{title}</CardTitle>
-                <CardDescription>
-                    {currentFile ? `File saat ini: ${currentFile.fileName}` : description}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div 
-                    className="w-full p-6 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => inputRef.current?.click()}
-                >
-                    <input ref={inputRef} type="file" className="hidden" onChange={handleFileChange} disabled={disabled || isUploading} accept=".xlsx,.xls,.csv" />
-                    {isUploading ? (
-                        <>
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            <p className="mt-2 text-sm text-muted-foreground">Memproses...</p>
-                        </>
-                    ) : (
-                         <>
-                            <Upload className="h-8 w-8 text-muted-foreground" />
-                            <p className="mt-2 text-sm font-semibold">Klik atau seret untuk mengunggah</p>
-                            <p className="text-xs text-muted-foreground">.xlsx, .xls, or .csv</p>
-                        </>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
+        <div className='space-y-2'>
+            <h3 className="font-semibold text-foreground">{title}</h3>
+             <div 
+                className="w-full p-6 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => inputRef.current?.click()}
+            >
+                <input ref={inputRef} type="file" className="hidden" onChange={handleFileChange} disabled={disabled || isUploading} accept=".xlsx,.xls,.csv" />
+                {isUploading ? (
+                    <>
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="mt-2 text-sm text-muted-foreground">Memproses...</p>
+                    </>
+                ) : (
+                     <>
+                        <Upload className="h-8 w-8 text-muted-foreground" />
+                        <p className="mt-2 text-sm font-semibold">Klik atau seret file</p>
+                        <p className="text-xs text-muted-foreground">.xlsx, .xls</p>
+                    </>
+                )}
+            </div>
+            {currentFile ? (
+                <p className='text-xs text-muted-foreground'>File saat ini: <span className='font-medium text-foreground'>{currentFile.fileName}</span></p>
+            ) : (
+                <p className='text-xs text-muted-foreground h-8'>{description}</p>
+            )}
+        </div>
     );
 }
 
@@ -236,6 +234,7 @@ function ModeSelectionScreen({ onSelectMode }: { onSelectMode: (mode: EditMode) 
         <Card>
             <CardHeader>
                 <CardTitle>Pilih Mode Edit Massal</CardTitle>
+                <CardDescription>Pilih jenis data yang ingin Anda gabungkan atau perbarui secara massal.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {modes.map(({ mode, title, icon: Icon, description }) => (
@@ -284,13 +283,16 @@ export function DataWeaver() {
         return 'Upload File A';
     }, [editMode]);
 
+    useEffect(() => {
+        if (editMode === 'nisn') setMergeKey('NISN');
+        else if (editMode === 'nis') setMergeKey('NIS');
+        else if (editMode === 'year') setMergeKey('Tahun Ajaran');
+        else setMergeKey('Nama');
+    }, [editMode]);
+
     const handleMerge = useCallback(async () => {
         if (!fileA || !fileB) {
-            toast({ variant: 'destructive', title: 'File Hilang', description: 'Mohon unggah File A dan File B.' });
-            return;
-        }
-        if (!mergeKey.trim()) {
-            toast({ variant: 'destructive', title: 'Kunci Penggabungan Hilang', description: 'Mohon masukkan nama kolom untuk digabungkan.' });
+            toast({ variant: 'destructive', title: 'File Hilang', description: 'Mohon unggah kedua file yang diperlukan.' });
             return;
         }
         
@@ -298,7 +300,7 @@ export function DataWeaver() {
         setMergedRows([]);
         setUnmatchedRows([]);
         startMerging(async () => {
-            const result = await mergeFilesOnServer(fileA, fileB, mergeKey);
+            const result = await mergeFilesOnServer(fileA, fileB, 'Nama'); // Always merge on 'Nama'
             if (result.error) {
                 let errorMessage = result.error;
                 if (errorMessage.includes("File B")) {
@@ -316,7 +318,7 @@ export function DataWeaver() {
             }
         });
 
-    }, [fileA, fileB, mergeKey, toast, fileATitle]);
+    }, [fileA, fileB, toast, fileATitle]);
     
     const handleDownload = () => {
         if (mergedRows.length === 0) {
@@ -349,20 +351,19 @@ export function DataWeaver() {
     const resultHeaders = useMemo(() => {
         if (!mergedRows.length || !fileA || !fileB) return [];
 
+        // Start with headers from File A
         const headersA = fileA.headers || [];
-        const headersB = fileB.headers || [];
-        
-        // Headers from B that are not in A (except for 'id', 'Nama', and dynamic column)
-        // These are the columns from the ID file we don't want to show
-        const irrelevantBHeaders = new Set(['nis', 'nisn', 'tahun ajaran', 'year']);
 
-        const uniqueBHeaders = headersB.filter(h => {
+        // Headers from B that are not in A, excluding irrelevant ones
+        const irrelevantBHeaders = new Set(['nis', 'nisn', 'tahun ajaran', 'year', 'nama', 'id']);
+        const uniqueBHeaders = (fileB.headers || []).filter(h => {
             const hLower = h.toLowerCase();
             return !headersA.some(hA => hA.toLowerCase() === hLower) && !irrelevantBHeaders.has(hLower);
         });
         
         const combinedHeaders = [...headersA, ...uniqueBHeaders];
         
+        // Function to find header case-insensitively
         const findHeader = (names: string[]) => combinedHeaders.find(h => names.map(n => n.toLowerCase()).includes(h.toLowerCase()));
 
         let dynamicColName: string | undefined;
@@ -386,9 +387,9 @@ export function DataWeaver() {
     const hasResults = mergedRows.length > 0 || unmatchedRows.length > 0;
 
     const fileADescription = useMemo(() => {
-        if (editMode === 'nisn') return 'File berisi daftar NISN yang akan dicocokkan.';
-        if (editMode === 'year') return 'File berisi daftar tahun ajaran yang akan dicocokkan.';
-        if (editMode === 'nis') return 'File berisi daftar NIS yang akan dicocokkan.';
+        if (editMode === 'nisn') return 'File harus memiliki kolom "NISN".';
+        if (editMode === 'year') return 'File harus memiliki kolom "Tahun Ajaran" atau "Year".';
+        if (editMode === 'nis') return 'File harus memiliki kolom "NIS".';
         return 'Select an Excel file (.xlsx, .csv).';
     }, [editMode]);
 
@@ -413,42 +414,42 @@ export function DataWeaver() {
                     <ModeSelectionScreen onSelectMode={setEditMode} />
                 ) : (
                     <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FileUploader 
-                                fileId="A" 
-                                onFileProcessed={handleFileProcessed}
-                                currentFile={fileA}
-                                disabled={isMerging} 
-                                title={fileATitle}
-                                description={fileADescription}
-                                editMode={editMode}
-                            />
-                            <FileUploader 
-                                fileId="B" 
-                                onFileProcessed={handleFileProcessed}
-                                currentFile={fileB}
-                                disabled={isMerging}
-                                title="Upload File ID"
-                                description="File download dari menu edit Bulk atau edit Massal"
-                                editMode={editMode}
-                            />
-                        </div>
-
                         <Card>
                             <CardHeader>
-                                <CardTitle>Konfigurasi Penggabungan</CardTitle>
+                                <CardTitle>Langkah 1: Unggah & Konfigurasi</CardTitle>
+                                <CardDescription>Unggah kedua file yang diperlukan dan konfirmasi kunci penggabungan.</CardDescription>
                             </CardHeader>
                             <CardContent>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                                    <FileUploader 
+                                        fileId="A" 
+                                        onFileProcessed={handleFileProcessed}
+                                        currentFile={fileA}
+                                        disabled={isMerging} 
+                                        title={fileATitle}
+                                        description={fileADescription}
+                                        editMode={editMode}
+                                    />
+                                    <FileUploader 
+                                        fileId="B" 
+                                        onFileProcessed={handleFileProcessed}
+                                        currentFile={fileB}
+                                        disabled={isMerging}
+                                        title="Upload File ID"
+                                        description='File dari menu "Edit Bulk" yang memiliki kolom "id".'
+                                        editMode={editMode}
+                                    />
+                                </div>
                                 <div className="grid w-full max-w-sm items-center gap-1.5">
                                     <Label htmlFor="merge-key">Gabungkan Pada Kolom</Label>
                                     <Input
                                         id="merge-key"
                                         type="text"
-                                        value={mergeKey}
-                                        onChange={(e) => setMergeKey(e.target.value)}
-                                        className="font-semibold"
+                                        value="Nama"
+                                        readOnly
+                                        className="font-semibold bg-muted/50"
                                     />
-                                    <p className="text-xs text-muted-foreground">Kunci penggabungan selalu menggunakan 'Nama' untuk hasil terbaik.</p>
+                                    <p className="text-xs text-muted-foreground">Pencocokan nama cerdas selalu digunakan untuk menggabungkan.</p>
                                 </div>
                             </CardContent>
                             <CardFooter className="flex justify-between">
@@ -480,10 +481,10 @@ export function DataWeaver() {
                         {hasResults && !isMerging && (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Hasil Penggabungan</CardTitle>
+                                    <CardTitle>Langkah 2: Hasil Penggabungan</CardTitle>
                                     <div className="flex justify-between items-center">
                                         <CardDescription>
-                                            Tinjau baris yang cocok dan tidak cocok.
+                                            Tinjau baris yang cocok dan tidak cocok. Unduh hasilnya jika sudah sesuai.
                                         </CardDescription>
                                         <Button onClick={handleDownload} variant="outline" size="sm" disabled={mergedRows.length === 0}>
                                             <Download className="mr-2 h-4 w-4" /> Unduh Data Gabungan
@@ -521,4 +522,3 @@ export function DataWeaver() {
     );
 }
 
-    
