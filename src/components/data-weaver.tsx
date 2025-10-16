@@ -21,6 +21,12 @@ type ExcelRow = Record<string, any>;
 
 type EditMode = 'nisn' | 'year' | 'nis';
 
+type TableData = {
+    headers: string[];
+    rows: ExcelRow[];
+    fileName: string;
+};
+
 const readFile = (file: File): Promise<TableData> => {
     return new Promise((resolve, reject) => {
         if (typeof XLSX === 'undefined') {
@@ -58,7 +64,7 @@ const readFile = (file: File): Promise<TableData> => {
     });
 };
 
-function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, description }: { fileId: 'A' | 'B', onFileProcessed: (id: 'A' | 'B', data: TableData) => void, currentFile: TableData | null, disabled: boolean, title: string, description: string }) {
+function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, description, editMode }: { fileId: 'A' | 'B', onFileProcessed: (id: 'A' | 'B', data: TableData) => void, currentFile: TableData | null, disabled: boolean, title: string, description: string, editMode: EditMode | null }) {
     const [isUploading, setIsUploading] = useState(false);
     const { toast } = useToast();
     const inputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +76,25 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
         setIsUploading(true);
         try {
             const data = await readFile(file);
+
+            // Validation logic for File A
+            if (fileId === 'A' && editMode) {
+                const requiredColumn = editMode === 'year' ? 'Tahun Ajaran' : editMode.toUpperCase();
+                const hasRequiredColumn = data.headers.some(h => h.toLowerCase() === requiredColumn.toLowerCase());
+                
+                if (!hasRequiredColumn) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'File Upload Failed',
+                        description: `The selected file is missing the '${requiredColumn}' column.`,
+                    });
+                    setIsUploading(false);
+                    if(inputRef.current) inputRef.current.value = '';
+                    return;
+                }
+            }
+
+
             onFileProcessed(fileId, data);
             toast({
                 title: `File ${fileId} Uploaded`,
@@ -338,6 +363,7 @@ export function DataWeaver() {
                                 disabled={isMerging} 
                                 title={fileATitle}
                                 description={fileADescription}
+                                editMode={editMode}
                             />
                             <FileUploader 
                                 fileId="B" 
@@ -346,6 +372,7 @@ export function DataWeaver() {
                                 disabled={isMerging}
                                 title="Upload File ID"
                                 description="File download dari menu edit Bulk atau edit Massal"
+                                editMode={editMode}
                             />
                         </div>
 
@@ -435,7 +462,5 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
 
     
