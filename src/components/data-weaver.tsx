@@ -77,8 +77,8 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
         try {
             const data = await readFile(file);
 
-            // Validation logic for File A
-            if (fileId === 'A' && editMode) {
+            // Validation logic for both files
+            if (editMode) {
                 const requiredColumn = editMode === 'year' ? 'Tahun Ajaran' : editMode.toUpperCase();
                 const hasRequiredColumn = data.headers.some(h => h.toLowerCase() === requiredColumn.toLowerCase());
                 
@@ -93,7 +93,6 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
                     return;
                 }
             }
-
 
             onFileProcessed(fileId, data);
             toast({
