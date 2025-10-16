@@ -812,77 +812,60 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     if (!fileAKey) return { mergedRows: [], unmatchedRowsB: fileBData.rows, error: `Merge key '${mergeKey}' not found in File A.` };
     if (!fileBKey) return { mergedRows: [], unmatchedRowsB: fileBData.rows, error: `Merge key '${mergeKey}' not found in File B.` };
     
-    const fileAMap = new Map<string, any[]>();
+    const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
         const keyA = rowA[fileAKey];
         if (keyA) {
             const normalizedKey = normalizeName(keyA);
             if (!fileAMap.has(normalizedKey)) {
-                fileAMap.set(normalizedKey, []);
+                fileAMap.set(normalizedKey, rowA);
             }
-            fileAMap.get(normalizedKey)?.push(rowA);
         }
     }
 
     const mergedRows: any[] = [];
-    let unmatchedRowsB: any[] = [];
-    const matchedBKeys = new Set<string>();
+    const unmatchedRowsB: any[] = [];
 
     for (const rowB of fileBData.rows) {
         const keyB = rowB[fileBKey];
         if (keyB) {
             const normalizedKeyB = normalizeName(keyB);
             if (fileAMap.has(normalizedKeyB)) {
-                const matchesA = fileAMap.get(normalizedKeyB) || [];
-                for (const rowA of matchesA) {
-                    const mergedRow = { ...rowA, ...rowB }; 
-                    mergedRows.push(mergedRow);
-                }
-                matchedBKeys.add(normalizedKeyB);
+                const rowA = fileAMap.get(normalizedKeyB);
+                const mergedRow = { ...rowA, ...rowB };
+                mergedRows.push(mergedRow);
             } else {
-                unmatchedRowsB.push(rowB);
+                 let bestMatch: any = null;
+                 let highestScore = 0.8; 
+
+                 const wordsB = new Set(normalizedKeyB.split(' ').filter(Boolean));
+
+                 for (const [normalizedKeyA, rowA] of fileAMap.entries()) {
+                     const wordsA = new Set(normalizedKeyA.split(' ').filter(Boolean));
+                     
+                     const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
+                     const union = new Set([...wordsA, ...wordsB]);
+                     const score = union.size > 0 ? intersection.size / union.size : 0;
+
+                     if (score > highestScore) {
+                         highestScore = score;
+                         bestMatch = rowA;
+                     }
+                 }
+
+                 if (bestMatch) {
+                     const mergedRow = { ...bestMatch, ...rowB };
+                     mergedRows.push(mergedRow);
+                 } else {
+                     unmatchedRowsB.push(rowB);
+                 }
             }
         } else {
             unmatchedRowsB.push(rowB);
         }
     }
-
-    const remainingRowsB = unmatchedRowsB.filter(rowB => {
-        const keyB = rowB[fileBKey];
-        return keyB && !matchedBKeys.has(normalizeName(keyB));
-    });
-
-    const finalUnmatchedRows: any[] = [];
-
-    for (const rowB of remainingRowsB) {
-        const normalizedKeyB = normalizeName(rowB[fileBKey]);
-        let bestMatch: any = null;
-        let highestScore = 0.8;
-
-        const wordsB = new Set(normalizedKeyB.split(' ').filter(Boolean));
-
-        for (const [normalizedKeyA, rowsA] of fileAMap.entries()) {
-            const wordsA = new Set(normalizedKeyA.split(' ').filter(Boolean));
-            
-            const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
-            const union = new Set([...wordsA, ...wordsB]);
-            const score = union.size > 0 ? intersection.size / union.size : 0;
-
-            if (score > highestScore) {
-                highestScore = score;
-                bestMatch = rowsA[0];
-            }
-        }
-
-        if (bestMatch) {
-            const mergedRow = { ...bestMatch, ...rowB };
-            mergedRows.push(mergedRow);
-        } else {
-            finalUnmatchedRows.push(rowB);
-        }
-    }
     
-    return { mergedRows, unmatchedRowsB: finalUnmatchedRows };
+    return { mergedRows, unmatchedRowsB };
 }
 
 
@@ -1031,6 +1014,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
 
 
