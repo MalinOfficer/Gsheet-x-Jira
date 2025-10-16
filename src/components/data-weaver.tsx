@@ -407,10 +407,10 @@ export function DataWeaver() {
             return;
         }
 
-        const finalHeaders = ["No", ...resultHeaders];
+        const findHeader = (headers: string[], name: string) => headers.find(h => h.toLowerCase() === name.toLowerCase());
 
-        const headerRow1 = ["No", ...resultHeaders.map(header => fileB.headers.find(h => h.toLowerCase() === header.toLowerCase()) || '')];
-        const headerRow2 = ["No", ...resultHeaders.map(header => fileA.headers.find(h => h.toLowerCase() === header.toLowerCase()) || '')];
+        const headerRow1 = ["No", ...resultHeaders.map(header => findHeader(fileB.headers, header) || '')];
+        const headerRow2 = ["No", ...resultHeaders.map(header => findHeader(fileA.headers, header) || findHeader(fileB.headers, header) || '')];
         
         const dataRows = mergedRows.map((row, index) => {
              const orderedRow = resultHeaders.map(header => row[header] ?? '');
