@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Upload, Loader2, Trash2, Combine, Download, AlertCircle, CheckCircle2, ArrowLeft, FileScan, BookUser, CalendarDays } from 'lucide-react';
+import { Upload, Loader2, Trash2, Combine, Download, AlertCircle, CheckCircle2, ArrowLeft, FileScan, BookUser, CalendarDays, FileCheck, X } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { mergeFilesOnServer } from '@/app/actions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -74,7 +74,7 @@ const readFile = (file: File, fileId: 'A' | 'B'): Promise<TableData> => {
     });
 };
 
-function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, description, editMode }: { fileId: 'A' | 'B', onFileProcessed: (id: 'A' | 'B', data: TableData) => void, currentFile: TableData | null, disabled: boolean, title: string, description: string, editMode: EditMode | null }) {
+function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, disabled, title, description, editMode }: { fileId: 'A' | 'B', onFileProcessed: (id: 'A' | 'B', data: TableData) => void, onFileRemoved: (id: 'A' | 'B') => void, currentFile: TableData | null, disabled: boolean, title: string, description: string, editMode: EditMode | null }) {
     const [isUploading, setIsUploading] = useState(false);
     const { toast } = useToast();
     const inputRef = useRef<HTMLInputElement>(null);
@@ -94,14 +94,15 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
                 if (fileId === 'B') {
                     requiredColumn = 'id';
                 } else { // File A
-                    requiredColumn = editMode.toUpperCase();
                     if (editMode === 'year') {
                         requiredColumn = 'Tahun Ajaran';
                         alternativeColumns = ['year'];
+                    } else {
+                        requiredColumn = editMode.toUpperCase();
                     }
                 }
                 
-                const hasRequiredColumn = data.headers.some(h => 
+                 const hasRequiredColumn = data.headers.some(h => 
                     h.toLowerCase() === requiredColumn.toLowerCase() ||
                     alternativeColumns.some(alt => h.toLowerCase() === alt.toLowerCase())
                 );
@@ -135,32 +136,53 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
         }
     };
 
+    const triggerInput = () => {
+        if (!disabled && !isUploading) {
+            inputRef.current?.click();
+        }
+    };
+
     return (
         <div className='space-y-2'>
             <h3 className="font-semibold text-foreground">{title}</h3>
-             <div 
-                className="w-full p-6 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary/50 transition-colors"
-                onClick={() => inputRef.current?.click()}
+            <div 
+                className={cn(
+                    "w-full p-4 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-center transition-colors",
+                    !currentFile && "cursor-pointer hover:border-primary/50",
+                    currentFile && "border-solid border-primary/50 bg-muted/30"
+                )}
             >
                 <input ref={inputRef} type="file" className="hidden" onChange={handleFileChange} disabled={disabled || isUploading} accept=".xlsx,.xls,.csv" />
                 {isUploading ? (
-                    <>
+                    <div className="flex flex-col items-center justify-center h-24">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         <p className="mt-2 text-sm text-muted-foreground">Memproses...</p>
-                    </>
+                    </div>
+                ) : currentFile ? (
+                    <div className="flex flex-col items-center justify-center h-24 w-full">
+                        <FileCheck className="h-8 w-8 text-primary" />
+                        <p className="mt-2 text-sm font-semibold text-foreground truncate max-w-full px-2" title={currentFile.fileName}>
+                            {currentFile.fileName}
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                             <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={triggerInput}>
+                                Ganti
+                            </Button>
+                            <span className="text-xs text-muted-foreground">|</span>
+                             <Button variant="link" size="sm" className="h-auto p-0 text-xs text-destructive" onClick={(e) => { e.stopPropagation(); onFileRemoved(fileId); }}>
+                                Hapus
+                            </Button>
+                        </div>
+                    </div>
                 ) : (
-                     <>
+                    <div className="flex flex-col items-center justify-center h-24" onClick={triggerInput}>
                         <Upload className="h-8 w-8 text-muted-foreground" />
                         <p className="mt-2 text-sm font-semibold">Klik atau seret file</p>
                         <p className="text-xs text-muted-foreground">.xlsx, .xls</p>
-                    </>
+                    </div>
                 )}
             </div>
-            {currentFile ? (
-                <p className='text-xs text-muted-foreground'>File saat ini: <span className='font-medium text-foreground'>{currentFile.fileName}</span></p>
-            ) : (
-                <p className='text-xs text-muted-foreground h-8'>{description}</p>
-            )}
+             <p className='text-xs text-muted-foreground h-4'>{description}</p>
         </div>
     );
 }
@@ -253,6 +275,7 @@ function ModeSelectionScreen({ onSelectMode }: { onSelectMode: (mode: EditMode) 
     );
 }
 
+
 export function DataWeaver() {
     const { fileA, setFileA, fileB, setFileB, resetState } = useApp();
     const { toast } = useToast();
@@ -270,6 +293,14 @@ export function DataWeaver() {
             setFileA(data);
         } else {
             setFileB(data);
+        }
+    }, [setFileA, setFileB]);
+
+    const handleFileRemoved = useCallback((id: 'A' | 'B') => {
+        if (id === 'A') {
+            setFileA(null);
+        } else {
+            setFileB(null);
         }
     }, [setFileA, setFileB]);
 
@@ -350,29 +381,33 @@ export function DataWeaver() {
     
         const headersA = fileA.headers || [];
         const headersB = fileB.headers || [];
-    
-        const irrelevantBHeaders = new Set(['nama', 'id']);
-        if (editMode === 'nisn') irrelevantBHeaders.add('nis').add('tahun ajaran').add('year');
-        if (editMode === 'nis') irrelevantBHeaders.add('nisn').add('tahun ajaran').add('year');
-        if (editMode === 'year') irrelevantBHeaders.add('nisn').add('nis');
-    
+        
+        const irrelevantBHeaders = new Set(['nama']); // Always exclude 'nama' from File B
+        if (editMode === 'nisn') {
+            irrelevantBHeaders.add('nis').add('tahun ajaran').add('year');
+        } else if (editMode === 'nis') {
+            irrelevantBHeaders.add('nisn').add('tahun ajaran').add('year');
+        } else if (editMode === 'year') {
+            irrelevantBHeaders.add('nisn').add('nis');
+        }
+
         const uniqueBHeaders = headersB.filter(hB => {
             const hBLower = hB.toLowerCase();
             const isInA = headersA.some(hA => hA.toLowerCase() === hBLower);
             return !isInA && !irrelevantBHeaders.has(hBLower);
         });
-    
+
         const combinedHeaders = [...headersA, ...uniqueBHeaders];
     
-        const findHeader = (names: string[]) => combinedHeaders.find(h => names.map(n => n.toLowerCase()).includes(h.toLowerCase()));
+        const findHeader = (names: string[], sourceHeaders: string[]) => sourceHeaders.find(h => names.map(n => n.toLowerCase()).includes(h.toLowerCase()));
     
         let dynamicColName: string | undefined;
-        if (editMode === 'nisn') dynamicColName = findHeader(['nisn']);
-        else if (editMode === 'nis') dynamicColName = findHeader(['nis']);
-        else if (editMode === 'year') dynamicColName = findHeader(['tahun ajaran', 'year']);
+        if (editMode === 'nisn') dynamicColName = findHeader(['nisn'], headersA);
+        else if (editMode === 'nis') dynamicColName = findHeader(['nis'], headersA);
+        else if (editMode === 'year') dynamicColName = findHeader(['tahun ajaran', 'year'], headersA);
     
-        const idCol = findHeader(['id']);
-        const nameCol = findHeader(['nama']);
+        const idCol = findHeader(['id'], uniqueBHeaders);
+        const nameCol = findHeader(['nama'], headersA);
     
         const priorityHeaders = [idCol, nameCol, dynamicColName].filter((h): h is string => !!h);
         
@@ -424,6 +459,7 @@ export function DataWeaver() {
                                     <FileUploader 
                                         fileId="A" 
                                         onFileProcessed={handleFileProcessed}
+                                        onFileRemoved={handleFileRemoved}
                                         currentFile={fileA}
                                         disabled={isMerging} 
                                         title={fileATitle}
@@ -433,6 +469,7 @@ export function DataWeaver() {
                                     <FileUploader 
                                         fileId="B" 
                                         onFileProcessed={handleFileProcessed}
+                                        onFileRemoved={handleFileRemoved}
                                         currentFile={fileB}
                                         disabled={isMerging}
                                         title="Upload File ID"
