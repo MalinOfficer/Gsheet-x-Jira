@@ -311,6 +311,13 @@ export function DataWeaver() {
         return 'Upload File A';
     }, [editMode]);
 
+    const fileADescription = useMemo(() => {
+        if (editMode === 'nisn') return 'File harus memiliki kolom "NISN".';
+        if (editMode === 'year') return 'File harus memiliki kolom "Tahun Ajaran" atau "Year".';
+        if (editMode === 'nis') return 'File harus memiliki kolom "NIS".';
+        return 'Select an Excel file (.xlsx, .csv).';
+    }, [editMode]);
+
     useEffect(() => {
         if (editMode === 'nisn') setMergeKey('NISN');
         else if (editMode === 'nis') setMergeKey('NIS');
@@ -378,13 +385,9 @@ export function DataWeaver() {
 
     const resultHeaders = useMemo(() => {
         if (!mergedRows.length || !fileA || !fileB) return [];
-
-        // Start with headers from File A
-        const headersA = [...(fileA.headers || [])];
-        const headersB = fileB.headers || [];
-
-        // Irrelevant headers from File B to exclude based on mode
-        const irrelevantBHeaders = new Set(['nama', 'id']); // Always exclude 'nama' and 'id' from File B for display
+    
+        // Define headers from File B that are irrelevant to the current mode and should be excluded.
+        const irrelevantBHeaders = new Set(['nama']); // Always exclude 'nama' from File B.
         if (editMode === 'nisn') {
             irrelevantBHeaders.add('nis').add('tahun ajaran').add('year');
         } else if (editMode === 'nis') {
@@ -392,19 +395,19 @@ export function DataWeaver() {
         } else if (editMode === 'year') {
             irrelevantBHeaders.add('nisn').add('nis');
         }
-
-        // Get unique headers from File B, excluding irrelevant ones and those already in File A
-        const uniqueBHeaders = headersB.filter(hB => {
-            const hBLower = hB.toLowerCase();
-            const isInA = headersA.some(hA => hA.toLowerCase() === hBLower);
-            return !isInA && !irrelevantBHeaders.has(hBLower);
+    
+        const headersA = fileA.headers.map(h => h.toLowerCase());
+        const uniqueBHeaders = fileB.headers.filter(h => {
+            const hLower = h.toLowerCase();
+            return !headersA.includes(hLower) && !irrelevantBHeaders.has(hLower);
         });
-
-        // Combined headers list without duplicates
-        const combinedHeaders = [...headersA, ...uniqueBHeaders];
-        
-        // Helper to find a header by different possible names, prefers the casing from the combined list
-        const findHeader = (names: string[]) => combinedHeaders.find(h => names.map(n => n.toLowerCase()).includes(h.toLowerCase()));
+    
+        const combinedHeaders = [...fileA.headers, ...uniqueBHeaders];
+    
+        const findHeader = (names: string[]) => {
+            const lowerNames = names.map(n => n.toLowerCase());
+            return combinedHeaders.find(h => lowerNames.includes(h.toLowerCase()));
+        };
     
         let dynamicColName: string | undefined;
         if (editMode === 'nisn') dynamicColName = findHeader(['nisn']);
@@ -415,23 +418,14 @@ export function DataWeaver() {
         const nameCol = findHeader(['nama']);
     
         const priorityHeaders = [idCol, nameCol, dynamicColName].filter((h): h is string => !!h);
+        const remainingHeaders = combinedHeaders.filter(h => !priorityHeaders.some(p => p.toLowerCase() === h.toLowerCase()));
         
-        const remainingHeaders = combinedHeaders.filter(h => !priorityHeaders.includes(h));
-    
         return [...new Set([...priorityHeaders, ...remainingHeaders])];
-    
     }, [mergedRows, fileA, fileB, editMode]);
     
     const unmatchedHeaders = useMemo(() => fileB?.headers || [], [fileB]);
 
     const hasResults = mergedRows.length > 0 || unmatchedRows.length > 0;
-
-    const fileADescription = useMemo(() => {
-        if (editMode === 'nisn') return 'File harus memiliki kolom "NISN".';
-        if (editMode === 'year') return 'File harus memiliki kolom "Tahun Ajaran" atau "Year".';
-        if (editMode === 'nis') return 'File harus memiliki kolom "NIS".';
-        return 'Select an Excel file (.xlsx, .csv).';
-    }, [editMode]);
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -481,17 +475,6 @@ export function DataWeaver() {
                                         description='File dari menu "Edit Bulk" yang memiliki kolom "id".'
                                         editMode={editMode}
                                     />
-                                </div>
-                                <div className="grid w-full max-w-sm items-center gap-1.5">
-                                    <Label htmlFor="merge-key">Gabungkan Pada Kolom</Label>
-                                    <Input
-                                        id="merge-key"
-                                        type="text"
-                                        value="Nama"
-                                        readOnly
-                                        className="font-semibold bg-muted/50"
-                                    />
-                                    <p className="text-xs text-muted-foreground">Pencocokan nama cerdas selalu digunakan untuk menggabungkan.</p>
                                 </div>
                             </CardContent>
                             <CardFooter className="flex justify-between">
