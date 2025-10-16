@@ -345,7 +345,7 @@ export function DataWeaver() {
                                 currentFile={fileB}
                                 disabled={isMerging}
                                 title="Upload File ID"
-                                description="File donwload dari menu edit Bulk atau edit Massal"
+                                description="File download dari menu edit Bulk atau edit Massal"
                             />
                         </div>
 
@@ -435,5 +435,7 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
 
     
