@@ -267,6 +267,13 @@ export function DataWeaver() {
         }
     }, [setFileA, setFileB]);
 
+    const fileATitle = useMemo(() => {
+        if (editMode === 'nisn') return 'Upload File NISN';
+        if (editMode === 'year') return 'Upload File Tahun Ajaran';
+        if (editMode === 'nis') return 'Upload File NIS';
+        return 'Upload File A';
+    }, [editMode]);
+
     const handleMerge = useCallback(async () => {
         if (!fileA || !fileB) {
             toast({ variant: 'destructive', title: 'File Hilang', description: 'Mohon unggah File A dan File B.' });
@@ -283,8 +290,15 @@ export function DataWeaver() {
         startMerging(async () => {
             const result = await mergeFilesOnServer(fileA, fileB, mergeKey);
             if (result.error) {
-                setError(result.error);
-                toast({ variant: 'destructive', title: 'Penggabungan Gagal', description: result.error });
+                let errorMessage = result.error;
+                if (errorMessage.includes("File B")) {
+                    errorMessage = errorMessage.replace("File B", "File ID");
+                }
+                if (errorMessage.includes("File A")) {
+                    errorMessage = errorMessage.replace("File A", fileATitle);
+                }
+                setError(errorMessage);
+                toast({ variant: 'destructive', title: 'Penggabungan Gagal', description: errorMessage });
             } else {
                 setMergedRows(result.mergedRows || []);
                 setUnmatchedRows(result.unmatchedRowsB || []);
@@ -292,7 +306,7 @@ export function DataWeaver() {
             }
         });
 
-    }, [fileA, fileB, mergeKey, toast]);
+    }, [fileA, fileB, mergeKey, toast, fileATitle]);
     
     const handleDownload = () => {
         if (mergedRows.length === 0) {
@@ -333,13 +347,6 @@ export function DataWeaver() {
     const unmatchedHeaders = useMemo(() => fileB?.headers || [], [fileB]);
 
     const hasResults = mergedRows.length > 0 || unmatchedRows.length > 0;
-
-    const fileATitle = useMemo(() => {
-        if (editMode === 'nisn') return 'Upload NISN';
-        if (editMode === 'year') return 'Upload Tahun Ajaran';
-        if (editMode === 'nis') return 'Upload NIS';
-        return 'Upload File A';
-    }, [editMode]);
 
     const fileADescription = useMemo(() => {
         if (editMode === 'nisn') return 'File berisi daftar NISN yang akan dicocokkan.';
@@ -401,8 +408,8 @@ export function DataWeaver() {
                                         id="merge-key"
                                         type="text"
                                         value={mergeKey}
-                                        readOnly
-                                        className="font-semibold bg-muted"
+                                        onChange={(e) => setMergeKey(e.target.value)}
+                                        className="font-semibold"
                                     />
                                     <p className="text-xs text-muted-foreground">Kunci penggabungan selalu menggunakan 'Nama' untuk hasil terbaik.</p>
                                 </div>
@@ -452,7 +459,7 @@ export function DataWeaver() {
                                         <AlertTitle>Ringkasan</AlertTitle>
                                         <AlertDescription>
                                             <p>{mergedRows.length} baris Cocok.</p>
-                                            <p>{unmatchedRows.length} nama dari File B Tidak Cocok.</p>
+                                            <p>{unmatchedRows.length} nama dari File ID Tidak Cocok.</p>
                                         </AlertDescription>
                                     </Alert>
                                     <Tabs defaultValue="matched">
@@ -464,7 +471,7 @@ export function DataWeaver() {
                                             <ResultsTable title="Data Cocok" data={mergedRows} headers={resultHeaders} />
                                         </TabsContent>
                                         <TabsContent value="unmatched">
-                                            <ResultsTable title="Data Tidak Cocok dari File B" data={unmatchedRows} headers={unmatchedHeaders} />
+                                            <ResultsTable title="Data Tidak Cocok dari File ID" data={unmatchedRows} headers={unmatchedHeaders} />
                                         </TabsContent>
                                     </Tabs>
                                 </CardContent>
@@ -476,3 +483,5 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
