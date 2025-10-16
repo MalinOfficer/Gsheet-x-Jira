@@ -352,12 +352,14 @@ export function DataWeaver() {
 
         const getDynamicColumn = () => {
             if (!editMode) return null;
-            if (editMode === 'nisn') return 'NISN';
-            if (editMode === 'nis') return 'NIS';
+
+            const lowerCaseHeaders = Array.from(allHeaders).map(h => h.toLowerCase());
+            
+            if (editMode === 'nisn' && lowerCaseHeaders.includes('nisn')) return 'NISN';
+            if (editMode === 'nis' && lowerCaseHeaders.includes('nis')) return 'NIS';
             if (editMode === 'year') {
-                 if (allHeaders.has('Tahun Ajaran')) return 'Tahun Ajaran';
-                 if (allHeaders.has('Year')) return 'Year';
-                 if (allHeaders.has('year')) return 'year';
+                if (lowerCaseHeaders.includes('tahun ajaran')) return 'Tahun Ajaran';
+                if (lowerCaseHeaders.includes('year')) return 'Year';
             }
             return null;
         }
@@ -365,18 +367,26 @@ export function DataWeaver() {
         const dynamicCol = getDynamicColumn();
 
         const priorityOrder = ['id', 'Nama'];
-        if (dynamicCol) {
+        if (dynamicCol && !priorityOrder.includes(dynamicCol)) {
             priorityOrder.push(dynamicCol);
         }
         
         const orderedHeaders = [...priorityOrder];
         allHeaders.forEach(header => {
-            if (!orderedHeaders.includes(header)) {
+            // Find if header (case-insensitive) is already in orderedHeaders
+            const alreadyExists = orderedHeaders.some(h => h.toLowerCase() === header.toLowerCase());
+            if (!alreadyExists) {
                 orderedHeaders.push(header);
             }
         });
 
-        return orderedHeaders;
+        // Ensure original casing from allHeaders is preserved
+        const finalHeaders = orderedHeaders.map(h => {
+             const originalHeader = Array.from(allHeaders).find(ah => ah.toLowerCase() === h.toLowerCase());
+             return originalHeader || h;
+        });
+
+        return finalHeaders;
     }, [mergedRows, fileA, fileB, editMode]);
     
     const unmatchedHeaders = useMemo(() => fileB?.headers || [], [fileB]);
@@ -518,6 +528,8 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
 
     
 
