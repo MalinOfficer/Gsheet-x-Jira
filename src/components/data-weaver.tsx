@@ -382,6 +382,7 @@ export function DataWeaver() {
         const headersA = fileA.headers || [];
         const headersB = fileB.headers || [];
         
+        // Headers from File B that are not relevant to the current mode
         const irrelevantBHeaders = new Set(['nama']); // Always exclude 'nama' from File B
         if (editMode === 'nisn') {
             irrelevantBHeaders.add('nis').add('tahun ajaran').add('year');
@@ -391,14 +392,17 @@ export function DataWeaver() {
             irrelevantBHeaders.add('nisn').add('nis');
         }
 
+        // Get unique headers from File B, excluding irrelevant ones and those already in File A
         const uniqueBHeaders = headersB.filter(hB => {
             const hBLower = hB.toLowerCase();
             const isInA = headersA.some(hA => hA.toLowerCase() === hBLower);
             return !isInA && !irrelevantBHeaders.has(hBLower);
         });
 
+        // Combine headers from File A with the filtered unique headers from File B
         const combinedHeaders = [...headersA, ...uniqueBHeaders];
     
+        // Helper to find a header by different possible names
         const findHeader = (names: string[], sourceHeaders: string[]) => sourceHeaders.find(h => names.map(n => n.toLowerCase()).includes(h.toLowerCase()));
     
         let dynamicColName: string | undefined;
@@ -406,8 +410,8 @@ export function DataWeaver() {
         else if (editMode === 'nis') dynamicColName = findHeader(['nis'], headersA);
         else if (editMode === 'year') dynamicColName = findHeader(['tahun ajaran', 'year'], headersA);
     
-        const idCol = findHeader(['id'], uniqueBHeaders);
-        const nameCol = findHeader(['nama'], headersA);
+        const idCol = findHeader(['id'], combinedHeaders);
+        const nameCol = findHeader(['nama'], combinedHeaders);
     
         const priorityHeaders = [idCol, nameCol, dynamicColName].filter((h): h is string => !!h);
         
