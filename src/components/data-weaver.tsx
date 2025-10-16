@@ -344,8 +344,8 @@ export function DataWeaver() {
                                 onFileProcessed={handleFileProcessed}
                                 currentFile={fileB}
                                 disabled={isMerging}
-                                title="Upload File B"
-                                description="File utama yang berisi data lengkap."
+                                title="Upload File ID"
+                                description="File donwload dari menu edit Bulk atau edit Massal"
                             />
                         </div>
 
