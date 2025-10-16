@@ -79,16 +79,23 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
 
             if (editMode) {
                 let requiredColumn: string;
+                let alternativeColumns: string[] = [];
 
                 if (fileId === 'B') {
-                    // File B (File ID) must always contain an 'id' column
                     requiredColumn = 'id';
                 } else {
-                    // File A validation depends on the selected mode
-                    requiredColumn = editMode === 'year' ? 'Tahun Ajaran' : editMode.toUpperCase();
+                    if (editMode === 'year') {
+                        requiredColumn = 'Tahun Ajaran';
+                        alternativeColumns = ['year'];
+                    } else {
+                        requiredColumn = editMode.toUpperCase();
+                    }
                 }
 
-                const hasRequiredColumn = data.headers.some(h => h.toLowerCase() === requiredColumn.toLowerCase());
+                const hasRequiredColumn = data.headers.some(h => 
+                    h.toLowerCase() === requiredColumn.toLowerCase() ||
+                    alternativeColumns.some(alt => h.toLowerCase() === alt.toLowerCase())
+                );
                 
                 if (!hasRequiredColumn) {
                     toast({
@@ -244,7 +251,7 @@ export function DataWeaver() {
     const { fileA, setFileA, fileB, setFileB, resetState } = useApp();
     const { toast } = useToast();
     const [isMerging, startMerging] = useTransition();
-    const [mergeKey] = useState<string>("Nama");
+    const [mergeKey, setMergeKey] = useState<string>("Nama");
     
     const [mergedRows, setMergedRows] = useState<ExcelRow[]>([]);
     const [unmatchedRows, setUnmatchedRows] = useState<ExcelRow[]>([]);
