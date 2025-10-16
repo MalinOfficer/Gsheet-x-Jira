@@ -407,11 +407,14 @@ export function DataWeaver() {
             return;
         }
 
-        const headerRow1 = resultHeaders.map(header => fileB.headers.find(h => h.toLowerCase() === header.toLowerCase()) || '');
-        const headerRow2 = resultHeaders.map(header => fileA.headers.find(h => h.toLowerCase() === header.toLowerCase()) || '');
+        const finalHeaders = ["No", ...resultHeaders];
 
-        const dataRows = mergedRows.map(row => {
-            return resultHeaders.map(header => row[header] ?? '');
+        const headerRow1 = ["No", ...resultHeaders.map(header => fileB.headers.find(h => h.toLowerCase() === header.toLowerCase()) || '')];
+        const headerRow2 = ["No", ...resultHeaders.map(header => fileA.headers.find(h => h.toLowerCase() === header.toLowerCase()) || '')];
+        
+        const dataRows = mergedRows.map((row, index) => {
+             const orderedRow = resultHeaders.map(header => row[header] ?? '');
+             return [index + 1, ...orderedRow];
         });
 
         const dataToExport = [headerRow1, headerRow2, ...dataRows];
@@ -560,5 +563,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
