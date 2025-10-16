@@ -826,9 +826,15 @@ function PreviewTable({
              <CardContent>
                 <div className="overflow-auto w-full h-[500px] border rounded-md">
                     <div className="relative">
-                        <table className="table-fixed" style={{ minWidth: '1800px' }}>
+                        <table className="table-fixed" style={{ minWidth: '1864px' }}>
                             <thead>
                                 <tr className="border-b transition-colors hover:bg-muted/50">
+                                    <th
+                                        className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-b border-r sticky top-0 bg-muted z-10"
+                                        style={{ width: '64px' }}
+                                    >
+                                        No
+                                    </th>
                                     {localTableData.headers.map((header, index) => (
                                         <th 
                                           key={`${header}-${index}`} 
@@ -863,6 +869,12 @@ function PreviewTable({
                              <tbody>
                                 {localTableData.rows.map((row, rowIndex) => (
                                     <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                        <td
+                                            className="align-middle p-1 border-r text-center text-sm text-muted-foreground"
+                                            style={{ width: '64px' }}
+                                        >
+                                            {rowIndex + 1}
+                                        </td>
                                         {localTableData.headers.map((header, headerIndex) => (
                                             <td 
                                                 key={`${header}-${headerIndex}-${rowIndex}`} 
@@ -918,6 +930,7 @@ function PreviewTable({
     
 
     
+
 
 
 
