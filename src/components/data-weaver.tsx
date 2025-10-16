@@ -149,7 +149,7 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
                 className={cn(
                     "w-full p-4 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-center transition-colors",
                     !currentFile && "cursor-pointer hover:border-primary/50",
-                    currentFile && "border-solid border-primary/50 bg-muted/30"
+                    currentFile && "border-solid border-green-500/50 bg-muted/30"
                 )}
             >
                 <input ref={inputRef} type="file" className="hidden" onChange={handleFileChange} disabled={disabled || isUploading} accept=".xlsx,.xls,.csv" />
@@ -160,7 +160,7 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
                     </div>
                 ) : currentFile ? (
                     <div className="flex flex-col items-center justify-center h-24 w-full">
-                        <FileCheck className="h-8 w-8 text-primary" />
+                        <FileCheck className="h-8 w-8 text-green-600" />
                         <p className="mt-2 text-sm font-semibold text-foreground truncate max-w-full px-2" title={currentFile.fileName}>
                             {currentFile.fileName}
                         </p>
@@ -378,12 +378,13 @@ export function DataWeaver() {
 
     const resultHeaders = useMemo(() => {
         if (!mergedRows.length || !fileA || !fileB) return [];
-    
-        const headersA = fileA.headers || [];
+
+        // Start with headers from File A
+        const headersA = [...(fileA.headers || [])];
         const headersB = fileB.headers || [];
-        
-        // Headers from File B that are not relevant to the current mode
-        const irrelevantBHeaders = new Set(['nama']); // Always exclude 'nama' from File B
+
+        // Irrelevant headers from File B to exclude based on mode
+        const irrelevantBHeaders = new Set(['nama', 'id']); // Always exclude 'nama' and 'id' from File B for display
         if (editMode === 'nisn') {
             irrelevantBHeaders.add('nis').add('tahun ajaran').add('year');
         } else if (editMode === 'nis') {
@@ -399,19 +400,19 @@ export function DataWeaver() {
             return !isInA && !irrelevantBHeaders.has(hBLower);
         });
 
-        // Combine headers from File A with the filtered unique headers from File B
+        // Combined headers list without duplicates
         const combinedHeaders = [...headersA, ...uniqueBHeaders];
-    
-        // Helper to find a header by different possible names
-        const findHeader = (names: string[], sourceHeaders: string[]) => sourceHeaders.find(h => names.map(n => n.toLowerCase()).includes(h.toLowerCase()));
+        
+        // Helper to find a header by different possible names, prefers the casing from the combined list
+        const findHeader = (names: string[]) => combinedHeaders.find(h => names.map(n => n.toLowerCase()).includes(h.toLowerCase()));
     
         let dynamicColName: string | undefined;
-        if (editMode === 'nisn') dynamicColName = findHeader(['nisn'], headersA);
-        else if (editMode === 'nis') dynamicColName = findHeader(['nis'], headersA);
-        else if (editMode === 'year') dynamicColName = findHeader(['tahun ajaran', 'year'], headersA);
+        if (editMode === 'nisn') dynamicColName = findHeader(['nisn']);
+        else if (editMode === 'nis') dynamicColName = findHeader(['nis']);
+        else if (editMode === 'year') dynamicColName = findHeader(['tahun ajaran', 'year']);
     
-        const idCol = findHeader(['id'], combinedHeaders);
-        const nameCol = findHeader(['nama'], combinedHeaders);
+        const idCol = findHeader(['id']);
+        const nameCol = findHeader(['nama']);
     
         const priorityHeaders = [idCol, nameCol, dynamicColName].filter((h): h is string => !!h);
         
