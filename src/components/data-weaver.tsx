@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useTransition, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -307,7 +307,7 @@ export function DataWeaver() {
                     errorMessage = errorMessage.replace("File B", "File ID");
                 }
                 if (errorMessage.includes("File A")) {
-                    errorMessage = errorMessage.replace("File A", fileATitle);
+                    errorMessage = errorMessage.replace("File A", fileATitle.replace("Upload ", ""));
                 }
                 setError(errorMessage);
                 toast({ variant: 'destructive', title: 'Penggabungan Gagal', description: errorMessage });
@@ -350,12 +350,19 @@ export function DataWeaver() {
 
     const resultHeaders = useMemo(() => {
         if (!mergedRows.length || !fileA || !fileB) return [];
-
+    
         // Start with headers from File A
-        const headersA = fileA.headers || [];
+        const headersA = [...(fileA.headers || [])];
+    
+        // Headers from B that are not in A, excluding irrelevant ones for the current mode
+        const irrelevantBHeaders = new Set(['nama', 'id']); // Always exclude these from B
+        if (editMode !== 'nisn') irrelevantBHeaders.add('nisn');
+        if (editMode !== 'nis') irrelevantBHeaders.add('nis');
+        if (editMode !== 'year') {
+            irrelevantBHeaders.add('tahun ajaran');
+            irrelevantBHeaders.add('year');
+        }
 
-        // Headers from B that are not in A, excluding irrelevant ones
-        const irrelevantBHeaders = new Set(['nis', 'nisn', 'tahun ajaran', 'year', 'nama', 'id']);
         const uniqueBHeaders = (fileB.headers || []).filter(h => {
             const hLower = h.toLowerCase();
             return !headersA.some(hA => hA.toLowerCase() === hLower) && !irrelevantBHeaders.has(hLower);
@@ -365,21 +372,21 @@ export function DataWeaver() {
         
         // Function to find header case-insensitively
         const findHeader = (names: string[]) => combinedHeaders.find(h => names.map(n => n.toLowerCase()).includes(h.toLowerCase()));
-
+    
         let dynamicColName: string | undefined;
         if (editMode === 'nisn') dynamicColName = findHeader(['nisn']);
         else if (editMode === 'nis') dynamicColName = findHeader(['nis']);
         else if (editMode === 'year') dynamicColName = findHeader(['tahun ajaran', 'year']);
-
+    
         const idCol = findHeader(['id']);
         const nameCol = findHeader(['nama']);
-
+    
         const priorityHeaders = [idCol, nameCol, dynamicColName].filter((h): h is string => !!h);
         
         const remainingHeaders = combinedHeaders.filter(h => !priorityHeaders.includes(h));
-
+    
         return [...new Set([...priorityHeaders, ...remainingHeaders])];
-
+    
     }, [mergedRows, fileA, fileB, editMode]);
     
     const unmatchedHeaders = useMemo(() => fileB?.headers || [], [fileB]);
@@ -514,6 +521,7 @@ export function DataWeaver() {
                                     </Tabs>
                                 </CardContent>
                             </Card>
+                        </>
                         )}
                     </>
                 )}
@@ -521,4 +529,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
