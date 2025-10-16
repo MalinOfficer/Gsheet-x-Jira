@@ -85,8 +85,8 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
                 if (!hasRequiredColumn) {
                     toast({
                         variant: 'destructive',
-                        title: 'File Upload Failed',
-                        description: `The selected file is missing the '${requiredColumn}' column.`,
+                        title: 'File Upload Gagal',
+                        description: `File yang Anda unggah tidak memiliki kolom '${requiredColumn}'.`,
                     });
                     setIsUploading(false);
                     if(inputRef.current) inputRef.current.value = '';
@@ -97,14 +97,14 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
 
             onFileProcessed(fileId, data);
             toast({
-                title: `File ${fileId} Uploaded`,
-                description: `'${file.name}' has been processed.`,
+                title: `File ${fileId} Diunggah`,
+                description: `'${file.name}' telah berhasil diproses.`,
             });
         } catch (error) {
             toast({
                 variant: 'destructive',
-                title: `Error Processing File ${fileId}`,
-                description: error instanceof Error ? error.message : "An unknown error occurred.",
+                title: `Error Memproses File ${fileId}`,
+                description: error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui.",
             });
         } finally {
             setIsUploading(false);
@@ -117,7 +117,7 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
             <CardHeader>
                 <CardTitle>{title}</CardTitle>
                 <CardDescription>
-                    {currentFile ? `Current file: ${currentFile.fileName}` : description}
+                    {currentFile ? `File saat ini: ${currentFile.fileName}` : description}
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -129,12 +129,12 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
                     {isUploading ? (
                         <>
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            <p className="mt-2 text-sm text-muted-foreground">Processing...</p>
+                            <p className="mt-2 text-sm text-muted-foreground">Memproses...</p>
                         </>
                     ) : (
                          <>
                             <Upload className="h-8 w-8 text-muted-foreground" />
-                            <p className="mt-2 text-sm font-semibold">Click or drag to upload</p>
+                            <p className="mt-2 text-sm font-semibold">Klik atau seret untuk mengunggah</p>
                             <p className="text-xs text-muted-foreground">.xlsx, .xls, or .csv</p>
                         </>
                     )}
@@ -158,12 +158,12 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
     const totalHeight = rowVirtualizer.getTotalSize();
 
     if (data.length === 0) {
-        return <div className="text-center py-8 text-muted-foreground">No data to display for this category.</div>;
+        return <div className="text-center py-8 text-muted-foreground">Tidak ada data untuk ditampilkan pada kategori ini.</div>;
     }
     
     return (
         <div className="space-y-2">
-            <h3 className="font-semibold">{title} ({data.length} rows)</h3>
+            <h3 className="font-semibold">{title} ({data.length} baris)</h3>
             <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[500px]">
                 <div style={{ height: `${totalHeight}px`, width: `${headers.length * 150}px`, position: 'relative' }}>
                     <div className="flex sticky top-0 bg-muted z-10 font-medium text-sm">
@@ -255,11 +255,11 @@ export function DataWeaver() {
 
     const handleMerge = useCallback(async () => {
         if (!fileA || !fileB) {
-            toast({ variant: 'destructive', title: 'Files Missing', description: 'Please upload both File A and File B.' });
+            toast({ variant: 'destructive', title: 'File Hilang', description: 'Mohon unggah File A dan File B.' });
             return;
         }
         if (!mergeKey.trim()) {
-            toast({ variant: 'destructive', title: 'Merge Key Missing', description: 'Please enter a column name to merge on.' });
+            toast({ variant: 'destructive', title: 'Kunci Penggabungan Hilang', description: 'Mohon masukkan nama kolom untuk digabungkan.' });
             return;
         }
         
@@ -270,11 +270,11 @@ export function DataWeaver() {
             const result = await mergeFilesOnServer(fileA, fileB, mergeKey);
             if (result.error) {
                 setError(result.error);
-                toast({ variant: 'destructive', title: 'Merge Failed', description: result.error });
+                toast({ variant: 'destructive', title: 'Penggabungan Gagal', description: result.error });
             } else {
                 setMergedRows(result.mergedRows || []);
                 setUnmatchedRows(result.unmatchedRowsB || []);
-                toast({ title: 'Merge Complete', description: `${result.mergedRows?.length || 0} rows matched.` });
+                toast({ title: 'Penggabungan Selesai', description: `${result.mergedRows?.length || 0} baris cocok.` });
             }
         });
 
@@ -282,11 +282,11 @@ export function DataWeaver() {
     
     const handleDownload = () => {
         if (mergedRows.length === 0) {
-            toast({ variant: 'destructive', title: 'No Data to Download', description: 'There are no merged rows to download.' });
+            toast({ variant: 'destructive', title: 'Tidak Ada Data untuk Diunduh', description: 'Tidak ada baris gabungan untuk diunduh.' });
             return;
         }
         if (typeof XLSX === 'undefined') {
-            toast({ variant: 'destructive', title: 'Library Not Loaded', description: 'Excel export library is not available.' });
+            toast({ variant: 'destructive', title: 'Library Belum Dimuat', description: 'Library ekspor Excel belum tersedia.' });
             return;
         }
         const worksheet = XLSX.utils.json_to_sheet(mergedRows);
@@ -300,7 +300,7 @@ export function DataWeaver() {
         setMergedRows([]);
         setUnmatchedRows([]);
         setError(null);
-        toast({ title: "State Cleared", description: "All files and results have been cleared." });
+        toast({ title: "Status Dihapus", description: "Semua file dan hasil telah dihapus." });
     };
 
     const resetToModeSelection = () => {
@@ -378,11 +378,11 @@ export function DataWeaver() {
 
                         <Card>
                             <CardHeader>
-                                <CardTitle>Merge Configuration</CardTitle>
+                                <CardTitle>Konfigurasi Penggabungan</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <div className="grid w-full max-w-sm items-center gap-1.5">
-                                    <Label htmlFor="merge-key">Merge On Column</Label>
+                                    <Label htmlFor="merge-key">Gabungkan Pada Kolom</Label>
                                     <Input
                                         id="merge-key"
                                         type="text"
@@ -396,10 +396,10 @@ export function DataWeaver() {
                             <CardFooter className="flex justify-between">
                                 <Button onClick={handleMerge} disabled={!fileA || !fileB || isMerging}>
                                     {isMerging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Combine className="mr-2 h-4 w-4" />}
-                                    {isMerging ? 'Merging...' : 'Merge Files'}
+                                    {isMerging ? 'Menggabungkan...' : 'Gabungkan File'}
                                 </Button>
                                 <Button onClick={handleClear} variant="destructive" disabled={isMerging}>
-                                    <Trash2 className="mr-2 h-4 w-4" /> Clear All
+                                    <Trash2 className="mr-2 h-4 w-4" /> Hapus Semua
                                 </Button>
                             </CardFooter>
                         </Card>
@@ -407,14 +407,14 @@ export function DataWeaver() {
                         {isMerging && (
                             <div className="flex items-center justify-center p-12">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                <p className="ml-4 text-muted-foreground">Merging files, this may take a moment...</p>
+                                <p className="ml-4 text-muted-foreground">Menggabungkan file, ini mungkin memerlukan waktu sejenak...</p>
                             </div>
                         )}
                         
                         {error && (
                             <Alert variant="destructive">
                                 <AlertCircle className="h-4 w-4" />
-                                <AlertTitle>Merge Error</AlertTitle>
+                                <AlertTitle>Kesalahan Penggabungan</AlertTitle>
                                 <AlertDescription>{error}</AlertDescription>
                             </Alert>
                         )}
@@ -422,35 +422,35 @@ export function DataWeaver() {
                         {hasResults && !isMerging && (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Merge Results</CardTitle>
+                                    <CardTitle>Hasil Penggabungan</CardTitle>
                                     <div className="flex justify-between items-center">
                                         <CardDescription>
-                                            Review the matched and unmatched rows.
+                                            Tinjau baris yang cocok dan tidak cocok.
                                         </CardDescription>
                                         <Button onClick={handleDownload} variant="outline" size="sm" disabled={mergedRows.length === 0}>
-                                            <Download className="mr-2 h-4 w-4" /> Download Merged Data
+                                            <Download className="mr-2 h-4 w-4" /> Unduh Data Gabungan
                                         </Button>
                                     </div>
                                 </CardHeader>
                                 <CardContent>
                                     <Alert variant={mergedRows.length > 0 ? "default" : "destructive"} className="mb-4 bg-opacity-20">
                                         {mergedRows.length > 0 ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                                        <AlertTitle>Summary</AlertTitle>
+                                        <AlertTitle>Ringkasan</AlertTitle>
                                         <AlertDescription>
-                                            <p>{mergedRows.length} rows Matched.</p>
-                                            <p>{unmatchedRows.length} names from File B were Unmatched.</p>
+                                            <p>{mergedRows.length} baris Cocok.</p>
+                                            <p>{unmatchedRows.length} nama dari File B Tidak Cocok.</p>
                                         </AlertDescription>
                                     </Alert>
                                     <Tabs defaultValue="matched">
                                         <TabsList>
-                                            <TabsTrigger value="matched">Matched ({mergedRows.length})</TabsTrigger>
-                                            <TabsTrigger value="unmatched">Unmatched ({unmatchedRows.length})</TabsTrigger>
+                                            <TabsTrigger value="matched">Cocok ({mergedRows.length})</TabsTrigger>
+                                            <TabsTrigger value="unmatched">Tidak Cocok ({unmatchedRows.length})</TabsTrigger>
                                         </TabsList>
                                         <TabsContent value="matched">
-                                            <ResultsTable title="Matched Data" data={mergedRows} headers={resultHeaders} />
+                                            <ResultsTable title="Data Cocok" data={mergedRows} headers={resultHeaders} />
                                         </TabsContent>
                                         <TabsContent value="unmatched">
-                                            <ResultsTable title="Unmatched Data from File B" data={unmatchedRows} headers={unmatchedHeaders} />
+                                            <ResultsTable title="Data Tidak Cocok dari File B" data={unmatchedRows} headers={unmatchedHeaders} />
                                         </TabsContent>
                                     </Tabs>
                                 </CardContent>
@@ -462,5 +462,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
