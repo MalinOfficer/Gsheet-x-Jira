@@ -350,35 +350,22 @@ export function DataWeaver() {
         if (mergedRows.length === 0) return [];
         const allHeaders = new Set([...(fileA?.headers || []), ...(fileB?.headers || [])]);
         const allHeadersArray = Array.from(allHeaders);
-
-        // Find the correct dynamic column name (case-insensitive)
-        let dynamicCol: string | null = null;
-        if (editMode === 'nisn') {
-            dynamicCol = allHeadersArray.find(h => h.toLowerCase() === 'nisn') || null;
-        } else if (editMode === 'nis') {
-            dynamicCol = allHeadersArray.find(h => h.toLowerCase() === 'nis') || null;
-        } else if (editMode === 'year') {
-            dynamicCol = allHeadersArray.find(h => h.toLowerCase() === 'tahun ajaran') || allHeadersArray.find(h => h.toLowerCase() === 'year') || null;
-        }
         
-        const priorityOrder = ['id', 'Nama'];
-        if (dynamicCol) {
-            priorityOrder.push(dynamicCol);
-        }
+        const findHeader = (names: string[]) => allHeadersArray.find(h => names.includes(h.toLowerCase()));
+
+        let dynamicColName: string | undefined;
+        if (editMode === 'nisn') dynamicColName = findHeader(['nisn']);
+        else if (editMode === 'nis') dynamicColName = findHeader(['nis']);
+        else if (editMode === 'year') dynamicColName = findHeader(['tahun ajaran', 'year']);
+
+        const idCol = findHeader(['id']);
+        const nameCol = findHeader(['nama']);
+
+        const priorityHeaders = [idCol, nameCol, dynamicColName].filter((h): h is string => !!h);
         
-        const orderedHeaders = [...new Set(priorityOrder)]; // Use Set to handle cases where names might be duplicated
+        const remainingHeaders = allHeadersArray.filter(h => !priorityHeaders.includes(h));
 
-        allHeaders.forEach(header => {
-            if (!orderedHeaders.find(h => h.toLowerCase() === header.toLowerCase())) {
-                orderedHeaders.push(header);
-            }
-        });
-
-        // Ensure original casing is preserved by mapping back to original headers
-        return orderedHeaders.map(h => {
-             return allHeadersArray.find(ah => ah.toLowerCase() === h.toLowerCase()) || h;
-        }).filter((value, index, self) => self.findIndex(t => t.toLowerCase() === value.toLowerCase()) === index); // Final unique check
-
+        return [...priorityHeaders, ...remainingHeaders];
     }, [mergedRows, fileA, fileB, editMode]);
     
     const unmatchedHeaders = useMemo(() => fileB?.headers || [], [fileB]);
@@ -520,3 +507,5 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
