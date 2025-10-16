@@ -808,15 +808,14 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         return { mergedRows: [], unmatchedRowsB: fileBData?.rows || [], error: "Missing file data or merge key." };
     }
 
-    // Perbaikan: Gunakan 'username' untuk File A dan 'Nama' (mergeKey) untuk File B
-    const fileAKey = findHeader(fileAData.headers, 'username');
+    const fileAKey = findHeader(fileAData.headers, mergeKey);
     const fileBKey = findHeader(fileBData.headers, mergeKey);
     
     if (!fileAKey) {
         return { 
             mergedRows: [], 
             unmatchedRowsB: fileBData.rows,
-            error: `Merge key 'username' not found in File A.`
+            error: `Merge key '${mergeKey}' not found in File A.`
         };
     }
     if (!fileBKey) {
@@ -852,8 +851,7 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
             if (fileAMap.has(normalizedKeyB)) {
                 const matchesA = fileAMap.get(normalizedKeyB) || [];
                 for (const rowA of matchesA) {
-                    // Perbaikan: Gunakan nilai asli dari File A sebagai 'username'
-                    const mergedRow = { ...rowA, ...rowB, 'username': rowA[fileAKey] }; 
+                    const mergedRow = { ...rowA, ...rowB }; 
                     mergedRows.push(mergedRow);
                 }
                 matchedBKeys.add(normalizedKeyB);
@@ -888,8 +886,7 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         }
 
         if (bestMatch) {
-            // Perbaikan: Gunakan nilai asli dari File A sebagai 'username'
-            const mergedRow = { ...bestMatch, ...rowB, 'username': (bestMatch as any)[fileAKey] };
+            const mergedRow = { ...bestMatch, ...rowB };
             mergedRows.push(mergedRow);
         } else {
             unmatchedRowsB.push(rowB);
@@ -1045,6 +1042,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
 
 

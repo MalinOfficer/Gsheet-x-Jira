@@ -988,7 +988,7 @@ function ResultTable({ mergedData, onDownload, editMode }: { mergedData: any[], 
                             virtualRows.map((virtualRow) => {
                                 const row = mergedData[virtualRow.index];
                                 const idKey = findKey(row, 'id');
-                                const usernameKey = findKey(row, 'username');
+                                const usernameKey = findKey(row, 'nama'); // Use 'nama' to find username data
                                 const dynamicHeaderKey = findKey(row, dynamicKey);
                                 
                                 const cells = [
@@ -1102,3 +1102,4 @@ function ManualSelectCombobox({
 }
     
     
+
