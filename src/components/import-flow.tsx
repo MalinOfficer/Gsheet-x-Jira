@@ -830,7 +830,7 @@ function PreviewTable({
                             <thead>
                                 <tr className="border-b transition-colors hover:bg-muted/50">
                                     <th
-                                        className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-b border-r sticky top-0 bg-muted z-10"
+                                        className="h-12 px-4 align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-b border-r sticky top-0 bg-muted z-10 flex items-center justify-center"
                                         style={{ width: '64px' }}
                                     >
                                         No
@@ -870,7 +870,7 @@ function PreviewTable({
                                 {localTableData.rows.map((row, rowIndex) => (
                                     <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                                         <td
-                                            className="align-middle p-1 border-r text-center text-sm text-muted-foreground"
+                                            className="align-middle p-1 border-r text-sm text-muted-foreground flex items-center justify-center h-full"
                                             style={{ width: '64px' }}
                                         >
                                             {rowIndex + 1}
@@ -930,6 +930,7 @@ function PreviewTable({
     
 
     
+
 
 
 
