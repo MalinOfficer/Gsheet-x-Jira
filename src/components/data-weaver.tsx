@@ -230,24 +230,23 @@ function ModeSelectionScreen({ onSelectMode }: { onSelectMode: (mode: EditMode) 
 
     return (
         <Card>
-            <CardHeader>
+            <CardHeader className="items-center text-center">
                 <CardTitle>Pilih Mode Edit Massal</CardTitle>
                 <CardDescription>Pilih jenis data yang ingin Anda gabungkan atau perbarui secara massal.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {modes.map(({ mode, title, icon: Icon, description }) => (
-                    <Button
+                    <div
                         key={mode}
-                        variant="outline"
-                        className="h-auto p-6 flex flex-col items-start text-left justify-start"
+                        className="relative flex flex-col items-center justify-center rounded-lg border bg-background p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-1 cursor-pointer"
                         onClick={() => onSelectMode(mode)}
                     >
-                        <div className="flex items-center gap-3 mb-2">
-                            <Icon className="h-6 w-6 text-primary" />
-                            <span className="text-lg font-semibold">{title}</span>
+                         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <Icon className="h-6 w-6" />
                         </div>
-                        <p className="text-sm text-muted-foreground font-normal">{description}</p>
-                    </Button>
+                        <h3 className="mb-1 text-lg font-semibold">{title}</h3>
+                        <p className="text-center text-sm text-muted-foreground">{description}</p>
+                    </div>
                 ))}
             </CardContent>
         </Card>
@@ -348,32 +347,25 @@ export function DataWeaver() {
 
     const resultHeaders = useMemo(() => {
         if (!mergedRows.length || !fileA || !fileB) return [];
-
-        // Start with headers from File A
-        const headersA = fileA.headers || [];
     
-        // Identify irrelevant headers from B based on the current mode
-        const irrelevantBHeaders = new Set(['nama', 'id']); // Always exclude these
-        if (editMode !== 'nisn') irrelevantBHeaders.add('nisn');
-        if (editMode !== 'nis') irrelevantBHeaders.add('nis');
-        if (editMode !== 'year') {
-            irrelevantBHeaders.add('tahun ajaran');
-            irrelevantBHeaders.add('year');
-        }
-
-        // Get headers from B that are not in A and are not irrelevant
-        const uniqueBHeaders = (fileB.headers || []).filter(hB => {
+        const headersA = fileA.headers || [];
+        const headersB = fileB.headers || [];
+    
+        const irrelevantBHeaders = new Set(['nama', 'id']);
+        if (editMode === 'nisn') irrelevantBHeaders.add('nis').add('tahun ajaran').add('year');
+        if (editMode === 'nis') irrelevantBHeaders.add('nisn').add('tahun ajaran').add('year');
+        if (editMode === 'year') irrelevantBHeaders.add('nisn').add('nis');
+    
+        const uniqueBHeaders = headersB.filter(hB => {
             const hBLower = hB.toLowerCase();
             const isInA = headersA.some(hA => hA.toLowerCase() === hBLower);
             return !isInA && !irrelevantBHeaders.has(hBLower);
         });
-        
+    
         const combinedHeaders = [...headersA, ...uniqueBHeaders];
-        
-        // Function to find header case-insensitively from the combined list
+    
         const findHeader = (names: string[]) => combinedHeaders.find(h => names.map(n => n.toLowerCase()).includes(h.toLowerCase()));
     
-        // Determine the dynamic column for priority sorting
         let dynamicColName: string | undefined;
         if (editMode === 'nisn') dynamicColName = findHeader(['nisn']);
         else if (editMode === 'nis') dynamicColName = findHeader(['nis']);
@@ -423,7 +415,7 @@ export function DataWeaver() {
                 ) : (
                     <>
                         <Card>
-                            <CardHeader>
+                             <CardHeader>
                                 <CardTitle>Langkah 1: Unggah & Konfigurasi</CardTitle>
                                 <CardDescription>Unggah kedua file yang diperlukan dan konfirmasi kunci penggabungan.</CardDescription>
                             </CardHeader>
