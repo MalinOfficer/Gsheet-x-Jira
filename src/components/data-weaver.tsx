@@ -27,7 +27,7 @@ type TableData = {
     fileName: string;
 };
 
-const readFile = (file: File): Promise<TableData> => {
+const readFile = (file: File, fileId: 'A' | 'B'): Promise<TableData> => {
     return new Promise((resolve, reject) => {
         if (typeof XLSX === 'undefined') {
             return reject(new Error("Excel library (XLSX) not loaded."));
@@ -44,9 +44,21 @@ const readFile = (file: File): Promise<TableData> => {
                 if (json.length < 1) {
                     return reject(new Error("File is empty or format is invalid."));
                 }
-                
-                const headers = json[0].map(String);
-                const rows = json.slice(1).map((rowArray: any[]) => {
+
+                let headers: string[];
+                let dataRows: any[][];
+
+                if (fileId === 'B' && json.length > 1) {
+                    // For File ID, header is on the second row (index 1), data starts from third row (index 2)
+                    headers = json[1].map(String);
+                    dataRows = json.slice(2);
+                } else {
+                    // For File A, header is on the first row (index 0), data starts from second row (index 1)
+                    headers = json[0].map(String);
+                    dataRows = json.slice(1);
+                }
+
+                const rows = dataRows.map((rowArray: any[]) => {
                     const row: ExcelRow = {};
                     headers.forEach((header, i) => {
                         row[header] = rowArray[i];
@@ -75,7 +87,7 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
 
         setIsUploading(true);
         try {
-            const data = await readFile(file);
+            const data = await readFile(file, fileId);
 
             if (editMode) {
                 let requiredColumn: string;
@@ -83,15 +95,14 @@ function FileUploader({ fileId, onFileProcessed, currentFile, disabled, title, d
 
                 if (fileId === 'B') {
                     requiredColumn = 'id';
-                } else {
+                } else { // File A
+                    requiredColumn = editMode.toUpperCase();
                     if (editMode === 'year') {
                         requiredColumn = 'Tahun Ajaran';
                         alternativeColumns = ['year'];
-                    } else {
-                        requiredColumn = editMode.toUpperCase();
                     }
                 }
-
+                
                 const hasRequiredColumn = data.headers.some(h => 
                     h.toLowerCase() === requiredColumn.toLowerCase() ||
                     alternativeColumns.some(alt => h.toLowerCase() === alt.toLowerCase())
@@ -225,7 +236,6 @@ function ModeSelectionScreen({ onSelectMode }: { onSelectMode: (mode: EditMode) 
         <Card>
             <CardHeader>
                 <CardTitle>Pilih Mode Edit Massal</CardTitle>
-                <CardDescription>Pilih jenis data yang ingin Anda edit untuk memulai.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {modes.map(({ mode, title, icon: Icon, description }) => (
