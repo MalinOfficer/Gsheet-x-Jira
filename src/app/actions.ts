@@ -794,9 +794,13 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         return headers.find(h => h.toLowerCase() === key.toLowerCase());
     };
 
-    const normalizeName = (name: any) => {
+    const normalizeName = (name: any): string => {
         if (typeof name !== 'string') return '';
-        return name.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").replace(/\s{2,}/g," ").trim();
+        return name
+            .toLowerCase()
+            .trim()
+            .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "") // Remove punctuation
+            .replace(/\s{2,}/g, " "); // Replace multiple spaces with a single space
     };
 
     // 1. Validasi Input
@@ -818,8 +822,9 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     // 2. Buat Peta dari File A untuk pencocokan cepat
     const fileAMap = new Map<string, any[]>();
     for (const rowA of fileAData.rows) {
-        const normalizedKey = normalizeName(rowA[fileAMergeKey]);
-        if (normalizedKey) {
+        const keyA = rowA[fileAMergeKey];
+        if (keyA) {
+            const normalizedKey = normalizeName(keyA);
             if (!fileAMap.has(normalizedKey)) {
                 fileAMap.set(normalizedKey, []);
             }
@@ -829,50 +834,54 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
 
     const mergedRows: any[] = [];
     const unmatchedRowsB: any[] = [];
+    const matchedBKeys = new Set<string>();
 
-    // 3. Iterasi File B dan Lakukan Pencocokan
+    // 3. Iterasi File B dan Lakukan Pencocokan Tepat (Exact Match)
     for (const rowB of fileBData.rows) {
-        const normalizedKeyB = normalizeName(rowB[fileBMergeKey]);
-        let matchFound = false;
-
-        if (normalizedKeyB && fileAMap.has(normalizedKeyB)) {
-            // A. Exact Match (setelah normalisasi)
-            const matches = fileAMap.get(normalizedKeyB) || [];
-            // Ambil yang pertama, bisa dikembangkan untuk menangani multiple matches
-            if (matches.length > 0) {
-                const mergedRow = { ...matches[0], ...rowB, 'username': matches[0][fileAMergeKey] }; 
-                mergedRows.push(mergedRow);
-                matchFound = true;
-            }
-        }
-        
-        if (!matchFound) {
-            // B. Fuzzy Match untuk yang tidak ketemu
-            let bestMatch = null;
-            let highestScore = 0.75; // Ambang batas, bisa disesuaikan
-
-            const wordsB = new Set(normalizedKeyB.split(' '));
-
-            for (const [normalizedKeyA, rowsA] of fileAMap.entries()) {
-                const wordsA = new Set(normalizedKeyA.split(' '));
-                const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
-                const union = new Set([...wordsA, ...wordsB]);
-                const score = intersection.size / union.size; // Jaccard Similarity
-
-                if (score > highestScore) {
-                    highestScore = score;
-                    bestMatch = rowsA[0]; // Ambil baris pertama sebagai kandidat
+        const keyB = rowB[fileBMergeKey];
+        if (keyB) {
+            const normalizedKeyB = normalizeName(keyB);
+            if (fileAMap.has(normalizedKeyB)) {
+                const matchesA = fileAMap.get(normalizedKeyB) || [];
+                for (const rowA of matchesA) {
+                    const mergedRow = { ...rowA, ...rowB, 'username': rowA[fileAMergeKey] }; 
+                    mergedRows.push(mergedRow);
                 }
+                matchedBKeys.add(normalizedKeyB);
             }
+        }
+    }
 
-            if (bestMatch) {
-                const mergedRow = { ...bestMatch, ...rowB, 'username': (bestMatch as any)[fileAMergeKey] };
-                mergedRows.push(mergedRow);
-                matchFound = true;
+    // 4. Lakukan Fuzzy Match untuk baris di File B yang belum cocok
+    const remainingRowsB = fileBData.rows.filter(rowB => {
+        const keyB = rowB[fileBMergeKey];
+        return keyB && !matchedBKeys.has(normalizeName(keyB));
+    });
+
+    for (const rowB of remainingRowsB) {
+        const normalizedKeyB = normalizeName(rowB[fileBMergeKey]);
+        let bestMatch: any = null;
+        let highestScore = 0.8; // Ambang batas, bisa disesuaikan
+
+        const wordsB = new Set(normalizedKeyB.split(' ').filter(Boolean));
+
+        for (const [normalizedKeyA, rowsA] of fileAMap.entries()) {
+            const wordsA = new Set(normalizedKeyA.split(' ').filter(Boolean));
+            
+            const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
+            const union = new Set([...wordsA, ...wordsB]);
+            const score = union.size > 0 ? intersection.size / union.size : 0; // Jaccard Similarity
+
+            if (score > highestScore) {
+                highestScore = score;
+                bestMatch = rowsA[0]; // Ambil baris pertama sebagai kandidat terbaik
             }
         }
 
-        if (!matchFound) {
+        if (bestMatch) {
+            const mergedRow = { ...bestMatch, ...rowB, 'username': (bestMatch as any)[fileAMergeKey] };
+            mergedRows.push(mergedRow);
+        } else {
             unmatchedRowsB.push(rowB);
         }
     }
@@ -1026,4 +1035,5 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
