@@ -70,7 +70,7 @@ const projectFilesForAction = [
   "src/components/ui/calendar.tsx",
   "src/components/ui/card.tsx",
   "src/components/ui/carousel.tsx",
-  "src/components/ui/chart.tsx",
+  "srcsrc/components/ui/chart.tsx",
   "src/components/ui/checkbox.tsx",
   "src/components/ui/collapsible.tsx",
   "src/components/ui/command.tsx",
@@ -793,10 +793,10 @@ export async function mergeFilesOnServer(
     mergeKey: string,
     editMode: 'nisn' | 'year' | 'nis' | null
 ) {
-    const findHeader = (headers: string[] | undefined, key: string | string[]) => {
+    const findHeader = (headers: string[] | undefined, keys: string[]) => {
         if (!headers) return undefined;
-        const keys = Array.isArray(key) ? key.map(k => k.toLowerCase()) : [key.toLowerCase()];
-        return headers.find(h => keys.includes(h.toLowerCase()));
+        const lowerKeys = keys.map(k => k.toLowerCase());
+        return headers.find(h => lowerKeys.includes(h.toLowerCase()));
     };
 
     const normalizeName = (name: any): string => {
@@ -810,18 +810,25 @@ export async function mergeFilesOnServer(
     };
 
 
-    if (!fileAData?.rows || !fileBData?.rows || !mergeKey) {
-        return { error: "Missing file data or merge key." };
+    if (!fileAData?.rows || !fileBData?.rows) {
+        return { error: "Missing file data." };
     }
 
     let rowsToProcessB = fileBData.rows;
 
     // Elimination logic based on editMode
     if (editMode) {
-        let columnToCheck: string | undefined;
-        if (editMode === 'nisn') columnToCheck = findHeader(fileBData.headers, 'nisn');
-        if (editMode === 'nis') columnToCheck = findHeader(fileBData.headers, 'nis');
-        if (editMode === 'year') columnToCheck = findHeader(fileBData.headers, ['year', 'Tahun Ajaran']);
+        const findHeaderForElimination = (headers: string[] | undefined, mode: 'nisn' | 'year' | 'nis') => {
+            if (!headers) return undefined;
+            const keys: Record<typeof mode, string[]> = {
+                nisn: ['nisn'],
+                nis: ['nis'],
+                year: ['year', 'tahun ajaran']
+            };
+            return findHeader(headers, keys[mode]);
+        };
+
+        const columnToCheck = findHeaderForElimination(fileBData.headers, editMode);
         
         if (columnToCheck) {
             rowsToProcessB = fileBData.rows.filter((row: any) => {
@@ -831,11 +838,12 @@ export async function mergeFilesOnServer(
         }
     }
 
-    const fileAKey = findHeader(fileAData.headers, mergeKey);
-    const fileBKey = findHeader(fileBData.headers, mergeKey);
+    const nameHeaderKeys = ['nama', 'name', 'username'];
+    const fileAKey = findHeader(fileAData.headers, nameHeaderKeys);
+    const fileBKey = findHeader(fileBData.headers, nameHeaderKeys);
     
-    if (!fileAKey) return { error: `Merge key '${mergeKey}' not found in File A.` };
-    if (!fileBKey) return { error: `Merge key '${mergeKey}' not found in ID File.` };
+    if (!fileAKey) return { error: `Merge key (e.g., 'Nama', 'Name') not found in File A.` };
+    if (!fileBKey) return { error: `Merge key (e.g., 'Nama', 'Name') not found in ID File.` };
     
     const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
@@ -1056,3 +1064,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
 
+
+
+    

@@ -642,7 +642,7 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         return <div className="text-center py-8 text-muted-foreground">No highly similar rows found.</div>;
     }
     
-    const findNameHeader = (headers: string[]) => headers.find(h => h.toLowerCase() === 'nama') || headers[0];
+    const findNameHeader = (headers: string[]) => headers.find(h => h.toLowerCase().includes('nama')) || headers.find(h => h.toLowerCase().includes('name')) || headers[0];
     
     const nameHeaderA = findNameHeader(fileAHeaders);
     const nameHeaderB = findNameHeader(fileBHeaders);
@@ -657,7 +657,7 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
                             <Badge variant="secondary" className="mb-2">From ID File</Badge>
                             <p><strong>Name:</strong> {item.rowB[nameHeaderB]}</p>
                             {Object.entries(item.rowB).map(([key, value]) => (
-                                key.toLowerCase() !== 'nama' && <p key={key}><strong>{key}:</strong> {String(value)}</p>
+                                key.toLowerCase() !== nameHeaderB.toLowerCase() && <p key={key}><strong>{key}:</strong> {String(value)}</p>
                             ))}
                         </div>
                         
@@ -675,7 +675,7 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
                             <Badge variant="secondary" className="mb-2">Potential Match</Badge>
                             <p><strong>Name:</strong> {item.potentialMatchA[nameHeaderA]}</p>
                              {Object.entries(item.potentialMatchA).map(([key, value]) => (
-                                key.toLowerCase() !== 'nama' && <p key={key}><strong>{key}:</strong> {String(value)}</p>
+                                key.toLowerCase() !== nameHeaderA.toLowerCase() && <p key={key}><strong>{key}:</strong> {String(value)}</p>
                             ))}
                         </div>
                     </div>
@@ -684,3 +684,6 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         </div>
     );
 }
+
+
+    
