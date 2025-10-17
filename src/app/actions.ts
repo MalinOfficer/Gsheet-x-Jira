@@ -904,7 +904,6 @@ export async function mergeFilesOnServer(
         const merged: Record<string, any> = {};
         const addedKeys = new Set<string>();
     
-        // Define synonym groups for priority columns
         const synonymGroups = {
             'Id': ['id'],
             'Name': ['nama', 'name', 'username'],
@@ -912,56 +911,55 @@ export async function mergeFilesOnServer(
             'NIS': ['nis'],
             'Year': ['year', 'tahun ajaran']
         };
-    
-        // Function to add a value to the merged object if the key hasn't been added
-        const addValue = (key: string, value: any) => {
-            const lowerKey = key.toLowerCase();
-            if (lowerKey === 'no' || addedKeys.has(lowerKey)) {
-                return; // Skip 'No' column and already added keys
-            }
-    
-            // Check if this key belongs to a synonym group that's already been processed
-            for (const standardHeader of Object.keys(synonymGroups)) {
-                const synonyms = synonymGroups[standardHeader as keyof typeof synonymGroups];
-                if (synonyms.includes(lowerKey)) {
-                    // If the standard header is already present, we skip this synonym
-                    if (addedKeys.has(standardHeader.toLowerCase())) {
-                        return;
+
+        const findValueBySynonym = (synonyms: string[], fromRowA: any, fromRowB: any) => {
+            // Prioritize File A (source data) for value
+            for (const keyA in fromRowA) {
+                if (synonyms.includes(keyA.toLowerCase())) {
+                    const value = fromRowA[keyA];
+                    if (value !== null && value !== undefined && String(value).trim() !== '') {
+                        return value;
                     }
                 }
+            }
+            // Fallback to File B
+            for (const keyB in fromRowB) {
+                 if (synonyms.includes(keyB.toLowerCase())) {
+                    const value = fromRowB[keyB];
+                     if (value !== null && value !== undefined && String(value).trim() !== '') {
+                        return value;
+                    }
+                }
+            }
+            return ''; // Return empty if not found in either
+        };
+    
+        // Process priority columns first to establish them with standardized headers
+        for (const [standardHeader, synonyms] of Object.entries(synonymGroups)) {
+             const value = findValueBySynonym(synonyms, rowA, rowB);
+             merged[standardHeader] = value;
+             // Mark all synonyms as added to prevent them from being added again
+             synonyms.forEach(s => addedKeys.add(s));
+        }
+
+        const addRemainingValue = (key: string, value: any) => {
+            const lowerKey = key.toLowerCase();
+            // Skip if key is 'no' or if it's a synonym of a priority header
+            if (lowerKey === 'no' || Object.values(synonymGroups).flat().includes(lowerKey)) {
+                return;
+            }
+            // Also skip if a non-synonym version of the key was already added
+            if (addedKeys.has(lowerKey)) {
+                return;
             }
             
             merged[key] = value;
             addedKeys.add(lowerKey);
         };
     
-        // Process priority columns first to establish them
-        for (const [standardHeader, synonyms] of Object.entries(synonymGroups)) {
-            let valueFound = false;
-            // Prioritize File B (ID File)
-            for (const [keyB, valueB] of Object.entries(rowB)) {
-                if (synonyms.includes(keyB.toLowerCase())) {
-                    merged[standardHeader] = valueB;
-                    addedKeys.add(standardHeader.toLowerCase());
-                    valueFound = true;
-                    break;
-                }
-            }
-            // If not in File B, check File A
-            if (!valueFound) {
-                 for (const [keyA, valueA] of Object.entries(rowA)) {
-                    if (synonyms.includes(keyA.toLowerCase())) {
-                        merged[standardHeader] = valueA;
-                        addedKeys.add(standardHeader.toLowerCase());
-                        break;
-                    }
-                }
-            }
-        }
-    
         // Add remaining values, prioritizing File B
-        Object.entries(rowB).forEach(([key, value]) => addValue(key, value));
-        Object.entries(rowA).forEach(([key, value]) => addValue(key, value));
+        Object.entries(rowB).forEach(([key, value]) => addRemainingValue(key, value));
+        Object.entries(rowA).forEach(([key, value]) => addRemainingValue(key, value));
     
         return merged;
     };
@@ -1173,6 +1171,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
     
+
 
 
 
