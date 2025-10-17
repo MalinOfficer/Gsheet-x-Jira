@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Upload, Loader2, Trash2, Combine, Download, AlertCircle, CheckCircle2, ArrowLeft, FileScan, BookUser, CalendarDays, FileCheck, X } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { mergeFilesOnServer } from '@/app/actions';
@@ -264,16 +263,16 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
 
 function ModeSelectionScreen({ onSelectMode }: { onSelectMode: (mode: EditMode) => void }) {
     const modes = [
-        { mode: 'nisn' as EditMode, title: 'Bulk Edit NISN', icon: FileScan, description: 'Gunakan mode ini untuk mengedit atau menambahkan data NISN secara massal.' },
-        { mode: 'year' as EditMode, title: 'Bulk Edit School Year', icon: CalendarDays, description: 'Gunakan mode ini untuk memperbarui tahun ajaran siswa secara massal.' },
-        { mode: 'nis' as EditMode, title: 'Bulk Edit NIS', icon: BookUser, description: 'Gunakan mode ini untuk mengedit atau menambahkan data NIS secara massal.' }
+        { mode: 'nisn' as EditMode, title: 'Bulk Edit NISN', icon: FileScan, description: 'Use this mode to edit or add NISN data in bulk.' },
+        { mode: 'year' as EditMode, title: 'Bulk Edit School Year', icon: CalendarDays, description: 'Use this mode to update student school years in bulk.' },
+        { mode: 'nis' as EditMode, title: 'Bulk Edit NIS', icon: BookUser, description: 'Use this mode to edit or add NIS data in bulk.' }
     ];
 
     return (
         <Card>
             <CardHeader className="items-center text-center">
                 <CardTitle>Select Bulk Edit Mode</CardTitle>
-                <CardDescription>Pilih jenis data yang ingin Anda gabungkan atau perbarui secara massal.</CardDescription>
+                <CardDescription>Choose the type of data you want to merge or update in bulk.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {modes.map(({ mode, title, icon: Icon, description }) => (
@@ -336,13 +335,13 @@ export function DataWeaver() {
 
     const fileADescription = useMemo(() => {
         if (editMode === 'nisn') {
-            return 'File harus memiliki kolom "NISN".';
+            return 'The file must have a "NISN" column.';
         }
         if (editMode === 'year') {
-            return 'File harus memiliki kolom "Tahun Ajaran" atau "Year".';
+            return 'The file must have a "Tahun Ajaran" or "Year" column.';
         }
         if (editMode === 'nis') {
-            return 'File harus memiliki kolom "NIS".';
+            return 'The file must have a "NIS" column.';
         }
         return 'Select an Excel file (.xlsx, .csv).';
     }, [editMode]);
@@ -472,7 +471,7 @@ export function DataWeaver() {
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Data Weaver</h1>
                         <p className="text-sm text-muted-foreground mt-1">
-                            Gabungkan dua file Excel berdasarkan pencocokan nama yang cerdas.
+                            Merge two Excel files based on intelligent name matching.
                         </p>
                     </div>
                 </header>
@@ -484,7 +483,7 @@ export function DataWeaver() {
                          <Card>
                             <CardHeader>
                                 <CardTitle>Step 1: Upload & Configure</CardTitle>
-                                <CardDescription>Unggah file sumber dan file ID untuk memulai proses penggabungan.</CardDescription>
+                                <CardDescription>Upload your source file and ID file to begin the merge process.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -505,7 +504,7 @@ export function DataWeaver() {
                                         currentFile={fileB}
                                         disabled={isMerging}
                                         title="Upload ID File"
-                                        description='File dari menu "Edit Bulk" yang memiliki kolom "id".'
+                                        description='File from the "Bulk Edit" menu that has an "id" column.'
                                         editMode={editMode}
                                     />
                                 </div>
@@ -530,11 +529,13 @@ export function DataWeaver() {
                         )}
                         
                         {error && (
-                            <Alert variant="destructive">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertTitle>Merge Error</AlertTitle>
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
+                            <div className="p-4 rounded-md bg-destructive/10 text-destructive-foreground border border-destructive">
+                                <div className="flex items-center gap-3">
+                                    <AlertCircle className="h-5 w-5" />
+                                    <h3 className='font-semibold'>Merge Error</h3>
+                                </div>
+                                <p className="text-sm mt-2 ml-8">{error}</p>
+                            </div>
                         )}
 
                         {hasResults && !isMerging && (
@@ -543,7 +544,7 @@ export function DataWeaver() {
                                     <div>
                                         <CardTitle>Step 2: Merge Results</CardTitle>
                                         <CardDescription className='mt-1'>
-                                            Tinjau baris yang cocok dan tidak cocok. Unduh hasilnya jika sudah sesuai.
+                                            Review the matched and unmatched rows. Download the result when ready.
                                         </CardDescription>
                                     </div>
                                     <Button onClick={handleDownload} variant="outline" size="sm" disabled={mergedRows.length === 0}>
@@ -572,7 +573,7 @@ export function DataWeaver() {
                                         </div>
                                     </div>
                                     <Tabs defaultValue="matched">
-                                        <TabsList className="grid w-full grid-cols-2">
+                                        <TabsList className="grid w-full grid-cols-2 bg-muted/60 p-1 h-auto">
                                             <TabsTrigger value="matched">Matched ({mergedRows.length})</TabsTrigger>
                                             <TabsTrigger value="unmatched">Unmatched ({unmatchedRows.length})</TabsTrigger>
                                         </TabsList>
@@ -592,5 +593,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
