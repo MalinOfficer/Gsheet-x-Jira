@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -189,8 +188,6 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
 const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[]; headers: string[] }) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
-    const allHeaders = useMemo(() => ["No", ...headers], [headers]);
-
     const rowVirtualizer = useVirtualizer({
         count: data.length,
         getScrollElement: () => tableContainerRef.current,
@@ -209,7 +206,7 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
         <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[500px]">
             <div style={{ height: `${totalHeight}px`, width: '100%', position: 'relative' }}>
                 <div className="flex sticky top-0 bg-muted z-10 font-medium text-sm">
-                    {allHeaders.map(header => (
+                    {headers.map(header => (
                         <div 
                             key={header} 
                             className="p-2 border-b border-r flex items-center"
@@ -239,7 +236,7 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
                             }}
                             className="flex text-xs"
                         >
-                            {allHeaders.map(header => (
+                            {headers.map(header => (
                                 <div 
                                     key={header} 
                                     className="p-2 border-b border-r truncate flex items-center"
@@ -410,7 +407,7 @@ export function DataWeaver() {
         
         const remainingHeaders = combinedHeaders.filter(h => !priorityHeaders.some(pH => pH.toLowerCase() === h.toLowerCase()));
         
-        return [...new Set([...priorityHeaders, ...remainingHeaders])];
+        return ["No", ...new Set([...priorityHeaders, ...remainingHeaders])];
     }, [fileA, fileB, editMode]);
 
     const handleDownload = () => {
@@ -425,11 +422,13 @@ export function DataWeaver() {
 
         const findHeader = (headers: string[], name: string) => headers.find(h => h.toLowerCase() === name.toLowerCase());
 
-        const headerRow1 = ["No", ...resultHeaders.map(header => findHeader(fileB.headers, header) || findHeader(fileA.headers, header) || '' )];
-        const headerRow2 = ["No", ...resultHeaders.map(header => findHeader(fileA.headers, header) || findHeader(fileB.headers, header) || '' )];
+        const downloadableHeaders = resultHeaders.filter(h => h !== 'No');
+
+        const headerRow1 = ["No", ...downloadableHeaders.map(header => findHeader(fileB.headers, header) || findHeader(fileA.headers, header) || '' )];
+        const headerRow2 = ["No", ...downloadableHeaders.map(header => findHeader(fileA.headers, header) || findHeader(fileB.headers, header) || '' )];
         
         const dataRows = mergedRows.map((row, index) => {
-             const orderedRow = resultHeaders.map(header => row[header] ?? '');
+             const orderedRow = downloadableHeaders.map(header => row[header] ?? '');
              return [index + 1, ...orderedRow];
         });
 
@@ -455,7 +454,7 @@ export function DataWeaver() {
         setEditMode(null);
     }
     
-    const unmatchedHeaders = useMemo(() => fileB?.headers || [], [fileB]);
+    const unmatchedHeaders = useMemo(() => ["No", ...(fileB?.headers || [])], [fileB]);
 
     const hasResults = mergedRows.length > 0 || unmatchedRows.length > 0;
 
@@ -573,7 +572,7 @@ export function DataWeaver() {
                                         </div>
                                     </div>
                                     <Tabs defaultValue="matched">
-                                        <TabsList className="grid w-full grid-cols-2 bg-muted/60 p-1 h-auto">
+                                        <TabsList className="grid w-full grid-cols-2">
                                             <TabsTrigger value="matched">Matched ({mergedRows.length})</TabsTrigger>
                                             <TabsTrigger value="unmatched">Unmatched ({unmatchedRows.length})</TabsTrigger>
                                         </TabsList>
