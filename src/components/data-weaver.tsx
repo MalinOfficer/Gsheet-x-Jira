@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -213,7 +214,7 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                         <div 
                             key={header} 
                             className="p-2 border-b border-r flex items-center"
-                             style={{
+                            style={{
                                 flexGrow: header === "No" ? 0 : 1,
                                 flexShrink: 0,
                                 flexBasis: header === "No" ? '60px' : '0',
@@ -293,37 +294,17 @@ function ModeSelectionScreen({ onSelectMode }: { onSelectMode: (mode: EditMode) 
     );
 }
 
-
-export function DataWeaver() {
-    const { fileA, setFileA, fileB, setFileB, resetState } = useApp();
-    const { toast } = useToast();
-    const [isMerging, startMerging] = useTransition();
-    
-    const [mergedRows, setMergedRows] = useState<ExcelRow[]>([]);
-    const [highlySimilarRows, setHighlySimilarRows] = useState<HighlySimilarRow[]>([]);
-    const [unmatchedRows, setUnmatchedRows] = useState<ExcelRow[]>([]);
-    const [error, setError] = useState<string | null>(null);
-
-    const [editMode, setEditMode] = useState<EditMode | null>(null);
-
-    useEffect(() => {
-        // This effect can be used if mergeKey needs to be dynamic in the future
-    }, [editMode]);
+function Step1({ onNext, onClearAll, isMerging, editMode }: { onNext: () => void; onClearAll: () => void; isMerging: boolean; editMode: EditMode | null }) {
+    const { fileA, setFileA, fileB, setFileB } = useApp();
 
     const handleFileProcessed = useCallback((id: 'A' | 'B', data: TableData) => {
-        if (id === 'A') {
-            setFileA(data);
-        } else {
-            setFileB(data);
-        }
+        if (id === 'A') setFileA(data);
+        else setFileB(data);
     }, [setFileA, setFileB]);
 
     const handleFileRemoved = useCallback((id: 'A' | 'B') => {
-        if (id === 'A') {
-            setFileA(null);
-        } else {
-            setFileB(null);
-        }
+        if (id === 'A') setFileA(null);
+        else setFileB(null);
     }, [setFileA, setFileB]);
 
     const fileATitle = useMemo(() => {
@@ -334,24 +315,73 @@ export function DataWeaver() {
     }, [editMode]);
 
     const fileADescription = useMemo(() => {
-        if (editMode === 'nisn') {
-            return 'The file must have a "NISN" column.';
-        }
-        if (editMode === 'year') {
-            return 'The file must have a "Tahun Ajaran" or "Year" column.';
-        }
-        if (editMode === 'nis') {
-            return 'The file must have a "NIS" column.';
-        }
+        if (editMode === 'nisn') return 'The file must have a "NISN" column.';
+        if (editMode === 'year') return 'The file must have a "Tahun Ajaran" or "Year" column.';
+        if (editMode === 'nis') return 'The file must have a "NIS" column.';
         return 'Select an Excel file (.xlsx, .csv).';
     }, [editMode]);
-    
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Step 1: Upload & Configure</CardTitle>
+                <CardDescription>Upload your source file and ID file to begin the merge process.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <FileUploader
+                        fileId="A"
+                        onFileProcessed={handleFileProcessed}
+                        onFileRemoved={handleFileRemoved}
+                        currentFile={fileA}
+                        disabled={isMerging}
+                        title={fileATitle}
+                        description={fileADescription}
+                        editMode={editMode}
+                    />
+                    <FileUploader
+                        fileId="B"
+                        onFileProcessed={handleFileProcessed}
+                        onFileRemoved={handleFileRemoved}
+                        currentFile={fileB}
+                        disabled={isMerging}
+                        title="Upload ID File"
+                        description='File from the "Bulk Edit" menu that has an "id" column.'
+                        editMode={editMode}
+                    />
+                </div>
+            </CardContent>
+            <CardFooter className="flex justify-between flex-wrap gap-2">
+                <Button onClick={onNext} disabled={!fileA || !fileB || isMerging}>
+                    {isMerging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Combine className="mr-2 h-4 w-4" />}
+                    {isMerging ? 'Merging...' : 'Merge Files'}
+                </Button>
+                <Button onClick={onClearAll} variant="destructive" disabled={isMerging}>
+                    <Trash2 className="mr-2 h-4 w-4" /> Clear All
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+}
+
+function Step2({ onBack }: { onBack: () => void; }) {
+    const { fileA, fileB } = useApp();
+    const { toast } = useToast();
+
+    const [mergedRows, setMergedRows] = useState<ExcelRow[]>([]);
+    const [highlySimilarRows, setHighlySimilarRows] = useState<HighlySimilarRow[]>([]);
+    const [unmatchedRows, setUnmatchedRows] = useState<ExcelRow[]>([]);
+    const [error, setError] = useState<string | null>(null);
+    const [isMerging, startMerging] = useTransition();
+
+    const editMode = 'nisn'; // Placeholder, logic needs to be passed down or derived
+
     const handleMerge = useCallback(async () => {
         if (!fileA || !fileB) {
             toast({ variant: 'destructive', title: 'Files Missing', description: 'Please upload both required files.' });
             return;
         }
-        
+
         setError(null);
         setMergedRows([]);
         setHighlySimilarRows([]);
@@ -360,15 +390,8 @@ export function DataWeaver() {
         startMerging(async () => {
             const result = await mergeFilesOnServer(fileA, fileB, 'Nama');
             if (result.error) {
-                let errorMessage = result.error;
-                 if (errorMessage.includes("File B")) {
-                    errorMessage = errorMessage.replace("File B", "File ID");
-                }
-                if (errorMessage.includes("File A")) {
-                    errorMessage = errorMessage.replace("File A", fileATitle.replace("Upload ", ""));
-                }
-                setError(errorMessage);
-                toast({ variant: 'destructive', title: 'Merge Failed', description: errorMessage });
+                setError(result.error);
+                toast({ variant: 'destructive', title: 'Merge Failed', description: result.error });
             } else {
                 setMergedRows(result.mergedRows || []);
                 setHighlySimilarRows(result.highlySimilarRows || []);
@@ -376,9 +399,12 @@ export function DataWeaver() {
                 toast({ title: 'Merge Complete', description: `${result.mergedRows?.length || 0} rows matched directly.` });
             }
         });
+    }, [fileA, fileB, toast]);
 
-    }, [fileA, fileB, toast, fileATitle]);
-    
+    useEffect(() => {
+        handleMerge();
+    }, [handleMerge]);
+
     const handleRematch = (similarRow: HighlySimilarRow) => {
         const newMergedRow = { ...similarRow.potentialMatchA, ...similarRow.rowB };
         setMergedRows(prev => [...prev, newMergedRow]);
@@ -391,28 +417,21 @@ export function DataWeaver() {
 
     const resultHeaders = useMemo(() => {
         if (!fileA || !fileB) return [];
-        
         const headersA = fileA.headers;
-        const headersB = fileB.headers.filter(h => h.toLowerCase() !== 'nama'); // Exclude 'Nama' from File B
-        
+        const headersB = fileB.headers.filter(h => h.toLowerCase() !== 'nama');
         const combined = [...new Set([...headersA, ...headersB])];
-
         const findHeader = (headers: string[], names: string[]) => {
             const lowerNames = names.map(n => n.toLowerCase());
             return headers.find(h => lowerNames.includes(h.toLowerCase()));
         };
-
         const idCol = findHeader(combined, ['id']);
         const nameCol = findHeader(combined, ['nama']);
-        
         let dynamicCol: string | undefined;
         if (editMode === 'nisn') dynamicCol = findHeader(combined, ['nisn']);
         else if (editMode === 'nis') dynamicCol = findHeader(combined, ['nis']);
         else if (editMode === 'year') dynamicCol = findHeader(combined, ['tahun ajaran', 'year']);
-        
         const priorityHeaders = [idCol, nameCol, dynamicCol].filter((h): h is string => !!h);
         const remainingHeaders = combined.filter(h => !priorityHeaders.includes(h));
-
         return ["No", ...new Set([...priorityHeaders, ...remainingHeaders])];
     }, [fileA, fileB, editMode]);
 
@@ -425,46 +444,140 @@ export function DataWeaver() {
             toast({ variant: 'destructive', title: 'Library or Data Not Loaded', description: 'Ensure the Excel library is loaded and both files are uploaded.' });
             return;
         }
-
         const downloadableHeaders = resultHeaders.filter(h => h !== 'No');
-        
         const dataRows = mergedRows.map((row, index) => {
              const orderedRow = downloadableHeaders.map(header => row[header] ?? '');
              return [index + 1, ...orderedRow];
         });
-
         const dataToExport = [downloadableHeaders, ...dataRows.map(row => row.slice(1))];
-        
         const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
-
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Merged Data');
         XLSX.writeFile(workbook, 'Merged_Data.xlsx');
     };
 
-    const handleClear = () => {
+    const unmatchedHeaders = useMemo(() => ["No", ...(fileB?.headers || [])], [fileB]);
+    const hasResults = mergedRows.length > 0 || highlySimilarRows.length > 0 || unmatchedRows.length > 0;
+
+    return (
+        <>
+            {isMerging && (
+                <div className="flex items-center justify-center p-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="ml-4 text-muted-foreground">Merging files, this may take a moment...</p>
+                </div>
+            )}
+            {error && (
+                <div className="p-4 rounded-md bg-destructive/10 text-destructive-foreground border border-destructive">
+                    <div className="flex items-center gap-3">
+                        <AlertCircle className="h-5 w-5" />
+                        <h3 className='font-semibold'>Merge Error</h3>
+                    </div>
+                    <p className="text-sm mt-2 ml-8">{error}</p>
+                </div>
+            )}
+            {hasResults && !isMerging && (
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Step 2: Merge Results</CardTitle>
+                            <CardDescription className='mt-1'>
+                                Review the matched and unmatched rows. Download the result when ready.
+                            </CardDescription>
+                        </div>
+                        <div className='flex gap-2'>
+                           <Button onClick={onBack} variant="outline" size="sm">
+                                <ArrowLeft className="mr-2 h-4 w-4" /> Start Over
+                            </Button>
+                             <Button onClick={handleDownload} variant="default" size="sm" disabled={mergedRows.length === 0}>
+                                <Download className="mr-2 h-4 w-4" /> Download Merged Data
+                            </Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="mb-6 grid grid-cols-2 gap-4 rounded-lg border p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Matched</p>
+                                    <p className="text-xl font-bold">{mergedRows.length}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                                    <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Unmatched</p>
+                                    <p className="text-xl font-bold">{unmatchedRows.length + highlySimilarRows.length}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <Tabs defaultValue="matched" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="matched">Matched ({mergedRows.length})</TabsTrigger>
+                                <TabsTrigger value="unmatched">Unmatched ({unmatchedRows.length + highlySimilarRows.length})</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="matched" className="mt-4">
+                                <ResultsTable data={mergedRows} headers={resultHeaders} />
+                            </TabsContent>
+                            <TabsContent value="unmatched" className="mt-4 space-y-6">
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-2">Highly Similar (Rematch)</h3>
+                                    <p className="text-sm text-muted-foreground mb-4">These rows have a high probability of being a match. Click 'Rematch' to confirm and move them to the 'Matched' list.</p>
+                                    <HighlySimilarTable data={highlySimilarRows} onRematch={handleRematch} fileAHeaders={fileA?.headers || []} fileBHeaders={fileB?.headers || []} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-2">Unmatched (No Similarity Found)</h3>
+                                     <p className="text-sm text-muted-foreground mb-4">These rows could not be matched automatically and have no similar candidates.</p>
+                                    <ResultsTable data={unmatchedRows} headers={unmatchedHeaders} />
+                                </div>
+                            </TabsContent>
+                        </Tabs>
+                    </CardContent>
+                </Card>
+            )}
+        </>
+    );
+}
+
+export function DataWeaver() {
+    const { resetState } = useApp();
+    const { toast } = useToast();
+    const [isMerging, startMerging] = useTransition();
+    const [editMode, setEditMode] = useState<EditMode | null>(null);
+    const [currentStep, setCurrentStep] = useState(0); // 0: mode selection, 1: upload, 2: results
+
+    const handleClearAll = () => {
         resetState();
-        setMergedRows([]);
-        setHighlySimilarRows([]);
-        setUnmatchedRows([]);
-        setError(null);
         toast({ title: "State Cleared", description: "All files and results have been cleared." });
     };
 
-    const resetToModeSelection = () => {
-        handleClear();
-        setEditMode(null);
-    }
+    const handleStartMerge = () => {
+        startMerging(async () => {
+            setCurrentStep(2);
+        });
+    };
+
+    const handleStartOver = () => {
+        handleClearAll();
+        setCurrentStep(1);
+    };
     
-    const unmatchedHeaders = useMemo(() => ["No", ...(fileB?.headers || [])], [fileB]);
-    const hasResults = mergedRows.length > 0 || highlySimilarRows.length > 0 || unmatchedRows.length > 0;
+    const resetToModeSelection = () => {
+        handleClearAll();
+        setEditMode(null);
+        setCurrentStep(0);
+    }
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
                 <header className="flex items-center gap-4">
-                    {editMode && (
-                         <Button variant="outline" size="icon" onClick={resetToModeSelection}>
+                    {currentStep > 0 && (
+                        <Button variant="outline" size="icon" onClick={resetToModeSelection}>
                             <ArrowLeft className="h-4 w-4" />
                         </Button>
                     )}
@@ -476,127 +589,9 @@ export function DataWeaver() {
                     </div>
                 </header>
 
-                {!editMode ? (
-                    <ModeSelectionScreen onSelectMode={setEditMode} />
-                ) : (
-                    <>
-                         <Card>
-                            <CardHeader>
-                                <CardTitle>Step 1: Upload & Configure</CardTitle>
-                                <CardDescription>Upload your source file and ID file to begin the merge process.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                     <FileUploader 
-                                        fileId="A" 
-                                        onFileProcessed={handleFileProcessed}
-                                        onFileRemoved={handleFileRemoved}
-                                        currentFile={fileA}
-                                        disabled={isMerging} 
-                                        title={fileATitle}
-                                        description={fileADescription}
-                                        editMode={editMode}
-                                    />
-                                    <FileUploader 
-                                        fileId="B" 
-                                        onFileProcessed={handleFileProcessed}
-                                        onFileRemoved={handleFileRemoved}
-                                        currentFile={fileB}
-                                        disabled={isMerging}
-                                        title="Upload ID File"
-                                        description='File from the "Bulk Edit" menu that has an "id" column.'
-                                        editMode={editMode}
-                                    />
-                                </div>
-                            </CardContent>
-                             <CardFooter className="flex justify-between flex-wrap gap-2">
-                                <Button onClick={handleMerge} disabled={!fileA || !fileB || isMerging}>
-                                    {isMerging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Combine className="mr-2 h-4 w-4" />}
-                                    {isMerging ? 'Merging...' : 'Merge Files'}
-                                </Button>
-                                <Button onClick={handleClear} variant="destructive" disabled={isMerging}>
-                                    <Trash2 className="mr-2 h-4 w-4" /> Clear All
-                                </Button>
-                            </CardFooter>
-                        </Card>
-
-                        {isMerging && (
-                            <div className="flex items-center justify-center p-12">
-                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                <p className="ml-4 text-muted-foreground">Merging files, this may take a moment...</p>
-                            </div>
-                        )}
-                        
-                        {error && (
-                            <div className="p-4 rounded-md bg-destructive/10 text-destructive-foreground border border-destructive">
-                                <div className="flex items-center gap-3">
-                                    <AlertCircle className="h-5 w-5" />
-                                    <h3 className='font-semibold'>Merge Error</h3>
-                                </div>
-                                <p className="text-sm mt-2 ml-8">{error}</p>
-                            </div>
-                        )}
-
-                        {hasResults && !isMerging && (
-                             <Card>
-                                <CardHeader className="flex flex-row items-center justify-between">
-                                    <div>
-                                        <CardTitle>Step 2: Merge Results</CardTitle>
-                                        <CardDescription className='mt-1'>
-                                            Review the matched and unmatched rows. Download the result when ready.
-                                        </CardDescription>
-                                    </div>
-                                    <Button onClick={handleDownload} variant="outline" size="sm" disabled={mergedRows.length === 0}>
-                                        <Download className="mr-2 h-4 w-4" /> Download Merged Data
-                                    </Button>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="mb-6 grid grid-cols-2 gap-4 rounded-lg border p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                                                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Matched</p>
-                                                <p className="text-xl font-bold">{mergedRows.length}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                                                <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Unmatched</p>
-                                                <p className="text-xl font-bold">{unmatchedRows.length + highlySimilarRows.length}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <Tabs defaultValue="matched" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-2">
-                                            <TabsTrigger value="matched">Matched ({mergedRows.length})</TabsTrigger>
-                                            <TabsTrigger value="unmatched">Unmatched ({unmatchedRows.length + highlySimilarRows.length})</TabsTrigger>
-                                        </TabsList>
-                                        <TabsContent value="matched" className="mt-4">
-                                            <ResultsTable data={mergedRows} headers={resultHeaders} />
-                                        </TabsContent>
-                                        <TabsContent value="unmatched" className="mt-4 space-y-6">
-                                            <div>
-                                                <h3 className="text-lg font-semibold mb-2">Highly Similar (Rematch)</h3>
-                                                <p className="text-sm text-muted-foreground mb-4">These rows have a high probability of being a match. Click 'Rematch' to confirm and move them to the 'Matched' list.</p>
-                                                <HighlySimilarTable data={highlySimilarRows} onRematch={handleRematch} fileAHeaders={fileA?.headers || []} fileBHeaders={fileB?.headers || []} />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-lg font-semibold mb-2">Unmatched (No Similarity Found)</h3>
-                                                 <p className="text-sm text-muted-foreground mb-4">These rows could not be matched automatically and have no similar candidates.</p>
-                                                <ResultsTable data={unmatchedRows} headers={unmatchedHeaders} />
-                                            </div>
-                                        </TabsContent>
-                                    </Tabs>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </>
-                )}
+                {currentStep === 0 && <ModeSelectionScreen onSelectMode={(mode) => { setEditMode(mode); setCurrentStep(1); }} />}
+                {currentStep === 1 && <Step1 onNext={handleStartMerge} onClearAll={handleClearAll} isMerging={isMerging} editMode={editMode} />}
+                {currentStep === 2 && <Step2 onBack={handleStartOver} />}
             </div>
         </div>
     );
@@ -647,3 +642,5 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         </div>
     );
 }
+
+    
