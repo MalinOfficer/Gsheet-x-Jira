@@ -190,6 +190,8 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
 const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[]; headers: string[] }) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
+    const allHeaders = useMemo(() => ["No", ...headers], [headers]);
+
     const rowVirtualizer = useVirtualizer({
         count: data.length,
         getScrollElement: () => tableContainerRef.current,
@@ -208,8 +210,18 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
         <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[500px]">
             <div style={{ height: `${totalHeight}px`, width: '100%', position: 'relative' }}>
                 <div className="flex sticky top-0 bg-muted z-10 font-medium text-sm">
-                    {headers.map(header => (
-                        <div key={header} className="p-2 border-b border-r flex items-center flex-grow flex-shrink-0" style={{ flexBasis: 0, minWidth: '150px' }}>{header}</div>
+                    {allHeaders.map(header => (
+                        <div 
+                            key={header} 
+                            className="p-2 border-b border-r flex items-center"
+                            style={{ 
+                                flex: header === "No" ? '0 0 60px' : '1 1 0', 
+                                minWidth: '150px' ,
+                                ...(header === "No" && { flexBasis: '60px' })
+                            }}
+                        >
+                            {header}
+                        </div>
                     ))}
                 </div>
                 {virtualRows.map(virtualRow => {
@@ -227,9 +239,17 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
                             }}
                             className="flex text-xs"
                         >
-                            {headers.map(header => (
-                                <div key={header} className="p-2 border-b border-r truncate flex items-center flex-grow flex-shrink-0" style={{ flexBasis: 0, minWidth: '150px' }}>
-                                    {String(row[header] ?? '')}
+                            {allHeaders.map(header => (
+                                <div 
+                                    key={header} 
+                                    className="p-2 border-b border-r truncate flex items-center"
+                                    style={{ 
+                                        flex: header === "No" ? '0 0 60px' : '1 1 0', 
+                                        minWidth: '150px',
+                                        ...(header === "No" && { flexBasis: '60px' })
+                                    }}
+                                >
+                                    {header === "No" ? virtualRow.index + 1 : String(row[header] ?? '')}
                                 </div>
                             ))}
                         </div>
@@ -392,7 +412,7 @@ export function DataWeaver() {
         return [...new Set([...priorityHeaders, ...remainingHeaders])];
     }, [fileA, fileB, editMode]);
 
-    const handleDownload = useCallback(() => {
+    const handleDownload = () => {
         if (mergedRows.length === 0) {
             toast({ variant: 'destructive', title: 'Tidak Ada Data untuk Diunduh', description: 'Tidak ada baris gabungan untuk diunduh.' });
             return;
@@ -419,7 +439,7 @@ export function DataWeaver() {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Merged Data');
         XLSX.writeFile(workbook, 'Merged_Data.xlsx');
-    }, [mergedRows, fileA, fileB, resultHeaders, toast]);
+    };
 
     const handleClear = () => {
         resetState();
