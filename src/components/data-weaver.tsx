@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -460,7 +459,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
             return {
                 "Id": findValue(['id'], row),
                 "Name A": similarItem ? similarItem.potentialMatchA.Name : '',
-                "Name B": findValue(['name', 'nama', 'username'], row),
+                "Name": findValue(['name', 'nama', 'username'], row),
                 "NISN": findValue(['nisn'], row),
                 "Potential Match": actionCell,
             };
@@ -578,7 +577,6 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
         
         const allHeaders = Object.keys(finalData[0] || {});
         
-        // Define priority headers and their order
         const priorityOrder: string[] = ['Id', 'Name'];
         if (editMode === 'nisn') priorityOrder.push('NISN');
         else if (editMode === 'nis') priorityOrder.push('NIS');
@@ -586,12 +584,10 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
         
         const lowerCasePriorityOrder = priorityOrder.map(p => p.toLowerCase());
 
-        // Extract priority headers from all headers, maintaining the defined order
         const priorityHeaders = priorityOrder
             .map(p => allHeaders.find(h => h.toLowerCase() === p.toLowerCase()))
             .filter((h): h is string => !!h);
 
-        // Get the rest of the headers that are not in the priority list
         const otherHeaders = allHeaders.filter(h => !lowerCasePriorityOrder.includes(h.toLowerCase()));
         
         return ["No", ...priorityHeaders, ...otherHeaders];
@@ -716,3 +712,5 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
