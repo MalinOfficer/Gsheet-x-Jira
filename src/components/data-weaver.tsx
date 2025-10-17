@@ -206,10 +206,10 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
     
     return (
         <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[500px]">
-            <div style={{ height: `${totalHeight}px`, width: '100%', position: 'relative' }}>
+            <div style={{ height: `${totalHeight}px`, width: `${headers.length * 150}px`, position: 'relative' }}>
                 <div className="flex sticky top-0 bg-muted z-10 font-medium text-sm">
                     {headers.map(header => (
-                        <div key={header} className="p-2 border-b border-r flex-shrink-0 flex-grow flex items-center justify-center" style={{ minWidth: '150px' }}>{header}</div>
+                        <div key={header} className="p-2 border-b border-r flex-shrink-0 flex items-center" style={{ width: '150px' }}>{header}</div>
                     ))}
                 </div>
                 {virtualRows.map(virtualRow => {
@@ -228,7 +228,7 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
                             className="flex text-xs"
                         >
                             {headers.map(header => (
-                                <div key={header} className="p-2 border-b border-r truncate flex-shrink-0 flex-grow flex items-center" style={{ minWidth: '150px' }}>
+                                <div key={header} className="p-2 border-b border-r truncate flex-shrink-0 flex items-center" style={{ width: '150px' }}>
                                     {String(row[header] ?? '')}
                                 </div>
                             ))}
