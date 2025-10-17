@@ -903,11 +903,18 @@ export async function mergeFilesOnServer(
     const createCleanMergedRow = (rowA: any, rowB: any) => {
         const merged: Record<string, any> = {};
         const addedKeys = new Set<string>();
+        const nameSynonyms = ['nama', 'name', 'username'];
+        let nameKeyAdded = false;
 
         const addValue = (key: string, value: any) => {
             const lowerKey = key.toLowerCase();
-             // Skip the "No" column from being added to the final merged data
-            if (lowerKey === 'no') return;
+            if (lowerKey === 'no') return; // Skip the "No" column
+
+            // Handle name synonyms
+            if (nameSynonyms.includes(lowerKey)) {
+                if (nameKeyAdded) return; // If a name-like key is already added, skip
+                nameKeyAdded = true;
+            }
 
             if (!addedKeys.has(lowerKey)) {
                 merged[key] = value;
@@ -924,24 +931,30 @@ export async function mergeFilesOnServer(
     
     const finalMergedRows = mergedRows.map(row => {
         const originalRowB = fileBData.rows.find((rb: any) => rb[fileBIdKey!] === row[fileBIdKey!]);
-        const originalRowA = fileAMap.get(normalizeName(row[fileBKey!])); // This logic is flawed, let's fix it.
-
-        // Re-find the original RowA from the initial data, as fileAMap was mutated.
-         let matchingRowA = null;
-         for (const rA of fileAData.rows) {
-            if (normalizeName(rA[fileAKey]) === normalizeName(row[fileBKey!])) {
-                matchingRowA = rA;
-                break;
-            }
-         }
+        
+        let matchingRowA = null;
+        const normalizedKeyB = normalizeName(row[fileBKey!]);
+        for (const rA of fileAData.rows) {
+           const normalizedKeyA = normalizeName(rA[fileAKey]);
+           if (normalizedKeyA === normalizedKeyB) {
+               matchingRowA = rA;
+               break;
+           }
+        }
 
         return createCleanMergedRow(matchingRowA || {}, originalRowB || {});
     });
+    
+    const finalHighlySimilarRows = highlySimilarRows.map(item => {
+        const cleanPotentialMatch = createCleanMergedRow(item.potentialMatchA, {});
+        // Only return the name from the potential match to keep the UI clean
+        const nameKey = findHeader(Object.keys(cleanPotentialMatch), nameHeaderKeys);
+        return {
+            ...item,
+            potentialMatchA: { [nameKey || 'Name']: cleanPotentialMatch[nameKey || 'Name'] },
+        };
+    });
 
-    const finalHighlySimilarRows = highlySimilarRows.map(item => ({
-        ...item,
-        potentialMatchA: createCleanMergedRow(item.potentialMatchA, {}),
-    }));
 
     return {
         mergedRows: finalMergedRows,
@@ -1122,3 +1135,4 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
     
+
