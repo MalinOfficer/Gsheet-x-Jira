@@ -900,7 +900,6 @@ export async function mergeFilesOnServer(
         }
     }
 
-    // Function to create a clean merged row without duplicate headers
     const createCleanMergedRow = (rowA: any, rowB: any) => {
         const merged: Record<string, any> = {};
         const addedKeys = new Set<string>();
@@ -914,7 +913,6 @@ export async function mergeFilesOnServer(
         };
 
         const findValueBySynonym = (synonyms: string[], fromRowA: any, fromRowB: any) => {
-            // Prioritize File A (source data) for value
             for (const keyA in fromRowA) {
                 if (synonyms.includes(keyA.toLowerCase())) {
                     const value = fromRowA[keyA];
@@ -923,7 +921,6 @@ export async function mergeFilesOnServer(
                     }
                 }
             }
-            // Fallback to File B
             for (const keyB in fromRowB) {
                  if (synonyms.includes(keyB.toLowerCase())) {
                     const value = fromRowB[keyB];
@@ -932,24 +929,18 @@ export async function mergeFilesOnServer(
                     }
                 }
             }
-            return ''; // Return empty if not found in either
+            return ''; 
         };
     
-        // Define which priority groups to process based on editMode
         const priorityGroupsToProcess: Record<string, string[]> = {
             'Id': synonymGroups.Id,
             'Name': synonymGroups.Name,
         };
         
-        if (editMode === 'nisn') {
-            priorityGroupsToProcess['NISN'] = synonymGroups.NISN;
-        } else if (editMode === 'nis') {
-            priorityGroupsToProcess['NIS'] = synonymGroups.NIS;
-        } else if (editMode === 'year') {
-            priorityGroupsToProcess['Year'] = synonymGroups.Year;
-        }
+        if (editMode === 'nisn') priorityGroupsToProcess['NISN'] = synonymGroups.NISN;
+        else if (editMode === 'nis') priorityGroupsToProcess['NIS'] = synonymGroups.NIS;
+        else if (editMode === 'year') priorityGroupsToProcess['Year'] = synonymGroups.Year;
         
-        // Process priority columns first
         for (const [standardHeader, synonyms] of Object.entries(priorityGroupsToProcess)) {
              const value = findValueBySynonym(synonyms, rowA, rowB);
              merged[standardHeader] = value;
@@ -960,19 +951,12 @@ export async function mergeFilesOnServer(
 
         const addRemainingValue = (key: string, value: any) => {
             const lowerKey = key.toLowerCase();
-            // Skip if key is 'no' or if it's a synonym of any priority header
-            if (lowerKey === 'no' || allPrioritySynonyms.includes(lowerKey)) {
-                return;
-            }
-            if (addedKeys.has(lowerKey)) {
-                return;
-            }
-            
+            if (lowerKey === 'no' || allPrioritySynonyms.includes(lowerKey)) return;
+            if (addedKeys.has(lowerKey)) return;
             merged[key] = value;
             addedKeys.add(lowerKey);
         };
     
-        // Add remaining values, prioritizing File B
         Object.entries(rowB).forEach(([key, value]) => addRemainingValue(key, value));
         Object.entries(rowA).forEach(([key, value]) => addRemainingValue(key, value));
     
@@ -997,9 +981,7 @@ export async function mergeFilesOnServer(
     });
     
     const finalHighlySimilarRows = highlySimilarRows.map(item => {
-        // Find the name from the potential match
         const nameKeyA = findHeader(Object.keys(item.potentialMatchA), nameHeaderKeys) || 'Name';
-        
         return {
             ...item,
             potentialMatchA: { Name: item.potentialMatchA[nameKeyA] },
@@ -1012,10 +994,11 @@ export async function mergeFilesOnServer(
         highlySimilarRows: finalHighlySimilarRows,
         unmatchedRows: unmatchedRowsB,
         summary: {
-            matched: finalMergedRows.length,
-            unmatched: highlySimilarRows.length + unmatchedRowsB.length,
-            existing: existingCount,
             total: fileBData.rows.length,
+            existing: existingCount,
+            matched: finalMergedRows.length,
+            review: finalHighlySimilarRows.length,
+            unmatched: unmatchedRowsB.length,
         }
     };
 }
@@ -1186,6 +1169,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
     
+
 
 
 

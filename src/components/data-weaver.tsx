@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, Loader2, Trash2, Combine, Download, AlertCircle, CheckCircle2, ArrowLeft, FileScan, BookUser, CalendarDays, FileCheck, X, Link, ArrowRight, BookCheck, ClipboardList, Send } from 'lucide-react';
+import { Upload, Loader2, Trash2, Combine, Download, AlertCircle, CheckCircle2, ArrowLeft, FileScan, BookUser, CalendarDays, FileCheck, X, Link, ArrowRight, BookCheck, ClipboardList, Send, HelpCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { mergeFilesOnServer } from '@/app/actions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,10 +35,11 @@ type MergeResult = {
     highlySimilarRows: HighlySimilarRow[];
     unmatchedRows: ExcelRow[];
     summary: {
-        matched: number;
-        unmatched: number;
-        existing: number;
         total: number;
+        existing: number;
+        matched: number;
+        review: number;
+        unmatched: number;
     };
     error?: string;
 }
@@ -414,31 +416,22 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
     const summaryInfo = editMode ? summaryLabels[editMode] : { label: "Existing", icon: BookCheck };
 
     const getUnmatchedTableData = useMemo(() => {
-        const similarMap = new Map();
-        highlySimilarRows.forEach(item => {
-            const idKey = Object.keys(item.rowB).find(k => k.toLowerCase() === 'id');
-            if (idKey) {
-                similarMap.set(item.rowB[idKey], item);
-            }
-        });
-
-        const allUnmatched = [
-            ...highlySimilarRows.map(item => item.rowB),
-            ...unmatchedRows
+        const allUnmatchedRows = [
+            ...highlySimilarRows,
+            ...unmatchedRows.map(row => ({ rowB: row, potentialMatchA: null, score: 0 }))
         ];
 
-        return allUnmatched.map(row => {
-            const idKey = Object.keys(row).find(k => k.toLowerCase() === 'id');
-            const similarItem = idKey ? similarMap.get(row[idKey]) : null;
-
+        return allUnmatchedRows.map(item => {
+            const { rowB, potentialMatchA, score } = item;
+            
             let actionCell;
-            if (similarItem) {
+            if (potentialMatchA) {
                 actionCell = (
                     <div className="flex flex-col gap-1 items-start h-full justify-center">
                         <p className="text-xs">
-                           <Badge variant="outline" className="ml-2">{Math.round(similarItem.score * 100)}%</Badge>
+                           <Badge variant="outline" className="ml-2">{Math.round(score * 100)}%</Badge>
                         </p>
-                        <Button size="sm" className="h-6 px-2 py-1 text-xs" onClick={() => handleRematch(similarItem)}>
+                        <Button size="sm" className="h-6 px-2 py-1 text-xs" onClick={() => handleRematch(item as HighlySimilarRow)}>
                             <Link className="mr-1.5 h-3 w-3" /> Rematch
                         </Button>
                     </div>
@@ -448,8 +441,8 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
             }
             
             return {
-                "Name A": similarItem ? similarItem.potentialMatchA.Name : '',
-                "Name": row.Name || row.nama || row.username,
+                "Name B": rowB.Name,
+                "Name A": potentialMatchA ? potentialMatchA.Name : '',
                 "Potential Match": actionCell,
             };
         });
@@ -478,7 +471,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                     <p className="text-sm mt-2 ml-8">{error}</p>
                 </div>
             )}
-            {hasResults && !isMerging && (
+            {hasResults && !isMerging && summary &&(
                 <div className="space-y-6">
                     <Card>
                          <CardHeader>
@@ -486,53 +479,60 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                             <CardDescription>Review the automated matches and handle any unmatched data before proceeding.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                             {summary && (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg border p-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                                            <ClipboardList className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Total</p>
-                                            <p className="text-xl font-bold">{summary.total}</p>
-                                        </div>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 rounded-lg border p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                                        <ClipboardList className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                                            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Matched</p>
-                                            <p className="text-xl font-bold">{mergedRows.length}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                                            <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Unmatched</p>
-                                            <p className="text-xl font-bold">{highlySimilarRows.length + unmatchedRows.length}</p>
-                                        </div>
-                                    </div>
-                                     <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
-                                            <summaryInfo.icon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">{summaryInfo.label}</p>
-                                            <p className="text-xl font-bold">{summary.existing}</p>
-                                        </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Total</p>
+                                        <p className="text-xl font-bold">{summary.total}</p>
                                     </div>
                                 </div>
-                            )}
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
+                                        <summaryInfo.icon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">{summaryInfo.label}</p>
+                                        <p className="text-xl font-bold">{summary.existing}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Matched</p>
+                                        <p className="text-xl font-bold">{summary.matched}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                                        <HelpCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Review</p>
+                                        <p className="text-xl font-bold">{summary.review}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
+                                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Unmatched</p>
+                                        <p className="text-xl font-bold">{summary.unmatched}</p>
+                                    </div>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
 
                     <Tabs defaultValue="unmatched" className="w-full">
                         <TabsList className="grid w-full grid-cols-2 bg-muted/60 p-1 h-auto">
-                            <TabsTrigger value="unmatched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Unmatched ({unmatchedRows.length + highlySimilarRows.length})</TabsTrigger>
-                            <TabsTrigger value="matched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Matched ({mergedRows.length})</TabsTrigger>
+                            <TabsTrigger value="unmatched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Unmatched ({summary.review + summary.unmatched})</TabsTrigger>
+                            <TabsTrigger value="matched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Matched ({summary.matched})</TabsTrigger>
                         </TabsList>
                         <TabsContent value="unmatched" className="mt-4">
                              <p className="text-sm text-muted-foreground mb-4">These rows could not be matched automatically. Review potential matches and use the 'Rematch' button to confirm them.</p>
