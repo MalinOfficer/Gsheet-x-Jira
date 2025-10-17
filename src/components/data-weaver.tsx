@@ -518,43 +518,33 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
     const resultHeaders = useMemo(() => {
         if (finalData.length === 0) return [];
         
-        const allHeaders = finalData.reduce<string[]>((acc, row) => {
-            Object.keys(row).forEach(key => {
-                if (!acc.includes(key)) {
-                    acc.push(key);
-                }
-            });
-            return acc;
-        }, []);
-
-        const findHeader = (headers: string[], names: string[]) => {
+        // Helper to find the definitive header name from a list of possibilities
+        const findHeader = (headers: string[], names: string[]): string | undefined => {
             const lowerNames = names.map(n => n.toLowerCase());
-            for (const header of headers) {
-                if (header && lowerNames.includes(header.toLowerCase())) {
-                    return header;
-                }
-            }
-            return names[0]; // fallback
+            return headers.find(h => lowerNames.includes(h.toLowerCase()));
         };
+        
+        const allHeaders = Object.keys(finalData[0] || {});
 
         const idCol = findHeader(allHeaders, ['id']);
         const nameCol = findHeader(allHeaders, ['nama', 'name', 'username']);
         
-        let dynamicCol: string;
-        if (editMode === 'nisn') dynamicCol = findHeader(allHeaders, ['nisn']);
-        else if (editMode === 'nis') dynamicCol = findHeader(allHeaders, ['nis']);
-        else if (editMode === 'year') dynamicCol = findHeader(allHeaders, ['tahun ajaran', 'year']);
-        else dynamicCol = '';
+        let dynamicColKey: string | undefined;
+        if (editMode === 'nisn') dynamicColKey = findHeader(allHeaders, ['nisn']);
+        else if (editMode === 'nis') dynamicColKey = findHeader(allHeaders, ['nis']);
+        else if (editMode === 'year') dynamicColKey = findHeader(allHeaders, ['tahun ajaran', 'year']);
 
+        // Create the priority list, filtering out any undefined values
+        const priorityHeaders = [idCol, nameCol, dynamicColKey].filter((h): h is string => !!h);
 
-        const priorityHeaders = [idCol, nameCol, dynamicCol].filter(Boolean);
-        
+        // Get the remaining headers, ensuring we don't include any of the priority headers again
         const remainingHeaders = allHeaders.filter(h => 
             !priorityHeaders.some(p => p.toLowerCase() === h.toLowerCase())
         );
         
+        // Combine them, using a Set to be absolutely sure there are no duplicates
         const finalHeaders = [
-            ...new Set(priorityHeaders), // Ensure no duplicates in priority
+            ...new Set(priorityHeaders),
             ...remainingHeaders
         ];
 
@@ -734,3 +724,5 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         </div>
     );
 }
+
+    
