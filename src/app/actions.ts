@@ -790,18 +790,18 @@ export async function undoLastAction(
 export async function mergeFilesOnServer(
     fileAData: any, 
     fileBData: any, 
-    mergeKey: string,
     editMode: 'nisn' | 'year' | 'nis' | null
 ) {
+    // Helper function to find a header with multiple possible names, case-insensitively
     const findHeader = (headers: string[] | undefined, keys: string[]) => {
         if (!headers) return undefined;
         const lowerKeys = keys.map(k => k.toLowerCase());
         return headers.find(h => lowerKeys.includes(h.toLowerCase()));
     };
 
+    // Helper function to normalize names for better matching
     const normalizeName = (name: any): string => {
         if (typeof name !== 'string') return '';
-        // Only keep letters and spaces, and convert to lowercase
         return name
             .toLowerCase()
             .trim()
@@ -809,37 +809,45 @@ export async function mergeFilesOnServer(
             .replace(/\s{2,}/g, " "); // Collapse multiple spaces
     };
 
-
-    if (!fileAData?.rows || !fileBData?.rows) {
-        return { error: "Missing file data." };
+    if (!fileAData?.rows || !fileBData?.rows || !editMode) {
+        return { error: "Missing file data or edit mode." };
     }
 
-    let rowsToProcessB = fileBData.rows;
-
-    // Elimination logic based on editMode
-    if (editMode) {
-        const eliminationKeys: Record<typeof editMode, string[]> = {
-            nisn: ['nisn'],
-            nis: ['nis'],
-            year: ['year', 'tahun ajaran']
-        };
-        const columnToCheck = findHeader(fileBData.headers, eliminationKeys[editMode]);
-        
-        if (columnToCheck) {
-            rowsToProcessB = fileBData.rows.filter((row: any) => {
-                const value = row[columnToCheck!];
-                return value === null || value === undefined || String(value).trim() === '';
-            });
-        }
-    }
-
+    // --- Column Validation ---
     const nameHeaderKeys = ['nama', 'name', 'username'];
     const fileAKey = findHeader(fileAData.headers, nameHeaderKeys);
     const fileBKey = findHeader(fileBData.headers, nameHeaderKeys);
+    const fileBIdKey = findHeader(fileBData.headers, ['id']);
     
-    if (!fileAKey) return { error: `Merge key (e.g., 'Nama', 'Name', 'Username') not found in File A.` };
-    if (!fileBKey) return { error: `Merge key (e.g., 'Nama', 'Name', 'Username') not found in ID File.` };
+    if (!fileAKey) return { error: `Required 'Name' column (e.g., 'Nama', 'Name', 'Username') not found in File A.` };
+    if (!fileBKey) return { error: `Required 'Name' column not found in ID File.` };
+    if (!fileBIdKey) return { error: `Required 'ID' column not found in ID File.` };
     
+    const eliminationKeys: Record<typeof editMode, string[]> = {
+        nisn: ['nisn'],
+        nis: ['nis'],
+        year: ['year', 'tahun ajaran']
+    };
+    const columnToCheck = findHeader(fileBData.headers, eliminationKeys[editMode]);
+    if (!columnToCheck) {
+        return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
+    }
+    // --- End Column Validation ---
+
+    // --- Data Processing ---
+    const totalRowsB = fileBData.rows.length;
+    let existingCount = 0;
+    
+    const rowsToProcessB = fileBData.rows.filter((row: any) => {
+        const value = row[columnToCheck!];
+        const hasValue = value !== null && value !== undefined && String(value).trim() !== '';
+        if (hasValue) {
+            existingCount++;
+            return false; // Exclude this row from processing
+        }
+        return true; // Include this row for matching
+    });
+
     const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
         const keyA = rowA[fileAKey];
@@ -866,10 +874,9 @@ export async function mergeFilesOnServer(
                 mergedRows.push(mergedRow);
             } else {
                  let bestMatch: any = null;
-                 let highestScore = 0.8; // Set a high threshold for "highly similar"
+                 let highestScore = 0.8; // High threshold for "highly similar"
 
                  for (const [normalizedKeyA, rowA] of fileAMap.entries()) {
-                     // Skip if this row from A is already used in a similar match
                      if (usedInSimilar.has(normalizedKeyA)) continue;
 
                      const wordsA = new Set(normalizedKeyA.split(' ').filter(Boolean));
@@ -887,7 +894,7 @@ export async function mergeFilesOnServer(
 
                  if (bestMatch) {
                      highlySimilarRows.push({ rowB: rowB, potentialMatchA: bestMatch.row, score: highestScore });
-                     usedInSimilar.add(bestMatch.key); // Mark this File A row as used
+                     usedInSimilar.add(bestMatch.key); 
                  } else {
                      unmatchedRowsB.push(rowB);
                  }
@@ -897,7 +904,17 @@ export async function mergeFilesOnServer(
         }
     }
     
-    return { mergedRows, highlySimilarRows, unmatchedRowsB };
+    return { 
+        mergedRows, 
+        highlySimilarRows, 
+        unmatchedRows: unmatchedRowsB,
+        summary: {
+            matched: mergedRows.length,
+            unmatched: highlySimilarRows.length + unmatchedRowsB.length,
+            existing: existingCount,
+            total: totalRowsB,
+        }
+    };
 }
 
 
