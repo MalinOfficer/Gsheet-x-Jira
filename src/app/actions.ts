@@ -787,10 +787,16 @@ export async function undoLastAction(
     }
 }
 
-export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKey: string) {
-    const findHeader = (headers: string[] | undefined, key: string) => {
+export async function mergeFilesOnServer(
+    fileAData: any, 
+    fileBData: any, 
+    mergeKey: string,
+    editMode: 'nisn' | 'year' | 'nis' | null
+) {
+    const findHeader = (headers: string[] | undefined, key: string | string[]) => {
         if (!headers) return undefined;
-        return headers.find(h => h.toLowerCase() === key.toLowerCase());
+        const keys = Array.isArray(key) ? key.map(k => k.toLowerCase()) : [key.toLowerCase()];
+        return headers.find(h => keys.includes(h.toLowerCase()));
     };
 
     const normalizeName = (name: any): string => {
@@ -806,11 +812,28 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         return { error: "Missing file data or merge key." };
     }
 
+    let rowsToProcessB = fileBData.rows;
+
+    // Elimination logic based on editMode
+    if (editMode) {
+        let columnToCheck: string | undefined;
+        if (editMode === 'nisn') columnToCheck = findHeader(fileBData.headers, 'nisn');
+        if (editMode === 'nis') columnToCheck = findHeader(fileBData.headers, 'nis');
+        if (editMode === 'year') columnToCheck = findHeader(fileBData.headers, ['year', 'Tahun Ajaran']);
+        
+        if (columnToCheck) {
+            rowsToProcessB = fileBData.rows.filter((row: any) => {
+                const value = row[columnToCheck!];
+                return value === null || value === undefined || String(value).trim() === '';
+            });
+        }
+    }
+
     const fileAKey = findHeader(fileAData.headers, mergeKey);
     const fileBKey = findHeader(fileBData.headers, mergeKey);
     
     if (!fileAKey) return { error: `Merge key '${mergeKey}' not found in File A.` };
-    if (!fileBKey) return { error: `Merge key '${mergeKey}' not found in File B.` };
+    if (!fileBKey) return { error: `Merge key '${mergeKey}' not found in ID File.` };
     
     const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
@@ -828,7 +851,7 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     const unmatchedRowsB: any[] = [];
     const usedInSimilar = new Set<string>(); // Keep track of File A rows suggested as similar
 
-    for (const rowB of fileBData.rows) {
+    for (const rowB of rowsToProcessB) {
         const keyB = rowB[fileBKey];
         if (keyB) {
             const normalizedKeyB = normalizeName(keyB);
@@ -1018,6 +1041,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
 
 

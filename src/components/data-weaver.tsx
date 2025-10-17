@@ -388,7 +388,7 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
         setUnmatchedRows([]);
 
         startMerging(async () => {
-            const result = await mergeFilesOnServer(fileA, fileB, 'Nama');
+            const result = await mergeFilesOnServer(fileA, fileB, 'Nama', editMode);
             if (result.error) {
                 setError(result.error);
                 toast({ variant: 'destructive', title: 'Merge Failed', description: result.error });
@@ -399,7 +399,7 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
                 toast({ title: 'Merge Complete', description: `${result.mergedRows?.length || 0} rows matched directly.` });
             }
         });
-    }, [fileA, fileB, toast]);
+    }, [fileA, fileB, toast, editMode]);
 
     useEffect(() => {
         handleMerge();
@@ -417,7 +417,7 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
 
     const resultHeaders = useMemo(() => {
         if (!fileA || !fileB) return [];
-
+    
         const allHeaders = [...fileA.headers, ...fileB.headers];
         const uniqueHeadersMap = new Map<string, string>();
         allHeaders.forEach(h => {
@@ -428,15 +428,16 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
         });
     
         const combined = Array.from(uniqueHeadersMap.values());
-
+    
         const findHeader = (headers: string[], names: string[]) => {
             const lowerNames = names.map(n => n.toLowerCase());
             return headers.find(h => lowerNames.includes(h.toLowerCase()));
         };
-
+    
         const idCol = findHeader(allHeaders, ['id']);
         const nameCol = findHeader(allHeaders, ['nama']);
         let dynamicCol: string | undefined;
+    
         if (editMode === 'nisn') {
             dynamicCol = findHeader(allHeaders, ['nisn']);
         } else if (editMode === 'nis') {
@@ -444,15 +445,17 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
         } else if (editMode === 'year') {
             dynamicCol = findHeader(allHeaders, ['tahun ajaran', 'year']);
         }
-
+    
         const priorityHeaders = [idCol, nameCol, dynamicCol].filter((h): h is string => !!h);
         
-        const uniquePriorityHeaders = [...new Set(priorityHeaders.map(p => p.toLowerCase()))].map(lowerP => {
-            return priorityHeaders.find(p => p.toLowerCase() === lowerP)!;
-        });
-
-        const remainingHeaders = combined.filter(h => !uniquePriorityHeaders.some(p => p.toLowerCase() === h.toLowerCase()));
-
+        const uniquePriorityHeaders = Array.from(new Set(priorityHeaders.map(p => {
+             return combined.find(c => c.toLowerCase() === p.toLowerCase())!;
+        })));
+    
+        const remainingHeaders = combined.filter(h => 
+            !uniquePriorityHeaders.some(p => p.toLowerCase() === h.toLowerCase())
+        );
+    
         return ["No", ...uniquePriorityHeaders, ...remainingHeaders];
     }, [fileA, fileB, editMode]);
 
@@ -670,3 +673,4 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         </div>
     );
 }
+
