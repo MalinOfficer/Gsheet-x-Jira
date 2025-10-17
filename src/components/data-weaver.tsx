@@ -427,7 +427,7 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
             }
         });
     
-        const combined = Array.from(uniqueHeadersMap.values()).filter(h => h.toLowerCase() !== 'nama');
+        const combined = Array.from(uniqueHeadersMap.values());
 
         const findHeader = (headers: string[], names: string[]) => {
             const lowerNames = names.map(n => n.toLowerCase());
@@ -437,13 +437,16 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
         const idCol = findHeader(allHeaders, ['id']);
         const nameCol = findHeader(allHeaders, ['nama']);
         let dynamicCol: string | undefined;
-        if (editMode === 'nisn') dynamicCol = findHeader(allHeaders, ['nisn']);
-        else if (editMode === 'nis') dynamicCol = findHeader(allHeaders, ['nis']);
-        else if (editMode === 'year') dynamicCol = findHeader(allHeaders, ['tahun ajaran', 'year']);
+        if (editMode === 'nisn') {
+            dynamicCol = findHeader(allHeaders, ['nisn']);
+        } else if (editMode === 'nis') {
+            dynamicCol = findHeader(allHeaders, ['nis']);
+        } else if (editMode === 'year') {
+            dynamicCol = findHeader(allHeaders, ['tahun ajaran', 'year']);
+        }
 
         const priorityHeaders = [idCol, nameCol, dynamicCol].filter((h): h is string => !!h);
         
-        // Ensure we only have one of each priority header, preferring the case from `priorityHeaders`
         const uniquePriorityHeaders = [...new Set(priorityHeaders.map(p => p.toLowerCase()))].map(lowerP => {
             return priorityHeaders.find(p => p.toLowerCase() === lowerP)!;
         });
@@ -465,7 +468,6 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
         const downloadableHeaders = resultHeaders.filter(h => h !== 'No');
         const dataRows = mergedRows.map((row, index) => {
              const orderedRow = downloadableHeaders.map(header => {
-                // Find the original header in the row data, case-insensitively
                 const rowHeader = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase());
                 return rowHeader ? row[rowHeader] : '';
              });
@@ -535,10 +537,10 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
                             </div>
                         </div>
                         <Tabs defaultValue="matched" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="matched">Matched ({mergedRows.length})</TabsTrigger>
-                                <TabsTrigger value="unmatched">Unmatched ({unmatchedRows.length + highlySimilarRows.length})</TabsTrigger>
-                            </TabsList>
+                           <TabsList className="grid w-full grid-cols-2 bg-muted/60 p-1 h-auto">
+                               <TabsTrigger value="matched" className="data-[state=active]:bg-background data-[state=inactive]:bg-transparent data-[state=active]:shadow-sm">Matched ({mergedRows.length})</TabsTrigger>
+                               <TabsTrigger value="unmatched" className="data-[state=active]:bg-background data-[state=inactive]:bg-transparent data-[state=active]:shadow-sm">Unmatched ({unmatchedRows.length + highlySimilarRows.length})</TabsTrigger>
+                           </TabsList>
                             <TabsContent value="matched" className="mt-4">
                                 <ResultsTable data={mergedRows} headers={resultHeaders} />
                             </TabsContent>
@@ -668,7 +670,3 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         </div>
     );
 }
-
-    
-
-    
