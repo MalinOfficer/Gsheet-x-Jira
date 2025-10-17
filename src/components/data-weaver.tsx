@@ -518,10 +518,20 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
     const resultHeaders = useMemo(() => {
         if (finalData.length === 0) return [];
         
-        // Use the keys from the first (cleaned) data object as the source of truth for headers
-        const allHeaders = Object.keys(finalData[0]);
+        const priorityHeaders = ['id', 'nama', 'name', 'username', 'nis', 'nisn', 'year'];
+        const headers = Object.keys(finalData[0] || {});
         
-        return ["No", ...allHeaders];
+        const lowerCasePriority = priorityHeaders.map(h => h.toLowerCase());
+        
+        const mainHeaders = headers
+            .filter(h => lowerCasePriority.includes(h.toLowerCase()))
+            .sort((a, b) => lowerCasePriority.indexOf(a.toLowerCase()) - lowerCasePriority.indexOf(b.toLowerCase()));
+            
+        const otherHeaders = headers.filter(h => !lowerCasePriority.includes(h.toLowerCase()));
+        
+        const finalHeaders = [...new Set([...mainHeaders, ...otherHeaders])];
+
+        return ["No", ...finalHeaders];
     }, [finalData]);
 
 
@@ -686,9 +696,6 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
                              <div className="text-sm">
                                 <Badge variant="secondary" className="mb-2">Potential Match</Badge>
                                 <p><strong>Name:</strong> {nameHeaderA ? item.potentialMatchA[nameHeaderA] : 'N/A'}</p>
-                                {Object.entries(item.potentialMatchA).map(([key, value]) => (
-                                    (key.toLowerCase() !== (nameHeaderA || '').toLowerCase() && value) && <p key={key} className='text-muted-foreground text-xs'><strong>{key}:</strong> {String(value)}</p>
-                                ))}
                             </div>
                         </div>
                     );
@@ -697,9 +704,3 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         </div>
     );
 }
-
-    
-
-    
-
-    
