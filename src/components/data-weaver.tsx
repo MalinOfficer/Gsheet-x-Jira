@@ -558,10 +558,9 @@ export function DataWeaver() {
         });
     };
 
-    const handleStartOver = () => {
-        handleClearAll();
+    const handleBackToUpload = () => {
         setCurrentStep(1);
-    };
+    }
     
     const resetToModeSelection = () => {
         handleClearAll();
@@ -569,12 +568,20 @@ export function DataWeaver() {
         setCurrentStep(0);
     }
 
+    const handleHeaderBackClick = () => {
+        if (currentStep === 2) {
+            handleBackToUpload();
+        } else {
+            resetToModeSelection();
+        }
+    }
+
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
                 <header className="flex items-center gap-4">
                     {currentStep > 0 && (
-                        <Button variant="outline" size="icon" onClick={resetToModeSelection}>
+                        <Button variant="outline" size="icon" onClick={handleHeaderBackClick}>
                             <ArrowLeft className="h-4 w-4" />
                         </Button>
                     )}
@@ -588,7 +595,7 @@ export function DataWeaver() {
 
                 {currentStep === 0 && <ModeSelectionScreen onSelectMode={(mode) => { setEditMode(mode); setCurrentStep(1); }} />}
                 {currentStep === 1 && <Step1 onNext={handleStartMerge} onClearAll={handleClearAll} isMerging={isMerging} editMode={editMode} />}
-                {currentStep === 2 && <Step2 onBack={handleStartOver} />}
+                {currentStep === 2 && <Step2 onBack={() => {}} />}
             </div>
         </div>
     );
