@@ -801,18 +801,12 @@ export async function mergeFilesOnServer(
 
     const normalizeName = (name: any): string => {
         if (typeof name !== 'string') return '';
-        const cleaned = name
+        // Only keep letters and spaces, and convert to lowercase
+        return name
             .toLowerCase()
             .trim()
             .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "") // Remove punctuation
             .replace(/\s{2,}/g, " "); // Collapse multiple spaces
-
-        // Handle initials: "a fakhri" -> "afakhri"
-        const parts = cleaned.split(' ');
-        if (parts.length > 1 && parts[0].length === 1) {
-            return parts.join('');
-        }
-        return cleaned;
     };
 
 
@@ -1049,6 +1043,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
 
 
