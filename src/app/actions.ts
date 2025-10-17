@@ -834,7 +834,7 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
             const normalizedKeyB = normalizeName(keyB);
             if (fileAMap.has(normalizedKeyB)) {
                 const rowA = fileAMap.get(normalizedKeyB);
-                const mergedRow = { ...rowA, ...rowB };
+                const mergedRow = { ...rowB, ...rowA };
                 mergedRows.push(mergedRow);
             } else {
                  let bestMatch: any = null;
@@ -1018,6 +1018,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
 
 
