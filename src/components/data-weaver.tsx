@@ -204,10 +204,10 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                             key={header} 
                             className="p-2 border-b border-r flex items-center"
                             style={{
-                                flexGrow: header === "No" ? 0 : 1,
+                                flexGrow: 1,
                                 flexShrink: 0,
-                                flexBasis: header === "No" ? '60px' : (header === "Potential Match & Action" ? '300px' : '150px'),
-                                minWidth: header === "No" ? '60px' : (header === "Potential Match & Action" ? '300px' : '150px'),
+                                flexBasis: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match" ? '300px' : '150px')),
+                                minWidth: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match" ? '300px' : '150px')),
                             }}
                         >
                             {header}
@@ -234,15 +234,15 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                                     key={header} 
                                     className="p-2 border-b border-r truncate flex items-center"
                                     style={{
-                                       flexGrow: header === "No" ? 0 : 1,
+                                       flexGrow: 1,
                                         flexShrink: 0,
-                                        flexBasis: header === "No" ? '60px' : (header === "Potential Match & Action" ? '300px' : '150px'),
-                                        minWidth: header === "No" ? '60px' : (header === "Potential Match & Action" ? '300px' : '150px'),
+                                        flexBasis: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match" ? '300px' : '150px')),
+                                        minWidth: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match" ? '300px' : '150px')),
                                     }}
                                 >
                                     {header === "No" 
                                         ? virtualRow.index + 1 
-                                        : header === "Potential Match & Action"
+                                        : header === "Potential Match"
                                         ? row[header] // This will now render the JSX from getUnmatchedTableData
                                         : String(row[header] ?? '')}
                                 </div>
@@ -437,7 +437,6 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                 actionCell = (
                     <div className="flex flex-col gap-1 items-start h-full justify-center">
                         <p className="text-xs">
-                           Match: <strong>{similarItem.potentialMatchA.Name}</strong>
                            <Badge variant="outline" className="ml-2">{Math.round(similarItem.score * 100)}%</Badge>
                         </p>
                         <Button size="sm" className="h-6 px-2 py-1 text-xs" onClick={() => handleRematch(similarItem)}>
@@ -449,22 +448,34 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                 actionCell = <p className="text-muted-foreground text-xs italic">No match found</p>;
             }
 
+            const findValue = (keys: string[], fromRow: ExcelRow) => {
+                for(const key in fromRow) {
+                    if (keys.includes(key.toLowerCase())) {
+                        return fromRow[key];
+                    }
+                }
+                return '';
+            }
+
             return {
-                ...row,
-                "Potential Match & Action": actionCell,
+                "Id": findValue(['id'], row),
+                "Name A": similarItem ? similarItem.potentialMatchA.Name : '',
+                "Name B": findValue(['name', 'nama', 'username'], row),
+                "NISN": findValue(['nisn'], row),
+                "Potential Match": actionCell,
             };
         });
     }, [highlySimilarRows, unmatchedRows, handleRematch]);
 
 
     const unmatchedHeaders = useMemo(() => {
-        const baseHeaders = fileB?.headers || [];
-        // Ensure 'Id' and 'Name' are at the front if they exist
-        const priority = ['id', 'name', 'nama', 'username'];
-        const pHeaders = baseHeaders.filter(h => priority.includes(h.toLowerCase()));
-        const otherHeaders = baseHeaders.filter(h => !priority.includes(h.toLowerCase()));
-        return ["No", ...pHeaders, ...otherHeaders, "Potential Match & Action"];
-    }, [fileB]);
+        const headers = ["No", "Id", "Name A", "Name B"];
+        if (editMode === 'nisn') headers.push('NISN');
+        if (editMode === 'nis') headers.push('NIS');
+        if (editMode === 'year') headers.push('Year');
+        headers.push('Potential Match');
+        return headers;
+    }, [editMode]);
 
     return (
         <>
