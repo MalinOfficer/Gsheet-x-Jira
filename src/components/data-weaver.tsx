@@ -525,24 +525,24 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
         };
         
         const allHeaders = Object.keys(finalData[0] || {});
+        
+        // Exclude all variations of "No" from the data headers
+        const dataHeaders = allHeaders.filter(h => h.toLowerCase() !== 'no');
 
-        const idCol = findHeader(allHeaders, ['id']);
-        const nameCol = findHeader(allHeaders, ['nama', 'name', 'username']);
+        const idCol = findHeader(dataHeaders, ['id']);
+        const nameCol = findHeader(dataHeaders, ['nama', 'name', 'username']);
         
         let dynamicColKey: string | undefined;
-        if (editMode === 'nisn') dynamicColKey = findHeader(allHeaders, ['nisn']);
-        else if (editMode === 'nis') dynamicColKey = findHeader(allHeaders, ['nis']);
-        else if (editMode === 'year') dynamicColKey = findHeader(allHeaders, ['tahun ajaran', 'year']);
+        if (editMode === 'nisn') dynamicColKey = findHeader(dataHeaders, ['nisn']);
+        else if (editMode === 'nis') dynamicColKey = findHeader(dataHeaders, ['nis']);
+        else if (editMode === 'year') dynamicColKey = findHeader(dataHeaders, ['tahun ajaran', 'year']);
 
-        // Create the priority list, filtering out any undefined values
         const priorityHeaders = [idCol, nameCol, dynamicColKey].filter((h): h is string => !!h);
 
-        // Get the remaining headers, ensuring we don't include any of the priority headers again
-        const remainingHeaders = allHeaders.filter(h => 
+        const remainingHeaders = dataHeaders.filter(h => 
             !priorityHeaders.some(p => p.toLowerCase() === h.toLowerCase())
         );
         
-        // Combine them, using a Set to be absolutely sure there are no duplicates
         const finalHeaders = [
             ...new Set(priorityHeaders),
             ...remainingHeaders
@@ -724,5 +724,7 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         </div>
     );
 }
+
+    
 
     
