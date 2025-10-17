@@ -149,7 +149,7 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
                 className={cn(
                     "w-full p-4 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-center transition-colors",
                     !currentFile && "cursor-pointer hover:border-primary/50",
-                    currentFile && "border-solid border-green-500/50 bg-muted/30"
+                    currentFile && "border-solid border-green-600/50 bg-muted/30"
                 )}
             >
                 <input ref={inputRef} type="file" className="hidden" onChange={handleFileChange} disabled={disabled || isUploading} accept=".xlsx,.xls,.csv" />
@@ -570,5 +570,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
