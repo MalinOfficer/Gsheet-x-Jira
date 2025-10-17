@@ -903,52 +903,69 @@ export async function mergeFilesOnServer(
     const createCleanMergedRow = (rowA: any, rowB: any) => {
         const merged: Record<string, any> = {};
         const addedKeys = new Set<string>();
-        const nameSynonyms = ['nama', 'name', 'username'];
-        let nameValue: any = null;
-        let nameKeyAdded = false;
-
-        // Find the name value, prioritizing File B
-        for (const [key, value] of Object.entries(rowB)) {
-            if (nameSynonyms.includes(key.toLowerCase())) {
-                nameValue = value;
-                break;
+    
+        // Define synonym groups for priority columns
+        const synonymGroups = {
+            'Id': ['id'],
+            'Name': ['nama', 'name', 'username'],
+            'NISN': ['nisn'],
+            'NIS': ['nis'],
+            'Year': ['year', 'tahun ajaran']
+        };
+    
+        // Function to add a value to the merged object if the key hasn't been added
+        const addValue = (key: string, value: any) => {
+            const lowerKey = key.toLowerCase();
+            if (lowerKey === 'no' || addedKeys.has(lowerKey)) {
+                return; // Skip 'No' column and already added keys
             }
-        }
-        if (nameValue === null) {
-            for (const [key, value] of Object.entries(rowA)) {
-                if (nameSynonyms.includes(key.toLowerCase())) {
-                    nameValue = value;
+    
+            // Check if this key belongs to a synonym group that's already been processed
+            for (const standardHeader of Object.keys(synonymGroups)) {
+                const synonyms = synonymGroups[standardHeader as keyof typeof synonymGroups];
+                if (synonyms.includes(lowerKey)) {
+                    // If the standard header is already present, we skip this synonym
+                    if (addedKeys.has(standardHeader.toLowerCase())) {
+                        return;
+                    }
+                }
+            }
+            
+            merged[key] = value;
+            addedKeys.add(lowerKey);
+        };
+    
+        // Process priority columns first to establish them
+        for (const [standardHeader, synonyms] of Object.entries(synonymGroups)) {
+            let valueFound = false;
+            // Prioritize File B (ID File)
+            for (const [keyB, valueB] of Object.entries(rowB)) {
+                if (synonyms.includes(keyB.toLowerCase())) {
+                    merged[standardHeader] = valueB;
+                    addedKeys.add(standardHeader.toLowerCase());
+                    valueFound = true;
                     break;
                 }
             }
-        }
-
-        const addValue = (key: string, value: any) => {
-            if (key.toLowerCase() === 'no') return; // Skip the "No" column
-
-            // If it's a name synonym, we've already handled it, so skip
-            if (nameSynonyms.includes(key.toLowerCase())) return;
-
-            const lowerKey = key.toLowerCase();
-            if (!addedKeys.has(lowerKey)) {
-                merged[key] = value;
-                addedKeys.add(lowerKey);
+            // If not in File B, check File A
+            if (!valueFound) {
+                 for (const [keyA, valueA] of Object.entries(rowA)) {
+                    if (synonyms.includes(keyA.toLowerCase())) {
+                        merged[standardHeader] = valueA;
+                        addedKeys.add(standardHeader.toLowerCase());
+                        break;
+                    }
+                }
             }
-        };
-        
-        // Add the standardized "Name" column first if a name value was found
-        if (nameValue !== null) {
-            merged['Name'] = nameValue;
-            addedKeys.add('name');
-            nameKeyAdded = true;
         }
-
-        // Prioritize File B (ID File), then add missing from File A
+    
+        // Add remaining values, prioritizing File B
         Object.entries(rowB).forEach(([key, value]) => addValue(key, value));
         Object.entries(rowA).forEach(([key, value]) => addValue(key, value));
-
+    
         return merged;
     };
+    
     
     const finalMergedRows = mergedRows.map(row => {
         const originalRowB = fileBData.rows.find((rb: any) => rb[fileBIdKey!] === row[fileBIdKey!]);
@@ -1156,5 +1173,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
     
+
 
 

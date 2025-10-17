@@ -518,20 +518,16 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
     const resultHeaders = useMemo(() => {
         if (finalData.length === 0) return [];
         
-        const priorityHeaders = ['id', 'nama', 'name', 'username', 'nis', 'nisn', 'year'];
-        const headers = Object.keys(finalData[0] || {});
-        
-        const lowerCasePriority = priorityHeaders.map(h => h.toLowerCase());
-        
-        const mainHeaders = headers
-            .filter(h => lowerCasePriority.includes(h.toLowerCase()))
-            .sort((a, b) => lowerCasePriority.indexOf(a.toLowerCase()) - lowerCasePriority.indexOf(b.toLowerCase()));
-            
-        const otherHeaders = headers.filter(h => !lowerCasePriority.includes(h.toLowerCase()));
-        
-        const finalHeaders = [...new Set([...mainHeaders, ...otherHeaders])];
+        const allHeaders = Object.keys(finalData[0] || {});
+        const priorityOrder = ['Id', 'Name', 'NISN', 'NIS', 'Year'].map(p => p.toLowerCase());
 
-        return ["No", ...finalHeaders];
+        const priorityHeaders = allHeaders
+            .filter(h => priorityOrder.includes(h.toLowerCase()))
+            .sort((a, b) => priorityOrder.indexOf(a.toLowerCase()) - priorityOrder.indexOf(b.toLowerCase()));
+            
+        const otherHeaders = allHeaders.filter(h => !priorityOrder.includes(h.toLowerCase()));
+        
+        return ["No", ...priorityHeaders, ...otherHeaders];
     }, [finalData]);
 
 
@@ -695,7 +691,7 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
                             {/* Potential Match A Data */}
                              <div className="text-sm">
                                 <Badge variant="secondary" className="mb-2">Potential Match</Badge>
-                                <p><strong>Name:</strong> {nameHeaderA ? item.potentialMatchA[nameHeaderA] : 'N/A'}</p>
+                                <p><strong>Name:</strong> {item.potentialMatchA?.Name || 'N/A'}</p>
                             </div>
                         </div>
                     );
