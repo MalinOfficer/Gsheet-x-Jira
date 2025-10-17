@@ -406,7 +406,7 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
     }, [handleMerge]);
 
     const handleRematch = (similarRow: HighlySimilarRow) => {
-        const newMergedRow = { ...similarRow.potentialMatchA, ...similarRow.rowB };
+        const newMergedRow = { ...similarRow.rowB, ...similarRow.potentialMatchA };
         setMergedRows(prev => [...prev, newMergedRow]);
         setHighlySimilarRows(prev => prev.filter(r => r.rowB.id !== similarRow.rowB.id));
         toast({
@@ -421,9 +421,11 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
         const allHeaders = [...fileA.headers, ...fileB.headers];
         const uniqueHeadersMap = new Map<string, string>();
         allHeaders.forEach(h => {
-            const lowerCaseHeader = h.toLowerCase();
-            if (!uniqueHeadersMap.has(lowerCaseHeader)) {
-                uniqueHeadersMap.set(lowerCaseHeader, h);
+            if (h) { // Ensure header is not null/undefined
+                const lowerCaseHeader = h.toLowerCase();
+                if (!uniqueHeadersMap.has(lowerCaseHeader)) {
+                    uniqueHeadersMap.set(lowerCaseHeader, h);
+                }
             }
         });
     
@@ -431,7 +433,7 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
     
         const findHeader = (headers: string[], names: string[]) => {
             const lowerNames = names.map(n => n.toLowerCase());
-            return headers.find(h => lowerNames.includes(h.toLowerCase()));
+            return headers.find(h => h && lowerNames.includes(h.toLowerCase()));
         };
     
         const idCol = findHeader(allHeaders, ['id']);
@@ -449,11 +451,11 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
         const priorityHeaders = [idCol, nameCol, dynamicCol].filter((h): h is string => !!h);
         
         const uniquePriorityHeaders = Array.from(new Set(priorityHeaders.map(p => {
-             return combined.find(c => c.toLowerCase() === p.toLowerCase())!;
-        })));
+             return combined.find(c => c && p && c.toLowerCase() === p.toLowerCase())!;
+        }))).filter(Boolean); // Filter out any potential undefined values
     
         const remainingHeaders = combined.filter(h => 
-            !uniquePriorityHeaders.some(p => p.toLowerCase() === h.toLowerCase())
+            h && !uniquePriorityHeaders.some(p => p && p.toLowerCase() === h.toLowerCase())
         );
     
         return ["No", ...uniquePriorityHeaders, ...remainingHeaders];
@@ -541,8 +543,8 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
                         </div>
                         <Tabs defaultValue="matched" className="w-full">
                            <TabsList className="grid w-full grid-cols-2 bg-muted/60 p-1 h-auto">
-                               <TabsTrigger value="matched" className="data-[state=active]:bg-background data-[state=inactive]:bg-transparent data-[state=active]:shadow-sm">Matched ({mergedRows.length})</TabsTrigger>
-                               <TabsTrigger value="unmatched" className="data-[state=active]:bg-background data-[state=inactive]:bg-transparent data-[state=active]:shadow-sm">Unmatched ({unmatchedRows.length + highlySimilarRows.length})</TabsTrigger>
+                               <TabsTrigger value="matched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Matched ({mergedRows.length})</TabsTrigger>
+                               <TabsTrigger value="unmatched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Unmatched ({unmatchedRows.length + highlySimilarRows.length})</TabsTrigger>
                            </TabsList>
                             <TabsContent value="matched" className="mt-4">
                                 <ResultsTable data={mergedRows} headers={resultHeaders} />
@@ -673,4 +675,5 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         </div>
     );
 }
+
 
