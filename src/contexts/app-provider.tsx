@@ -53,10 +53,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const handleSetFileA = useCallback((data: TableData | null) => {
         setFileA(data);
         try {
+            // Proactively remove the old key before setting the new one to prevent stale data issues.
+            localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_A);
             if (data) {
                 localStorage.setItem(LOCAL_STORAGE_KEY_FILE_A, JSON.stringify(data));
-            } else {
-                localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_A);
             }
         } catch (error) {
             console.error("Failed to save File A to localStorage", error);
@@ -66,10 +66,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const handleSetFileB = useCallback((data: TableData | null) => {
         setFileB(data);
         try {
+            // Proactively remove the old key before setting the new one.
+            localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_B);
             if (data) {
                 localStorage.setItem(LOCAL_STORAGE_KEY_FILE_B, JSON.stringify(data));
-            } else {
-                localStorage.removeItem(LOCAL_STORAGE_KEY_FILE_B);
             }
         } catch (error) {
             console.error("Failed to save File B to localStorage", error);
