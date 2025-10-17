@@ -433,26 +433,33 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
     
         const findHeader = (headers: string[], names: string[]) => {
             const lowerNames = names.map(n => n.toLowerCase());
-            return headers.find(h => h && lowerNames.includes(h.toLowerCase()));
+            for (const name of lowerNames) {
+                for (const header of headers) {
+                    if (header && header.toLowerCase() === name) {
+                        return header;
+                    }
+                }
+            }
+            return undefined;
         };
     
-        const idCol = findHeader(allHeaders, ['id']);
-        const nameCol = findHeader(allHeaders, ['nama']);
+        const idCol = findHeader(combined, ['id']);
+        const nameCol = findHeader(combined, ['nama']);
         let dynamicCol: string | undefined;
     
         if (editMode === 'nisn') {
-            dynamicCol = findHeader(allHeaders, ['nisn']);
+            dynamicCol = findHeader(combined, ['nisn']);
         } else if (editMode === 'nis') {
-            dynamicCol = findHeader(allHeaders, ['nis']);
+            dynamicCol = findHeader(combined, ['nis']);
         } else if (editMode === 'year') {
-            dynamicCol = findHeader(allHeaders, ['tahun ajaran', 'year']);
+            dynamicCol = findHeader(combined, ['tahun ajaran', 'year']);
         }
     
         const priorityHeaders = [idCol, nameCol, dynamicCol].filter((h): h is string => !!h);
         
         const uniquePriorityHeaders = Array.from(new Set(priorityHeaders.map(p => {
              return combined.find(c => c && p && c.toLowerCase() === p.toLowerCase())!;
-        }))).filter(Boolean); // Filter out any potential undefined values
+        }))).filter(Boolean);
     
         const remainingHeaders = combined.filter(h => 
             h && !uniquePriorityHeaders.some(p => p && p.toLowerCase() === h.toLowerCase())
@@ -675,5 +682,6 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         </div>
     );
 }
+
 
 
