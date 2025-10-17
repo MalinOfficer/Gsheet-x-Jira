@@ -110,8 +110,8 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
                 if (!hasRequiredColumn) {
                     toast({
                         variant: 'destructive',
-                        title: 'File Upload Gagal',
-                        description: `File yang Anda unggah tidak memiliki kolom '${requiredColumn}'.`,
+                        title: 'File Upload Failed',
+                        description: `The file you uploaded does not have the '${requiredColumn}' column.`,
                     });
                     setIsUploading(false);
                     if(inputRef.current) inputRef.current.value = '';
@@ -121,14 +121,14 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
 
             onFileProcessed(fileId, data);
             toast({
-                title: `File ${fileId === 'A' ? 'A' : 'ID'} Diunggah`,
-                description: `'${file.name}' telah berhasil diproses.`,
+                title: `File ${fileId === 'A' ? 'A' : 'ID'} Uploaded`,
+                description: `'${file.name}' has been successfully processed.`,
             });
         } catch (error) {
             toast({
                 variant: 'destructive',
-                title: `Error Memproses File ${fileId === 'A' ? 'A' : 'ID'}`,
-                description: error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui.",
+                title: `Error Processing File ${fileId === 'A' ? 'A' : 'ID'}`,
+                description: error instanceof Error ? error.message : "An unknown error occurred.",
             });
         } finally {
             setIsUploading(false);
@@ -156,7 +156,7 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
                 {isUploading ? (
                     <div className="flex flex-col items-center justify-center h-24">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <p className="mt-2 text-sm text-muted-foreground">Memproses...</p>
+                        <p className="mt-2 text-sm text-muted-foreground">Processing...</p>
                     </div>
                 ) : currentFile ? (
                     <div className="flex flex-col items-center justify-center h-24 w-full">
@@ -166,18 +166,18 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
                         </p>
                         <div className="flex gap-2 mt-2">
                              <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={triggerInput}>
-                                Ganti
+                                Replace
                             </Button>
                             <span className="text-xs text-muted-foreground">|</span>
                              <Button variant="link" size="sm" className="h-auto p-0 text-xs text-destructive" onClick={(e) => { e.stopPropagation(); onFileRemoved(fileId); }}>
-                                Hapus
+                                Remove
                             </Button>
                         </div>
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-24" onClick={triggerInput}>
                         <Upload className="h-8 w-8 text-muted-foreground" />
-                        <p className="mt-2 text-sm font-semibold">Klik atau seret file</p>
+                        <p className="mt-2 text-sm font-semibold">Click or drag file</p>
                         <p className="text-xs text-muted-foreground">.xlsx, .xls</p>
                     </div>
                 )}
@@ -203,7 +203,7 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
     const totalHeight = rowVirtualizer.getTotalSize();
 
     if (data.length === 0) {
-        return <div className="text-center py-8 text-muted-foreground">Tidak ada data untuk ditampilkan pada kategori ini.</div>;
+        return <div className="text-center py-8 text-muted-foreground">No data to display in this category.</div>;
     }
     
     return (
@@ -264,15 +264,15 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
 
 function ModeSelectionScreen({ onSelectMode }: { onSelectMode: (mode: EditMode) => void }) {
     const modes = [
-        { mode: 'nisn' as EditMode, title: 'Edit bulk NISN', icon: FileScan, description: 'Gunakan mode ini untuk mengedit atau menambahkan data NISN secara massal.' },
-        { mode: 'year' as EditMode, title: 'Edit bulk Tahun Ajaran', icon: CalendarDays, description: 'Gunakan mode ini untuk memperbarui tahun ajaran siswa secara massal.' },
-        { mode: 'nis' as EditMode, title: 'Edit bulk NIS', icon: BookUser, description: 'Gunakan mode ini untuk mengedit atau menambahkan data NIS secara massal.' }
+        { mode: 'nisn' as EditMode, title: 'Bulk Edit NISN', icon: FileScan, description: 'Gunakan mode ini untuk mengedit atau menambahkan data NISN secara massal.' },
+        { mode: 'year' as EditMode, title: 'Bulk Edit School Year', icon: CalendarDays, description: 'Gunakan mode ini untuk memperbarui tahun ajaran siswa secara massal.' },
+        { mode: 'nis' as EditMode, title: 'Bulk Edit NIS', icon: BookUser, description: 'Gunakan mode ini untuk mengedit atau menambahkan data NIS secara massal.' }
     ];
 
     return (
         <Card>
             <CardHeader className="items-center text-center">
-                <CardTitle>Pilih Mode Edit Massal</CardTitle>
+                <CardTitle>Select Bulk Edit Mode</CardTitle>
                 <CardDescription>Pilih jenis data yang ingin Anda gabungkan atau perbarui secara massal.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -328,9 +328,9 @@ export function DataWeaver() {
     }, [setFileA, setFileB]);
 
     const fileATitle = useMemo(() => {
-        if (editMode === 'nisn') return 'Upload File NISN';
-        if (editMode === 'year') return 'Upload File Tahun Ajaran';
-        if (editMode === 'nis') return 'Upload File NIS';
+        if (editMode === 'nisn') return 'Upload NISN File';
+        if (editMode === 'year') return 'Upload School Year File';
+        if (editMode === 'nis') return 'Upload NIS File';
         return 'Upload File A';
     }, [editMode]);
 
@@ -349,7 +349,7 @@ export function DataWeaver() {
     
     const handleMerge = useCallback(async () => {
         if (!fileA || !fileB) {
-            toast({ variant: 'destructive', title: 'File Hilang', description: 'Mohon unggah kedua file yang diperlukan.' });
+            toast({ variant: 'destructive', title: 'Files Missing', description: 'Please upload both required files.' });
             return;
         }
         
@@ -367,11 +367,11 @@ export function DataWeaver() {
                     errorMessage = errorMessage.replace("File A", fileATitle.replace("Upload ", ""));
                 }
                 setError(errorMessage);
-                toast({ variant: 'destructive', title: 'Penggabungan Gagal', description: errorMessage });
+                toast({ variant: 'destructive', title: 'Merge Failed', description: errorMessage });
             } else {
                 setMergedRows(result.mergedRows || []);
                 setUnmatchedRows(result.unmatchedRowsB || []);
-                toast({ title: 'Penggabungan Selesai', description: `${result.mergedRows?.length || 0} baris cocok.` });
+                toast({ title: 'Merge Complete', description: `${result.mergedRows?.length || 0} rows matched.` });
             }
         });
 
@@ -416,11 +416,11 @@ export function DataWeaver() {
 
     const handleDownload = () => {
         if (mergedRows.length === 0) {
-            toast({ variant: 'destructive', title: 'Tidak Ada Data untuk Diunduh', description: 'Tidak ada baris gabungan untuk diunduh.' });
+            toast({ variant: 'destructive', title: 'No Data to Download', description: 'There are no merged rows to download.' });
             return;
         }
         if (typeof XLSX === 'undefined' || !fileA || !fileB) {
-            toast({ variant: 'destructive', title: 'Library atau Data Belum Dimuat', description: 'Pastikan library Excel telah dimuat dan kedua file telah diunggah.' });
+            toast({ variant: 'destructive', title: 'Library or Data Not Loaded', description: 'Ensure the Excel library is loaded and both files are uploaded.' });
             return;
         }
 
@@ -448,7 +448,7 @@ export function DataWeaver() {
         setMergedRows([]);
         setUnmatchedRows([]);
         setError(null);
-        toast({ title: "Status Dihapus", description: "All file dan hasil telah dihapus." });
+        toast({ title: "State Cleared", description: "All files and results have been cleared." });
     };
 
     const resetToModeSelection = () => {
@@ -483,7 +483,7 @@ export function DataWeaver() {
                     <>
                          <Card>
                             <CardHeader>
-                                <CardTitle>Langkah 1: Unggah & Konfigurasi</CardTitle>
+                                <CardTitle>Step 1: Upload & Configure</CardTitle>
                                 <CardDescription>Unggah file sumber dan file ID untuk memulai proses penggabungan.</CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -504,7 +504,7 @@ export function DataWeaver() {
                                         onFileRemoved={handleFileRemoved}
                                         currentFile={fileB}
                                         disabled={isMerging}
-                                        title="Upload File ID"
+                                        title="Upload ID File"
                                         description='File dari menu "Edit Bulk" yang memiliki kolom "id".'
                                         editMode={editMode}
                                     />
@@ -513,10 +513,10 @@ export function DataWeaver() {
                              <CardFooter className="flex justify-between flex-wrap gap-2">
                                 <Button onClick={handleMerge} disabled={!fileA || !fileB || isMerging}>
                                     {isMerging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Combine className="mr-2 h-4 w-4" />}
-                                    {isMerging ? 'Menggabungkan...' : 'Gabungkan File'}
+                                    {isMerging ? 'Merging...' : 'Merge Files'}
                                 </Button>
                                 <Button onClick={handleClear} variant="destructive" disabled={isMerging}>
-                                    <Trash2 className="mr-2 h-4 w-4" /> Hapus Semua
+                                    <Trash2 className="mr-2 h-4 w-4" /> Clear All
                                 </Button>
                             </CardFooter>
                         </Card>
@@ -525,14 +525,14 @@ export function DataWeaver() {
                         {isMerging && (
                             <div className="flex items-center justify-center p-12">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                <p className="ml-4 text-muted-foreground">Menggabungkan file, ini mungkin memerlukan waktu sejenak...</p>
+                                <p className="ml-4 text-muted-foreground">Merging files, this may take a moment...</p>
                             </div>
                         )}
                         
                         {error && (
                             <Alert variant="destructive">
                                 <AlertCircle className="h-4 w-4" />
-                                <AlertTitle>Kesalahan Penggabungan</AlertTitle>
+                                <AlertTitle>Merge Error</AlertTitle>
                                 <AlertDescription>{error}</AlertDescription>
                             </Alert>
                         )}
@@ -541,13 +541,13 @@ export function DataWeaver() {
                              <Card>
                                 <CardHeader className="flex flex-row items-center justify-between">
                                     <div>
-                                        <CardTitle>Langkah 2: Hasil Penggabungan</CardTitle>
+                                        <CardTitle>Step 2: Merge Results</CardTitle>
                                         <CardDescription className='mt-1'>
                                             Tinjau baris yang cocok dan tidak cocok. Unduh hasilnya jika sudah sesuai.
                                         </CardDescription>
                                     </div>
                                     <Button onClick={handleDownload} variant="outline" size="sm" disabled={mergedRows.length === 0}>
-                                        <Download className="mr-2 h-4 w-4" /> Unduh Data Gabungan
+                                        <Download className="mr-2 h-4 w-4" /> Download Merged Data
                                     </Button>
                                 </CardHeader>
                                 <CardContent>
@@ -557,7 +557,7 @@ export function DataWeaver() {
                                                 <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                                             </div>
                                             <div>
-                                                <p className="text-sm text-muted-foreground">Cocok</p>
+                                                <p className="text-sm text-muted-foreground">Matched</p>
                                                 <p className="text-xl font-bold">{mergedRows.length}</p>
                                             </div>
                                         </div>
@@ -566,15 +566,15 @@ export function DataWeaver() {
                                                 <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                                             </div>
                                             <div>
-                                                <p className="text-sm text-muted-foreground">Tidak Cocok</p>
+                                                <p className="text-sm text-muted-foreground">Unmatched</p>
                                                 <p className="text-xl font-bold">{unmatchedRows.length}</p>
                                             </div>
                                         </div>
                                     </div>
                                     <Tabs defaultValue="matched">
                                         <TabsList className="grid w-full grid-cols-2">
-                                            <TabsTrigger value="matched">Cocok ({mergedRows.length})</TabsTrigger>
-                                            <TabsTrigger value="unmatched">Tidak Cocok ({unmatchedRows.length})</TabsTrigger>
+                                            <TabsTrigger value="matched">Matched ({mergedRows.length})</TabsTrigger>
+                                            <TabsTrigger value="unmatched">Unmatched ({unmatchedRows.length})</TabsTrigger>
                                         </TabsList>
                                         <TabsContent value="matched" className="mt-4">
                                             <ResultsTable data={mergedRows} headers={resultHeaders} title={''} />
