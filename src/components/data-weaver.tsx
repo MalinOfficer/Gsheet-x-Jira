@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -51,13 +50,23 @@ const readFile = (file: File, fileId: 'A' | 'B'): Promise<TableData> => {
                 let headers: string[];
                 let dataRows: any[][];
 
-                if (fileId === 'B' && json.length > 1) {
-                    headers = json[1].map(String);
-                    dataRows = json.slice(2);
-                } else {
-                    headers = json[0].map(String);
-                    dataRows = json.slice(1);
+                // Heuristic to find header row (look for 'nama')
+                let headerRowIndex = -1;
+                for(let i=0; i<Math.min(json.length, 10); i++) {
+                    if (json[i].some(cell => typeof cell === 'string' && cell.toLowerCase().includes('nama'))) {
+                        headerRowIndex = i;
+                        break;
+                    }
                 }
+                
+                if(headerRowIndex === -1) {
+                    // Fallback to first row if no 'nama' found
+                    headerRowIndex = 0; 
+                }
+
+                headers = json[headerRowIndex].map(String);
+                dataRows = json.slice(headerRowIndex + 1);
+
 
                 const rows = dataRows.map((rowArray: any[]) => {
                     const row: ExcelRow = {};
@@ -77,7 +86,7 @@ const readFile = (file: File, fileId: 'A' | 'B'): Promise<TableData> => {
     });
 };
 
-function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, disabled, title, description, editMode }: { fileId: 'A' | 'B', onFileProcessed: (id: 'A' | 'B', data: TableData) => void, onFileRemoved: (id: 'A' | 'B') => void, currentFile: TableData | null, disabled: boolean, title: string, description: string, editMode: EditMode | null }) {
+function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, disabled, title, description }: { fileId: 'A' | 'B', onFileProcessed: (id: 'A' | 'B', data: TableData) => void, onFileRemoved: (id: 'A' | 'B') => void, currentFile: TableData | null, disabled: boolean, title: string, description: string }) {
     const [isUploading, setIsUploading] = useState(false);
     const { toast } = useToast();
     const inputRef = useRef<HTMLInputElement>(null);
@@ -89,39 +98,6 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
         setIsUploading(true);
         try {
             const data = await readFile(file, fileId);
-
-            if (editMode) {
-                let requiredColumn: string;
-                let alternativeColumns: string[] = [];
-
-                if (fileId === 'B') {
-                    requiredColumn = 'id';
-                } else { // File A
-                    if (editMode === 'year') {
-                        requiredColumn = 'Tahun Ajaran';
-                        alternativeColumns = ['year'];
-                    } else {
-                        requiredColumn = editMode.toUpperCase();
-                    }
-                }
-                
-                 const hasRequiredColumn = data.headers.some(h => 
-                    h.toLowerCase() === requiredColumn.toLowerCase() ||
-                    alternativeColumns.some(alt => h.toLowerCase() === alt.toLowerCase())
-                );
-                
-                if (!hasRequiredColumn) {
-                    toast({
-                        variant: 'destructive',
-                        title: 'File Upload Failed',
-                        description: `The file you uploaded does not have the '${requiredColumn}' column.`,
-                    });
-                    setIsUploading(false);
-                    if(inputRef.current) inputRef.current.value = '';
-                    return;
-                }
-            }
-
             onFileProcessed(fileId, data);
             toast({
                 title: `File ${fileId === 'A' ? 'A' : 'ID'} Uploaded`,
@@ -297,6 +273,7 @@ function ModeSelectionScreen({ onSelectMode }: { onSelectMode: (mode: EditMode) 
 
 function Step1({ onNext, onClearAll, isMerging, editMode }: { onNext: () => void; onClearAll: () => void; isMerging: boolean; editMode: EditMode | null }) {
     const { fileA, setFileA, fileB, setFileB } = useApp();
+    const { toast } = useToast();
 
     const handleFileProcessed = useCallback((id: 'A' | 'B', data: TableData) => {
         if (id === 'A') setFileA(data);
@@ -307,18 +284,50 @@ function Step1({ onNext, onClearAll, isMerging, editMode }: { onNext: () => void
         if (id === 'A') setFileA(null);
         else setFileB(null);
     }, [setFileA, setFileB]);
+    
+    const validateFiles = useCallback(() => {
+        if (!fileA || !fileB || !editMode) return false;
 
-    const fileATitle = useMemo(() => {
-        if (editMode === 'nisn') return 'Upload NISN File';
-        if (editMode === 'year') return 'Upload School Year File';
-        if (editMode === 'nis') return 'Upload NIS File';
-        return 'Upload File A';
-    }, [editMode]);
+        const findHeader = (headers: string[] | undefined, keys: string[]) => {
+            if (!headers) return undefined;
+            const lowerKeys = keys.map(k => k.toLowerCase());
+            return headers.find(h => lowerKeys.includes(h.toLowerCase()));
+        };
+        
+        const hasNameInA = findHeader(fileA.headers, ['nama', 'name', 'username']);
+        const hasNameInB = findHeader(fileB.headers, ['nama', 'name', 'username']);
+        if (!hasNameInA || !hasNameInB) {
+            toast({ variant: 'destructive', title: 'Validation Failed', description: "Both files must contain a 'Nama', 'Name', or 'Username' column." });
+            return false;
+        }
+
+        const requiredColumnsA: Record<EditMode, string[]> = {
+            nisn: ['nisn'],
+            nis: ['nis'],
+            year: ['year', 'tahun ajaran']
+        };
+
+        const hasRequiredColA = findHeader(fileA.headers, requiredColumnsA[editMode]);
+        if (!hasRequiredColA) {
+            toast({ variant: 'destructive', title: 'Validation Failed', description: `File A is missing the required column for this mode: '${requiredColumnsA[editMode].join(' or ')}'.` });
+            return false;
+        }
+        
+        return true;
+
+    }, [fileA, fileB, editMode, toast]);
+
+    const handleNextClick = () => {
+        if (validateFiles()) {
+            onNext();
+        }
+    }
+
 
     const fileADescription = useMemo(() => {
-        if (editMode === 'nisn') return 'The file must have a "NISN" column.';
-        if (editMode === 'year') return 'The file must have a "Tahun Ajaran" or "Year" column.';
-        if (editMode === 'nis') return 'The file must have a "NIS" column.';
+        if (editMode === 'nisn') return 'The file with student names and NISN.';
+        if (editMode === 'year') return 'The file with student names and School Year.';
+        if (editMode === 'nis') return 'The file with student names and NIS.';
         return 'Select an Excel file (.xlsx, .csv).';
     }, [editMode]);
 
@@ -336,9 +345,8 @@ function Step1({ onNext, onClearAll, isMerging, editMode }: { onNext: () => void
                         onFileRemoved={handleFileRemoved}
                         currentFile={fileA}
                         disabled={isMerging}
-                        title={fileATitle}
+                        title="File A (Source Data)"
                         description={fileADescription}
-                        editMode={editMode}
                     />
                     <FileUploader
                         fileId="B"
@@ -346,14 +354,13 @@ function Step1({ onNext, onClearAll, isMerging, editMode }: { onNext: () => void
                         onFileRemoved={handleFileRemoved}
                         currentFile={fileB}
                         disabled={isMerging}
-                        title="Upload ID File"
-                        description='File from the "Bulk Edit" menu that has an "id" column.'
-                        editMode={editMode}
+                        title="File B (ID File)"
+                        description='The file from the "Bulk Edit" menu to be updated.'
                     />
                 </div>
             </CardContent>
             <CardFooter className="flex justify-between flex-wrap gap-2">
-                <Button onClick={onNext} disabled={!fileA || !fileB || isMerging}>
+                <Button onClick={handleNextClick} disabled={!fileA || !fileB || isMerging}>
                     {isMerging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Combine className="mr-2 h-4 w-4" />}
                     {isMerging ? 'Merging...' : 'Merge Files'}
                 </Button>
@@ -406,12 +413,13 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
     }, [handleMerge]);
 
     const handleRematch = (similarRow: HighlySimilarRow) => {
+        const idHeaderB = Object.keys(similarRow.rowB).find(k => k.toLowerCase() === 'id');
         const newMergedRow = { ...similarRow.rowB, ...similarRow.potentialMatchA };
         setMergedRows(prev => [...prev, newMergedRow]);
-        setHighlySimilarRows(prev => prev.filter(r => r.rowB.id !== similarRow.rowB.id));
+        setHighlySimilarRows(prev => prev.filter(r => r.rowB[idHeaderB!] !== similarRow.rowB[idHeaderB!]));
         toast({
             title: 'Row Rematched',
-            description: `'${similarRow.rowB['Nama']}' has been moved to the matched list.`
+            description: `'${similarRow.rowB['Nama'] || similarRow.rowB['Name']}' has been moved to the matched list.`
         });
     };
 
@@ -444,7 +452,7 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
         };
     
         const idCol = findHeader(combined, ['id']);
-        const nameCol = findHeader(combined, ['nama']);
+        const nameCol = findHeader(combined, ['nama', 'name', 'username']);
         let dynamicCol: string | undefined;
     
         if (editMode === 'nisn') {
@@ -458,7 +466,7 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
         const priorityHeaders = [idCol, nameCol, dynamicCol].filter((h): h is string => !!h);
         
         const uniquePriorityHeaders = Array.from(new Set(priorityHeaders.map(p => {
-             return combined.find(c => c && p && c.toLowerCase() === p.toLowerCase())!;
+             return combined.find(c => c && p && c.toLowerCase() === c.toLowerCase())!;
         }))).filter(Boolean);
     
         const remainingHeaders = combined.filter(h => 
@@ -642,48 +650,51 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         return <div className="text-center py-8 text-muted-foreground">No highly similar rows found.</div>;
     }
     
-    const findNameHeader = (headers: string[]) => headers.find(h => h.toLowerCase().includes('nama')) || headers.find(h => h.toLowerCase().includes('name')) || headers[0];
+    const findNameHeader = (headers: string[]) => headers.find(h => h.toLowerCase().includes('nama')) || headers.find(h => h.toLowerCase().includes('name')) || headers.find(h => h.toLowerCase().includes('username')) || headers[0];
     
     const nameHeaderA = findNameHeader(fileAHeaders);
     const nameHeaderB = findNameHeader(fileBHeaders);
 
+    const findIdHeader = (headers: string[]) => headers.find(h => h.toLowerCase() === 'id');
+    const idHeaderB = findIdHeader(fileBHeaders);
+
     return (
         <div className="border rounded-lg overflow-hidden">
             <div className="divide-y">
-                {data.map((item, index) => (
-                    <div key={item.rowB.id || index} className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center p-4 gap-4 hover:bg-muted/50">
-                        {/* File B Data */}
-                        <div className="text-sm">
-                            <Badge variant="secondary" className="mb-2">From ID File</Badge>
-                            <p><strong>Name:</strong> {item.rowB[nameHeaderB]}</p>
-                            {Object.entries(item.rowB).map(([key, value]) => (
-                                key.toLowerCase() !== nameHeaderB.toLowerCase() && <p key={key}><strong>{key}:</strong> {String(value)}</p>
-                            ))}
+                {data.map((item, index) => {
+                    const rowBId = idHeaderB ? item.rowB[idHeaderB] : index;
+                    return (
+                        <div key={rowBId} className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center p-4 gap-4 hover:bg-muted/50">
+                            {/* File B Data */}
+                            <div className="text-sm">
+                                <Badge variant="secondary" className="mb-2">From ID File</Badge>
+                                <p><strong>Name:</strong> {nameHeaderB ? item.rowB[nameHeaderB] : 'N/A'}</p>
+                                {Object.entries(item.rowB).map(([key, value]) => (
+                                    key.toLowerCase() !== (nameHeaderB || '').toLowerCase() && <p key={key}><strong>{key}:</strong> {String(value)}</p>
+                                ))}
+                            </div>
+                            
+                            {/* Action */}
+                            <div className="flex flex-col items-center justify-center gap-2">
+                                 <ArrowRight className="hidden md:block h-6 w-6 text-muted-foreground" />
+                                 <Button size="sm" onClick={() => onRematch(item)}>
+                                    <Link className="mr-2 h-4 w-4" /> Rematch
+                                </Button>
+                                <Badge variant="outline">{Math.round(item.score * 100)}% Similar</Badge>
+                            </div>
+                            
+                            {/* Potential Match A Data */}
+                            <div className="text-sm">
+                                <Badge variant="secondary" className="mb-2">Potential Match</Badge>
+                                <p><strong>Name:</strong> {nameHeaderA ? item.potentialMatchA[nameHeaderA] : 'N/A'}</p>
+                                 {Object.entries(item.potentialMatchA).map(([key, value]) => (
+                                    key.toLowerCase() !== (nameHeaderA || '').toLowerCase() && <p key={key}><strong>{key}:</strong> {String(value)}</p>
+                                ))}
+                            </div>
                         </div>
-                        
-                        {/* Action */}
-                        <div className="flex flex-col items-center justify-center gap-2">
-                             <ArrowRight className="hidden md:block h-6 w-6 text-muted-foreground" />
-                             <Button size="sm" onClick={() => onRematch(item)}>
-                                <Link className="mr-2 h-4 w-4" /> Rematch
-                            </Button>
-                            <Badge variant="outline">{Math.round(item.score * 100)}% Similar</Badge>
-                        </div>
-                        
-                        {/* Potential Match A Data */}
-                        <div className="text-sm">
-                            <Badge variant="secondary" className="mb-2">Potential Match</Badge>
-                            <p><strong>Name:</strong> {item.potentialMatchA[nameHeaderA]}</p>
-                             {Object.entries(item.potentialMatchA).map(([key, value]) => (
-                                key.toLowerCase() !== nameHeaderA.toLowerCase() && <p key={key}><strong>{key}:</strong> {String(value)}</p>
-                            ))}
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
 }
-
-
-    

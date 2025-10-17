@@ -818,17 +818,12 @@ export async function mergeFilesOnServer(
 
     // Elimination logic based on editMode
     if (editMode) {
-        const findHeaderForElimination = (headers: string[] | undefined, mode: 'nisn' | 'year' | 'nis') => {
-            if (!headers) return undefined;
-            const keys: Record<typeof mode, string[]> = {
-                nisn: ['nisn'],
-                nis: ['nis'],
-                year: ['year', 'tahun ajaran']
-            };
-            return findHeader(headers, keys[mode]);
+        const eliminationKeys: Record<typeof editMode, string[]> = {
+            nisn: ['nisn'],
+            nis: ['nis'],
+            year: ['year', 'tahun ajaran']
         };
-
-        const columnToCheck = findHeaderForElimination(fileBData.headers, editMode);
+        const columnToCheck = findHeader(fileBData.headers, eliminationKeys[editMode]);
         
         if (columnToCheck) {
             rowsToProcessB = fileBData.rows.filter((row: any) => {
@@ -842,8 +837,8 @@ export async function mergeFilesOnServer(
     const fileAKey = findHeader(fileAData.headers, nameHeaderKeys);
     const fileBKey = findHeader(fileBData.headers, nameHeaderKeys);
     
-    if (!fileAKey) return { error: `Merge key (e.g., 'Nama', 'Name') not found in File A.` };
-    if (!fileBKey) return { error: `Merge key (e.g., 'Nama', 'Name') not found in ID File.` };
+    if (!fileAKey) return { error: `Merge key (e.g., 'Nama', 'Name', 'Username') not found in File A.` };
+    if (!fileBKey) return { error: `Merge key (e.g., 'Nama', 'Name', 'Username') not found in ID File.` };
     
     const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
