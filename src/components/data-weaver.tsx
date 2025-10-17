@@ -446,19 +446,10 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
             } else {
                 actionCell = <p className="text-muted-foreground text-xs italic">No match found</p>;
             }
-
-            const findValue = (keys: string[], fromRow: ExcelRow) => {
-                for(const key in fromRow) {
-                    if (keys.includes(key.toLowerCase())) {
-                        return fromRow[key];
-                    }
-                }
-                return '';
-            }
-
+            
             return {
                 "Name A": similarItem ? similarItem.potentialMatchA.Name : '',
-                "Name B": findValue(['name', 'nama', 'username'], row),
+                "Name": row.Name || row.nama || row.username,
                 "Potential Match": actionCell,
             };
         });
