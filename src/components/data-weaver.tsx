@@ -205,39 +205,36 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
     }
     
     return (
-        <div className="space-y-4">
-            <h3 className="font-semibold text-sm text-muted-foreground">{title}</h3>
-            <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[500px]">
-                <div style={{ height: `${totalHeight}px`, width: `${headers.length * 150}px`, position: 'relative' }}>
-                    <div className="flex sticky top-0 bg-muted z-10 font-medium text-sm">
-                        {headers.map(header => (
-                            <div key={header} className="p-2 border-b border-r flex-shrink-0" style={{ width: '150px' }}>{header}</div>
-                        ))}
-                    </div>
-                    {virtualRows.map(virtualRow => {
-                        const row = data[virtualRow.index];
-                        return (
-                            <div
-                                key={virtualRow.key}
-                                style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    width: '100%',
-                                    height: `${virtualRow.size}px`,
-                                    transform: `translateY(${virtualRow.start + 41}px)`, // Offset by header height
-                                }}
-                                className="flex text-xs"
-                            >
-                                {headers.map(header => (
-                                    <div key={header} className="p-2 border-b border-r truncate flex-shrink-0" style={{ width: '150px' }}>
-                                        {String(row[header] ?? '')}
-                                    </div>
-                                ))}
-                            </div>
-                        );
-                    })}
+        <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[500px]">
+            <div style={{ height: `${totalHeight}px`, width: '100%', position: 'relative' }}>
+                <div className="flex sticky top-0 bg-muted z-10 font-medium text-sm">
+                    {headers.map(header => (
+                        <div key={header} className="p-2 border-b border-r flex-shrink-0 flex-grow flex items-center justify-center" style={{ minWidth: '150px' }}>{header}</div>
+                    ))}
                 </div>
+                {virtualRows.map(virtualRow => {
+                    const row = data[virtualRow.index];
+                    return (
+                        <div
+                            key={virtualRow.key}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: `${virtualRow.size}px`,
+                                transform: `translateY(${virtualRow.start + 41}px)`, // Offset by header height
+                            }}
+                            className="flex text-xs"
+                        >
+                            {headers.map(header => (
+                                <div key={header} className="p-2 border-b border-r truncate flex-shrink-0 flex-grow flex items-center" style={{ minWidth: '150px' }}>
+                                    {String(row[header] ?? '')}
+                                </div>
+                            ))}
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -519,41 +516,49 @@ export function DataWeaver() {
                         )}
 
                         {hasResults && !isMerging && (
-                            <Card>
-                                <CardHeader>
-                                    <div className="flex justify-between items-start gap-4">
-                                        <div>
-                                            <CardTitle>Langkah 2: Hasil Penggabungan</CardTitle>
-                                            <CardDescription>
-                                                Tinjau baris yang cocok dan tidak cocok. Unduh hasilnya jika sudah sesuai.
-                                            </CardDescription>
-                                        </div>
-                                        <Button onClick={handleDownload} variant="outline" size="sm" disabled={mergedRows.length === 0}>
-                                            <Download className="mr-2 h-4 w-4" /> Unduh Data Gabungan
-                                        </Button>
+                             <Card>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle>Langkah 2: Hasil Penggabungan</CardTitle>
+                                        <CardDescription className='mt-1'>
+                                            Tinjau baris yang cocok dan tidak cocok. Unduh hasilnya jika sudah sesuai.
+                                        </CardDescription>
                                     </div>
+                                    <Button onClick={handleDownload} variant="outline" size="sm" disabled={mergedRows.length === 0}>
+                                        <Download className="mr-2 h-4 w-4" /> Unduh Data Gabungan
+                                    </Button>
                                 </CardHeader>
                                 <CardContent>
-                                    <Alert variant={mergedRows.length > 0 ? "default" : "destructive"} className="mb-6">
-                                        <div className='flex items-center gap-2'>
-                                            {mergedRows.length > 0 ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                                            <AlertTitle>Ringkasan</AlertTitle>
+                                    <div className="mb-6 grid grid-cols-2 gap-4 rounded-lg border p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                                                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Cocok</p>
+                                                <p className="text-xl font-bold">{mergedRows.length}</p>
+                                            </div>
                                         </div>
-                                        <AlertDescription className="pl-6">
-                                            <p>{mergedRows.length} baris Cocok.</p>
-                                            <p>{unmatchedRows.length} nama dari File ID Tidak Cocok.</p>
-                                        </AlertDescription>
-                                    </Alert>
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                                                <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Tidak Cocok</p>
+                                                <p className="text-xl font-bold">{unmatchedRows.length}</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <Tabs defaultValue="matched">
                                         <TabsList className="grid w-full grid-cols-2">
                                             <TabsTrigger value="matched">Cocok ({mergedRows.length})</TabsTrigger>
                                             <TabsTrigger value="unmatched">Tidak Cocok ({unmatchedRows.length})</TabsTrigger>
                                         </TabsList>
                                         <TabsContent value="matched" className="mt-4">
-                                            <ResultsTable title="" data={mergedRows} headers={resultHeaders} />
+                                            <ResultsTable data={mergedRows} headers={resultHeaders} title={''} />
                                         </TabsContent>
                                         <TabsContent value="unmatched" className="mt-4">
-                                            <ResultsTable title="" data={unmatchedRows} headers={unmatchedHeaders} />
+                                            <ResultsTable data={unmatchedRows} headers={unmatchedHeaders} title={''} />
                                         </TabsContent>
                                     </Tabs>
                                 </CardContent>
