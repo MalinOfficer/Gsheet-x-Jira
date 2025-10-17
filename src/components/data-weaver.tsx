@@ -642,8 +642,10 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         return <div className="text-center py-8 text-muted-foreground">No highly similar rows found.</div>;
     }
     
-    const nameHeaderA = fileAHeaders.find(h => h.toLowerCase() === 'nama') || 'Nama';
-    const nameHeaderB = fileBHeaders.find(h => h.toLowerCase() === 'nama') || 'Nama';
+    const findNameHeader = (headers: string[]) => headers.find(h => h.toLowerCase() === 'nama') || headers[0];
+    
+    const nameHeaderA = findNameHeader(fileAHeaders);
+    const nameHeaderB = findNameHeader(fileBHeaders);
 
     return (
         <div className="border rounded-lg overflow-hidden">
