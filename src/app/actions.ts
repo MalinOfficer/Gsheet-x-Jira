@@ -803,14 +803,14 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     };
 
     if (!fileAData?.rows || !fileBData?.rows || !mergeKey) {
-        return { mergedRows: [], unmatchedRowsB: fileBData?.rows || [], error: "Missing file data or merge key." };
+        return { error: "Missing file data or merge key." };
     }
 
     const fileAKey = findHeader(fileAData.headers, mergeKey);
     const fileBKey = findHeader(fileBData.headers, mergeKey);
     
-    if (!fileAKey) return { mergedRows: [], unmatchedRowsB: fileBData.rows, error: `Merge key '${mergeKey}' not found in File A.` };
-    if (!fileBKey) return { mergedRows: [], unmatchedRowsB: fileBData.rows, error: `Merge key '${mergeKey}' not found in File B.` };
+    if (!fileAKey) return { error: `Merge key '${mergeKey}' not found in File A.` };
+    if (!fileBKey) return { error: `Merge key '${mergeKey}' not found in File B.` };
     
     const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
@@ -824,7 +824,9 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
     }
 
     const mergedRows: any[] = [];
+    const highlySimilarRows: { rowB: any, potentialMatchA: any, score: number }[] = [];
     const unmatchedRowsB: any[] = [];
+    const usedInSimilar = new Set<string>(); // Keep track of File A rows suggested as similar
 
     for (const rowB of fileBData.rows) {
         const keyB = rowB[fileBKey];
@@ -836,12 +838,14 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
                 mergedRows.push(mergedRow);
             } else {
                  let bestMatch: any = null;
-                 let highestScore = 0.8; 
-
-                 const wordsB = new Set(normalizedKeyB.split(' ').filter(Boolean));
+                 let highestScore = 0.8; // Set a high threshold for "highly similar"
 
                  for (const [normalizedKeyA, rowA] of fileAMap.entries()) {
+                     // Skip if this row from A is already used in a similar match
+                     if (usedInSimilar.has(normalizedKeyA)) continue;
+
                      const wordsA = new Set(normalizedKeyA.split(' ').filter(Boolean));
+                     const wordsB = new Set(normalizedKeyB.split(' ').filter(Boolean));
                      
                      const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
                      const union = new Set([...wordsA, ...wordsB]);
@@ -849,13 +853,13 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
 
                      if (score > highestScore) {
                          highestScore = score;
-                         bestMatch = rowA;
+                         bestMatch = { row: rowA, key: normalizedKeyA };
                      }
                  }
 
                  if (bestMatch) {
-                     const mergedRow = { ...bestMatch, ...rowB };
-                     mergedRows.push(mergedRow);
+                     highlySimilarRows.push({ rowB: rowB, potentialMatchA: bestMatch.row, score: highestScore });
+                     usedInSimilar.add(bestMatch.key); // Mark this File A row as used
                  } else {
                      unmatchedRowsB.push(rowB);
                  }
@@ -865,7 +869,7 @@ export async function mergeFilesOnServer(fileAData: any, fileBData: any, mergeKe
         }
     }
     
-    return { mergedRows, unmatchedRowsB };
+    return { mergedRows, highlySimilarRows, unmatchedRowsB };
 }
 
 
@@ -1014,6 +1018,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
 
 

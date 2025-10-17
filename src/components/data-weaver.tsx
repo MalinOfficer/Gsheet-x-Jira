@@ -5,17 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, Loader2, Trash2, Combine, Download, AlertCircle, CheckCircle2, ArrowLeft, FileScan, BookUser, CalendarDays, FileCheck, X } from 'lucide-react';
+import { Upload, Loader2, Trash2, Combine, Download, AlertCircle, CheckCircle2, ArrowLeft, FileScan, BookUser, CalendarDays, FileCheck, X, Link, ArrowRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { mergeFilesOnServer } from '@/app/actions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/contexts/app-provider';
+import { Badge } from './ui/badge';
+
 
 declare const XLSX: any;
 
 type ExcelRow = Record<string, any>;
+type HighlySimilarRow = { rowB: ExcelRow; potentialMatchA: ExcelRow; score: number };
 
 type EditMode = 'nisn' | 'year' | 'nis';
 
@@ -185,7 +188,7 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
     );
 }
 
-const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[]; headers: string[] }) => {
+const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
     const rowVirtualizer = useVirtualizer({
@@ -210,7 +213,7 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
                         <div 
                             key={header} 
                             className="p-2 border-b border-r flex items-center"
-                            style={{ 
+                             style={{
                                 flexGrow: header === "No" ? 0 : 1,
                                 flexShrink: 0,
                                 flexBasis: header === "No" ? '60px' : '0',
@@ -240,7 +243,7 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
                                 <div 
                                     key={header} 
                                     className="p-2 border-b border-r truncate flex items-center"
-                                    style={{ 
+                                    style={{
                                         flexGrow: header === "No" ? 0 : 1,
                                         flexShrink: 0,
                                         flexBasis: header === "No" ? '60px' : '0',
@@ -297,6 +300,7 @@ export function DataWeaver() {
     const [isMerging, startMerging] = useTransition();
     
     const [mergedRows, setMergedRows] = useState<ExcelRow[]>([]);
+    const [highlySimilarRows, setHighlySimilarRows] = useState<HighlySimilarRow[]>([]);
     const [unmatchedRows, setUnmatchedRows] = useState<ExcelRow[]>([]);
     const [error, setError] = useState<string | null>(null);
 
@@ -304,7 +308,6 @@ export function DataWeaver() {
 
     useEffect(() => {
         // This effect can be used if mergeKey needs to be dynamic in the future
-        // For now, it's always 'Nama'
     }, [editMode]);
 
     const handleFileProcessed = useCallback((id: 'A' | 'B', data: TableData) => {
@@ -351,12 +354,14 @@ export function DataWeaver() {
         
         setError(null);
         setMergedRows([]);
+        setHighlySimilarRows([]);
         setUnmatchedRows([]);
+
         startMerging(async () => {
-            const result = await mergeFilesOnServer(fileA, fileB, 'Nama'); // Always merge on 'Nama'
+            const result = await mergeFilesOnServer(fileA, fileB, 'Nama');
             if (result.error) {
                 let errorMessage = result.error;
-                if (errorMessage.includes("File B")) {
+                 if (errorMessage.includes("File B")) {
                     errorMessage = errorMessage.replace("File B", "File ID");
                 }
                 if (errorMessage.includes("File A")) {
@@ -366,47 +371,48 @@ export function DataWeaver() {
                 toast({ variant: 'destructive', title: 'Merge Failed', description: errorMessage });
             } else {
                 setMergedRows(result.mergedRows || []);
+                setHighlySimilarRows(result.highlySimilarRows || []);
                 setUnmatchedRows(result.unmatchedRowsB || []);
-                toast({ title: 'Merge Complete', description: `${result.mergedRows?.length || 0} rows matched.` });
+                toast({ title: 'Merge Complete', description: `${result.mergedRows?.length || 0} rows matched directly.` });
             }
         });
 
     }, [fileA, fileB, toast, fileATitle]);
     
+    const handleRematch = (similarRow: HighlySimilarRow) => {
+        const newMergedRow = { ...similarRow.potentialMatchA, ...similarRow.rowB };
+        setMergedRows(prev => [...prev, newMergedRow]);
+        setHighlySimilarRows(prev => prev.filter(r => r.rowB.id !== similarRow.rowB.id));
+        toast({
+            title: 'Row Rematched',
+            description: `'${similarRow.rowB['Nama']}' has been moved to the matched list.`
+        });
+    };
+
     const resultHeaders = useMemo(() => {
         if (!fileA || !fileB) return [];
         
-        const irrelevantBHeaders = new Set(['nama']);
-        if (editMode === 'nisn') {
-            irrelevantBHeaders.add('nis').add('tahun ajaran').add('year');
-        } else if (editMode === 'nis') {
-            irrelevantBHeaders.add('nisn').add('tahun ajaran').add('year');
-        } else if (editMode === 'year') {
-            irrelevantBHeaders.add('nisn').add('nis');
-        }
-
         const headersA = fileA.headers;
-        const headersB = fileB.headers.filter(h => !irrelevantBHeaders.has(h.toLowerCase()));
+        const headersB = fileB.headers.filter(h => h.toLowerCase() !== 'nama'); // Exclude 'Nama' from File B
         
-        const combinedHeaders = [...headersA, ...headersB.filter(h => !headersA.some(hA => hA.toLowerCase() === h.toLowerCase()))];
-        
+        const combined = [...new Set([...headersA, ...headersB])];
+
         const findHeader = (headers: string[], names: string[]) => {
             const lowerNames = names.map(n => n.toLowerCase());
             return headers.find(h => lowerNames.includes(h.toLowerCase()));
         };
 
-        let dynamicColName: string | undefined;
-        if (editMode === 'nisn') dynamicColName = findHeader(combinedHeaders, ['nisn']);
-        else if (editMode === 'nis') dynamicColName = findHeader(combinedHeaders, ['nis']);
-        else if (editMode === 'year') dynamicColName = findHeader(combinedHeaders, ['tahun ajaran', 'year']);
-
-        const idCol = findHeader(combinedHeaders, ['id']);
-        const nameCol = findHeader(combinedHeaders, ['nama']);
-
-        const priorityHeaders = [idCol, nameCol, dynamicColName].filter((h): h is string => !!h);
+        const idCol = findHeader(combined, ['id']);
+        const nameCol = findHeader(combined, ['nama']);
         
-        const remainingHeaders = combinedHeaders.filter(h => !priorityHeaders.some(pH => pH.toLowerCase() === h.toLowerCase()));
+        let dynamicCol: string | undefined;
+        if (editMode === 'nisn') dynamicCol = findHeader(combined, ['nisn']);
+        else if (editMode === 'nis') dynamicCol = findHeader(combined, ['nis']);
+        else if (editMode === 'year') dynamicCol = findHeader(combined, ['tahun ajaran', 'year']);
         
+        const priorityHeaders = [idCol, nameCol, dynamicCol].filter((h): h is string => !!h);
+        const remainingHeaders = combined.filter(h => !priorityHeaders.includes(h));
+
         return ["No", ...new Set([...priorityHeaders, ...remainingHeaders])];
     }, [fileA, fileB, editMode]);
 
@@ -420,19 +426,14 @@ export function DataWeaver() {
             return;
         }
 
-        const findHeader = (headers: string[], name: string) => headers.find(h => h.toLowerCase() === name.toLowerCase());
-
         const downloadableHeaders = resultHeaders.filter(h => h !== 'No');
-
-        const headerRow1 = ["No", ...downloadableHeaders.map(header => findHeader(fileB.headers, header) || findHeader(fileA.headers, header) || '' )];
-        const headerRow2 = ["No", ...downloadableHeaders.map(header => findHeader(fileA.headers, header) || findHeader(fileB.headers, header) || '' )];
         
         const dataRows = mergedRows.map((row, index) => {
              const orderedRow = downloadableHeaders.map(header => row[header] ?? '');
              return [index + 1, ...orderedRow];
         });
 
-        const dataToExport = [headerRow1, headerRow2, ...dataRows];
+        const dataToExport = [downloadableHeaders, ...dataRows.map(row => row.slice(1))];
         
         const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
 
@@ -444,6 +445,7 @@ export function DataWeaver() {
     const handleClear = () => {
         resetState();
         setMergedRows([]);
+        setHighlySimilarRows([]);
         setUnmatchedRows([]);
         setError(null);
         toast({ title: "State Cleared", description: "All files and results have been cleared." });
@@ -455,8 +457,7 @@ export function DataWeaver() {
     }
     
     const unmatchedHeaders = useMemo(() => ["No", ...(fileB?.headers || [])], [fileB]);
-
-    const hasResults = mergedRows.length > 0 || unmatchedRows.length > 0;
+    const hasResults = mergedRows.length > 0 || highlySimilarRows.length > 0 || unmatchedRows.length > 0;
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -470,7 +471,7 @@ export function DataWeaver() {
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Data Weaver</h1>
                         <p className="text-sm text-muted-foreground mt-1">
-                            Merge two Excel files based on intelligent name matching.
+                            Merge two Excel files based on intelligent name matching and manual rematching.
                         </p>
                     </div>
                 </header>
@@ -519,7 +520,6 @@ export function DataWeaver() {
                             </CardFooter>
                         </Card>
 
-
                         {isMerging && (
                             <div className="flex items-center justify-center p-12">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -567,20 +567,29 @@ export function DataWeaver() {
                                             </div>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Unmatched</p>
-                                                <p className="text-xl font-bold">{unmatchedRows.length}</p>
+                                                <p className="text-xl font-bold">{unmatchedRows.length + highlySimilarRows.length}</p>
                                             </div>
                                         </div>
                                     </div>
-                                    <Tabs defaultValue="matched">
+                                    <Tabs defaultValue="matched" className="w-full">
                                         <TabsList className="grid w-full grid-cols-2">
                                             <TabsTrigger value="matched">Matched ({mergedRows.length})</TabsTrigger>
-                                            <TabsTrigger value="unmatched">Unmatched ({unmatchedRows.length})</TabsTrigger>
+                                            <TabsTrigger value="unmatched">Unmatched ({unmatchedRows.length + highlySimilarRows.length})</TabsTrigger>
                                         </TabsList>
                                         <TabsContent value="matched" className="mt-4">
-                                            <ResultsTable data={mergedRows} headers={resultHeaders} title={''} />
+                                            <ResultsTable data={mergedRows} headers={resultHeaders} />
                                         </TabsContent>
-                                        <TabsContent value="unmatched" className="mt-4">
-                                            <ResultsTable data={unmatchedRows} headers={unmatchedHeaders} title={''} />
+                                        <TabsContent value="unmatched" className="mt-4 space-y-6">
+                                            <div>
+                                                <h3 className="text-lg font-semibold mb-2">Highly Similar (Rematch)</h3>
+                                                <p className="text-sm text-muted-foreground mb-4">These rows have a high probability of being a match. Click 'Rematch' to confirm and move them to the 'Matched' list.</p>
+                                                <HighlySimilarTable data={highlySimilarRows} onRematch={handleRematch} fileAHeaders={fileA?.headers || []} fileBHeaders={fileB?.headers || []} />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-semibold mb-2">Unmatched (No Similarity Found)</h3>
+                                                 <p className="text-sm text-muted-foreground mb-4">These rows could not be matched automatically and have no similar candidates.</p>
+                                                <ResultsTable data={unmatchedRows} headers={unmatchedHeaders} />
+                                            </div>
                                         </TabsContent>
                                     </Tabs>
                                 </CardContent>
@@ -588,6 +597,52 @@ export function DataWeaver() {
                         )}
                     </>
                 )}
+            </div>
+        </div>
+    );
+}
+
+function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { data: HighlySimilarRow[], onRematch: (row: HighlySimilarRow) => void, fileAHeaders: string[], fileBHeaders: string[] }) {
+    if (data.length === 0) {
+        return <div className="text-center py-8 text-muted-foreground">No highly similar rows found.</div>;
+    }
+    
+    const nameHeaderA = fileAHeaders.find(h => h.toLowerCase() === 'nama') || 'Nama';
+    const nameHeaderB = fileBHeaders.find(h => h.toLowerCase() === 'nama') || 'Nama';
+
+    return (
+        <div className="border rounded-lg overflow-hidden">
+            <div className="divide-y">
+                {data.map((item, index) => (
+                    <div key={item.rowB.id || index} className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center p-4 gap-4 hover:bg-muted/50">
+                        {/* File B Data */}
+                        <div className="text-sm">
+                            <Badge variant="secondary" className="mb-2">From ID File</Badge>
+                            <p><strong>Name:</strong> {item.rowB[nameHeaderB]}</p>
+                            {Object.entries(item.rowB).map(([key, value]) => (
+                                key.toLowerCase() !== 'nama' && <p key={key}><strong>{key}:</strong> {String(value)}</p>
+                            ))}
+                        </div>
+                        
+                        {/* Action */}
+                        <div className="flex flex-col items-center justify-center gap-2">
+                             <ArrowRight className="hidden md:block h-6 w-6 text-muted-foreground" />
+                             <Button size="sm" onClick={() => onRematch(item)}>
+                                <Link className="mr-2 h-4 w-4" /> Rematch
+                            </Button>
+                            <Badge variant="outline">{Math.round(item.score * 100)}% Similar</Badge>
+                        </div>
+                        
+                        {/* Potential Match A Data */}
+                        <div className="text-sm">
+                            <Badge variant="secondary" className="mb-2">Potential Match</Badge>
+                            <p><strong>Name:</strong> {item.potentialMatchA[nameHeaderA]}</p>
+                             {Object.entries(item.potentialMatchA).map(([key, value]) => (
+                                key.toLowerCase() !== 'nama' && <p key={key}><strong>{key}:</strong> {String(value)}</p>
+                            ))}
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );
