@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -364,7 +365,7 @@ function Step1({ onNext, onClearAll, isMerging, editMode }: { onNext: () => void
     );
 }
 
-function Step2({ onBack }: { onBack: () => void; }) {
+function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | null }) {
     const { fileA, fileB } = useApp();
     const { toast } = useToast();
 
@@ -374,7 +375,6 @@ function Step2({ onBack }: { onBack: () => void; }) {
     const [error, setError] = useState<string | null>(null);
     const [isMerging, startMerging] = useTransition();
 
-    const editMode = 'nisn'; // Placeholder, logic needs to be passed down or derived
 
     const handleMerge = useCallback(async () => {
         if (!fileA || !fileB) {
@@ -417,22 +417,40 @@ function Step2({ onBack }: { onBack: () => void; }) {
 
     const resultHeaders = useMemo(() => {
         if (!fileA || !fileB) return [];
-        const headersA = fileA.headers;
-        const headersB = fileB.headers.filter(h => h.toLowerCase() !== 'nama');
-        const combined = [...new Set([...headersA, ...headersB])];
+
+        const allHeaders = [...fileA.headers, ...fileB.headers];
+        const uniqueHeadersMap = new Map<string, string>();
+        allHeaders.forEach(h => {
+            const lowerCaseHeader = h.toLowerCase();
+            if (!uniqueHeadersMap.has(lowerCaseHeader)) {
+                uniqueHeadersMap.set(lowerCaseHeader, h);
+            }
+        });
+    
+        const combined = Array.from(uniqueHeadersMap.values()).filter(h => h.toLowerCase() !== 'nama');
+
         const findHeader = (headers: string[], names: string[]) => {
             const lowerNames = names.map(n => n.toLowerCase());
             return headers.find(h => lowerNames.includes(h.toLowerCase()));
         };
-        const idCol = findHeader(combined, ['id']);
-        const nameCol = findHeader(combined, ['nama']);
+
+        const idCol = findHeader(allHeaders, ['id']);
+        const nameCol = findHeader(allHeaders, ['nama']);
         let dynamicCol: string | undefined;
-        if (editMode === 'nisn') dynamicCol = findHeader(combined, ['nisn']);
-        else if (editMode === 'nis') dynamicCol = findHeader(combined, ['nis']);
-        else if (editMode === 'year') dynamicCol = findHeader(combined, ['tahun ajaran', 'year']);
+        if (editMode === 'nisn') dynamicCol = findHeader(allHeaders, ['nisn']);
+        else if (editMode === 'nis') dynamicCol = findHeader(allHeaders, ['nis']);
+        else if (editMode === 'year') dynamicCol = findHeader(allHeaders, ['tahun ajaran', 'year']);
+
         const priorityHeaders = [idCol, nameCol, dynamicCol].filter((h): h is string => !!h);
-        const remainingHeaders = combined.filter(h => !priorityHeaders.includes(h));
-        return ["No", ...new Set([...priorityHeaders, ...remainingHeaders])];
+        
+        // Ensure we only have one of each priority header, preferring the case from `priorityHeaders`
+        const uniquePriorityHeaders = [...new Set(priorityHeaders.map(p => p.toLowerCase()))].map(lowerP => {
+            return priorityHeaders.find(p => p.toLowerCase() === lowerP)!;
+        });
+
+        const remainingHeaders = combined.filter(h => !uniquePriorityHeaders.some(p => p.toLowerCase() === h.toLowerCase()));
+
+        return ["No", ...uniquePriorityHeaders, ...remainingHeaders];
     }, [fileA, fileB, editMode]);
 
     const handleDownload = () => {
@@ -446,7 +464,11 @@ function Step2({ onBack }: { onBack: () => void; }) {
         }
         const downloadableHeaders = resultHeaders.filter(h => h !== 'No');
         const dataRows = mergedRows.map((row, index) => {
-             const orderedRow = downloadableHeaders.map(header => row[header] ?? '');
+             const orderedRow = downloadableHeaders.map(header => {
+                // Find the original header in the row data, case-insensitively
+                const rowHeader = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase());
+                return rowHeader ? row[rowHeader] : '';
+             });
              return [index + 1, ...orderedRow];
         });
         const dataToExport = [downloadableHeaders, ...dataRows.map(row => row.slice(1))];
@@ -571,7 +593,7 @@ export function DataWeaver() {
     const handleHeaderBackClick = () => {
         if (currentStep === 2) {
             handleBackToUpload();
-        } else {
+        } else if (currentStep === 1) {
             resetToModeSelection();
         }
     }
@@ -595,7 +617,7 @@ export function DataWeaver() {
 
                 {currentStep === 0 && <ModeSelectionScreen onSelectMode={(mode) => { setEditMode(mode); setCurrentStep(1); }} />}
                 {currentStep === 1 && <Step1 onNext={handleStartMerge} onClearAll={handleClearAll} isMerging={isMerging} editMode={editMode} />}
-                {currentStep === 2 && <Step2 onBack={() => {}} />}
+                {currentStep === 2 && <Step2 onBack={() => {}} editMode={editMode} />}
             </div>
         </div>
     );
