@@ -831,7 +831,16 @@ export async function mergeFilesOnServer(
     
     // --- Data Processing ---
     let existingCount = 0;
-    const rowsToProcessB = fileBData.rows.filter((row: any) => {
+    
+    const validRowCheckKeys = ['id', 'name', 'username', 'nama'];
+    const validFileBRows = fileBData.rows.filter((row: any) => {
+        return validRowCheckKeys.some(key => {
+            const header = findHeader(Object.keys(row), [key]);
+            return header && row[header] !== null && row[header] !== undefined && String(row[header]).trim() !== '';
+        });
+    });
+
+    const rowsToProcessB = validFileBRows.filter((row: any) => {
         const value = row[columnToCheck!];
         const hasValue = value !== null && value !== undefined && String(value).trim() !== '';
         if (hasValue) {
@@ -913,18 +922,34 @@ export async function mergeFilesOnServer(
         };
 
         const findValueBySynonym = (synonyms: string[], fromRowA: any, fromRowB: any) => {
-            for (const keyA in fromRowA) {
-                if (synonyms.includes(keyA.toLowerCase())) {
-                    const value = fromRowA[keyA];
-                    if (value !== null && value !== undefined && String(value).trim() !== '') {
+            // Prioritize File A for the edit mode column
+            if (editMode) {
+                const editModeHeader = editMode.toUpperCase() as keyof typeof synonymGroups;
+                const editModeSynonyms = synonymGroups[editModeHeader] || [editMode.toLowerCase()];
+                if (synonyms.some(s => editModeSynonyms.includes(s.toLowerCase()))) {
+                     for (const keyA in fromRowA) {
+                         if (editModeSynonyms.includes(keyA.toLowerCase())) {
+                            const value = fromRowA[keyA];
+                            if (value !== null && value !== undefined && String(value).trim() !== '') {
+                                return value;
+                            }
+                        }
+                    }
+                }
+            }
+            // Default behavior: prioritize File B for ID and Name, then A. For others, just find a value.
+            for (const keyB in fromRowB) {
+                 if (synonyms.map(s => s.toLowerCase()).includes(keyB.toLowerCase())) {
+                    const value = fromRowB[keyB];
+                     if (value !== null && value !== undefined && String(value).trim() !== '') {
                         return value;
                     }
                 }
             }
-            for (const keyB in fromRowB) {
-                 if (synonyms.includes(keyB.toLowerCase())) {
-                    const value = fromRowB[keyB];
-                     if (value !== null && value !== undefined && String(value).trim() !== '') {
+            for (const keyA in fromRowA) {
+                if (synonyms.map(s => s.toLowerCase()).includes(keyA.toLowerCase())) {
+                    const value = fromRowA[keyA];
+                    if (value !== null && value !== undefined && String(value).trim() !== '') {
                         return value;
                     }
                 }
@@ -994,7 +1019,7 @@ export async function mergeFilesOnServer(
         highlySimilarRows: finalHighlySimilarRows,
         unmatchedRows: unmatchedRowsB,
         summary: {
-            total: fileBData.rows.length,
+            total: validFileBRows.length,
             existing: existingCount,
             matched: finalMergedRows.length,
             review: finalHighlySimilarRows.length,
@@ -1169,6 +1194,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
     
+
 
 
 
