@@ -80,7 +80,7 @@ const projectFilesForAction = [
   "src/components/ui/input.tsx",
   "src/components/ui/label.tsx",
   "src/components/ui/menubar.tsx",
-  "src/components/ui/multi-select.tsx",
+  "src_components/ui/multi-select.tsx",
   "src/components/ui/navigation-menu.tsx",
   "src/components/ui/popover.tsx",
   "src/components/ui/progress.tsx",
@@ -823,6 +823,7 @@ export async function mergeFilesOnServer(
         nis: ['nis'],
         year: ['year', 'tahun ajaran']
     };
+
     const columnToCheck = findHeader(fileBData.headers, eliminationKeys[editMode]);
     if (!columnToCheck) {
         return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
@@ -934,21 +935,35 @@ export async function mergeFilesOnServer(
             return ''; // Return empty if not found in either
         };
     
-        // Process priority columns first to establish them with standardized headers
-        for (const [standardHeader, synonyms] of Object.entries(synonymGroups)) {
+        // Define which priority groups to process based on editMode
+        const priorityGroupsToProcess: Record<string, string[]> = {
+            'Id': synonymGroups.Id,
+            'Name': synonymGroups.Name,
+        };
+        
+        if (editMode === 'nisn') {
+            priorityGroupsToProcess['NISN'] = synonymGroups.NISN;
+        } else if (editMode === 'nis') {
+            priorityGroupsToProcess['NIS'] = synonymGroups.NIS;
+        } else if (editMode === 'year') {
+            priorityGroupsToProcess['Year'] = synonymGroups.Year;
+        }
+        
+        // Process priority columns first
+        for (const [standardHeader, synonyms] of Object.entries(priorityGroupsToProcess)) {
              const value = findValueBySynonym(synonyms, rowA, rowB);
              merged[standardHeader] = value;
-             // Mark all synonyms as added to prevent them from being added again
-             synonyms.forEach(s => addedKeys.add(s));
+             synonyms.forEach(s => addedKeys.add(s.toLowerCase()));
         }
+
+        const allPrioritySynonyms = Object.values(synonymGroups).flat();
 
         const addRemainingValue = (key: string, value: any) => {
             const lowerKey = key.toLowerCase();
-            // Skip if key is 'no' or if it's a synonym of a priority header
-            if (lowerKey === 'no' || Object.values(synonymGroups).flat().includes(lowerKey)) {
+            // Skip if key is 'no' or if it's a synonym of any priority header
+            if (lowerKey === 'no' || allPrioritySynonyms.includes(lowerKey)) {
                 return;
             }
-            // Also skip if a non-synonym version of the key was already added
             if (addedKeys.has(lowerKey)) {
                 return;
             }
@@ -1171,6 +1186,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
     
+
 
 
 
