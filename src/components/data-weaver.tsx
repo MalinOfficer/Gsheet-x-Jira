@@ -518,30 +518,47 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
     const resultHeaders = useMemo(() => {
         if (finalData.length === 0) return [];
         
-        const allHeaders = Object.keys(finalData[0]);
+        const allHeaders = finalData.reduce<string[]>((acc, row) => {
+            Object.keys(row).forEach(key => {
+                if (!acc.includes(key)) {
+                    acc.push(key);
+                }
+            });
+            return acc;
+        }, []);
+
         const findHeader = (headers: string[], names: string[]) => {
             const lowerNames = names.map(n => n.toLowerCase());
-            for (const name of lowerNames) {
-                for (const header of headers) {
-                    if (header && header.toLowerCase() === name) return header;
+            for (const header of headers) {
+                if (header && lowerNames.includes(header.toLowerCase())) {
+                    return header;
                 }
             }
-            return undefined;
+            return names[0]; // fallback
         };
 
         const idCol = findHeader(allHeaders, ['id']);
         const nameCol = findHeader(allHeaders, ['nama', 'name', 'username']);
-        let dynamicCol: string | undefined;
-
+        
+        let dynamicCol: string;
         if (editMode === 'nisn') dynamicCol = findHeader(allHeaders, ['nisn']);
         else if (editMode === 'nis') dynamicCol = findHeader(allHeaders, ['nis']);
         else if (editMode === 'year') dynamicCol = findHeader(allHeaders, ['tahun ajaran', 'year']);
+        else dynamicCol = '';
 
-        const priorityHeaders = [idCol, nameCol, dynamicCol].filter((h): h is string => !!h);
-        const uniquePriorityHeaders = Array.from(new Set(priorityHeaders));
-        const remainingHeaders = allHeaders.filter(h => !uniquePriorityHeaders.some(p => p.toLowerCase() === h.toLowerCase()));
 
-        return ["No", ...uniquePriorityHeaders, ...remainingHeaders];
+        const priorityHeaders = [idCol, nameCol, dynamicCol].filter(Boolean);
+        
+        const remainingHeaders = allHeaders.filter(h => 
+            !priorityHeaders.some(p => p.toLowerCase() === h.toLowerCase())
+        );
+        
+        const finalHeaders = [
+            ...new Set(priorityHeaders), // Ensure no duplicates in priority
+            ...remainingHeaders
+        ];
+
+        return ["No", ...finalHeaders];
     }, [finalData, editMode]);
 
 
