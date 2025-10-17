@@ -457,10 +457,8 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
             }
 
             return {
-                "Id": findValue(['id'], row),
                 "Name A": similarItem ? similarItem.potentialMatchA.Name : '',
-                "Name": findValue(['name', 'nama', 'username'], row),
-                "NISN": findValue(['nisn'], row),
+                "Name B": findValue(['name', 'nama', 'username'], row),
                 "Potential Match": actionCell,
             };
         });
@@ -468,13 +466,8 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
 
     const unmatchedHeaders = useMemo(() => {
-        const headers = ["No", "Id", "Name A", "Name B"];
-        if (editMode === 'nisn') headers.push('NISN');
-        if (editMode === 'nis') headers.push('NIS');
-        if (editMode === 'year') headers.push('Year');
-        headers.push('Potential Match');
-        return headers;
-    }, [editMode]);
+        return ["No", "Name A", "Name B", "Potential Match"];
+    }, []);
 
     return (
         <>
@@ -712,5 +705,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
