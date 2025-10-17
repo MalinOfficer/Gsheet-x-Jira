@@ -486,9 +486,6 @@ function Step2({ onBack }: { onBack: () => void; }) {
                             </CardDescription>
                         </div>
                         <div className='flex gap-2'>
-                           <Button onClick={onBack} variant="outline" size="sm">
-                                <ArrowLeft className="mr-2 h-4 w-4" /> Start Over
-                            </Button>
                              <Button onClick={handleDownload} variant="default" size="sm" disabled={mergedRows.length === 0}>
                                 <Download className="mr-2 h-4 w-4" /> Download Merged Data
                             </Button>
@@ -642,5 +639,7 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         </div>
     );
 }
+
+    
 
     
