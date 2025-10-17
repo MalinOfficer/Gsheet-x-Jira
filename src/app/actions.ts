@@ -904,23 +904,44 @@ export async function mergeFilesOnServer(
         const merged: Record<string, any> = {};
         const addedKeys = new Set<string>();
         const nameSynonyms = ['nama', 'name', 'username'];
+        let nameValue: any = null;
         let nameKeyAdded = false;
 
-        const addValue = (key: string, value: any) => {
-            const lowerKey = key.toLowerCase();
-            if (lowerKey === 'no') return; // Skip the "No" column
-
-            // Handle name synonyms
-            if (nameSynonyms.includes(lowerKey)) {
-                if (nameKeyAdded) return; // If a name-like key is already added, skip
-                nameKeyAdded = true;
+        // Find the name value, prioritizing File B
+        for (const [key, value] of Object.entries(rowB)) {
+            if (nameSynonyms.includes(key.toLowerCase())) {
+                nameValue = value;
+                break;
             }
+        }
+        if (nameValue === null) {
+            for (const [key, value] of Object.entries(rowA)) {
+                if (nameSynonyms.includes(key.toLowerCase())) {
+                    nameValue = value;
+                    break;
+                }
+            }
+        }
 
+        const addValue = (key: string, value: any) => {
+            if (key.toLowerCase() === 'no') return; // Skip the "No" column
+
+            // If it's a name synonym, we've already handled it, so skip
+            if (nameSynonyms.includes(key.toLowerCase())) return;
+
+            const lowerKey = key.toLowerCase();
             if (!addedKeys.has(lowerKey)) {
                 merged[key] = value;
                 addedKeys.add(lowerKey);
             }
         };
+        
+        // Add the standardized "Name" column first if a name value was found
+        if (nameValue !== null) {
+            merged['Name'] = nameValue;
+            addedKeys.add('name');
+            nameKeyAdded = true;
+        }
 
         // Prioritize File B (ID File), then add missing from File A
         Object.entries(rowB).forEach(([key, value]) => addValue(key, value));
@@ -935,7 +956,7 @@ export async function mergeFilesOnServer(
         let matchingRowA = null;
         const normalizedKeyB = normalizeName(row[fileBKey!]);
         for (const rA of fileAData.rows) {
-           const normalizedKeyA = normalizeName(rA[fileAKey]);
+           const normalizedKeyA = normalizeName(rA[fileAKey!]);
            if (normalizedKeyA === normalizedKeyB) {
                matchingRowA = rA;
                break;
@@ -946,12 +967,12 @@ export async function mergeFilesOnServer(
     });
     
     const finalHighlySimilarRows = highlySimilarRows.map(item => {
-        const cleanPotentialMatch = createCleanMergedRow(item.potentialMatchA, {});
-        // Only return the name from the potential match to keep the UI clean
-        const nameKey = findHeader(Object.keys(cleanPotentialMatch), nameHeaderKeys);
+        // Find the name from the potential match
+        const nameKeyA = findHeader(Object.keys(item.potentialMatchA), nameHeaderKeys) || 'Name';
+        
         return {
             ...item,
-            potentialMatchA: { [nameKey || 'Name']: cleanPotentialMatch[nameKey || 'Name'] },
+            potentialMatchA: { Name: item.potentialMatchA[nameKeyA] },
         };
     });
 
@@ -1135,4 +1156,5 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
     
+
 
