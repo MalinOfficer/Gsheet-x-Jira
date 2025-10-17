@@ -518,38 +518,11 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
     const resultHeaders = useMemo(() => {
         if (finalData.length === 0) return [];
         
-        // Helper to find the definitive header name from a list of possibilities
-        const findHeader = (headers: string[], names: string[]): string | undefined => {
-            const lowerNames = names.map(n => n.toLowerCase());
-            return headers.find(h => lowerNames.includes(h.toLowerCase()));
-        };
+        // Use the keys from the first (cleaned) data object as the source of truth for headers
+        const allHeaders = Object.keys(finalData[0]);
         
-        const allHeaders = Object.keys(finalData[0] || {});
-        
-        // Exclude all variations of "No" from the data headers
-        const dataHeaders = allHeaders.filter(h => h.toLowerCase() !== 'no');
-
-        const idCol = findHeader(dataHeaders, ['id']);
-        const nameCol = findHeader(dataHeaders, ['nama', 'name', 'username']);
-        
-        let dynamicColKey: string | undefined;
-        if (editMode === 'nisn') dynamicColKey = findHeader(dataHeaders, ['nisn']);
-        else if (editMode === 'nis') dynamicColKey = findHeader(dataHeaders, ['nis']);
-        else if (editMode === 'year') dynamicColKey = findHeader(dataHeaders, ['tahun ajaran', 'year']);
-
-        const priorityHeaders = [idCol, nameCol, dynamicColKey].filter((h): h is string => !!h);
-
-        const remainingHeaders = dataHeaders.filter(h => 
-            !priorityHeaders.some(p => p.toLowerCase() === h.toLowerCase())
-        );
-        
-        const finalHeaders = [
-            ...new Set(priorityHeaders),
-            ...remainingHeaders
-        ];
-
-        return ["No", ...finalHeaders];
-    }, [finalData, editMode]);
+        return ["No", ...allHeaders];
+    }, [finalData]);
 
 
     return (
@@ -620,7 +593,7 @@ export function DataWeaver() {
             toast({ variant: 'destructive', title: 'Library Not Loaded' });
             return;
         }
-        const headers = Object.keys(data[0]);
+        const headers = Object.keys(data[0]).filter(h => h.toLowerCase() !== 'no');
         const dataToExport = data.map(row => headers.map(header => row[header]));
         
         const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
@@ -724,6 +697,8 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         </div>
     );
 }
+
+    
 
     
 

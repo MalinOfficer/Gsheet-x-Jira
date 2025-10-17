@@ -788,41 +788,34 @@ export async function undoLastAction(
 }
 
 export async function mergeFilesOnServer(
-    fileAData: any, 
-    fileBData: any, 
+    fileAData: any,
+    fileBData: any,
     editMode: 'nisn' | 'year' | 'nis' | null
 ) {
-    // Helper function to find a header with multiple possible names, case-insensitively
     const findHeader = (headers: string[] | undefined, keys: string[]) => {
         if (!headers) return undefined;
         const lowerKeys = keys.map(k => k.toLowerCase());
         return headers.find(h => lowerKeys.includes(h.toLowerCase()));
     };
 
-    // Helper function to normalize names for better matching
     const normalizeName = (name: any): string => {
         if (typeof name !== 'string') return '';
-        return name
-            .toLowerCase()
-            .trim()
-            .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "") // Remove punctuation
-            .replace(/\s{2,}/g, " "); // Collapse multiple spaces
+        return name.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s{2,}/g, " ");
     };
 
     if (!fileAData?.rows || !fileBData?.rows || !editMode) {
         return { error: "Missing file data or edit mode." };
     }
 
-    // --- Column Validation ---
     const nameHeaderKeys = ['nama', 'name', 'username'];
     const fileAKey = findHeader(fileAData.headers, nameHeaderKeys);
     const fileBKey = findHeader(fileBData.headers, nameHeaderKeys);
     const fileBIdKey = findHeader(fileBData.headers, ['id']);
-    
+
     if (!fileAKey) return { error: `Required 'Name' column (e.g., 'Nama', 'Name', 'Username') not found in File A.` };
     if (!fileBKey) return { error: `Required 'Name' column not found in ID File.` };
     if (!fileBIdKey) return { error: `Required 'ID' column not found in ID File.` };
-    
+
     const eliminationKeys: Record<typeof editMode, string[]> = {
         nisn: ['nisn'],
         nis: ['nis'],
@@ -832,22 +825,18 @@ export async function mergeFilesOnServer(
     if (!columnToCheck) {
         return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
     }
-    // --- End Column Validation ---
-
-    // --- Data Processing ---
-    const totalRowsB = fileBData.rows.length;
-    let existingCount = 0;
     
+    let existingCount = 0;
     const rowsToProcessB = fileBData.rows.filter((row: any) => {
         const value = row[columnToCheck!];
         const hasValue = value !== null && value !== undefined && String(value).trim() !== '';
         if (hasValue) {
             existingCount++;
-            return false; // Exclude this row from processing
+            return false;
         }
-        return true; // Include this row for matching
+        return true;
     });
-
+    
     const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
         const keyA = rowA[fileAKey];
@@ -862,7 +851,7 @@ export async function mergeFilesOnServer(
     const mergedRows: any[] = [];
     const highlySimilarRows: { rowB: any, potentialMatchA: any, score: number }[] = [];
     const unmatchedRowsB: any[] = [];
-    const usedInSimilar = new Set<string>(); // Keep track of File A rows suggested as similar
+    const usedInSimilar = new Set<string>();
 
     for (const rowB of rowsToProcessB) {
         const keyB = rowB[fileBKey];
@@ -874,7 +863,7 @@ export async function mergeFilesOnServer(
                 mergedRows.push(mergedRow);
             } else {
                  let bestMatch: any = null;
-                 let highestScore = 0.8; // High threshold for "highly similar"
+                 let highestScore = 0.8; 
 
                  for (const [normalizedKeyA, rowA] of fileAMap.entries()) {
                      if (usedInSimilar.has(normalizedKeyA)) continue;
@@ -903,16 +892,48 @@ export async function mergeFilesOnServer(
             unmatchedRowsB.push(rowB);
         }
     }
+
+    const createCleanMergedRow = (rowA: any, rowB: any) => {
+        const merged: Record<string, any> = {};
+        const addedKeys = new Set<string>();
+
+        const addValue = (key: string, value: any) => {
+            const lowerKey = key.toLowerCase();
+            if (!addedKeys.has(lowerKey)) {
+                merged[key] = value;
+                addedKeys.add(lowerKey);
+            }
+        };
+
+        // Prioritize File B, then add missing from File A
+        Object.entries(rowB).forEach(([key, value]) => addValue(key, value));
+        Object.entries(rowA).forEach(([key, value]) => addValue(key, value));
+
+        return merged;
+    };
     
-    return { 
-        mergedRows, 
-        highlySimilarRows, 
+    const finalMergedRows = mergedRows.map(row => {
+        // This assumes mergedRows contain properties from both A and B.
+        // We need to reconstruct them based on the original row objects.
+        const originalRowB = fileBData.rows.find((rb: any) => rb[fileBIdKey!] === row[fileBIdKey!]);
+        const originalRowA = fileAMap.get(normalizeName(row[fileBKey!])); // Find original A row
+        return createCleanMergedRow(originalRowA || {}, originalRowB || {});
+    });
+
+    const finalHighlySimilarRows = highlySimilarRows.map(item => ({
+        ...item,
+        potentialMatchA: createCleanMergedRow(item.potentialMatchA, {}), // Clean up potential match as well
+    }));
+
+    return {
+        mergedRows: finalMergedRows,
+        highlySimilarRows: finalHighlySimilarRows,
         unmatchedRows: unmatchedRowsB,
         summary: {
-            matched: mergedRows.length,
+            matched: finalMergedRows.length,
             unmatched: highlySimilarRows.length + unmatchedRowsB.length,
             existing: existingCount,
-            total: totalRowsB,
+            total: fileBData.rows.length,
         }
     };
 }
@@ -1080,3 +1101,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
     
 
+
+
+    
