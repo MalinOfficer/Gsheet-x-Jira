@@ -66,18 +66,21 @@ const readFile = (file: File, fileId: 'A' | 'B'): Promise<TableData> => {
                 let dataRows: any[][];
 
                 let headerRowIndex = -1;
+                // Look for a plausible header row in the first 10 rows
                 for(let i=0; i<Math.min(json.length, 10); i++) {
-                    if (json[i].some(cell => typeof cell === 'string' && ['nama', 'name', 'username'].includes(cell.toLowerCase()))) {
+                    const row = json[i];
+                    if (Array.isArray(row) && row.some(cell => typeof cell === 'string' && ['nama', 'name', 'username', 'nisn', 'nis', 'id'].includes(cell.toLowerCase().trim()))) {
                         headerRowIndex = i;
                         break;
                     }
                 }
                 
+                // If no plausible header found, default to the first row
                 if(headerRowIndex === -1) {
                     headerRowIndex = 0; 
                 }
 
-                headers = json[headerRowIndex].map(String);
+                headers = json[headerRowIndex].map(h => String(h || '').trim());
                 dataRows = json.slice(headerRowIndex + 1);
 
 
@@ -207,8 +210,8 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                             style={{
                                 flexGrow: 1,
                                 flexShrink: 0,
-                                flexBasis: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match" ? '300px' : '150px')),
-                                minWidth: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match" ? '300px' : '150px')),
+                                flexBasis: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match & Action" ? '300px' : '150px')),
+                                minWidth: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match & Action" ? '300px' : '150px')),
                             }}
                         >
                             {header}
@@ -237,14 +240,14 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                                     style={{
                                        flexGrow: 1,
                                         flexShrink: 0,
-                                        flexBasis: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match" ? '300px' : '150px')),
-                                        minWidth: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match" ? '300px' : '150px')),
+                                        flexBasis: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match & Action" ? '300px' : '150px')),
+                                        minWidth: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match & Action" ? '300px' : '150px')),
                                     }}
                                 >
                                     {header === "No" 
                                         ? virtualRow.index + 1 
-                                        : header === "Potential Match"
-                                        ? row[header] // This will now render the JSX from getUnmatchedTableData
+                                        : header === "Potential Match & Action"
+                                        ? row[header]
                                         : String(row[header] ?? '')}
                                 </div>
                             ))}
@@ -391,21 +394,90 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
         handleMerge();
     }, [handleMerge]);
 
-    const handleRematch = (similarRow: HighlySimilarRow) => {
-        const idHeaderB = Object.keys(similarRow.rowB).find(k => k.toLowerCase() === 'id');
-        const newMergedRow = { ...similarRow.rowB, ...similarRow.potentialMatchA };
-        setMergedRows(prev => [...prev, newMergedRow]);
-        setHighlySimilarRows(prev => prev.filter(r => {
-            const rIdHeaderB = Object.keys(r.rowB).find(k => k.toLowerCase() === 'id');
-            if (!idHeaderB || !rIdHeaderB) return true;
-            return r.rowB[rIdHeaderB] !== similarRow.rowB[idHeaderB];
-        }));
+    const handleRematch = useCallback((similarItem: HighlySimilarRow) => {
+        setHighlySimilarRows(prev => prev.filter(item => item.rowB['id'] !== similarItem.rowB['id']));
+        
+        const nameHeaderKeys = ['nama', 'name', 'username'];
+        const findHeader = (headers: string[], keys: string[]) => {
+            const lowerKeys = keys.map(k => k.toLowerCase());
+            return headers.find(h => lowerKeys.includes(h.toLowerCase()));
+        };
+
+        const fileAKey = findHeader(Object.keys(similarItem.potentialMatchA), nameHeaderKeys) || 'Name';
+        const fileBKey = findHeader(Object.keys(similarItem.rowB), nameHeaderKeys) || 'Name';
+
+        const finalMergedRow = createCleanMergedRow(
+            similarItem.potentialMatchA,
+            similarItem.rowB,
+            fileAKey,
+            fileBKey,
+            editMode
+        );
+
+        setMergedRows(prev => [...prev, finalMergedRow]);
+
+        setSummary(prev => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                matched: prev.matched + 1,
+                review: prev.review - 1,
+            };
+        });
+
         toast({
             title: 'Row Rematched',
-            description: `'${Object.values(similarRow.rowB).find((_, i) => (fileB?.headers[i] || '').toLowerCase().includes('nama')) || ''}' has been moved to the matched list.`
+            description: `'${similarItem.rowB[fileBKey] || ''}' has been moved to the matched list.`
         });
-    };
+    }, [editMode, toast]);
     
+    const getUnmatchedTableData = useMemo(() => {
+        const allUnmatchedItems = [
+            ...highlySimilarRows.map(item => ({...item, type: 'similar'})),
+            ...unmatchedRows.map(row => ({ rowB: row, potentialMatchA: null, score: 0, type: 'unmatched' }))
+        ];
+
+        return allUnmatchedItems.map(item => {
+            const { rowB, potentialMatchA, score } = item as HighlySimilarRow & {type: string};
+
+            const findValue = (keys: string[], obj: ExcelRow | null) => {
+                if (!obj) return '';
+                const key = keys.find(k => obj[k] !== undefined && obj[k] !== null);
+                return key ? obj[key] : '';
+            };
+
+            const nameB = findValue(['Name', 'name', 'username', 'Nama'], rowB);
+            
+            let actionCell;
+            let nameA = '';
+            if (potentialMatchA) {
+                 nameA = findValue(['Name', 'name', 'username', 'Nama'], potentialMatchA);
+                 actionCell = (
+                    <div className="flex flex-col gap-1 items-start h-full justify-center">
+                         <p className="text-xs font-semibold">{nameA}</p>
+                         <div className="flex items-center gap-2">
+                            <Badge variant="outline">{Math.round(score * 100)}% Match</Badge>
+                            <Button size="sm" className="h-6 px-2 py-1 text-xs" onClick={() => handleRematch(item as HighlySimilarRow)}>
+                                <Link className="mr-1.5 h-3 w-3" /> Rematch
+                            </Button>
+                        </div>
+                    </div>
+                );
+            } else {
+                actionCell = <p className="text-muted-foreground text-xs italic">No match found</p>;
+            }
+            
+            return {
+                "Name A": nameA,
+                "Name B": nameB,
+                "Potential Match & Action": actionCell,
+            };
+        });
+    }, [highlySimilarRows, unmatchedRows, handleRematch]);
+
+
+    const unmatchedHeaders = useMemo(() => ["No", "Name B", "Potential Match & Action"], []);
+
     const hasResults = mergedRows.length > 0 || highlySimilarRows.length > 0 || unmatchedRows.length > 0;
 
     const summaryLabels: Record<string, { label: string, icon: React.ElementType }> = {
@@ -414,44 +486,93 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
         nis: { label: "Existing NIS", icon: BookUser },
     };
     const summaryInfo = editMode ? summaryLabels[editMode] : { label: "Existing", icon: BookCheck };
+    
+    // This is a helper function that should live inside the component that uses it or be imported.
+    // It's not a React component itself.
+    const createCleanMergedRow = (rowA: any, rowB: any, fileAKey: string, fileBKey: string, currentEditMode: EditMode | null) => {
+        const merged: Record<string, any> = {};
+        const addedKeys = new Set<string>();
+    
+        const synonymGroups = {
+            'Id': ['id'],
+            'Name': ['nama', 'name', 'username'],
+            'NISN': ['nisn'],
+            'NIS': ['nis'],
+            'Year': ['year', 'tahun ajaran']
+        };
 
-    const getUnmatchedTableData = useMemo(() => {
-        const allUnmatchedRows = [
-            ...highlySimilarRows,
-            ...unmatchedRows.map(row => ({ rowB: row, potentialMatchA: null, score: 0 }))
-        ];
-
-        return allUnmatchedRows.map(item => {
-            const { rowB, potentialMatchA, score } = item;
-            
-            let actionCell;
-            if (potentialMatchA) {
-                actionCell = (
-                    <div className="flex flex-col gap-1 items-start h-full justify-center">
-                        <p className="text-xs">
-                           <Badge variant="outline" className="ml-2">{Math.round(score * 100)}%</Badge>
-                        </p>
-                        <Button size="sm" className="h-6 px-2 py-1 text-xs" onClick={() => handleRematch(item as HighlySimilarRow)}>
-                            <Link className="mr-1.5 h-3 w-3" /> Rematch
-                        </Button>
-                    </div>
-                );
-            } else {
-                actionCell = <p className="text-muted-foreground text-xs italic">No match found</p>;
+        const findValueBySynonym = (synonyms: string[], fromRowA: any, fromRowB: any) => {
+            // Prioritize File A for the edit mode column
+            if (currentEditMode) {
+                const editModeSynonyms = synonymGroups[currentEditMode.toUpperCase() as keyof typeof synonymGroups] || [currentEditMode];
+                if (synonyms.some(s => editModeSynonyms.includes(s))) {
+                    for (const keyA in fromRowA) {
+                         if (editModeSynonyms.includes(keyA.toLowerCase())) {
+                            const value = fromRowA[keyA];
+                            if (value !== null && value !== undefined && String(value).trim() !== '') {
+                                return value;
+                            }
+                        }
+                    }
+                }
             }
+
+            // Default behavior for other columns (prioritize File B)
+            for (const keyB in fromRowB) {
+                 if (synonyms.includes(keyB.toLowerCase())) {
+                    const value = fromRowB[keyB];
+                     if (value !== null && value !== undefined && String(value).trim() !== '') {
+                        return value;
+                    }
+                }
+            }
+            for (const keyA in fromRowA) {
+                if (synonyms.includes(keyA.toLowerCase())) {
+                    const value = fromRowA[keyA];
+                    if (value !== null && value !== undefined && String(value).trim() !== '') {
+                        return value;
+                    }
+                }
+            }
+            return ''; 
+        };
+    
+        const priorityGroupsToProcess: Record<string, string[]> = {
+            'Id': synonymGroups.Id,
+            'Name': synonymGroups.Name,
+        };
+        
+        if (currentEditMode === 'nisn') priorityGroupsToProcess['NISN'] = synonymGroups.NISN;
+        else if (currentEditMode === 'nis') priorityGroupsToProcess['NIS'] = synonymGroups.NIS;
+        else if (currentEditMode === 'year') priorityGroupsToProcess['Year'] = synonymGroups.Year;
+        
+        for (const [standardHeader, synonyms] of Object.entries(priorityGroupsToProcess)) {
+             const value = findValueBySynonym(synonyms, rowA, rowB);
+             merged[standardHeader] = value;
+             synonyms.forEach(s => addedKeys.add(s.toLowerCase()));
+        }
+
+        const allPrioritySynonyms = Object.values(synonymGroups).flat();
+
+        const addRemainingValue = (key: string, value: any, source: 'A' | 'B') => {
+            const lowerKey = key.toLowerCase();
+            if (lowerKey === 'no' || allPrioritySynonyms.includes(lowerKey)) return;
             
-            return {
-                "Name B": rowB.Name,
-                "Name A": potentialMatchA ? potentialMatchA.Name : '',
-                "Potential Match": actionCell,
-            };
-        });
-    }, [highlySimilarRows, unmatchedRows, handleRematch]);
+            if (source === 'B' && !addedKeys.has(lowerKey)) {
+                 merged[key] = value;
+                 addedKeys.add(lowerKey);
+            } else if (source === 'A' && !addedKeys.has(lowerKey)) {
+                 merged[key] = value;
+                 addedKeys.add(lowerKey);
+            }
+        };
+    
+        Object.entries(rowB).forEach(([key, value]) => addRemainingValue(key, value, 'B'));
+        Object.entries(rowA).forEach(([key, value]) => addRemainingValue(key, value, 'A'));
+    
+        return merged;
+    };
 
-
-    const unmatchedHeaders = useMemo(() => {
-        return ["No", "Name A", "Name B", "Potential Match"];
-    }, []);
 
     return (
         <>
@@ -479,7 +600,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                             <CardDescription>Review the automated matches and handle any unmatched data before proceeding.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 rounded-lg border p-4">
+                             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 rounded-lg border p-4">
                                 <div className="flex items-center gap-3">
                                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
                                         <ClipboardList className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -531,7 +652,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
                     <Tabs defaultValue="unmatched" className="w-full">
                         <TabsList className="grid w-full grid-cols-2 bg-muted/60 p-1 h-auto">
-                            <TabsTrigger value="unmatched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Unmatched ({summary.review + summary.unmatched})</TabsTrigger>
+                             <TabsTrigger value="unmatched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Unmatched ({summary.review + summary.unmatched})</TabsTrigger>
                             <TabsTrigger value="matched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Matched ({summary.matched})</TabsTrigger>
                         </TabsList>
                         <TabsContent value="unmatched" className="mt-4">
