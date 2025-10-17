@@ -800,19 +800,21 @@ export async function mergeFilesOnServer(
 
     const normalizeName = (name: any): string => {
         if (typeof name !== 'string') return '';
+        // Remove punctuation and extra spaces, then lowercase
         return name.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s{2,}/g, " ");
     };
 
     if (!fileAData?.rows || !fileBData?.rows || !editMode) {
         return { error: "Missing file data or edit mode." };
     }
-
+    
+    // --- Header Validation ---
     const nameHeaderKeys = ['nama', 'name', 'username'];
     const fileAKey = findHeader(fileAData.headers, nameHeaderKeys);
     const fileBKey = findHeader(fileBData.headers, nameHeaderKeys);
     const fileBIdKey = findHeader(fileBData.headers, ['id']);
-
-    if (!fileAKey) return { error: `Required 'Name' column (e.g., 'Nama', 'Name', 'Username') not found in File A.` };
+    
+    if (!fileAKey) return { error: `Required 'Name' column (e.g., '${nameHeaderKeys.join("', '")}') not found in File A.` };
     if (!fileBKey) return { error: `Required 'Name' column not found in ID File.` };
     if (!fileBIdKey) return { error: `Required 'ID' column not found in ID File.` };
 
@@ -826,17 +828,18 @@ export async function mergeFilesOnServer(
         return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
     }
     
+    // --- Data Processing ---
     let existingCount = 0;
     const rowsToProcessB = fileBData.rows.filter((row: any) => {
         const value = row[columnToCheck!];
         const hasValue = value !== null && value !== undefined && String(value).trim() !== '';
         if (hasValue) {
             existingCount++;
-            return false;
+            return false; // Exclude from matching process
         }
-        return true;
+        return true; // Include in matching process
     });
-    
+
     const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
         const keyA = rowA[fileAKey];
@@ -857,13 +860,16 @@ export async function mergeFilesOnServer(
         const keyB = rowB[fileBKey];
         if (keyB) {
             const normalizedKeyB = normalizeName(keyB);
+            
+            // --- AutoMatch Engine ---
             if (fileAMap.has(normalizedKeyB)) {
                 const rowA = fileAMap.get(normalizedKeyB);
-                const mergedRow = { ...rowB, ...rowA };
-                mergedRows.push(mergedRow);
+                mergedRows.push({ ...rowB, ...rowA });
+                fileAMap.delete(normalizedKeyB); // Remove from map to prevent re-matching
             } else {
+                 // --- ManualMatch Engine ---
                  let bestMatch: any = null;
-                 let highestScore = 0.8; 
+                 let highestScore = 0.8; // Similarity threshold
 
                  for (const [normalizedKeyA, rowA] of fileAMap.entries()) {
                      if (usedInSimilar.has(normalizedKeyA)) continue;
@@ -883,7 +889,7 @@ export async function mergeFilesOnServer(
 
                  if (bestMatch) {
                      highlySimilarRows.push({ rowB: rowB, potentialMatchA: bestMatch.row, score: highestScore });
-                     usedInSimilar.add(bestMatch.key); 
+                     usedInSimilar.add(bestMatch.key); // Mark as used
                  } else {
                      unmatchedRowsB.push(rowB);
                  }
@@ -893,19 +899,23 @@ export async function mergeFilesOnServer(
         }
     }
 
+    // Function to create a clean merged row without duplicate headers
     const createCleanMergedRow = (rowA: any, rowB: any) => {
         const merged: Record<string, any> = {};
         const addedKeys = new Set<string>();
 
         const addValue = (key: string, value: any) => {
             const lowerKey = key.toLowerCase();
+             // Skip the "No" column from being added to the final merged data
+            if (lowerKey === 'no') return;
+
             if (!addedKeys.has(lowerKey)) {
                 merged[key] = value;
                 addedKeys.add(lowerKey);
             }
         };
 
-        // Prioritize File B, then add missing from File A
+        // Prioritize File B (ID File), then add missing from File A
         Object.entries(rowB).forEach(([key, value]) => addValue(key, value));
         Object.entries(rowA).forEach(([key, value]) => addValue(key, value));
 
@@ -913,16 +923,24 @@ export async function mergeFilesOnServer(
     };
     
     const finalMergedRows = mergedRows.map(row => {
-        // This assumes mergedRows contain properties from both A and B.
-        // We need to reconstruct them based on the original row objects.
         const originalRowB = fileBData.rows.find((rb: any) => rb[fileBIdKey!] === row[fileBIdKey!]);
-        const originalRowA = fileAMap.get(normalizeName(row[fileBKey!])); // Find original A row
-        return createCleanMergedRow(originalRowA || {}, originalRowB || {});
+        const originalRowA = fileAMap.get(normalizeName(row[fileBKey!])); // This logic is flawed, let's fix it.
+
+        // Re-find the original RowA from the initial data, as fileAMap was mutated.
+         let matchingRowA = null;
+         for (const rA of fileAData.rows) {
+            if (normalizeName(rA[fileAKey]) === normalizeName(row[fileBKey!])) {
+                matchingRowA = rA;
+                break;
+            }
+         }
+
+        return createCleanMergedRow(matchingRowA || {}, originalRowB || {});
     });
 
     const finalHighlySimilarRows = highlySimilarRows.map(item => ({
         ...item,
-        potentialMatchA: createCleanMergedRow(item.potentialMatchA, {}), // Clean up potential match as well
+        potentialMatchA: createCleanMergedRow(item.potentialMatchA, {}),
     }));
 
     return {
