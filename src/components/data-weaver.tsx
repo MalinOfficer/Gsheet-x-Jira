@@ -215,9 +215,10 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
                             key={header} 
                             className="p-2 border-b border-r flex items-center"
                             style={{ 
-                                flex: header === "No" ? '0 0 60px' : '1 1 0', 
-                                minWidth: '150px' ,
-                                ...(header === "No" && { flexBasis: '60px' })
+                                flexGrow: header === "No" ? 0 : 1,
+                                flexShrink: 0,
+                                flexBasis: header === "No" ? '60px' : '0',
+                                minWidth: header === "No" ? '60px' : '150px'
                             }}
                         >
                             {header}
@@ -244,9 +245,10 @@ const ResultsTable = ({ title, data, headers }: { title: string; data: ExcelRow[
                                     key={header} 
                                     className="p-2 border-b border-r truncate flex items-center"
                                     style={{ 
-                                        flex: header === "No" ? '0 0 60px' : '1 1 0', 
-                                        minWidth: '150px',
-                                        ...(header === "No" && { flexBasis: '60px' })
+                                        flexGrow: header === "No" ? 0 : 1,
+                                        flexShrink: 0,
+                                        flexBasis: header === "No" ? '60px' : '0',
+                                        minWidth: header === "No" ? '60px' : '150px'
                                     }}
                                 >
                                     {header === "No" ? virtualRow.index + 1 : String(row[header] ?? '')}
@@ -424,8 +426,8 @@ export function DataWeaver() {
 
         const findHeader = (headers: string[], name: string) => headers.find(h => h.toLowerCase() === name.toLowerCase());
 
-        const headerRow1 = ["No", ...resultHeaders.map(header => findHeader(fileB.headers, header) || '')];
-        const headerRow2 = ["No", ...resultHeaders.map(header => findHeader(fileA.headers, header) || findHeader(fileB.headers, header) || '')];
+        const headerRow1 = ["No", ...resultHeaders.map(header => findHeader(fileB.headers, header) || findHeader(fileA.headers, header) || '' )];
+        const headerRow2 = ["No", ...resultHeaders.map(header => findHeader(fileA.headers, header) || findHeader(fileB.headers, header) || '' )];
         
         const dataRows = mergedRows.map((row, index) => {
              const orderedRow = resultHeaders.map(header => row[header] ?? '');
@@ -590,3 +592,5 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
