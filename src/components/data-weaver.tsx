@@ -206,8 +206,8 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                             style={{
                                 flexGrow: header === "No" ? 0 : 1,
                                 flexShrink: 0,
-                                flexBasis: header === "No" ? '60px' : '0',
-                                minWidth: header === "No" ? '60px' : '150px'
+                                flexBasis: header === "No" ? '60px' : (header === "Potential Match & Action" ? '300px' : '150px'),
+                                minWidth: header === "No" ? '60px' : (header === "Potential Match & Action" ? '300px' : '150px'),
                             }}
                         >
                             {header}
@@ -234,13 +234,17 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                                     key={header} 
                                     className="p-2 border-b border-r truncate flex items-center"
                                     style={{
-                                        flexGrow: header === "No" ? 0 : 1,
+                                       flexGrow: header === "No" ? 0 : 1,
                                         flexShrink: 0,
-                                        flexBasis: header === "No" ? '60px' : '0',
-                                        minWidth: header === "No" ? '60px' : '150px'
+                                        flexBasis: header === "No" ? '60px' : (header === "Potential Match & Action" ? '300px' : '150px'),
+                                        minWidth: header === "No" ? '60px' : (header === "Potential Match & Action" ? '300px' : '150px'),
                                     }}
                                 >
-                                    {header === "No" ? virtualRow.index + 1 : String(row[header] ?? '')}
+                                    {header === "No" 
+                                        ? virtualRow.index + 1 
+                                        : header === "Potential Match & Action"
+                                        ? row[header] // This will now render the JSX from getUnmatchedTableData
+                                        : String(row[header] ?? '')}
                                 </div>
                             ))}
                         </div>
@@ -401,7 +405,6 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
         });
     };
     
-    const unmatchedHeaders = useMemo(() => ["No", ...(fileB?.headers || [])], [fileB]);
     const hasResults = mergedRows.length > 0 || highlySimilarRows.length > 0 || unmatchedRows.length > 0;
 
     const summaryLabels: Record<string, { label: string, icon: React.ElementType }> = {
@@ -410,6 +413,58 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
         nis: { label: "Existing NIS", icon: BookUser },
     };
     const summaryInfo = editMode ? summaryLabels[editMode] : { label: "Existing", icon: BookCheck };
+
+    const getUnmatchedTableData = useMemo(() => {
+        const similarMap = new Map();
+        highlySimilarRows.forEach(item => {
+            const idKey = Object.keys(item.rowB).find(k => k.toLowerCase() === 'id');
+            if (idKey) {
+                similarMap.set(item.rowB[idKey], item);
+            }
+        });
+
+        const allUnmatched = [
+            ...highlySimilarRows.map(item => item.rowB),
+            ...unmatchedRows
+        ];
+
+        return allUnmatched.map(row => {
+            const idKey = Object.keys(row).find(k => k.toLowerCase() === 'id');
+            const similarItem = idKey ? similarMap.get(row[idKey]) : null;
+
+            let actionCell;
+            if (similarItem) {
+                actionCell = (
+                    <div className="flex flex-col gap-1 items-start h-full justify-center">
+                        <p className="text-xs">
+                           Match: <strong>{similarItem.potentialMatchA.Name}</strong>
+                           <Badge variant="outline" className="ml-2">{Math.round(similarItem.score * 100)}%</Badge>
+                        </p>
+                        <Button size="sm" className="h-6 px-2 py-1 text-xs" onClick={() => handleRematch(similarItem)}>
+                            <Link className="mr-1.5 h-3 w-3" /> Rematch
+                        </Button>
+                    </div>
+                );
+            } else {
+                actionCell = <p className="text-muted-foreground text-xs italic">No match found</p>;
+            }
+
+            return {
+                ...row,
+                "Potential Match & Action": actionCell,
+            };
+        });
+    }, [highlySimilarRows, unmatchedRows, handleRematch]);
+
+
+    const unmatchedHeaders = useMemo(() => {
+        const baseHeaders = fileB?.headers || [];
+        // Ensure 'Id' and 'Name' are at the front if they exist
+        const priority = ['id', 'name', 'nama', 'username'];
+        const pHeaders = baseHeaders.filter(h => priority.includes(h.toLowerCase()));
+        const otherHeaders = baseHeaders.filter(h => !priority.includes(h.toLowerCase()));
+        return ["No", ...pHeaders, ...otherHeaders, "Potential Match & Action"];
+    }, [fileB]);
 
     return (
         <>
@@ -485,17 +540,9 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                             <TabsTrigger value="unmatched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Unmatched ({unmatchedRows.length + highlySimilarRows.length})</TabsTrigger>
                             <TabsTrigger value="matched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Matched ({mergedRows.length})</TabsTrigger>
                         </TabsList>
-                        <TabsContent value="unmatched" className="mt-4 space-y-6">
-                             <div>
-                                <h3 className="text-lg font-semibold mb-2">Highly Similar (Rematch)</h3>
-                                <p className="text-sm text-muted-foreground mb-4">These rows have a high probability of being a match. Click 'Rematch' to confirm and move them to the 'Matched' list.</p>
-                                <HighlySimilarTable data={highlySimilarRows} onRematch={handleRematch} fileAHeaders={fileA?.headers || []} fileBHeaders={fileB?.headers || []} />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-semibold mb-2">Unmatched (No Similarity Found)</h3>
-                                <p className="text-sm text-muted-foreground mb-4">These rows could not be matched automatically and have no similar candidates.</p>
-                                <ResultsTable data={unmatchedRows} headers={unmatchedHeaders} />
-                            </div>
+                        <TabsContent value="unmatched" className="mt-4">
+                             <p className="text-sm text-muted-foreground mb-4">These rows could not be matched automatically. Review potential matches and use the 'Rematch' button to confirm them.</p>
+                             <ResultsTable data={getUnmatchedTableData} headers={unmatchedHeaders} />
                         </TabsContent>
                         <TabsContent value="matched" className="mt-4">
                             <p className="text-sm text-muted-foreground mb-4">These rows were matched automatically. They will be included in the final download.</p>
@@ -519,16 +566,25 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
         if (finalData.length === 0) return [];
         
         const allHeaders = Object.keys(finalData[0] || {});
-        const priorityOrder = ['Id', 'Name', 'NISN', 'NIS', 'Year'].map(p => p.toLowerCase());
+        
+        // Define priority headers and their order
+        const priorityOrder: string[] = ['Id', 'Name'];
+        if (editMode === 'nisn') priorityOrder.push('NISN');
+        else if (editMode === 'nis') priorityOrder.push('NIS');
+        else if (editMode === 'year') priorityOrder.push('Year');
+        
+        const lowerCasePriorityOrder = priorityOrder.map(p => p.toLowerCase());
 
-        const priorityHeaders = allHeaders
-            .filter(h => priorityOrder.includes(h.toLowerCase()))
-            .sort((a, b) => priorityOrder.indexOf(a.toLowerCase()) - priorityOrder.indexOf(b.toLowerCase()));
-            
-        const otherHeaders = allHeaders.filter(h => !priorityOrder.includes(h.toLowerCase()));
+        // Extract priority headers from all headers, maintaining the defined order
+        const priorityHeaders = priorityOrder
+            .map(p => allHeaders.find(h => h.toLowerCase() === p.toLowerCase()))
+            .filter((h): h is string => !!h);
+
+        // Get the rest of the headers that are not in the priority list
+        const otherHeaders = allHeaders.filter(h => !lowerCasePriorityOrder.includes(h.toLowerCase()));
         
         return ["No", ...priorityHeaders, ...otherHeaders];
-    }, [finalData]);
+    }, [finalData, editMode]);
 
 
     return (
@@ -645,57 +701,6 @@ export function DataWeaver() {
                     </div>
                 </header>
                 {getStepComponent()}
-            </div>
-        </div>
-    );
-}
-
-function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { data: HighlySimilarRow[], onRematch: (row: HighlySimilarRow) => void, fileAHeaders: string[], fileBHeaders: string[] }) {
-    if (data.length === 0) {
-        return <div className="text-center py-8 text-muted-foreground border rounded-md">No highly similar rows found.</div>;
-    }
-    
-    const findNameHeader = (headers: string[]) => headers.find(h => h.toLowerCase().includes('nama')) || headers.find(h => h.toLowerCase().includes('name')) || headers.find(h => h.toLowerCase().includes('username')) || headers[0];
-    
-    const nameHeaderA = findNameHeader(fileAHeaders);
-    const nameHeaderB = findNameHeader(fileBHeaders);
-
-    const findIdHeader = (headers: string[]) => headers.find(h => h.toLowerCase() === 'id');
-    const idHeaderB = findIdHeader(fileBHeaders);
-
-    return (
-        <div className="border rounded-lg overflow-hidden">
-            <div className="divide-y">
-                {data.map((item, index) => {
-                    const rowBId = idHeaderB ? item.rowB[idHeaderB] : index;
-                    return (
-                        <div key={rowBId} className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center p-4 gap-4 hover:bg-muted/50">
-                            {/* File B Data */}
-                            <div className="text-sm">
-                                <Badge variant="secondary" className="mb-2">From ID File</Badge>
-                                <p><strong>Name:</strong> {nameHeaderB ? item.rowB[nameHeaderB] : 'N/A'}</p>
-                                {Object.entries(item.rowB).map(([key, value]) => (
-                                    (key.toLowerCase() !== (nameHeaderB || '').toLowerCase() && value) && <p key={key} className='text-muted-foreground text-xs'><strong>{key}:</strong> {String(value)}</p>
-                                ))}
-                            </div>
-                            
-                            {/* Action */}
-                            <div className="flex flex-col items-center justify-center gap-2">
-                                 <ArrowRight className="hidden md:block h-6 w-6 text-muted-foreground" />
-                                 <Button size="sm" onClick={() => onRematch(item)}>
-                                    <Link className="mr-2 h-4 w-4" /> Rematch
-                                </Button>
-                                <Badge variant="outline">{Math.round(item.score * 100)}% Similar</Badge>
-                            </div>
-                            
-                            {/* Potential Match A Data */}
-                             <div className="text-sm">
-                                <Badge variant="secondary" className="mb-2">Potential Match</Badge>
-                                <p><strong>Name:</strong> {item.potentialMatchA?.Name || 'N/A'}</p>
-                            </div>
-                        </div>
-                    );
-                })}
             </div>
         </div>
     );
