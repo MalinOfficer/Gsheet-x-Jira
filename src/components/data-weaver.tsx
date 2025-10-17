@@ -550,8 +550,8 @@ function Step2({ onBack, editMode }: { onBack: () => void; editMode: EditMode | 
                         </div>
                         <Tabs defaultValue="matched" className="w-full">
                            <TabsList className="grid w-full grid-cols-2 bg-muted/60 p-1 h-auto">
-                               <TabsTrigger value="matched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Matched ({mergedRows.length})</TabsTrigger>
-                               <TabsTrigger value="unmatched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Unmatched ({unmatchedRows.length + highlySimilarRows.length})</TabsTrigger>
+                               <TabsTrigger value="matched" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground">Matched ({mergedRows.length})</TabsTrigger>
+                               <TabsTrigger value="unmatched" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground">Unmatched ({unmatchedRows.length + highlySimilarRows.length})</TabsTrigger>
                            </TabsList>
                             <TabsContent value="matched" className="mt-4">
                                 <ResultsTable data={mergedRows} headers={resultHeaders} />
@@ -682,7 +682,3 @@ function HighlySimilarTable({ data, onRematch, fileAHeaders, fileBHeaders }: { d
         </div>
     );
 }
-
-
-
-
