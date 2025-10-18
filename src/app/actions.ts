@@ -830,8 +830,6 @@ export async function mergeFilesOnServer(
     }
     
     // --- Data Processing ---
-    let existingCount = 0;
-    
     const validRowCheckKeys = ['id', 'name', 'username', 'nama'];
     const validFileBRows = fileBData.rows.filter((row: any) => {
         return validRowCheckKeys.some(key => {
@@ -840,15 +838,19 @@ export async function mergeFilesOnServer(
         });
     });
 
-    const rowsToProcessB = validFileBRows.filter((row: any) => {
+    const rowsToProcessB: any[] = [];
+    let existingCount = 0;
+
+    validFileBRows.forEach((row: any) => {
         const value = row[columnToCheck!];
         const hasValue = value !== null && value !== undefined && String(value).trim() !== '';
         if (hasValue) {
             existingCount++;
-            return false; // Exclude from matching process
+        } else {
+            rowsToProcessB.push(row);
         }
-        return true; // Include in matching process
     });
+
 
     const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
@@ -911,24 +913,25 @@ export async function mergeFilesOnServer(
 
     const createCleanMergedRow = (rowA: any, rowB: any) => {
         const merged: Record<string, any> = {};
-        const addedKeys = new Set<string>();
     
-        const synonymGroups = {
+        const synonymGroups: Record<string, string[]> = {
             'Id': ['id'],
             'Name': ['nama', 'name', 'username'],
             'NISN': ['nisn'],
             'NIS': ['nis'],
             'Year': ['year', 'tahun ajaran']
         };
-
+    
         const findValueBySynonym = (synonyms: string[], fromRowA: any, fromRowB: any) => {
-            // Prioritize File A for the edit mode column
+            // Priority: File B for ID and Name, File A for the editMode column.
+            const lowerSynonyms = synonyms.map(s => s.toLowerCase());
+            
+            // Edit mode column priority for File A
             if (editMode) {
-                const editModeHeader = editMode.toUpperCase() as keyof typeof synonymGroups;
-                const editModeSynonyms = synonymGroups[editModeHeader] || [editMode.toLowerCase()];
-                if (synonyms.some(s => editModeSynonyms.includes(s.toLowerCase()))) {
-                     for (const keyA in fromRowA) {
-                         if (editModeSynonyms.includes(keyA.toLowerCase())) {
+                const editModeSynonyms = synonymGroups[editMode.toUpperCase() as keyof typeof synonymGroups]?.map(s => s.toLowerCase()) || [];
+                if (lowerSynonyms.some(s => editModeSynonyms.includes(s))) {
+                    for (const keyA in fromRowA) {
+                        if (editModeSynonyms.includes(keyA.toLowerCase())) {
                             const value = fromRowA[keyA];
                             if (value !== null && value !== undefined && String(value).trim() !== '') {
                                 return value;
@@ -937,19 +940,20 @@ export async function mergeFilesOnServer(
                     }
                 }
             }
-            // Default behavior: prioritize File B for ID and Name, then A. For others, just find a value.
+
+            // Default behavior: find first available value, prioritizing B for non-edit-mode cols
             for (const keyB in fromRowB) {
-                 if (synonyms.map(s => s.toLowerCase()).includes(keyB.toLowerCase())) {
+                if (lowerSynonyms.includes(keyB.toLowerCase())) {
                     const value = fromRowB[keyB];
-                     if (value !== null && value !== undefined && String(value).trim() !== '') {
+                    if (value !== null && value !== undefined && String(value).trim() !== '') {
                         return value;
                     }
                 }
             }
-            for (const keyA in fromRowA) {
-                if (synonyms.map(s => s.toLowerCase()).includes(keyA.toLowerCase())) {
+             for (const keyA in fromRowA) {
+                if (lowerSynonyms.includes(keyA.toLowerCase())) {
                     const value = fromRowA[keyA];
-                    if (value !== null && value !== undefined && String(value).trim() !== '') {
+                     if (value !== null && value !== undefined && String(value).trim() !== '') {
                         return value;
                     }
                 }
@@ -957,33 +961,40 @@ export async function mergeFilesOnServer(
             return ''; 
         };
     
+        const allProcessedKeys = new Set<string>();
         const priorityGroupsToProcess: Record<string, string[]> = {
             'Id': synonymGroups.Id,
             'Name': synonymGroups.Name,
         };
         
-        if (editMode === 'nisn') priorityGroupsToProcess['NISN'] = synonymGroups.NISN;
-        else if (editMode === 'nis') priorityGroupsToProcess['NIS'] = synonymGroups.NIS;
-        else if (editMode === 'year') priorityGroupsToProcess['Year'] = synonymGroups.Year;
+        if (editMode) {
+            const editModeKey = editMode.toUpperCase() as keyof typeof synonymGroups;
+            if (synonymGroups[editModeKey]) {
+                priorityGroupsToProcess[editModeKey] = synonymGroups[editModeKey];
+            }
+        }
         
         for (const [standardHeader, synonyms] of Object.entries(priorityGroupsToProcess)) {
              const value = findValueBySynonym(synonyms, rowA, rowB);
              merged[standardHeader] = value;
-             synonyms.forEach(s => addedKeys.add(s.toLowerCase()));
+             synonyms.forEach(s => allProcessedKeys.add(s.toLowerCase()));
         }
-
-        const allPrioritySynonyms = Object.values(synonymGroups).flat();
-
-        const addRemainingValue = (key: string, value: any) => {
-            const lowerKey = key.toLowerCase();
-            if (lowerKey === 'no' || allPrioritySynonyms.includes(lowerKey)) return;
-            if (addedKeys.has(lowerKey)) return;
-            merged[key] = value;
-            addedKeys.add(lowerKey);
-        };
     
-        Object.entries(rowB).forEach(([key, value]) => addRemainingValue(key, value));
-        Object.entries(rowA).forEach(([key, value]) => addRemainingValue(key, value));
+        const addRemainingValue = (row: any) => {
+            for (const key in row) {
+                const lowerKey = key.toLowerCase();
+                if (!allProcessedKeys.has(lowerKey)) {
+                    // To avoid overwriting a value from the other file if headers are different but represent same data
+                    if (!(key in merged)) {
+                        merged[key] = row[key];
+                    }
+                    allProcessedKeys.add(lowerKey);
+                }
+            }
+        };
+        
+        addRemainingValue(rowB);
+        addRemainingValue(rowA);
     
         return merged;
     };
@@ -1194,6 +1205,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
     
+
 
 
 
