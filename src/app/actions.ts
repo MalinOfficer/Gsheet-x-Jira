@@ -829,6 +829,7 @@ export async function mergeFilesOnServer(
     }
     
     // --- Data Processing ---
+    // Stricter validation: A row is valid only if it has a value in one of the key identifier columns.
     const validRowCheckKeys = ['id', 'name', 'username', 'nama'];
     const validFileBRows = fileBData.rows.filter((row: any) => {
         return validRowCheckKeys.some(key => {
@@ -837,15 +838,17 @@ export async function mergeFilesOnServer(
         });
     });
 
-    const rowsToProcessB = validFileBRows.filter((row: any) => {
-        const value = row[columnToCheck!];
-        return !value || String(value).trim() === '';
-    });
-
+    // Explicitly count 'existing' rows from the clean, valid data.
     const existingCount = validFileBRows.filter((row: any) => {
         const value = row[columnToCheck!];
         return value && String(value).trim() !== '';
     }).length;
+
+    // Rows to be processed are the ones where the target column is empty.
+    const rowsToProcessB = validFileBRows.filter((row: any) => {
+        const value = row[columnToCheck!];
+        return !value || String(value).trim() === '';
+    });
 
 
     const fileAMap = new Map<string, any>();

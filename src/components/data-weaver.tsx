@@ -78,8 +78,10 @@ const readFile = (file: File, fileId: 'A' | 'B'): Promise<TableData> => {
                 }
                 
                 // If no plausible header found, default to the first row
-                if(headerRowIndex === -1) {
+                if(headerRowIndex === -1 && json.length > 0) {
                     headerRowIndex = 0; 
+                } else if (headerRowIndex === -1) {
+                    return reject(new Error("No valid header row found."));
                 }
 
                 headers = json[headerRowIndex].map(h => String(h || '').trim());
@@ -463,15 +465,16 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
             }
             
             return {
+                "No": 0, // Placeholder, will be replaced by index
                 "Name A": nameA,
                 "Name B": nameB,
-                "Potential Match": actionCell,
+                "Potential Match & Action": actionCell,
             };
         });
     }, [highlySimilarRows, unmatchedRows, handleRematch]);
 
 
-    const unmatchedHeaders = useMemo(() => ["No", "Name A", "Name B", "Potential Match"], []);
+    const unmatchedHeaders = useMemo(() => ["No", "Name A", "Name B", "Potential Match & Action"], []);
 
     const hasResults = mergedRows.length > 0 || highlySimilarRows.length > 0 || unmatchedRows.length > 0;
 
