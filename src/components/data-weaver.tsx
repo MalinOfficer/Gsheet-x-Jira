@@ -66,10 +66,12 @@ const readFile = (file: File, fileId: 'A' | 'B'): Promise<TableData> => {
                 let dataRows: any[][];
 
                 let headerRowIndex = -1;
-                // Look for a plausible header row in the first 10 rows
-                for(let i=0; i<Math.min(json.length, 10); i++) {
+                const headerKeywords = ['nama', 'name', 'username', 'nisn', 'nis', 'id'];
+                
+                // Scan from the bottom of the first 10 rows to find the last plausible header
+                for(let i = Math.min(json.length, 10) - 1; i >= 0; i--) {
                     const row = json[i];
-                    if (Array.isArray(row) && row.some(cell => typeof cell === 'string' && ['nama', 'name', 'username', 'nisn', 'nis', 'id'].includes(cell.toLowerCase().trim()))) {
+                    if (Array.isArray(row) && row.some(cell => typeof cell === 'string' && headerKeywords.includes(cell.toLowerCase().trim()))) {
                         headerRowIndex = i;
                         break;
                     }
@@ -82,7 +84,6 @@ const readFile = (file: File, fileId: 'A' | 'B'): Promise<TableData> => {
 
                 headers = json[headerRowIndex].map(h => String(h || '').trim());
                 dataRows = json.slice(headerRowIndex + 1);
-
 
                 const rows = dataRows.map((rowArray: any[]) => {
                     const row: ExcelRow = {};
@@ -440,18 +441,12 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
         return allUnmatchedItems.map(item => {
             const { rowB, potentialMatchA, score } = item as HighlySimilarRow & {type: string};
 
-            const findValue = (keys: string[], obj: ExcelRow | null) => {
-                if (!obj) return '';
-                const key = keys.find(k => obj[k] !== undefined && obj[k] !== null);
-                return key ? obj[key] : '';
-            };
-
-            const nameB = findValue(['Name', 'name', 'username', 'Nama'], rowB);
-            
-            let actionCell;
+            const nameB = rowB.Name || rowB.name || rowB.Nama || rowB.username || '';
             let nameA = '';
+
+            let actionCell;
             if (potentialMatchA) {
-                 nameA = findValue(['Name', 'name', 'username', 'Nama'], potentialMatchA);
+                 nameA = potentialMatchA.Name || potentialMatchA.name || potentialMatchA.Nama || potentialMatchA.username || '';
                  actionCell = (
                     <div className="flex flex-col gap-1 items-start h-full justify-center">
                          <p className="text-xs font-semibold">{nameA}</p>
@@ -470,13 +465,13 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
             return {
                 "Name A": nameA,
                 "Name B": nameB,
-                "Potential Match & Action": actionCell,
+                "Potential Match": actionCell,
             };
         });
     }, [highlySimilarRows, unmatchedRows, handleRematch]);
 
 
-    const unmatchedHeaders = useMemo(() => ["No", "Name B", "Potential Match & Action"], []);
+    const unmatchedHeaders = useMemo(() => ["No", "Name A", "Name B", "Potential Match"], []);
 
     const hasResults = mergedRows.length > 0 || highlySimilarRows.length > 0 || unmatchedRows.length > 0;
 
@@ -542,12 +537,16 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
             'Name': synonymGroups.Name,
         };
         
-        if (currentEditMode === 'nisn') priorityGroupsToProcess['NISN'] = synonymGroups.NISN;
-        else if (currentEditMode === 'nis') priorityGroupsToProcess['NIS'] = synonymGroups.NIS;
-        else if (currentEditMode === 'year') priorityGroupsToProcess['Year'] = synonymGroups.Year;
+        if (currentEditMode === 'nisn') {
+            priorityGroupsToProcess['NISN'] = synonymGroups.NISN;
+        } else if (currentEditMode === 'nis') {
+            priorityGroupsToProcess['NIS'] = synonymGroups.NIS;
+        } else if (currentEditMode === 'year') {
+            priorityGroupsToProcess['Year'] = synonymGroups.Year;
+        }
         
         for (const [standardHeader, synonyms] of Object.entries(priorityGroupsToProcess)) {
-             const value = findValueBySynonym(synonyms, rowA, rowB);
+             const value = findValueBySynonym(synonyms.map(s => s.toLowerCase()), rowA, rowB);
              merged[standardHeader] = value;
              synonyms.forEach(s => addedKeys.add(s.toLowerCase()));
         }
