@@ -67,7 +67,7 @@ const readFile = (file: File, fileId: 'A' | 'B'): Promise<TableData> => {
                 }
 
                 let headerRowIndex = -1;
-                const headerKeywords = ['nama', 'name', 'username', 'nisn', 'nis', 'id', 'tahun ajaran'];
+                const headerKeywords = ['nama', 'name', 'username', 'nisn', 'nis', 'id', 'tahun ajaran', 'year'];
                 
                 // Scan from the bottom of the first 10 rows to find the last plausible header
                 for(let i = Math.min(json.length, 10) - 1; i >= 0; i--) {
@@ -120,13 +120,13 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
             const data = await readFile(file, fileId);
             onFileProcessed(fileId, data);
             toast({
-                title: `File ${fileId === 'A' ? 'A' : 'ID'} Uploaded`,
+                title: `File ${fileId === 'A' ? 'A' : 'B'} Uploaded`,
                 description: `'${file.name}' has been successfully processed.`,
             });
         } catch (error) {
             toast({
                 variant: 'destructive',
-                title: `Error Processing File ${fileId === 'A' ? 'A' : 'ID'}`,
+                title: `Error Processing File ${fileId === 'A' ? 'A' : 'B'}`,
                 description: error instanceof Error ? error.message : "An unknown error occurred.",
             });
         } finally {
@@ -308,12 +308,20 @@ function Step1({ onNext, onClearAll, isMerging, editMode }: { onNext: () => void
         else setFileB(null);
     }, [setFileA, setFileB]);
 
-    const fileADescription = useMemo(() => {
-        if (editMode === 'nisn') return 'The file with student names and NISN.';
-        if (editMode === 'year') return 'The file with student names and School Year.';
-        if (editMode === 'nis') return 'The file with student names and NIS.';
-        return 'Select an Excel file (.xlsx, .csv).';
-    }, [editMode]);
+    const fileADescriptions = {
+        nisn: 'The file with student names and NISN.',
+        year: 'The file with student names and School Year.',
+        nis: 'The file with student names and NIS.',
+    };
+    
+    const fileATitles = {
+        nisn: 'File NISN (Source Data)',
+        year: 'File Year (Source Data)',
+        nis: 'File NIS (Source Data)',
+    }
+
+    const fileADescription = editMode ? fileADescriptions[editMode] : 'Select an Excel file (.xlsx, .csv).';
+    const fileATitle = editMode ? fileATitles[editMode] : 'File A (Source Data)';
 
     return (
         <Card>
@@ -329,7 +337,7 @@ function Step1({ onNext, onClearAll, isMerging, editMode }: { onNext: () => void
                         onFileRemoved={handleFileRemoved}
                         currentFile={fileA}
                         disabled={isMerging}
-                        title="File A (Source Data)"
+                        title={fileATitle}
                         description={fileADescription}
                     />
                     <FileUploader
@@ -338,7 +346,7 @@ function Step1({ onNext, onClearAll, isMerging, editMode }: { onNext: () => void
                         onFileRemoved={handleFileRemoved}
                         currentFile={fileB}
                         disabled={isMerging}
-                        title="File B (ID File)"
+                        title="File Id Bulk (ID File)"
                         description='The file from the "Bulk Edit" menu to be updated.'
                     />
                 </div>
