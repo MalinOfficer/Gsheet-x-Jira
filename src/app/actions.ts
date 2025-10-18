@@ -988,19 +988,10 @@ export async function mergeFilesOnServer(
         return createCleanMergedRow(matchingRowA || {}, originalRowB || {});
     });
     
-    const finalHighlySimilarRows = highlySimilarRows.map(item => {
-        const nameKeyA = findHeader(Object.keys(item.potentialMatchA), nameHeaderKeys) || 'Name';
-        const nameKeyB = findHeader(Object.keys(item.rowB), nameHeaderKeys) || 'Name';
-        return {
-            rowB: {
-                Name: item.rowB[nameKeyB]
-            },
-            potentialMatchA: { 
-                Name: item.potentialMatchA[nameKeyA] 
-            },
-            score: item.score
-        };
-    });
+    const finalHighlySimilarRows = highlySimilarRows.map(item => ({
+        ...item,
+        potentialMatchA: item.potentialMatchA, // Keep the original object
+    }));
 
 
     return {
