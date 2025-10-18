@@ -810,11 +810,12 @@ export async function mergeFilesOnServer(
     const idHeaderKeys = ['id', 'Id', 'ID'];
 
     const fileAKey = findHeader(fileAData.headers, nameHeaderKeys);
-    const fileBKey = findHeader(fileBData.headers, nameHeaderKeys);
-    const fileBIdKey = findHeader(fileBData.headers, idHeaderKeys);
-    
     if (!fileAKey) return { error: `Required 'Name' column (e.g., '${nameHeaderKeys.join("', '")}') not found in Source File.` };
+    
+    const fileBKey = findHeader(fileBData.headers, nameHeaderKeys);
     if (!fileBKey) return { error: `Required 'Name' column (e.g., '${nameHeaderKeys.join("', '")}') not found in ID File.` };
+
+    const fileBIdKey = findHeader(fileBData.headers, idHeaderKeys);
     if (!fileBIdKey) return { error: `Required 'ID' column (e.g., '${idHeaderKeys.join("', '")}') not found in ID File.` };
 
     const eliminationKeys: Record<typeof editMode, string[]> = {
