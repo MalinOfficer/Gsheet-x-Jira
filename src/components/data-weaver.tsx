@@ -20,7 +20,11 @@ import { Badge } from './ui/badge';
 declare const XLSX: any;
 
 type ExcelRow = Record<string, any>;
-type HighlySimilarRow = { rowB: ExcelRow; potentialMatchA: ExcelRow; score: number };
+type HighlySimilarRow = { 
+    rowB: ExcelRow; 
+    potentialMatchA: ExcelRow; 
+    score: number 
+};
 
 type EditMode = 'nisn' | 'year' | 'nis';
 
@@ -62,11 +66,8 @@ const readFile = (file: File, fileId: 'A' | 'B'): Promise<TableData> => {
                     return reject(new Error("File is empty or format is invalid."));
                 }
 
-                let headers: string[];
-                let dataRows: any[][];
-
                 let headerRowIndex = -1;
-                const headerKeywords = ['nama', 'name', 'username', 'nisn', 'nis', 'id'];
+                const headerKeywords = ['nama', 'name', 'username', 'nisn', 'nis', 'id', 'tahun ajaran'];
                 
                 // Scan from the bottom of the first 10 rows to find the last plausible header
                 for(let i = Math.min(json.length, 10) - 1; i >= 0; i--) {
@@ -77,15 +78,15 @@ const readFile = (file: File, fileId: 'A' | 'B'): Promise<TableData> => {
                     }
                 }
                 
-                // If no plausible header found, default to the first row
-                if(headerRowIndex === -1 && json.length > 0) {
+                // If no plausible header found, default to the first row if it has content
+                if(headerRowIndex === -1 && json.length > 0 && json[0].some(cell => String(cell).trim() !== '')) {
                     headerRowIndex = 0; 
                 } else if (headerRowIndex === -1) {
                     return reject(new Error("No valid header row found."));
                 }
 
-                headers = json[headerRowIndex].map(h => String(h || '').trim());
-                dataRows = json.slice(headerRowIndex + 1);
+                const headers = json[headerRowIndex].map(h => String(h || '').trim());
+                const dataRows = json.slice(headerRowIndex + 1);
 
                 const rows = dataRows.map((rowArray: any[]) => {
                     const row: ExcelRow = {};
@@ -398,16 +399,17 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
     }, [handleMerge]);
 
     const handleRematch = useCallback((similarItem: HighlySimilarRow) => {
-        setHighlySimilarRows(prev => prev.filter(item => item.rowB['id'] !== similarItem.rowB['id']));
+        setHighlySimilarRows(prev => prev.filter(item => item.rowB['Name'] !== similarItem.rowB['Name']));
         
         const nameHeaderKeys = ['nama', 'name', 'username'];
-        const findHeader = (headers: string[], keys: string[]) => {
+        const findHeader = (obj: Record<string, any>, keys: string[]) => {
             const lowerKeys = keys.map(k => k.toLowerCase());
-            return headers.find(h => lowerKeys.includes(h.toLowerCase()));
+            const key = Object.keys(obj).find(k => lowerKeys.includes(k.toLowerCase()));
+            return key ? obj[key] : '';
         };
 
-        const fileAKey = findHeader(Object.keys(similarItem.potentialMatchA), nameHeaderKeys) || 'Name';
-        const fileBKey = findHeader(Object.keys(similarItem.rowB), nameHeaderKeys) || 'Name';
+        const fileAKey = findHeader(similarItem.potentialMatchA, nameHeaderKeys);
+        const fileBKey = findHeader(similarItem.rowB, nameHeaderKeys);
 
         const finalMergedRow = createCleanMergedRow(
             similarItem.potentialMatchA,
@@ -430,25 +432,24 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
         toast({
             title: 'Row Rematched',
-            description: `'${similarItem.rowB[fileBKey] || ''}' has been moved to the matched list.`
+            description: `'${similarItem.rowB['Name'] || ''}' has been moved to the matched list.`
         });
     }, [editMode, toast]);
     
     const getUnmatchedTableData = useMemo(() => {
-        const allUnmatchedItems = [
-            ...highlySimilarRows.map(item => ({...item, type: 'similar'})),
-            ...unmatchedRows.map(row => ({ rowB: row, potentialMatchA: null, score: 0, type: 'unmatched' }))
+        const allUnmatchedItems: (HighlySimilarRow | { rowB: ExcelRow, potentialMatchA: null, score: 0 })[] = [
+            ...highlySimilarRows,
+            ...unmatchedRows.map(row => ({ rowB: row, potentialMatchA: null, score: 0 }))
         ];
 
         return allUnmatchedItems.map(item => {
-            const { rowB, potentialMatchA, score } = item as HighlySimilarRow & {type: string};
+            const { rowB, potentialMatchA, score } = item;
 
-            const nameB = rowB.Name || rowB.name || rowB.Nama || rowB.username || '';
-            let nameA = '';
+            const nameB = rowB.Name || '';
+            const nameA = potentialMatchA ? potentialMatchA.Name || '' : '';
 
             let actionCell;
             if (potentialMatchA) {
-                 nameA = potentialMatchA.Name || potentialMatchA.name || potentialMatchA.Nama || potentialMatchA.username || '';
                  actionCell = (
                     <div className="flex flex-col gap-1 items-start h-full justify-center">
                          <p className="text-xs font-semibold">{nameA}</p>

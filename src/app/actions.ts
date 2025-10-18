@@ -841,13 +841,13 @@ export async function mergeFilesOnServer(
     // Explicitly count 'existing' rows from the clean, valid data.
     const existingCount = validFileBRows.filter((row: any) => {
         const value = row[columnToCheck!];
-        return value && String(value).trim() !== '';
+        return value !== null && value !== undefined && String(value).trim() !== '';
     }).length;
 
     // Rows to be processed are the ones where the target column is empty.
     const rowsToProcessB = validFileBRows.filter((row: any) => {
         const value = row[columnToCheck!];
-        return !value || String(value).trim() === '';
+        return value === null || value === undefined || String(value).trim() === '';
     });
 
 
@@ -995,9 +995,15 @@ export async function mergeFilesOnServer(
     
     const finalHighlySimilarRows = highlySimilarRows.map(item => {
         const nameKeyA = findHeader(Object.keys(item.potentialMatchA), nameHeaderKeys) || 'Name';
+        const nameKeyB = findHeader(Object.keys(item.rowB), nameHeaderKeys) || 'Name';
         return {
-            ...item,
-            potentialMatchA: { Name: item.potentialMatchA[nameKeyA] },
+            rowB: {
+                Name: item.rowB[nameKeyB]
+            },
+            potentialMatchA: { 
+                Name: item.potentialMatchA[nameKeyA] 
+            },
+            score: item.score
         };
     });
 
