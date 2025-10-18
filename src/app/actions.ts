@@ -809,7 +809,7 @@ export async function mergeFilesOnServer(
     const nameHeaderKeys = ['nama', 'name', 'username'];
     const fileAKey = findHeader(fileAData.headers, nameHeaderKeys);
     const fileBKey = findHeader(fileBData.headers, nameHeaderKeys);
-    const fileBIdKey = findHeader(fileBData.headers, ['id']);
+    const fileBIdKey = findHeader(fileBData.headers, ['id', 'Id', 'ID']);
     
     if (!fileAKey) return { error: `Required 'Name' column (e.g., '${nameHeaderKeys.join("', '")}') not found in File A.` };
     if (!fileBKey) return { error: `Required 'Name' column not found in ID File.` };
@@ -1189,6 +1189,8 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
 
+
+    
 
     
 
