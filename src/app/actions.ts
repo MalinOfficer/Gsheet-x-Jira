@@ -1,5 +1,4 @@
 
-
 "use server";
 
 import { unstable_cache } from 'next/cache';
@@ -76,7 +75,7 @@ const projectFilesForAction = [
   "src/components/ui/command.tsx",
   "src/components/ui/dialog.tsx",
   "src/components/ui/dropdown-menu.tsx",
-  "src/components/ui/form.tsx",
+  "src_components/ui/form.tsx",
   "src/components/ui/input.tsx",
   "src/components/ui/label.tsx",
   "src/components/ui/menubar.tsx",
@@ -839,17 +838,19 @@ export async function mergeFilesOnServer(
     });
 
     const rowsToProcessB: any[] = [];
-    let existingCount = 0;
 
     validFileBRows.forEach((row: any) => {
         const value = row[columnToCheck!];
         const hasValue = value !== null && value !== undefined && String(value).trim() !== '';
-        if (hasValue) {
-            existingCount++;
-        } else {
+        if (!hasValue) {
             rowsToProcessB.push(row);
         }
     });
+
+    const existingCount = validFileBRows.filter((row: any) => {
+        const value = row[columnToCheck!];
+        return value !== null && value !== undefined && String(value).trim() !== '';
+    }).length;
 
 
     const fileAMap = new Map<string, any>();
@@ -910,7 +911,7 @@ export async function mergeFilesOnServer(
             unmatchedRowsB.push(rowB);
         }
     }
-
+    
     const createCleanMergedRow = (rowA: any, rowB: any) => {
         const merged: Record<string, any> = {};
     
@@ -923,38 +924,17 @@ export async function mergeFilesOnServer(
         };
     
         const findValueBySynonym = (synonyms: string[], fromRowA: any, fromRowB: any) => {
-            // Priority: File B for ID and Name, File A for the editMode column.
             const lowerSynonyms = synonyms.map(s => s.toLowerCase());
             
-            // Edit mode column priority for File A
-            if (editMode) {
-                const editModeSynonyms = synonymGroups[editMode.toUpperCase() as keyof typeof synonymGroups]?.map(s => s.toLowerCase()) || [];
-                if (lowerSynonyms.some(s => editModeSynonyms.includes(s))) {
-                    for (const keyA in fromRowA) {
-                        if (editModeSynonyms.includes(keyA.toLowerCase())) {
-                            const value = fromRowA[keyA];
-                            if (value !== null && value !== undefined && String(value).trim() !== '') {
-                                return value;
-                            }
+            // Priority: File B first, then File A.
+            const sources = [fromRowB, fromRowA];
+            for (const source of sources) {
+                for (const key in source) {
+                    if (lowerSynonyms.includes(key.toLowerCase())) {
+                        const value = source[key];
+                        if (value !== null && value !== undefined && String(value).trim() !== '') {
+                            return value;
                         }
-                    }
-                }
-            }
-
-            // Default behavior: find first available value, prioritizing B for non-edit-mode cols
-            for (const keyB in fromRowB) {
-                if (lowerSynonyms.includes(keyB.toLowerCase())) {
-                    const value = fromRowB[keyB];
-                    if (value !== null && value !== undefined && String(value).trim() !== '') {
-                        return value;
-                    }
-                }
-            }
-             for (const keyA in fromRowA) {
-                if (lowerSynonyms.includes(keyA.toLowerCase())) {
-                    const value = fromRowA[keyA];
-                     if (value !== null && value !== undefined && String(value).trim() !== '') {
-                        return value;
                     }
                 }
             }
@@ -984,7 +964,6 @@ export async function mergeFilesOnServer(
             for (const key in row) {
                 const lowerKey = key.toLowerCase();
                 if (!allProcessedKeys.has(lowerKey)) {
-                    // To avoid overwriting a value from the other file if headers are different but represent same data
                     if (!(key in merged)) {
                         merged[key] = row[key];
                     }
@@ -1213,3 +1192,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
 
+
+
+    
