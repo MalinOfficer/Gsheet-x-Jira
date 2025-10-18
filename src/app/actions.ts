@@ -94,7 +94,7 @@ const projectFilesForAction = [
   "src/components/ui/table.tsx",
   "src/components/ui/tabs.tsx",
   "src/components/ui/textarea.tsx",
-  "src/components/ui/toast.tsx",
+  "src/components_ui/toast.tsx",
   "src/components/ui/toaster.tsx",
   "src/components/ui/tooltip.tsx",
 ];
@@ -807,13 +807,15 @@ export async function mergeFilesOnServer(
     }
 
     const nameHeaderKeys = ['nama', 'name', 'username'];
+    const idHeaderKeys = ['id', 'Id', 'ID'];
+
     const fileAKey = findHeader(fileAData.headers, nameHeaderKeys);
     const fileBKey = findHeader(fileBData.headers, nameHeaderKeys);
-    const fileBIdKey = findHeader(fileBData.headers, ['id', 'Id', 'ID']);
+    const fileBIdKey = findHeader(fileBData.headers, idHeaderKeys);
     
-    if (!fileAKey) return { error: `Required 'Name' column (e.g., '${nameHeaderKeys.join("', '")}') not found in File A.` };
-    if (!fileBKey) return { error: `Required 'Name' column not found in ID File.` };
-    if (!fileBIdKey) return { error: `Required 'ID' column not found in ID File.` };
+    if (!fileAKey) return { error: `Required 'Name' column (e.g., '${nameHeaderKeys.join("', '")}') not found in Source File.` };
+    if (!fileBKey) return { error: `Required 'Name' column (e.g., '${nameHeaderKeys.join("', '")}') not found in ID File.` };
+    if (!fileBIdKey) return { error: `Required 'ID' column (e.g., '${idHeaderKeys.join("', '")}') not found in ID File.` };
 
     const eliminationKeys: Record<typeof editMode, string[]> = {
         nisn: ['nisn'],
@@ -1189,6 +1191,8 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
 
+
+    
 
     
 
