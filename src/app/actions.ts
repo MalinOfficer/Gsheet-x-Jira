@@ -837,19 +837,14 @@ export async function mergeFilesOnServer(
         });
     });
 
-    const rowsToProcessB: any[] = [];
-
-    validFileBRows.forEach((row: any) => {
+    const rowsToProcessB = validFileBRows.filter((row: any) => {
         const value = row[columnToCheck!];
-        const hasValue = value !== null && value !== undefined && String(value).trim() !== '';
-        if (!hasValue) {
-            rowsToProcessB.push(row);
-        }
+        return !value || String(value).trim() === '';
     });
 
     const existingCount = validFileBRows.filter((row: any) => {
         const value = row[columnToCheck!];
-        return value !== null && value !== undefined && String(value).trim() !== '';
+        return value && String(value).trim() !== '';
     }).length;
 
 
