@@ -799,15 +799,13 @@ export async function mergeFilesOnServer(
 
     const normalizeName = (name: any): string => {
         if (typeof name !== 'string') return '';
-        // Remove punctuation and extra spaces, then lowercase
         return name.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s{2,}/g, " ");
     };
 
     if (!fileAData?.rows || !fileBData?.rows || !editMode) {
         return { error: "Missing file data or edit mode." };
     }
-    
-    // --- Header Validation ---
+
     const nameHeaderKeys = ['nama', 'name', 'username'];
     const fileAKey = findHeader(fileAData.headers, nameHeaderKeys);
     const fileBKey = findHeader(fileBData.headers, nameHeaderKeys);
@@ -827,24 +825,21 @@ export async function mergeFilesOnServer(
     if (!columnToCheck) {
         return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
     }
-    
-    // --- Data Processing ---
-    // Stricter validation: A row is valid only if it has a value in one of the key identifier columns.
+
     const validRowCheckKeys = ['id', 'name', 'username', 'nama'];
     const validFileBRows = fileBData.rows.filter((row: any) => {
         return validRowCheckKeys.some(key => {
             const header = findHeader(Object.keys(row), [key]);
-            return header && row[header] !== null && row[header] !== undefined && String(row[header]).trim() !== '';
+            const value = header ? row[header] : undefined;
+            return value !== null && value !== undefined && String(value).trim() !== '';
         });
     });
 
-    // Explicitly count 'existing' rows from the clean, valid data.
     const existingCount = validFileBRows.filter((row: any) => {
         const value = row[columnToCheck!];
         return value !== null && value !== undefined && String(value).trim() !== '';
     }).length;
 
-    // Rows to be processed are the ones where the target column is empty.
     const rowsToProcessB = validFileBRows.filter((row: any) => {
         const value = row[columnToCheck!];
         return value === null || value === undefined || String(value).trim() === '';
@@ -872,15 +867,13 @@ export async function mergeFilesOnServer(
         if (keyB) {
             const normalizedKeyB = normalizeName(keyB);
             
-            // --- AutoMatch Engine ---
             if (fileAMap.has(normalizedKeyB)) {
                 const rowA = fileAMap.get(normalizedKeyB);
                 mergedRows.push({ ...rowB, ...rowA });
-                fileAMap.delete(normalizedKeyB); // Remove from map to prevent re-matching
+                fileAMap.delete(normalizedKeyB);
             } else {
-                 // --- ManualMatch Engine ---
                  let bestMatch: any = null;
-                 let highestScore = 0.8; // Similarity threshold
+                 let highestScore = 0.8; 
 
                  for (const [normalizedKeyA, rowA] of fileAMap.entries()) {
                      if (usedInSimilar.has(normalizedKeyA)) continue;
@@ -900,7 +893,7 @@ export async function mergeFilesOnServer(
 
                  if (bestMatch) {
                      highlySimilarRows.push({ rowB: rowB, potentialMatchA: bestMatch.row, score: highestScore });
-                     usedInSimilar.add(bestMatch.key); // Mark as used
+                     usedInSimilar.add(bestMatch.key);
                  } else {
                      unmatchedRowsB.push(rowB);
                  }
@@ -924,7 +917,6 @@ export async function mergeFilesOnServer(
         const findValueBySynonym = (synonyms: string[], fromRowA: any, fromRowB: any) => {
             const lowerSynonyms = synonyms.map(s => s.toLowerCase());
             
-            // Priority: File B first, then File A.
             const sources = [fromRowB, fromRowA];
             for (const source of sources) {
                 for (const key in source) {
