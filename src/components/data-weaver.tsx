@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -407,7 +406,14 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
     }, [handleMerge]);
 
     const handleRematch = useCallback((similarItem: HighlySimilarRow) => {
-        setHighlySimilarRows(prev => prev.filter(item => item.rowB['Name'] !== similarItem.rowB['Name']));
+        setHighlySimilarRows(prev => prev.filter(item => {
+            const nameHeaderKeys = ['nama', 'name', 'username'];
+            const findName = (row: ExcelRow) => {
+                const key = Object.keys(row).find(k => nameHeaderKeys.includes(k.toLowerCase()));
+                return key ? row[key] : '';
+            };
+            return findName(item.rowB) !== findName(similarItem.rowB);
+        }));
         
         const nameHeaderKeys = ['nama', 'name', 'username'];
         const findHeader = (obj: Record<string, any>, keys: string[]) => {
@@ -440,7 +446,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
         toast({
             title: 'Row Rematched',
-            description: `'${similarItem.rowB['Name'] || ''}' has been moved to the matched list.`
+            description: `'${findHeader(similarItem.rowB, nameHeaderKeys) || ''}' has been moved to the matched list.`
         });
     }, [editMode, toast]);
     
@@ -452,9 +458,17 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
         return allUnmatchedItems.map(item => {
             const { rowB, potentialMatchA, score } = item;
+            
+            const nameHeaderKeys = ['nama', 'name', 'username'];
 
-            const nameB = rowB.Name || '';
-            const nameA = potentialMatchA ? potentialMatchA.Name || '' : '';
+            const findName = (row: ExcelRow | null) => {
+                if (!row) return '';
+                const key = Object.keys(row).find(k => nameHeaderKeys.includes(k.toLowerCase()));
+                return key ? row[key] : '';
+            };
+
+            const nameB = findName(rowB);
+            const nameA = findName(potentialMatchA);
 
             let actionCell;
             if (potentialMatchA) {
@@ -828,3 +842,5 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
