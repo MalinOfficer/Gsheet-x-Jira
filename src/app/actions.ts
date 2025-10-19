@@ -1003,8 +1003,9 @@ export async function mergeFilesOnServer(
     });
     
     const finalHighlySimilarRows = highlySimilarRows.map(item => ({
-        ...item,
-        potentialMatchA: item.potentialMatchA, // Keep the original object
+        rowB: item.rowB,
+        potentialMatchA: item.potentialMatchA,
+        score: item.score,
     }));
 
 
