@@ -853,53 +853,67 @@ export async function mergeFilesOnServer(
     for (const rowA of fileAData.rows) {
         const keyA = rowA[fileAKey];
         if (keyA) {
-            const normalizedKey = normalizeName(keyA);
-            if (!fileAMap.has(normalizedKey)) {
-                fileAMap.set(normalizedKey, rowA);
-            }
+            fileAMap.set(normalizeName(keyA), rowA);
         }
     }
 
     const mergedRows: any[] = [];
     const highlySimilarRows: { rowB: any, potentialMatchA: any, score: number }[] = [];
     const unmatchedRowsB: any[] = [];
-    const usedInSimilar = new Set<string>();
+    
+    const usedInPerfectMatch = new Set<string>();
 
+    // First pass: find perfect matches
     for (const rowB of rowsToProcessB) {
         const keyB = rowB[fileBKey];
         if (keyB) {
             const normalizedKeyB = normalizeName(keyB);
-            
-            if (fileAMap.has(normalizedKeyB)) {
+            if (fileAMap.has(normalizedKeyB) && !usedInPerfectMatch.has(normalizedKeyB)) {
                 const rowA = fileAMap.get(normalizedKeyB);
                 mergedRows.push({ ...rowB, ...rowA });
-                fileAMap.delete(normalizedKeyB);
+                usedInPerfectMatch.add(normalizedKeyB);
+            }
+        }
+    }
+
+    // Second pass: find similar matches for the remaining rows
+    const remainingRowsB = rowsToProcessB.filter(rowB => {
+         const keyB = rowB[fileBKey];
+         if (!keyB) return true;
+         const normalizedKeyB = normalizeName(keyB);
+         return !usedInPerfectMatch.has(normalizedKeyB);
+    });
+
+    const usedInSimilarMatch = new Set<string>();
+
+    for (const rowB of remainingRowsB) {
+        const keyB = rowB[fileBKey];
+        if (keyB) {
+            const normalizedKeyB = normalizeName(keyB);
+            let bestMatch: { row: any, key: string } | null = null;
+            let highestScore = 0.8; 
+
+            for (const [normalizedKeyA, rowA] of fileAMap.entries()) {
+                if (usedInPerfectMatch.has(normalizedKeyA) || usedInSimilarMatch.has(normalizedKeyA)) continue;
+
+                const wordsA = new Set(normalizedKeyA.split(' ').filter(Boolean));
+                const wordsB = new Set(normalizedKeyB.split(' ').filter(Boolean));
+                
+                const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
+                const union = new Set([...wordsA, ...wordsB]);
+                const score = union.size > 0 ? intersection.size / union.size : 0;
+
+                if (score > highestScore) {
+                    highestScore = score;
+                    bestMatch = { row: rowA, key: normalizedKeyA };
+                }
+            }
+
+            if (bestMatch) {
+                highlySimilarRows.push({ rowB: rowB, potentialMatchA: bestMatch.row, score: highestScore });
+                usedInSimilarMatch.add(bestMatch.key);
             } else {
-                 let bestMatch: any = null;
-                 let highestScore = 0.8; 
-
-                 for (const [normalizedKeyA, rowA] of fileAMap.entries()) {
-                     if (usedInSimilar.has(normalizedKeyA)) continue;
-
-                     const wordsA = new Set(normalizedKeyA.split(' ').filter(Boolean));
-                     const wordsB = new Set(normalizedKeyB.split(' ').filter(Boolean));
-                     
-                     const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
-                     const union = new Set([...wordsA, ...wordsB]);
-                     const score = union.size > 0 ? intersection.size / union.size : 0;
-
-                     if (score > highestScore) {
-                         highestScore = score;
-                         bestMatch = { row: rowA, key: normalizedKeyA };
-                     }
-                 }
-
-                 if (bestMatch) {
-                     highlySimilarRows.push({ rowB: rowB, potentialMatchA: bestMatch.row, score: highestScore });
-                     usedInSimilar.add(bestMatch.key);
-                 } else {
-                     unmatchedRowsB.push(rowB);
-                 }
+                unmatchedRowsB.push(rowB);
             }
         } else {
             unmatchedRowsB.push(rowB);
@@ -1191,3 +1205,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
+
+  
