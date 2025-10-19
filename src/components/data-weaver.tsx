@@ -5,7 +5,7 @@ import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Upload, Loader2, Trash2, Combine, Download, ArrowLeft, FileScan, BookUser, CalendarDays, Send, Shuffle, Users, CheckCheck, XCircle, FileClock } from 'lucide-react';
+import { Upload, Loader2, Trash2, Combine, Download, ArrowLeft, FileScan, BookUser, CalendarDays, Send, Shuffle, Users, CheckCheck, XCircle, FileClock, Wand2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { mergeFilesOnServer } from '@/app/actions';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -476,8 +476,16 @@ function Step2_ManualMatch({
             <SummaryCard summary={mergeResult.summary} />
             <Card>
                 <CardHeader>
-                    <CardTitle>Manual Matching</CardTitle>
-                    <CardDescription>Select one row from each panel and click "Match & Move" to pair them manually.</CardDescription>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle>Manual Matching</CardTitle>
+                            <CardDescription>Select one row from each panel and click "Match & Move" to pair them manually.</CardDescription>
+                        </div>
+                        <Button onClick={() => {}} variant="outline">
+                            <Wand2 className="mr-2 h-4 w-4" />
+                            Rekomendasi
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
