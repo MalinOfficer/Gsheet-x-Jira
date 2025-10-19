@@ -186,8 +186,7 @@ function FileUploader({ onFileProcessed, onFileRemoved, currentFile, disabled, t
 
 const ResultsTable = ({ data, headers, caption }: { data: ExcelRow[]; headers: string[]; caption?: string }) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
-    const totalWidth = headers.reduce((acc, header) => acc + (header.toLowerCase().includes("nama") || header.toLowerCase().includes("name") ? 250 : 150), 0);
-
+    
     const rowVirtualizer = useVirtualizer({
         count: data.length,
         getScrollElement: () => tableContainerRef.current,
@@ -202,9 +201,15 @@ const ResultsTable = ({ data, headers, caption }: { data: ExcelRow[]; headers: s
         return <div className="text-center py-8 text-muted-foreground">No data to display in this category.</div>;
     }
     
+    const columnWidths = headers.map(header => {
+        if (header === 'No') return '50px';
+        if (header.toLowerCase().includes("nama") || header.toLowerCase().includes("name")) return '250px';
+        return '150px';
+    }).join(' ');
+
     return (
         <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[60vh]">
-            <table style={{ width: `${totalWidth}px` }} className="w-full border-collapse">
+            <table className="border-collapse w-full">
                 <thead className="sticky top-0 bg-muted z-10">
                     <tr>
                         {headers.map(header => (
@@ -430,8 +435,13 @@ function Step2_ManualMatch({
     
     const manualMatchHeaders = useMemo(() => {
         if (manualMatches.length === 0) return [];
-        return Object.keys(manualMatches[0]);
+        const { fileA, fileB } = useApp();
+        if (!fileA || !fileB) return [];
+        const headersA = fileA.headers;
+        const headersB = fileB.headers.filter(h => !headersA.includes(h));
+        return ["No", ...headersA, ...headersB];
     }, [manualMatches]);
+
 
     if (!mergeResult) return null;
 
@@ -500,15 +510,12 @@ function Step3_Result({ finalData, onDownload }: { finalData: ExcelRow[], onDown
     const resultHeaders = useMemo(() => {
         if (!fileA || !fileB) return [];
         // Start with File A headers, then add unique headers from File B
-        const headers = ["No", ...fileA.headers];
-        const headerSet = new Set(fileA.headers.map(h => h.toLowerCase()));
+        const headersA = fileA.headers;
+        const headerSetA = new Set(headersA.map(h => h.toLowerCase()));
         
-        fileB.headers.forEach(header => {
-            if (!headerSet.has(header.toLowerCase())) {
-                headers.push(header);
-            }
-        });
-        return headers;
+        const headersB = fileB.headers.filter(header => !headerSetA.has(header.toLowerCase()));
+        
+        return ["No", ...headersA, ...headersB];
     }, [fileA, fileB]);
 
     const finalTableData = useMemo(() => {
@@ -609,7 +616,10 @@ export function DataWeaver() {
             return;
         }
 
-        const finalHeaders = [...new Set(['No', ...fileA.headers, ...fileB.headers])];
+        const headersA = fileA.headers;
+        const headerSetA = new Set(headersA.map(h => h.toLowerCase()));
+        const headersB = fileB.headers.filter(header => !headerSetA.has(header.toLowerCase()));
+        const finalHeaders = ["No", ...headersA, ...headersB];
 
         const dataToExport = data.map((row, index) => {
             return finalHeaders.map(header => {

@@ -823,68 +823,65 @@ export async function mergeFilesOnServer(
          return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
     }
     
-    // --- Start of New, Simplified Logic ---
+    // --- Start of New Logic ---
 
-    // 1. Create a map of all rows in File B, keyed by normalized name.
-    const fileBMap = new Map<string, any>();
-    for (const rowB of fileBData.rows) {
-        const normalizedNameB = normalizeName(rowB[fileBNameKey]);
-        if (normalizedNameB) {
-            fileBMap.set(normalizedNameB, rowB);
+    // 1. Filter File B to only include rows with a valid name.
+    const validFileBRows = fileBData.rows.filter((row: any) => {
+        const name = row[fileBNameKey];
+        return name && typeof name === 'string' && name.trim() !== '';
+    });
+
+    // 2. Identify rows in File B that already have data and should be eliminated.
+    const namesToEliminate = new Set<string>();
+    validFileBRows.forEach((row: any) => {
+        const valueInB = row[columnToCheck];
+        const hasExistingValue = valueInB !== null && valueInB !== undefined && String(valueInB).trim() !== '';
+        if (hasExistingValue) {
+            namesToEliminate.add(normalizeName(row[fileBNameKey]));
         }
-    }
+    });
 
-    let existingCount = 0;
-    let matchedCount = 0;
+    // 3. Create a map of clean File B rows for matching.
+    const fileBMap = new Map<string, any>();
+    validFileBRows.forEach((row: any) => {
+        const normalizedName = normalizeName(row[fileBNameKey]);
+        if (!namesToEliminate.has(normalizedName)) {
+            fileBMap.set(normalizedName, row);
+        }
+    });
+
+    // 4. Iterate through File A and perform matching.
     const mergedRows: any[] = [];
     const unmatchedFileA: any[] = [];
     const usedInMatch_B_Names = new Set<string>();
 
-    // 2. Iterate through File A, which is the single source of truth.
+    let existingCount = 0;
+
     for (const rowA of fileAData.rows) {
         const normalizedNameA = normalizeName(rowA[fileANameKey]);
-        const matchedRowB = fileBMap.get(normalizedNameA);
+        if (namesToEliminate.has(normalizedNameA)) {
+            existingCount++;
+            continue; // Skip this row from File A as its match in File B already has data.
+        }
 
+        const matchedRowB = fileBMap.get(normalizedNameA);
         if (matchedRowB) {
-            const valueInB = matchedRowB[columnToCheck];
-            const hasExistingValue = valueInB !== null && valueInB !== undefined && String(valueInB).trim() !== '';
-            
-            if (hasExistingValue) {
-                // This name from File A matches a row in File B that already has data.
-                existingCount++;
-            } else {
-                // This is a clean match.
-                matchedCount++;
-                mergedRows.push({ ...rowA, ...matchedRowB });
-                usedInMatch_B_Names.add(normalizeName(matchedRowB[fileBNameKey]));
-            }
+            mergedRows.push({ ...rowA, ...matchedRowB });
+            usedInMatch_B_Names.add(normalizeName(matchedRowB[fileBNameKey]));
         } else {
-            // This name from File A has no match in File B.
             unmatchedFileA.push(rowA);
         }
     }
     
-    // 3. Calculate unmatched in File B
-    const unmatchedFileB = fileBData.rows.filter((rowB: any) => {
-        const normalizedNameB = normalizeName(rowB[fileBNameKey]);
-        
-        // Exclude if it was part of a clean match
-        if (usedInMatch_B_Names.has(normalizedNameB)) {
-            return false;
-        }
-
-        // Exclude if it was an "existing" row
-        const valueInB = rowB[columnToCheck];
-        const hasExistingValue = valueInB !== null && valueInB !== undefined && String(valueInB).trim() !== '';
-        if(hasExistingValue) {
-            return false;
-        }
-
-        return true;
-    });
-    
+    // 5. Determine unmatched rows from both files.
+    const matchedCount = mergedRows.length;
     const totalInFileA = fileAData.rows.length;
-    const unmatchedCount = totalInFileA - existingCount - matchedCount;
+    const unmatchedACount = unmatchedFileA.length; // This is the real unmatched count from source
+
+    const unmatchedFileB = Array.from(fileBMap.values()).filter(rowB => {
+        const normalizedNameB = normalizeName(rowB[fileBNameKey]);
+        return !usedInMatch_B_Names.has(normalizedNameB);
+    });
 
     return {
         mergedRows,
@@ -892,9 +889,9 @@ export async function mergeFilesOnServer(
         unmatchedFileB,
         summary: {
             total: totalInFileA,
-      existing: existingCount,
-      matched: matchedCount,
-      unmatched: unmatchedCount,
+            existing: existingCount,
+            matched: matchedCount,
+            unmatched: unmatchedACount,
         }
     };
 }
