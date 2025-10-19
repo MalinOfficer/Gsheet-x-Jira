@@ -791,6 +791,10 @@ export async function mergeFilesOnServer(
     fileBData: any,
     editMode: 'nisn' | 'year' | 'nis' | null
 ) {
+    if (!fileAData?.rows || !fileBData?.rows || !editMode) {
+        return { error: "Missing file data or edit mode." };
+    }
+
     const findHeader = (headers: string[] | undefined, keys: string[]) => {
         if (!headers) return undefined;
         const lowerKeys = keys.map(k => k.toLowerCase());
@@ -802,19 +806,12 @@ export async function mergeFilesOnServer(
         return name.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s{2,}/g, " ");
     };
 
-    if (!fileAData?.rows || !fileBData?.rows || !editMode) {
-        return { error: "Missing file data or edit mode." };
-    }
-
     const nameHeaderKeys = ['nama', 'name', 'username'];
     const fileANameKey = findHeader(fileAData.headers, nameHeaderKeys);
     if (!fileANameKey) return { error: `Required 'Name' column not found in Source File.` };
     
     const fileBNameKey = findHeader(fileBData.headers, nameHeaderKeys);
     if (!fileBNameKey) return { error: `Required 'Name' column not found in ID File.` };
-
-    const fileARows = fileAData.rows;
-    const fileBRows = fileBData.rows;
 
     const eliminationKeys: Record<typeof editMode, string[]> = {
         nisn: ['nisn'],
@@ -825,51 +822,69 @@ export async function mergeFilesOnServer(
      if (!columnToCheck) {
          return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
     }
+    
+    // --- Start of New, Simplified Logic ---
 
-    const totalInFileA = fileAData.rows.length;
-
-    // 1. Pre-filter File B to create a set of names to eliminate
-    const namesToEliminate = new Set<string>();
-    const existingCount = fileBRows.filter((row: any) => {
-        const value = row[columnToCheck!];
-        const shouldEliminate = value !== null && value !== undefined && String(value).trim() !== '';
-        if (shouldEliminate) {
-            namesToEliminate.add(normalizeName(row[fileBNameKey]));
-        }
-        return shouldEliminate;
-    }).length;
-
-    // 2. Create a map of valid, non-eliminated rows from File B
+    // 1. Create a map of all rows in File B, keyed by normalized name.
     const fileBMap = new Map<string, any>();
-    for (const rowB of fileBRows) {
+    for (const rowB of fileBData.rows) {
         const normalizedNameB = normalizeName(rowB[fileBNameKey]);
-        if (!namesToEliminate.has(normalizedNameB)) {
+        if (normalizedNameB) {
             fileBMap.set(normalizedNameB, rowB);
         }
     }
-    
+
+    let existingCount = 0;
+    let matchedCount = 0;
     const mergedRows: any[] = [];
     const unmatchedFileA: any[] = [];
-    const usedInMatch = new Set<string>();
+    const usedInMatch_B_Names = new Set<string>();
 
-    // 3. Iterate through File A and perform matching
-    for (const rowA of fileARows) {
+    // 2. Iterate through File A, which is the single source of truth.
+    for (const rowA of fileAData.rows) {
         const normalizedNameA = normalizeName(rowA[fileANameKey]);
-        if (fileBMap.has(normalizedNameA)) {
-            const rowB = fileBMap.get(normalizedNameA)!;
-            const normalizedNameB = normalizeName(rowB[fileBNameKey]);
-            mergedRows.push({ ...rowA, ...rowB });
-            usedInMatch.add(normalizedNameB);
+        const matchedRowB = fileBMap.get(normalizedNameA);
+
+        if (matchedRowB) {
+            const valueInB = matchedRowB[columnToCheck];
+            const hasExistingValue = valueInB !== null && valueInB !== undefined && String(valueInB).trim() !== '';
+            
+            if (hasExistingValue) {
+                // This name from File A matches a row in File B that already has data.
+                existingCount++;
+            } else {
+                // This is a clean match.
+                matchedCount++;
+                mergedRows.push({ ...rowA, ...matchedRowB });
+                usedInMatch_B_Names.add(normalizeName(matchedRowB[fileBNameKey]));
+            }
         } else {
+            // This name from File A has no match in File B.
             unmatchedFileA.push(rowA);
         }
     }
-
-    // 4. Determine unmatched rows in File B from the valid (non-eliminated) set
-    const unmatchedFileB = Array.from(fileBMap.values()).filter((rowB: any) => {
+    
+    // 3. Calculate unmatched in File B
+    const unmatchedFileB = fileBData.rows.filter((rowB: any) => {
         const normalizedNameB = normalizeName(rowB[fileBNameKey]);
-        return !usedInMatch.has(normalizedNameB);
+        
+        // Exclude if it was part of a clean match
+        if (usedInMatch_B_Names.has(normalizedNameB)) {
+            return false;
+        }
+
+        // Exclude if it was an "existing" row
+        const valueInB = rowB[columnToCheck];
+        const hasExistingValue = valueInB !== null && valueInB !== undefined && String(valueInB).trim() !== '';
+        if(hasExistingValue) {
+            return false;
+        }
+
+        return true;
     });
+    
+    const totalInFileA = fileAData.rows.length;
+    const unmatchedCount = totalInFileA - existingCount - matchedCount;
 
     return {
         mergedRows,
@@ -877,9 +892,9 @@ export async function mergeFilesOnServer(
         unmatchedFileB,
         summary: {
             total: totalInFileA,
-            existing: existingCount,
-            matched: mergedRows.length,
-            unmatched: unmatchedFileB.length,
+      existing: existingCount,
+      matched: matchedCount,
+      unmatched: unmatchedCount,
         }
     };
 }
@@ -1042,6 +1057,8 @@ export async function fetchL3ReportData(sheetUrl: string) {
       
 
 
+
+    
 
     
 
