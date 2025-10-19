@@ -185,6 +185,13 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
     );
 }
 
+const findNameInRow = (row: ExcelRow | null) => {
+    if (!row) return '';
+    const nameHeaderKeys = ['nama', 'name', 'username'];
+    const key = Object.keys(row).find(k => nameHeaderKeys.includes(k.toLowerCase()));
+    return key ? row[key] : '';
+};
+
 const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -236,24 +243,41 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                             }}
                             className="flex text-xs"
                         >
-                            {headers.map(header => (
-                                <div 
-                                    key={header} 
-                                    className="p-2 border-b border-r truncate flex items-center"
-                                    style={{
-                                       flexGrow: 1,
-                                        flexShrink: 0,
-                                        flexBasis: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match & Action" ? '300px' : '150px')),
-                                        minWidth: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match & Action" ? '300px' : '150px')),
-                                    }}
-                                >
-                                    {header === "No" 
-                                        ? virtualRow.index + 1 
-                                        : header === "Potential Match & Action"
-                                        ? row[header]
-                                        : String(row[header] ?? '')}
-                                </div>
-                            ))}
+                            {headers.map(header => {
+                                let cellContent: React.ReactNode;
+                                switch (header) {
+                                    case 'No':
+                                        cellContent = virtualRow.index + 1;
+                                        break;
+                                    case 'Name A':
+                                        cellContent = findNameInRow(row['Name A']);
+                                        break;
+                                    case 'Name B':
+                                        cellContent = findNameInRow(row['Name B']);
+                                        break;
+                                    case 'Potential Match & Action':
+                                        cellContent = row[header];
+                                        break;
+                                    default:
+                                        cellContent = String(row[header] ?? '');
+                                        break;
+                                }
+
+                                return (
+                                    <div 
+                                        key={header} 
+                                        className="p-2 border-b border-r truncate flex items-center"
+                                        style={{
+                                            flexGrow: 1,
+                                            flexShrink: 0,
+                                            flexBasis: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match & Action" ? '300px' : '150px')),
+                                            minWidth: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match & Action" ? '300px' : '150px')),
+                                        }}
+                                    >
+                                        {cellContent}
+                                    </div>
+                                );
+                            })}
                         </div>
                     );
                 })}
@@ -422,14 +446,9 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
             return key ? obj[key] : '';
         };
 
-        const fileAKey = findHeader(similarItem.potentialMatchA, nameHeaderKeys);
-        const fileBKey = findHeader(similarItem.rowB, nameHeaderKeys);
-
         const finalMergedRow = createCleanMergedRow(
             similarItem.potentialMatchA,
             similarItem.rowB,
-            fileAKey,
-            fileBKey,
             editMode
         );
 
@@ -451,21 +470,12 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
     }, [editMode, toast]);
     
     const getUnmatchedTableData = useMemo(() => {
-        const nameHeaderKeys = ['nama', 'name', 'username'];
-        const findName = (row: ExcelRow | null) => {
-            if (!row) return '';
-            const key = Object.keys(row).find(k => nameHeaderKeys.includes(k.toLowerCase()));
-            return key ? row[key] : '';
-        };
-
         const similarData = highlySimilarRows.map(item => {
             const { rowB, potentialMatchA, score } = item;
-            const nameA = findName(potentialMatchA);
-            const nameB = findName(rowB);
             
             const actionCell = (
                 <div className="flex flex-col gap-1 items-start h-full justify-center">
-                     <p className="text-xs font-semibold">{nameA}</p>
+                     <p className="text-xs font-semibold">{findNameInRow(potentialMatchA)}</p>
                      <div className="flex items-center gap-2">
                         <Badge variant="outline">{Math.round(score * 100)}% Match</Badge>
                         <Button size="sm" className="h-6 px-2 py-1 text-xs" onClick={() => handleRematch(item)}>
@@ -477,19 +487,18 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
             return {
                 "No": 0, // Placeholder
-                "Name A": nameA,
-                "Name B": nameB,
+                "Name A": potentialMatchA,
+                "Name B": rowB,
                 "Potential Match & Action": actionCell,
             };
         });
         
         const unmatchedData = unmatchedRows.map(row => {
-            const nameB = findName(row);
              const actionCell = <p className="text-muted-foreground text-xs italic">No match found</p>;
              return {
                 "No": 0, // Placeholder
-                "Name A": "", // No Name A for unmatched rows
-                "Name B": nameB,
+                "Name A": null, // No Name A for unmatched rows
+                "Name B": row,
                 "Potential Match & Action": actionCell,
              }
         });
@@ -510,12 +519,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
     };
     const summaryInfo = editMode ? summaryLabels[editMode] : { label: "Existing", icon: BookCheck };
     
-    // This is a helper function that should live inside the component that uses it or be imported.
-    // It's not a React component itself.
-    const createCleanMergedRow = (rowA: any, rowB: any, fileAKey: string, fileBKey: string, currentEditMode: EditMode | null) => {
-        const merged: Record<string, any> = {};
-        const addedKeys = new Set<string>();
-    
+    const createCleanMergedRow = (rowA: any, rowB: any, currentEditMode: EditMode | null) => {
         const synonymGroups = {
             'Id': ['id'],
             'Name': ['nama', 'name', 'username'],
@@ -525,7 +529,6 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
         };
 
         const findValueBySynonym = (synonyms: string[], fromRowA: any, fromRowB: any) => {
-            // Prioritize File A for the edit mode column
             if (currentEditMode) {
                 const editModeKey = currentEditMode.toUpperCase() as keyof typeof synonymGroups;
                 const editModeSynonyms = synonymGroups[editModeKey] || [currentEditMode];
@@ -541,7 +544,6 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                 }
             }
 
-            // Default behavior for other columns (prioritize File B)
             for (const keyB in fromRowB) {
                  if (synonyms.map(s => s.toLowerCase()).includes(keyB.toLowerCase())) {
                     const value = fromRowB[keyB];
@@ -561,42 +563,39 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
             return ''; 
         };
     
+        const allProcessedKeys = new Set<string>();
+        const merged: Record<string, any> = {};
+        
         const priorityGroupsToProcess: Record<string, string[]> = {
             'Id': synonymGroups.Id,
             'Name': synonymGroups.Name,
         };
         
-        if (currentEditMode === 'nisn') {
-            priorityGroupsToProcess['NISN'] = synonymGroups.NISN;
-        } else if (currentEditMode === 'nis') {
-            priorityGroupsToProcess['NIS'] = synonymGroups.NIS;
-        } else if (currentEditMode === 'year') {
-            priorityGroupsToProcess['Year'] = synonymGroups.Year;
-        }
+        if (currentEditMode === 'nisn') priorityGroupsToProcess['NISN'] = synonymGroups.NISN;
+        else if (currentEditMode === 'nis') priorityGroupsToProcess['NIS'] = synonymGroups.NIS;
+        else if (currentEditMode === 'year') priorityGroupsToProcess['Year'] = synonymGroups.Year;
         
         for (const [standardHeader, synonyms] of Object.entries(priorityGroupsToProcess)) {
              const value = findValueBySynonym(synonyms, rowA, rowB);
              merged[standardHeader] = value;
-             synonyms.forEach(s => addedKeys.add(s.toLowerCase()));
+             synonyms.forEach(s => allProcessedKeys.add(s.toLowerCase()));
         }
-
-        const allPrioritySynonyms = Object.values(synonymGroups).flat().map(s => s.toLowerCase());
-
-        const addRemainingValue = (key: string, value: any, source: 'A' | 'B') => {
-            const lowerKey = key.toLowerCase();
-            if (lowerKey === 'no' || allPrioritySynonyms.includes(lowerKey)) return;
-            
-            if (source === 'B' && !addedKeys.has(lowerKey)) {
-                 merged[key] = value;
-                 addedKeys.add(lowerKey);
-            } else if (source === 'A' && !addedKeys.has(lowerKey)) {
-                 merged[key] = value;
-                 addedKeys.add(lowerKey);
+    
+        const addRemainingValue = (row: any, isPrimary: boolean) => {
+            if (!row) return;
+            for (const key in row) {
+                const lowerKey = key.toLowerCase();
+                if (!allProcessedKeys.has(lowerKey)) {
+                     if (!(key in merged) || isPrimary) {
+                         merged[key] = row[key];
+                     }
+                    allProcessedKeys.add(lowerKey);
+                }
             }
         };
-    
-        Object.entries(rowB).forEach(([key, value]) => addRemainingValue(key, value, 'B'));
-        Object.entries(rowA).forEach(([key, value]) => addRemainingValue(key, value, 'A'));
+        
+        addRemainingValue(rowB, true);
+        addRemainingValue(rowA, false);
     
         return merged;
     };
@@ -845,7 +844,5 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
 
     
