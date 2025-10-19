@@ -399,11 +399,10 @@ function Step2_AutoReview({ onNext, mergeResult, editMode }: { onNext: () => voi
     );
 }
 
-function Step3_ManualMatch({ onNext, mergeResult }: { onNext: (manualMatches: ExcelRow[]) => void; mergeResult: MergeResult | null }) {
+function Step3_ManualMatch({ onNext, onMatch, manualMatches, mergeResult }: { onNext: () => void; onMatch: (match: ExcelRow) => void; manualMatches: ExcelRow[]; mergeResult: MergeResult | null }) {
     const { toast } = useToast();
     const [unmatchedA, setUnmatchedA] = useState<ExcelRow[]>(mergeResult?.unmatchedFileA || []);
     const [unmatchedB, setUnmatchedB] = useState<ExcelRow[]>(mergeResult?.unmatchedFileB || []);
-    const [manualMatches, setManualMatches] = useState<ExcelRow[]>([]);
     const [selectedA, setSelectedA] = useState<ExcelRow | null>(null);
     const [selectedB, setSelectedB] = useState<ExcelRow | null>(null);
 
@@ -414,7 +413,7 @@ function Step3_ManualMatch({ onNext, mergeResult }: { onNext: (manualMatches: Ex
         }
         
         const newManualMatch = { ...selectedA, ...selectedB };
-        setManualMatches(prev => [...prev, newManualMatch]);
+        onMatch(newManualMatch);
 
         setUnmatchedA(prev => prev.filter(row => row !== selectedA));
         setUnmatchedB(prev => prev.filter(row => row !== selectedB));
@@ -440,6 +439,11 @@ function Step3_ManualMatch({ onNext, mergeResult }: { onNext: (manualMatches: Ex
             </div>
         );
     }
+    
+    const manualMatchHeaders = useMemo(() => {
+        if (manualMatches.length === 0) return [];
+        return Object.keys(manualMatches[0]);
+    }, [manualMatches]);
 
     return (
         <div className="space-y-6">
@@ -467,13 +471,13 @@ function Step3_ManualMatch({ onNext, mergeResult }: { onNext: (manualMatches: Ex
                         <CardTitle>Manually Matched Data ({manualMatches.length} rows)</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ResultsTable data={manualMatches} headers={Object.keys(manualMatches[0])} />
+                        <ResultsTable data={manualMatches} headers={manualMatchHeaders} />
                     </CardContent>
                 </Card>
             )}
 
              <div className="flex justify-end pt-4">
-                <Button onClick={() => onNext(manualMatches)}>
+                <Button onClick={onNext}>
                    Continue to Final Result <Send className="ml-2 h-4 w-4" />
                 </Button>
             </div>
@@ -558,11 +562,14 @@ export function DataWeaver() {
     const [editMode, setEditMode] = useState<EditMode | null>(null);
     const [currentStep, setCurrentStep] = useState(0); 
     const [mergeResult, setMergeResult] = useState<MergeResult | null>(null);
+    const [manualMatches, setManualMatches] = useState<ExcelRow[]>([]);
     const [finalData, setFinalData] = useState<ExcelRow[]>([]);
 
 
     const handleClearAll = () => {
         resetState();
+        setManualMatches([]);
+        setFinalData([]);
         toast({ title: "State Cleared", description: "All files and results have been cleared." });
     };
 
@@ -584,8 +591,12 @@ export function DataWeaver() {
     const handleProceedToManualMatch = () => {
         setCurrentStep(3);
     };
+    
+    const handleManualMatch = (match: ExcelRow) => {
+        setManualMatches(prev => [...prev, match]);
+    };
 
-    const handleProceedToResult = (manualMatches: ExcelRow[]) => {
+    const handleProceedToResult = () => {
         if (!mergeResult) return;
         const combinedData = [...mergeResult.mergedRows, ...manualMatches];
         setFinalData(combinedData);
@@ -596,6 +607,7 @@ export function DataWeaver() {
         handleClearAll();
         setEditMode(null);
         setMergeResult(null);
+        setManualMatches([]);
         setFinalData([]);
         setCurrentStep(0);
     }
@@ -633,7 +645,7 @@ export function DataWeaver() {
             case 2: return isProcessing 
                 ? <div className="flex flex-col items-center justify-center p-12 text-center"><Loader2 className="h-8 w-8 animate-spin text-primary mb-4" /><h3 className='text-lg font-semibold'>Merging Files...</h3><p className="text-muted-foreground">This may take a moment.</p></div> 
                 : <Step2_AutoReview onNext={handleProceedToManualMatch} mergeResult={mergeResult} editMode={editMode} />;
-            case 3: return <Step3_ManualMatch onNext={handleProceedToResult} mergeResult={mergeResult} />;
+            case 3: return <Step3_ManualMatch onNext={handleProceedToResult} onMatch={handleManualMatch} manualMatches={manualMatches} mergeResult={mergeResult} />;
             case 4: return <Step4_Result finalData={finalData} onDownload={handleDownload} />;
             default: return <ModeSelectionScreen onSelectMode={(mode) => { setEditMode(mode); setCurrentStep(1); }} />;
         }
@@ -670,5 +682,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
