@@ -220,8 +220,8 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                             style={{
                                 flexGrow: 1,
                                 flexShrink: 0,
-                                flexBasis: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match & Action" ? '300px' : '150px')),
-                                minWidth: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match & Action" ? '300px' : '150px')),
+                                flexBasis: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Action" ? '300px' : '150px')),
+                                minWidth: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Action" ? '300px' : '150px')),
                             }}
                         >
                             {header}
@@ -252,8 +252,8 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                                         style={{
                                             flexGrow: 1,
                                             flexShrink: 0,
-                                            flexBasis: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match & Action" ? '300px' : '150px')),
-                                            minWidth: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Potential Match & Action" ? '300px' : '150px')),
+                                            flexBasis: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Action" ? '300px' : '150px')),
+                                            minWidth: header === "No" ? '60px' : (header.includes("Name") ? '250px' : (header === "Action" ? '300px' : '150px')),
                                         }}
                                     >
                                         {cellContent}
@@ -456,7 +456,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                 "No": index + 1,
                 "Name A": findNameInRow(potentialMatchA),
                 "Name B": findNameInRow(rowB),
-                "Potential Match & Action": actionCell,
+                "Action": actionCell,
             };
         });
         
@@ -466,7 +466,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                 "No": similarData.length + index + 1,
                 "Name A": "", 
                 "Name B": findNameInRow(row),
-                "Potential Match & Action": actionCell,
+                "Action": actionCell,
              }
         });
     
@@ -475,7 +475,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
     }, [mergeResult, handleRematch]);
 
 
-    const unmatchedHeaders = useMemo(() => ["No", "Name A", "Name B", "Potential Match & Action"], []);
+    const unmatchedHeaders = useMemo(() => ["No", "Name A", "Name B", "Action"], []);
 
     const hasResults = mergeResult && (mergeResult.mergedRows.length > 0 || mergeResult.highlySimilarRows.length > 0 || mergeResult.unmatchedRows.length > 0);
 
