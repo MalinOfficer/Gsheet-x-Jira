@@ -451,50 +451,51 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
     }, [editMode, toast]);
     
     const getUnmatchedTableData = useMemo(() => {
-        const allUnmatchedItems: (HighlySimilarRow | { rowB: ExcelRow, potentialMatchA: null, score: 0 })[] = [
-            ...highlySimilarRows,
-            ...unmatchedRows.map(row => ({ rowB: row, potentialMatchA: null, score: 0 }))
-        ];
+        const nameHeaderKeys = ['nama', 'name', 'username'];
+        const findName = (row: ExcelRow | null) => {
+            if (!row) return '';
+            const key = Object.keys(row).find(k => nameHeaderKeys.includes(k.toLowerCase()));
+            return key ? row[key] : '';
+        };
 
-        return allUnmatchedItems.map(item => {
+        const similarData = highlySimilarRows.map(item => {
             const { rowB, potentialMatchA, score } = item;
-            
-            const nameHeaderKeys = ['nama', 'name', 'username'];
-
-            const findName = (row: ExcelRow | null) => {
-                if (!row) return '';
-                // Find the first matching header key case-insensitively
-                const key = Object.keys(row).find(k => nameHeaderKeys.includes(k.toLowerCase()));
-                return key ? row[key] : '';
-            };
-
-            const nameB = findName(rowB);
             const nameA = findName(potentialMatchA);
-
-            let actionCell;
-            if (potentialMatchA) {
-                 actionCell = (
-                    <div className="flex flex-col gap-1 items-start h-full justify-center">
-                         <p className="text-xs font-semibold">{nameA}</p>
-                         <div className="flex items-center gap-2">
-                            <Badge variant="outline">{Math.round(score * 100)}% Match</Badge>
-                            <Button size="sm" className="h-6 px-2 py-1 text-xs" onClick={() => handleRematch(item as HighlySimilarRow)}>
-                                <Link className="mr-1.5 h-3 w-3" /> Rematch
-                            </Button>
-                        </div>
-                    </div>
-                );
-            } else {
-                actionCell = <p className="text-muted-foreground text-xs italic">No match found</p>;
-            }
+            const nameB = findName(rowB);
             
+            const actionCell = (
+                <div className="flex flex-col gap-1 items-start h-full justify-center">
+                     <p className="text-xs font-semibold">{nameA}</p>
+                     <div className="flex items-center gap-2">
+                        <Badge variant="outline">{Math.round(score * 100)}% Match</Badge>
+                        <Button size="sm" className="h-6 px-2 py-1 text-xs" onClick={() => handleRematch(item)}>
+                            <Link className="mr-1.5 h-3 w-3" /> Rematch
+                        </Button>
+                    </div>
+                </div>
+            );
+
             return {
-                "No": 0, // Placeholder, will be replaced by index
+                "No": 0, // Placeholder
                 "Name A": nameA,
                 "Name B": nameB,
                 "Potential Match & Action": actionCell,
             };
         });
+        
+        const unmatchedData = unmatchedRows.map(row => {
+            const nameB = findName(row);
+             const actionCell = <p className="text-muted-foreground text-xs italic">No match found</p>;
+             return {
+                "No": 0, // Placeholder
+                "Name A": "", // No Name A for unmatched rows
+                "Name B": nameB,
+                "Potential Match & Action": actionCell,
+             }
+        });
+
+        return [...similarData, ...unmatchedData];
+
     }, [highlySimilarRows, unmatchedRows, handleRematch]);
 
 
@@ -844,5 +845,7 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
 
     
