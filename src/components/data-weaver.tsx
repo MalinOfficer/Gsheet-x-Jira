@@ -5,7 +5,7 @@ import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Upload, Loader2, Trash2, Combine, Download, AlertCircle, CheckCircle2, ArrowLeft, FileScan, BookUser, CalendarDays, Send, Shuffle, Hand, ListChecks } from 'lucide-react';
+import { Upload, Loader2, Trash2, Combine, Download, ArrowLeft, FileScan, BookUser, CalendarDays, Send, Shuffle, Hand, ListChecks, Users, CheckCheck, XCircle, FileClock } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { mergeFilesOnServer } from '@/app/actions';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -157,7 +157,7 @@ function FileUploader({ onFileProcessed, onFileRemoved, currentFile, disabled, t
                     </div>
                 ) : currentFile ? (
                     <div className="flex flex-col items-center justify-center h-24 w-full">
-                        <CheckCircle2 className="h-8 w-8 text-green-600" />
+                        <CheckCheck className="h-8 w-8 text-green-600" />
                         <p className="mt-2 text-sm font-semibold text-foreground truncate max-w-full px-2" title={currentFile.fileName}>
                             {currentFile.fileName}
                         </p>
@@ -348,6 +348,31 @@ function Step1_Upload({ onNext, onClearAll, isMerging, editMode }: { onNext: () 
     );
 }
 
+function SummaryCard({ summary }: { summary: MergeResult['summary'] }) {
+    const stats = [
+        { title: 'Total Rows', value: summary.total, icon: Users, color: 'text-blue-500' },
+        { title: 'Existing Data', value: summary.existing, icon: FileClock, color: 'text-orange-500' },
+        { title: 'Auto Matched', value: summary.matched, icon: CheckCheck, color: 'text-green-500' },
+        { title: 'Unmatched', value: summary.unmatchedB, icon: XCircle, color: 'text-red-500' },
+    ];
+
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {stats.map(({ title, value, icon: Icon, color }) => (
+                <Card key={title}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                        <Icon className={cn("h-4 w-4 text-muted-foreground", color)} />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{value}</div>
+                    </CardContent>
+                </Card>
+            ))}
+        </div>
+    );
+}
+
 function Step2_ManualMatch({ 
     onNext, 
     mergeResult, 
@@ -414,9 +439,10 @@ function Step2_ManualMatch({
 
     return (
         <div className="space-y-6">
+            <SummaryCard summary={mergeResult.summary} />
             <Card>
                 <CardHeader>
-                    <CardTitle>Step 2: Manual Matching</CardTitle>
+                    <CardTitle>Manual Matching</CardTitle>
                     <CardDescription>Select one row from each panel and click "Match & Move" to pair them manually.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -535,7 +561,7 @@ export function DataWeaver() {
                 setMergeResult(null);
             } else {
                 setMergeResult(result as MergeResult);
-                setCurrentStep(2); // Go directly to manual matching
+                setCurrentStep(2); // Go to Manual Matching
                 toast({ title: 'Merge Complete', description: `${result.mergedRows.length} rows matched automatically. Please review and match the rest manually.` });
             }
         });
