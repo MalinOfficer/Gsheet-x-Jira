@@ -5,7 +5,7 @@ import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Upload, Loader2, Trash2, Combine, Download, ArrowLeft, FileScan, BookUser, CalendarDays, Send, Shuffle, Hand, ListChecks, Users, CheckCheck, XCircle, FileClock } from 'lucide-react';
+import { Upload, Loader2, Trash2, Combine, Download, ArrowLeft, FileScan, BookUser, CalendarDays, Send, Shuffle, Users, CheckCheck, XCircle, FileClock } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { mergeFilesOnServer } from '@/app/actions';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -185,11 +185,12 @@ function FileUploader({ onFileProcessed, onFileRemoved, currentFile, disabled, t
 
 const ResultsTable = ({ data, headers, caption }: { data: ExcelRow[]; headers: string[], caption?: string }) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
+    const totalWidth = headers.reduce((acc, header) => acc + (header.toLowerCase().includes("nama") || header.toLowerCase().includes("name") ? 250 : 150), 0);
 
     const rowVirtualizer = useVirtualizer({
         count: data.length,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 37,
+        estimateSize: () => 37, // h-9 + border
         overscan: 5,
     });
     
@@ -202,61 +203,58 @@ const ResultsTable = ({ data, headers, caption }: { data: ExcelRow[]; headers: s
     
     return (
         <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[60vh]">
-            <div style={{ height: `${totalHeight}px`, width: '100%', position: 'relative' }}>
-                <table className="w-full text-sm">
-                    {caption && <caption className="p-2 text-xs text-muted-foreground">{caption}</caption>}
-                    <thead className="sticky top-0 bg-muted z-10">
-                        <tr>
-                            {headers.map(header => (
-                                <th 
-                                    key={header} 
-                                    className="p-2 border-b border-r text-left font-semibold whitespace-nowrap"
-                                    style={{
-                                        minWidth: header.toLowerCase().includes("nama") || header.toLowerCase().includes("name") ? '250px' : '150px'
-                                    }}
-                                >
-                                    {header}
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {virtualRows.map(virtualRow => {
-                            const row = data[virtualRow.index];
-                            return (
-                                <tr
-                                    key={virtualRow.key}
-                                    style={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        width: '100%',
-                                        height: `${virtualRow.size}px`,
-                                        transform: `translateY(${virtualRow.start}px)`,
-                                    }}
-                                    className="flex"
-                                >
-                                    {headers.map(header => (
-                                        <td 
-                                            key={header} 
-                                            className="p-2 border-b border-r truncate"
-                                             style={{
-                                                minWidth: header.toLowerCase().includes("nama") || header.toLowerCase().includes("name") ? '250px' : '150px',
-                                                flex: '1 0 auto'
-                                            }}
-                                        >
-                                            {String(row[header] ?? '')}
-                                        </td>
-                                    ))}
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
+            <table className="relative text-sm" style={{ width: `${totalWidth}px` }}>
+                {caption && <caption className="p-2 text-xs text-muted-foreground">{caption}</caption>}
+                <thead className="sticky top-0 bg-muted z-10">
+                    <tr>
+                        {headers.map(header => (
+                            <th 
+                                key={header} 
+                                className="p-2 border-b border-r text-left font-semibold whitespace-nowrap"
+                                style={{
+                                    width: header.toLowerCase().includes("nama") || header.toLowerCase().includes("name") ? '250px' : '150px'
+                                }}
+                            >
+                                {header}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody style={{ height: `${totalHeight}px`, position: 'relative' }}>
+                    {virtualRows.map(virtualRow => {
+                        const row = data[virtualRow.index];
+                        return (
+                            <tr
+                                key={virtualRow.key}
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: `${virtualRow.size}px`,
+                                    transform: `translateY(${virtualRow.start}px)`,
+                                }}
+                            >
+                                {headers.map(header => (
+                                    <td 
+                                        key={header} 
+                                        className="p-2 border-b border-r truncate"
+                                        style={{
+                                            width: header.toLowerCase().includes("nama") || header.toLowerCase().includes("name") ? '250px' : '150px',
+                                        }}
+                                    >
+                                        {String(row[header] ?? '')}
+                                    </td>
+                                ))}
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
         </div>
     );
 };
+
 
 function ModeSelectionScreen({ onSelectMode }: { onSelectMode: (mode: EditMode) => void }) {
     const modes = [
@@ -503,11 +501,10 @@ function Step3_Result({ finalData, onDownload }: { finalData: ExcelRow[], onDown
         if (!fileA || !fileB) return [];
         // Start with File A headers, then add unique headers from File B
         const headers = [...fileA.headers];
-        const headerSet = new Set(fileA.headers);
+        const headerSet = new Set(fileA.headers.map(h => h.toLowerCase()));
         fileB.headers.forEach(header => {
-            if (!headerSet.has(header)) {
+            if (!headerSet.has(header.toLowerCase())) {
                 headers.push(header);
-                headerSet.add(header);
             }
         });
         return headers;
@@ -571,7 +568,6 @@ export function DataWeaver() {
             } else {
                 setMergeResult(result as MergeResult);
                 setCurrentStep(2); // Go to Manual Matching
-                toast({ title: 'Merge Complete', description: `${result.mergedRows.length} rows matched automatically. Please review and match the rest manually.` });
             }
         });
     };
@@ -612,7 +608,7 @@ export function DataWeaver() {
             return;
         }
 
-        const finalHeaders = [...new Set([...fileB.headers, ...fileA.headers])];
+        const finalHeaders = [...new Set([...fileA.headers, ...fileB.headers])];
 
         const dataToExport = data.map(row => finalHeaders.map(header => row[header] ?? ''));
         
@@ -673,5 +669,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
