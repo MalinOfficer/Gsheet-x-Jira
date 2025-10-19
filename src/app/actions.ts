@@ -822,19 +822,22 @@ export async function mergeFilesOnServer(
     const unmatchedFileA: any[] = [];
     const usedInMatch = new Set<string>();
 
-    // Perfect match pass
     for (const rowA of fileARows) {
         const normalizedNameA = normalizeName(rowA[fileANameKey]);
         if (fileBMap.has(normalizedNameA)) {
             const rowB = fileBMap.get(normalizedNameA)!;
+            const normalizedNameB = normalizeName(rowB[fileBNameKey]);
             mergedRows.push({ ...rowA, ...rowB });
-            usedInMatch.add(normalizedNameA);
+            usedInMatch.add(normalizedNameB);
         } else {
             unmatchedFileA.push(rowA);
         }
     }
 
-    const unmatchedFileB = fileBRows.filter((rowB: any) => !usedInMatch.has(normalizeName(rowB[fileBNameKey])));
+    const unmatchedFileB = fileBRows.filter((rowB: any) => {
+        const normalizedNameB = normalizeName(rowB[fileBNameKey]);
+        return !usedInMatch.has(normalizedNameB);
+    });
 
     const eliminationKeys: Record<typeof editMode, string[]> = {
         nisn: ['nisn'],
