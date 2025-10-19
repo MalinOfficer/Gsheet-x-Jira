@@ -868,7 +868,7 @@ export async function mergeFilesOnServer(
     // 4. Determine unmatched rows in File B from the valid (non-eliminated) set
     const unmatchedFileB = Array.from(fileBMap.values()).filter((rowB: any) => {
         const normalizedNameB = normalizeName(rowB[fileBNameKey]);
-        return !usedInMatch.has(normalizedNameB) && !namesToEliminate.has(normalizedNameB);
+        return !usedInMatch.has(normalizedNameB);
     });
 
     return {
