@@ -18,6 +18,9 @@ const projectFilesForAction = [
   "components.json",
   "next-env.d.ts",
 
+  // Folder Public
+  "public/placeholder.txt",
+
   // Struktur Aplikasi & Halaman Utama
   "src/app/layout.tsx",
   "src/app/globals.css",
@@ -28,6 +31,7 @@ const projectFilesForAction = [
   "src/app/data-weaver/page.tsx",
   "src/app/settings/page.tsx",
   "src/app/code-viewer/page.tsx",
+  "src/app/api-qiscus/page.tsx",
 
   // Komponen Utama (logika untuk setiap halaman)
   "src/components/import-flow.tsx",
@@ -36,6 +40,8 @@ const projectFilesForAction = [
   "src/components/cek-duplikasi.tsx",
   "src/components/data-weaver.tsx",
   "src/components/layout/client-layout.tsx",
+  "src/components/api-qiscus.tsx",
+
 
   // Aksi & Logika Server
   "src/app/actions.ts",
@@ -126,6 +132,49 @@ export async function getProjectFileContents() {
     } catch (error) {
         console.error("Failed to get project file contents:", error);
         return { success: false, error: "Gagal mengambil file proyek. Silakan coba lagi." };
+    }
+}
+
+export async function syncQiscusToSheet(appCode: string, secretKey: string, sheetUrl: string) {
+    if (!appCode || !secretKey) {
+        return { error: 'Qiscus App Code and Secret Key are required.' };
+    }
+
+    const webhookUrl = 'https://go-rest.pintro.id/api/webhook/tickets';
+
+    try {
+        const response = await fetch(webhookUrl, {
+            method: 'GET', // Or 'POST' if the API expects that
+            headers: {
+                'Content-Type': 'application/json',
+                'QISCUS-SDK-APP-ID': appCode,
+                'QISCUS-SDK-SECRET': secretKey,
+            },
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            // Try to parse as JSON, but fall back to raw text if it fails
+            let errorDetail = errorText;
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorDetail = errorJson.message || JSON.stringify(errorJson);
+            } catch (e) {
+                // Not a JSON response, use the raw text
+            }
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorDetail}`);
+        }
+
+        const data = await response.json();
+
+        // ** NEXT STEP: Parse the 'data' and sync it to Google Sheets **
+        // For now, we just confirm that we can fetch it.
+        
+        return { success: true, message: 'Successfully fetched data from Qiscus API. Sync to GSheet is the next step.' };
+
+    } catch (error: any) {
+        console.error('Failed to sync data from Qiscus:', error);
+        return { error: error.message || 'An unknown error occurred during sync.' };
     }
 }
 
