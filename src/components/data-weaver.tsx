@@ -201,15 +201,15 @@ const ResultsTable = ({ data, headers, caption }: { data: ExcelRow[]; headers: s
         return <div className="text-center py-8 text-muted-foreground">No data to display in this category.</div>;
     }
     
-    const columnWidths = headers.map(header => {
-        if (header === 'No') return '50px';
-        if (header.toLowerCase().includes("nama") || header.toLowerCase().includes("name")) return '250px';
-        return '150px';
-    }).join(' ');
+    const totalWidth = headers.reduce((acc, header) => {
+        if (header.toLowerCase().includes("nama") || header.toLowerCase().includes("name")) return acc + 250;
+        if (header === 'No') return acc + 50;
+        return acc + 150;
+    }, 0);
 
     return (
         <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[60vh]">
-            <table className="border-collapse w-full">
+            <table className="border-collapse" style={{ width: totalWidth }}>
                 <thead className="sticky top-0 bg-muted z-10">
                     <tr>
                         {headers.map(header => (
@@ -505,28 +505,25 @@ const Panel = ({ title, data, selected, onSelect, renderRow }: { title: string, 
 
 function Step3_Result({ finalData, onDownload }: { finalData: ExcelRow[], onDownload: (data: ExcelRow[]) => void }) {
     
-    const { fileA, fileB } = useApp();
-
     const resultHeaders = useMemo(() => {
-        if (!fileA || !fileB) return [];
-        // Start with File A headers, then add unique headers from File B
-        const headersA = fileA.headers;
-        const headerSetA = new Set(headersA.map(h => h.toLowerCase()));
-        
-        const headersB = fileB.headers.filter(header => !headerSetA.has(header.toLowerCase()));
-        
-        return ["No", ...headersA, ...headersB];
-    }, [fileA, fileB]);
+        return ['No', 'Id', 'Name', 'NISN'];
+    }, []);
 
     const finalTableData = useMemo(() => {
         return finalData.map((row) => {
             const newRow: ExcelRow = {};
-            resultHeaders.forEach(header => {
-                newRow[header] = row[header] ?? '';
-            });
+            // Map data to the new fixed headers. We need to find the original header names.
+            const nameHeader = Object.keys(row).find(k => k.toLowerCase() === 'name' || k.toLowerCase() === 'nama');
+            const nisnHeader = Object.keys(row).find(k => k.toLowerCase() === 'nisn');
+            const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id');
+
+            newRow['Name'] = nameHeader ? row[nameHeader] : '';
+            newRow['NISN'] = nisnHeader ? row[nisnHeader] : '';
+            newRow['Id'] = idHeader ? row[idHeader] : '';
+
             return newRow;
         });
-    }, [finalData, resultHeaders]);
+    }, [finalData]);
 
 
     return (
@@ -611,21 +608,19 @@ export function DataWeaver() {
             return;
         }
         
-        if (!fileA || !fileB) {
-             toast({ variant: 'destructive', title: 'File Data Missing', description: "Cannot determine headers for export." });
-            return;
-        }
-
-        const headersA = fileA.headers;
-        const headerSetA = new Set(headersA.map(h => h.toLowerCase()));
-        const headersB = fileB.headers.filter(header => !headerSetA.has(header.toLowerCase()));
-        const finalHeaders = ["No", ...headersA, ...headersB];
+        const finalHeaders = ['No', 'Id', 'Name', 'NISN'];
 
         const dataToExport = data.map((row, index) => {
-            return finalHeaders.map(header => {
-                if (header === 'No') return index + 1;
-                return row[header] ?? '';
-            });
+            const nameHeader = Object.keys(row).find(k => k.toLowerCase() === 'name' || k.toLowerCase() === 'nama');
+            const nisnHeader = Object.keys(row).find(k => k.toLowerCase() === 'nisn');
+            const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id');
+
+            return [
+                index + 1,
+                idHeader ? row[idHeader] : '',
+                nameHeader ? row[nameHeader] : '',
+                nisnHeader ? row[nisnHeader] : ''
+            ];
         });
         
         const worksheet = XLSX.utils.aoa_to_sheet([finalHeaders, ...dataToExport]);
@@ -685,5 +680,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
