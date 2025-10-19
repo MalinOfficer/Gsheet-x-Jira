@@ -439,6 +439,7 @@ function Step2_ManualMatch({
     return (
         <div className="space-y-6">
             <SummaryCard summary={mergeResult.summary} />
+
             <Card>
                 <CardHeader>
                     <CardTitle>Manual Matching</CardTitle>
@@ -500,11 +501,13 @@ function Step3_Result({ finalData, onDownload }: { finalData: ExcelRow[], onDown
 
     const resultHeaders = useMemo(() => {
         if (!fileA || !fileB) return [];
-        // Prioritize fileB headers, then add any from fileA that are missing.
-        const headers = [...fileB.headers];
-        fileA.headers.forEach(header => {
-            if (!headers.includes(header)) {
+        // Start with File A headers, then add unique headers from File B
+        const headers = [...fileA.headers];
+        const headerSet = new Set(fileA.headers);
+        fileB.headers.forEach(header => {
+            if (!headerSet.has(header)) {
                 headers.push(header);
+                headerSet.add(header);
             }
         });
         return headers;
@@ -670,3 +673,5 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
