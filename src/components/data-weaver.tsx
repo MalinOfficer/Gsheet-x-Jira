@@ -185,13 +185,6 @@ function FileUploader({ fileId, onFileProcessed, onFileRemoved, currentFile, dis
     );
 }
 
-const findNameInRow = (row: ExcelRow | null) => {
-    if (!row) return '';
-    const nameHeaderKeys = ['nama', 'name', 'username'];
-    const key = Object.keys(row).find(k => nameHeaderKeys.includes(k.toLowerCase()));
-    return key ? row[key] : '';
-};
-
 const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -369,6 +362,15 @@ function Step1({ onNext, onClearAll, isMerging, editMode }: { onNext: () => void
     );
 }
 
+// This helper function now lives inside Step2_Review or at the top level of the file
+const findNameInRow = (row: ExcelRow | null) => {
+    if (!row) return '';
+    const nameHeaderKeys = ['nama', 'name', 'username'];
+    const key = Object.keys(row).find(k => nameHeaderKeys.includes(k.toLowerCase()));
+    return key ? row[key] : '';
+};
+
+
 function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) => void; editMode: EditMode | null }) {
     const { fileA, fileB } = useApp();
     const { toast } = useToast();
@@ -436,7 +438,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
     const unmatchedTableData = useMemo(() => {
         if (!mergeResult) return [];
-    
+
         const similarData = mergeResult.highlySimilarRows.map((item, index) => {
             const { rowB, potentialMatchA, score } = item;
             
@@ -451,7 +453,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                     </div>
                 </div>
             );
-    
+
             return {
                 "No": index + 1,
                 "Name A": findNameInRow(potentialMatchA),
@@ -476,6 +478,19 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
 
     const unmatchedHeaders = useMemo(() => ["No", "Name A", "Name B", "Action"], []);
+    
+    const matchedTableData = useMemo(() => {
+        if (!mergeResult || !fileA || !fileB) return { headers: [], data: [] };
+        
+        const combinedHeaders = [...new Set([...fileB.headers, ...fileA.headers])];
+        const data = mergeResult.mergedRows.map((row, index) => ({
+            "No": index + 1,
+            ...row
+        }));
+        
+        return { headers: ["No", ...combinedHeaders], data };
+    }, [mergeResult, fileA, fileB]);
+
 
     const hasResults = mergeResult && (mergeResult.mergedRows.length > 0 || mergeResult.highlySimilarRows.length > 0 || mergeResult.unmatchedRows.length > 0);
 
@@ -573,7 +588,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                         </TabsContent>
                         <TabsContent value="matched" className="mt-4">
                             <p className="text-sm text-muted-foreground mb-4">These rows were matched automatically. They will be included in the final download.</p>
-                             <ResultsTable data={mergeResult.mergedRows} headers={["No", ...Object.keys(mergeResult.mergedRows[0] || {})].map((h, i) => i === 0 ? "No" : h)} />
+                             <ResultsTable data={matchedTableData.data} headers={matchedTableData.headers} />
                         </TabsContent>
                     </Tabs>
                     <div className="flex justify-end pt-4">
@@ -589,27 +604,12 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
 function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow[], onDownload: (data: ExcelRow[]) => void, editMode: EditMode | null }) {
     
+    const { fileA, fileB } = useApp();
+
     const resultHeaders = useMemo(() => {
-        if (finalData.length === 0) return [];
-        
-        const allHeaders = Object.keys(finalData[0] || {})
-            .filter(h => !['rowB', 'potentialMatchA', 'score'].includes(h));
-        
-        const priorityOrder: string[] = ['Id', 'Name'];
-        if (editMode === 'nisn') priorityOrder.push('NISN');
-        else if (editMode === 'nis') priorityOrder.push('NIS');
-        else if (editMode === 'year') priorityOrder.push('Year');
-        
-        const lowerCasePriorityOrder = priorityOrder.map(p => p.toLowerCase());
-
-        const priorityHeaders = priorityOrder
-            .map(p => allHeaders.find(h => h.toLowerCase() === p.toLowerCase()))
-            .filter((h): h is string => !!h);
-
-        const otherHeaders = allHeaders.filter(h => !lowerCasePriorityOrder.includes(h.toLowerCase()));
-        
-        return ["No", ...priorityHeaders, ...otherHeaders];
-    }, [finalData, editMode]);
+        if (!fileA || !fileB) return [];
+        return [...new Set(["No", ...fileB.headers, ...fileA.headers])];
+    }, [fileA, fileB]);
 
     const finalTableData = useMemo(() => {
         return finalData.map((row, index) => {
@@ -740,3 +740,5 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
