@@ -826,6 +826,8 @@ export async function mergeFilesOnServer(
          return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
     }
 
+    const totalInFileA = fileAData.rows.length;
+
     // 1. Pre-filter File B to create a set of names to eliminate
     const namesToEliminate = new Set<string>();
     const existingCount = fileBRows.filter((row: any) => {
@@ -866,10 +868,8 @@ export async function mergeFilesOnServer(
     // 4. Determine unmatched rows in File B from the valid (non-eliminated) set
     const unmatchedFileB = Array.from(fileBMap.values()).filter((rowB: any) => {
         const normalizedNameB = normalizeName(rowB[fileBNameKey]);
-        return !usedInMatch.has(normalizedNameB);
+        return !usedInMatch.has(normalizedNameB) && !namesToEliminate.has(normalizedNameB);
     });
-
-    const totalInFileA = fileARows.length;
 
     return {
         mergedRows,
