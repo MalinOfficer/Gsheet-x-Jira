@@ -816,12 +816,41 @@ export async function mergeFilesOnServer(
     const fileARows = fileAData.rows;
     const fileBRows = fileBData.rows;
 
-    const fileBMap = new Map(fileBRows.map((row: any) => [normalizeName(row[fileBNameKey]), row]));
+    const eliminationKeys: Record<typeof editMode, string[]> = {
+        nisn: ['nisn'],
+        nis: ['nis'],
+        year: ['year', 'tahun ajaran']
+    };
+    const columnToCheck = findHeader(fileBData.headers, eliminationKeys[editMode]);
+     if (!columnToCheck) {
+         return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
+    }
+
+    // 1. Pre-filter File B to create a set of names to eliminate
+    const namesToEliminate = new Set<string>();
+    const existingCount = fileBRows.filter((row: any) => {
+        const value = row[columnToCheck!];
+        const shouldEliminate = value !== null && value !== undefined && String(value).trim() !== '';
+        if (shouldEliminate) {
+            namesToEliminate.add(normalizeName(row[fileBNameKey]));
+        }
+        return shouldEliminate;
+    }).length;
+
+    // 2. Create a map of valid, non-eliminated rows from File B
+    const fileBMap = new Map<string, any>();
+    for (const rowB of fileBRows) {
+        const normalizedNameB = normalizeName(rowB[fileBNameKey]);
+        if (!namesToEliminate.has(normalizedNameB)) {
+            fileBMap.set(normalizedNameB, rowB);
+        }
+    }
     
     const mergedRows: any[] = [];
     const unmatchedFileA: any[] = [];
     const usedInMatch = new Set<string>();
 
+    // 3. Iterate through File A and perform matching
     for (const rowA of fileARows) {
         const normalizedNameA = normalizeName(rowA[fileANameKey]);
         if (fileBMap.has(normalizedNameA)) {
@@ -834,27 +863,13 @@ export async function mergeFilesOnServer(
         }
     }
 
-    const unmatchedFileB = fileBRows.filter((rowB: any) => {
+    // 4. Determine unmatched rows in File B from the valid (non-eliminated) set
+    const unmatchedFileB = Array.from(fileBMap.values()).filter((rowB: any) => {
         const normalizedNameB = normalizeName(rowB[fileBNameKey]);
         return !usedInMatch.has(normalizedNameB);
     });
 
-    const eliminationKeys: Record<typeof editMode, string[]> = {
-        nisn: ['nisn'],
-        nis: ['nis'],
-        year: ['year', 'tahun ajaran']
-    };
-    const columnToCheck = findHeader(fileBData.headers, eliminationKeys[editMode]);
     const totalInFileA = fileARows.length;
-    let existingCount = 0;
-    if (columnToCheck) {
-         existingCount = fileBRows.filter((row: any) => {
-            const value = row[columnToCheck!];
-            return value !== null && value !== undefined && String(value).trim() !== '';
-        }).length;
-    } else {
-         return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
-    }
 
     return {
         mergedRows,
