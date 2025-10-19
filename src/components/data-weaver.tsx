@@ -548,9 +548,10 @@ function Step2_ManualMatch({
         return manualMatches.map((row) => {
             const newRow: ExcelRow = {};
             const idHeader = fileBHeaders.find(k => k.toLowerCase() === 'id');
+            
             const nameHeaderB = fileBHeaders.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim()));
+            newRow['Name'] = nameHeaderB && row[nameHeaderB] ? row[nameHeaderB] : '';
 
-            newRow['Name'] = (nameHeaderB && row[nameHeaderB]) ? row[nameHeaderB] : '';
             newRow['Id'] = idHeader && row[idHeader] ? row[idHeader] : '';
 
             const dynamicHeaderKey = manualMatchHeaders[3]; // e.g., 'NISN', 'Year', or 'NIS'
@@ -800,33 +801,57 @@ export function DataWeaver() {
             return;
         }
 
-        const modeHeaderMap: Record<EditMode, { key: string, alias: string }> = {
-            nisn: { key: 'NISN', alias: 'nisn' },
-            nis: { key: 'NIS', alias: 'nis' },
-            year: { key: 'Year', alias: 'tahun ajaran' }
+        const modeHeaderMap: Record<EditMode, { lower: string; upper: string; alias: string }> = {
+            nisn: { lower: 'nisn', upper: 'NISN', alias: 'nisn' },
+            nis: { lower: 'nis', upper: 'NIS', alias: 'nis' },
+            year: { lower: 'year', upper: 'Year', alias: 'tahun ajaran' }
         };
-        const dynamicHeader = editMode ? modeHeaderMap[editMode] : { key: 'Value', alias: 'value'};
+
+        const dynamicHeaders = editMode ? modeHeaderMap[editMode] : { lower: 'value', upper: 'Value', alias: 'value' };
+
+        const headerRow1 = ['No', 'id', 'name', dynamicHeaders.lower];
+        const headerRow2 = ['', 'Id', 'Name', dynamicHeaders.upper];
         
         const dataToExport = data.map((row, index) => {
-             const newRow: ExcelRow = {};
+             const newRow: Record<string, any> = {};
              
              const idHeader = fileB?.headers?.find(k => k.toLowerCase() === 'id') || 'Id';
              const nameHeaderB = fileB?.headers?.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim())) || 'Name';
              
-             const sourceHeader = fileA?.headers?.find(k => k.toLowerCase() === dynamicHeader.key.toLowerCase() || k.toLowerCase() === dynamicHeader.alias) || dynamicHeader.key;
-             
+             const sourceValueHeader = fileA?.headers?.find(k => k.toLowerCase() === dynamicHeaders.lower || k.toLowerCase() === dynamicHeaders.alias) || dynamicHeaders.upper;
+
              newRow['No'] = index + 1;
-             newRow[idHeader] = row[idHeader] || '';
-             newRow[nameHeaderB] = row[nameHeaderB] || '';
-             newRow[sourceHeader] = row[sourceHeader] || '';
+             newRow[headerRow2[1]] = row[idHeader] || ''; // 'Id'
+             newRow[headerRow2[2]] = row[nameHeaderB] || ''; // 'Name'
+             newRow[headerRow2[3]] = row[sourceValueHeader] || ''; // e.g., 'NISN' or 'Year'
              
-             return newRow;
+             // Ensure the keys match the final header
+             return {
+                'No': newRow['No'],
+                'Id': newRow['Id'],
+                'Name': newRow['Name'],
+                [dynamicHeaders.upper]: newRow[dynamicHeaders.upper]
+             };
         });
+
+        // We use aoa_to_sheet to support multi-line headers easily
+        const finalHeaders = [headerRow1, headerRow2];
+        const finalDataForSheet = dataToExport.map(row => [row.No, row.Id, row.Name, row[dynamicHeaders.upper]]);
         
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const worksheet = XLSX.utils.aoa_to_sheet([...finalHeaders, ...finalDataForSheet]);
+        
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Merged Data');
-        XLSX.writeFile(workbook, 'Final_Merged_Data.xlsx');
+        
+        const date = new Date().toISOString().slice(0, 10);
+        const filename = `Final_Merged_Data_${date}.xlsx`;
+
+        XLSX.writeFile(workbook, filename);
+
+        toast({
+            title: "Export Successful",
+            description: `Merged data has been exported to ${filename}.`,
+        });
     };
     
     const finalData = useMemo(() => {
