@@ -463,6 +463,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
             const findName = (row: ExcelRow | null) => {
                 if (!row) return '';
+                // Find the first matching header key case-insensitively
                 const key = Object.keys(row).find(k => nameHeaderKeys.includes(k.toLowerCase()));
                 return key ? row[key] : '';
             };

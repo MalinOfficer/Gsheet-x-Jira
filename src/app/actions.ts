@@ -915,7 +915,6 @@ export async function mergeFilesOnServer(
             }
 
             if (bestMatch) {
-                // *** FIX: Send the complete original rowA object ***
                 highlySimilarRows.push({ rowB: rowB, potentialMatchA: bestMatch.row, score: highestScore });
                 usedInSimilarMatch.add(bestMatch.key);
             } else {
@@ -1159,39 +1158,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
-
-
-
-
-
-
-    
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
-    
-
-
-
-
 
 
 
