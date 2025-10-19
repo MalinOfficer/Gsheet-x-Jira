@@ -503,27 +503,36 @@ const Panel = ({ title, data, selected, onSelect, renderRow }: { title: string, 
     </Card>
 );
 
-function Step3_Result({ finalData, onDownload }: { finalData: ExcelRow[], onDownload: (data: ExcelRow[]) => void }) {
+function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow[], onDownload: (data: ExcelRow[], headers: string[]) => void, editMode: EditMode | null }) {
     
     const resultHeaders = useMemo(() => {
-        return ['No', 'Id', 'Name', 'NISN'];
-    }, []);
+        const modeHeaderMap: Record<EditMode, string> = {
+            nisn: 'NISN',
+            nis: 'NIS',
+            year: 'Year'
+        };
+        const dynamicHeader = editMode ? modeHeaderMap[editMode] : 'NISN';
+        return ['No', 'Id', 'Name', dynamicHeader];
+    }, [editMode]);
 
     const finalTableData = useMemo(() => {
+        if (!editMode) return [];
         return finalData.map((row) => {
             const newRow: ExcelRow = {};
-            // Map data to the new fixed headers. We need to find the original header names.
             const nameHeader = Object.keys(row).find(k => k.toLowerCase() === 'name' || k.toLowerCase() === 'nama');
-            const nisnHeader = Object.keys(row).find(k => k.toLowerCase() === 'nisn');
             const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id');
+            
+            const dynamicHeaderKey = resultHeaders[3]; // e.g., 'NISN', 'Year', or 'NIS'
+            const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
+            const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias);
 
             newRow['Name'] = nameHeader ? row[nameHeader] : '';
-            newRow['NISN'] = nisnHeader ? row[nisnHeader] : '';
             newRow['Id'] = idHeader ? row[idHeader] : '';
+            newRow[dynamicHeaderKey] = sourceHeader ? row[sourceHeader] : '';
 
             return newRow;
         });
-    }, [finalData]);
+    }, [finalData, resultHeaders, editMode]);
 
 
     return (
@@ -535,7 +544,7 @@ function Step3_Result({ finalData, onDownload }: { finalData: ExcelRow[], onDown
                         This is the final merged data, including automatic and manual matches. Click download to get the Excel file.
                     </CardDescription>
                 </div>
-                <Button onClick={() => onDownload(finalData)} variant="default" size="sm" disabled={finalData.length === 0}>
+                <Button onClick={() => onDownload(finalData, resultHeaders)} variant="default" size="sm" disabled={finalData.length === 0}>
                     <Download className="mr-2 h-4 w-4" /> Download Merged Data
                 </Button>
             </CardHeader>
@@ -598,7 +607,7 @@ export function DataWeaver() {
         }
     }
     
-    const handleDownload = (data: ExcelRow[]) => {
+    const handleDownload = (data: ExcelRow[], headers: string[]) => {
         if (data.length === 0) {
             toast({ variant: 'destructive', title: 'No Data to Download' });
             return;
@@ -608,22 +617,19 @@ export function DataWeaver() {
             return;
         }
         
-        const finalHeaders = ['No', 'Id', 'Name', 'NISN'];
-
         const dataToExport = data.map((row, index) => {
-            const nameHeader = Object.keys(row).find(k => k.toLowerCase() === 'name' || k.toLowerCase() === 'nama');
-            const nisnHeader = Object.keys(row).find(k => k.toLowerCase() === 'nisn');
-            const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id');
-
-            return [
-                index + 1,
-                idHeader ? row[idHeader] : '',
-                nameHeader ? row[nameHeader] : '',
-                nisnHeader ? row[nisnHeader] : ''
-            ];
+             const newRowData: (string | number)[] = [index + 1];
+             // Start from the second header ('Id')
+             for(let i = 1; i < headers.length; i++) {
+                const header = headers[i];
+                const dynamicHeaderAlias = header === 'Year' ? 'tahun ajaran' : header.toLowerCase();
+                const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias);
+                newRowData.push(sourceHeader ? row[sourceHeader] : '');
+             }
+             return newRowData;
         });
         
-        const worksheet = XLSX.utils.aoa_to_sheet([finalHeaders, ...dataToExport]);
+        const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Merged Data');
         XLSX.writeFile(workbook, 'Final_Merged_Data.xlsx');
@@ -645,7 +651,7 @@ export function DataWeaver() {
             case 2: return isProcessing 
                 ? <div className="flex flex-col items-center justify-center p-12 text-center"><Loader2 className="h-8 w-8 animate-spin text-primary mb-4" /><h3 className='text-lg font-semibold'>Merging Files...</h3><p className="text-muted-foreground">This may take a moment.</p></div> 
                 : <Step2_ManualMatch onNext={handleProceedToResult} mergeResult={mergeResult} manualMatches={manualMatches} onMatch={handleNewManualMatch} />;
-            case 3: return <Step3_Result finalData={finalData} onDownload={handleDownload} />;
+            case 3: return <Step3_Result finalData={finalData} onDownload={handleDownload} editMode={editMode} />;
             default: return <ModeSelectionScreen onSelectMode={(mode) => { setEditMode(mode); setCurrentStep(1); }} />;
         }
     }
