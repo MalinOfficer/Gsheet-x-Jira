@@ -10,18 +10,17 @@ import path from 'path';
 const projectFilesForAction = [
   // File konfigurasi root
   "README.md",
-  ".gitignore",
-  "postcss.config.js",
-  "components.json",
   "next.config.ts",
   "package.json",
+  "postcss.config.js",
   "tailwind.config.ts",
   "tsconfig.json",
+  "components.json",
+  "next-env.d.ts",
 
   // Struktur Aplikasi & Halaman Utama
   "src/app/layout.tsx",
   "src/app/globals.css",
-  "src/app/icon.svg",
   "src/app/page.tsx", // Halaman root untuk Import Flow
   "src/app/report-harian/page.tsx",
   "src/app/migrasi-murid/page.tsx",
@@ -42,7 +41,6 @@ const projectFilesForAction = [
   "src/app/actions.ts",
   "src/lib/utils.ts",
   "src/lib/date-utils.ts",
-  "src/lib/gcp-credentials.json",
 
   // Manajemen State (Konteks & Provider)
   "src/store/store-provider.tsx",
@@ -75,11 +73,11 @@ const projectFilesForAction = [
   "src/components/ui/command.tsx",
   "src/components/ui/dialog.tsx",
   "src/components/ui/dropdown-menu.tsx",
-  "src_components/ui/form.tsx",
+  "src/components/ui/form.tsx",
   "src/components/ui/input.tsx",
   "src/components/ui/label.tsx",
   "src/components/ui/menubar.tsx",
-  "src_components/ui/multi-select.tsx",
+  "src/components/ui/multi-select.tsx",
   "src/components/ui/navigation-menu.tsx",
   "src/components/ui/popover.tsx",
   "src/components/ui/progress.tsx",
@@ -94,7 +92,7 @@ const projectFilesForAction = [
   "src/components/ui/table.tsx",
   "src/components/ui/tabs.tsx",
   "src/components/ui/textarea.tsx",
-  "src/components_ui/toast.tsx",
+  "src/components/ui/toast.tsx",
   "src/components/ui/toaster.tsx",
   "src/components/ui/tooltip.tsx",
 ];
