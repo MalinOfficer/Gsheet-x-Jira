@@ -348,7 +348,17 @@ function Step1_Upload({ onNext, onClearAll, isMerging, editMode }: { onNext: () 
     );
 }
 
-function Step2_ManualMatch({ onNext, mergeResult, editMode, manualMatches, setManualMatches }: { onNext: () => void; mergeResult: MergeResult | null, editMode: EditMode | null, manualMatches: ExcelRow[], setManualMatches: (matches: ExcelRow[]) => void }) {
+function Step2_ManualMatch({ 
+    onNext, 
+    mergeResult, 
+    manualMatches, 
+    onMatch 
+}: { 
+    onNext: () => void; 
+    mergeResult: MergeResult | null;
+    manualMatches: ExcelRow[];
+    onMatch: (match: ExcelRow) => void;
+}) {
     const { toast } = useToast();
     const [unmatchedA, setUnmatchedA] = useState<ExcelRow[]>(mergeResult?.unmatchedFileA || []);
     const [unmatchedB, setUnmatchedB] = useState<ExcelRow[]>(mergeResult?.unmatchedFileB || []);
@@ -368,7 +378,7 @@ function Step2_ManualMatch({ onNext, mergeResult, editMode, manualMatches, setMa
         }
         
         const newManualMatch = { ...selectedA, ...selectedB };
-        setManualMatches([...manualMatches, newManualMatch]);
+        onMatch(newManualMatch);
 
         setUnmatchedA(prev => prev.filter(row => row !== selectedA));
         setUnmatchedB(prev => prev.filter(row => row !== selectedB));
@@ -399,57 +409,20 @@ function Step2_ManualMatch({ onNext, mergeResult, editMode, manualMatches, setMa
         if (manualMatches.length === 0) return [];
         return Object.keys(manualMatches[0]);
     }, [manualMatches]);
-    
-    const autoMatchedHeaders = useMemo(() => {
-        if (!mergeResult?.mergedRows.length) return [];
-        return Object.keys(mergeResult.mergedRows[0]);
-    }, [mergeResult]);
-
-     const summaryLabels: Record<string, { label: string, icon: React.ElementType }> = {
-        nisn: { label: "Existing NISN", icon: FileScan },
-        year: { label: "Existing Year", icon: CalendarDays },
-        nis: { label: "Existing NIS", icon: BookUser },
-    };
-    const summaryInfo = editMode ? summaryLabels[editMode] : { label: "Existing", icon: CheckCircle2 };
 
     if (!mergeResult) return null;
 
     return (
         <div className="space-y-6">
-             <Card>
-                 <CardHeader>
-                    <CardTitle>Step 2: Review & Manual Match</CardTitle>
-                    <CardDescription>Review automated matches and manually pair the remaining data.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 rounded-lg border p-4">
-                        <SummaryItem title="Total in ID File" value={mergeResult.summary.total} icon={ListChecks} />
-                        <SummaryItem title={summaryInfo.label} value={mergeResult.summary.existing} icon={summaryInfo.icon} />
-                        <SummaryItem title="Matched" value={mergeResult.summary.matched} icon={CheckCircle2} iconColor="text-green-600" />
-                        <SummaryItem title="Unmatched (File A)" value={unmatchedA.length} icon={AlertCircle} iconColor="text-amber-600" />
-                        <SummaryItem title="Unmatched (File B)" value={unmatchedB.length} icon={AlertCircle} iconColor="text-red-600" />
-                    </div>
-                </CardContent>
-            </Card>
-
             <Card>
                 <CardHeader>
-                    <CardTitle>Automatically Matched Data ({mergeResult.summary.matched} rows)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ResultsTable data={mergeResult.mergedRows} headers={autoMatchedHeaders} />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Manual Matching</CardTitle>
+                    <CardTitle>Step 2: Manual Matching</CardTitle>
                     <CardDescription>Select one row from each panel and click "Match & Move" to pair them manually.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Panel title={`Unmatched File A (${unmatchedA.length})`} data={unmatchedA} selected={selectedA} onSelect={setSelectedA} renderRow={renderRow} />
-                        <Panel title={`Unmatched File B (${unmatchedB.length})`} data={unmatchedB} selected={selectedB} onSelect={setSelectedB} renderRow={renderRow} />
+                        <Panel title={`Unmatched Source File (${unmatchedA.length})`} data={unmatchedA} selected={selectedA} onSelect={setSelectedA} renderRow={renderRow} />
+                        <Panel title={`Unmatched ID File (${unmatchedB.length})`} data={unmatchedB} selected={selectedB} onSelect={setSelectedB} renderRow={renderRow} />
                     </div>
                      <div className="flex justify-center">
                         <Button onClick={handleMatch} disabled={!selectedA || !selectedB}>
@@ -536,19 +509,6 @@ function Step3_Result({ finalData, onDownload }: { finalData: ExcelRow[], onDown
     );
 }
 
-const SummaryItem = ({ title, value, icon: Icon, iconColor }: { title: string, value: number, icon: React.ElementType, iconColor?: string }) => (
-    <div className="flex items-center gap-3">
-        <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30", {"bg-green-100 dark:bg-green-900/30": iconColor?.includes('green')}, {"bg-amber-100 dark:bg-amber-900/30": iconColor?.includes('amber')}, {"bg-red-100 dark:bg-red-900/30": iconColor?.includes('red')})}>
-            <Icon className={cn("h-5 w-5 text-blue-600 dark:text-blue-400", iconColor)} />
-        </div>
-        <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="text-xl font-bold">{value}</p>
-        </div>
-    </div>
-);
-
-
 export function DataWeaver() {
     const { fileA, fileB, resetState } = useApp();
     const { toast } = useToast();
@@ -575,8 +535,8 @@ export function DataWeaver() {
                 setMergeResult(null);
             } else {
                 setMergeResult(result as MergeResult);
-                setCurrentStep(2);
-                toast({ title: 'Merge Complete', description: `Review the ${result.mergedRows.length} automated matches.` });
+                setCurrentStep(2); // Go directly to manual matching
+                toast({ title: 'Merge Complete', description: `${result.mergedRows.length} rows matched automatically. Please review and match the rest manually.` });
             }
         });
     };
@@ -611,10 +571,17 @@ export function DataWeaver() {
             toast({ variant: 'destructive', title: 'Library Not Loaded' });
             return;
         }
-        const headers = Object.keys(data[0]);
-        const dataToExport = data.map(row => headers.map(header => row[header]));
         
-        const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+        if (!fileA || !fileB) {
+             toast({ variant: 'destructive', title: 'File Data Missing', description: "Cannot determine headers for export." });
+            return;
+        }
+
+        const finalHeaders = [...new Set([...fileB.headers, ...fileA.headers])];
+
+        const dataToExport = data.map(row => finalHeaders.map(header => row[header] ?? ''));
+        
+        const worksheet = XLSX.utils.aoa_to_sheet([finalHeaders, ...dataToExport]);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Merged Data');
         XLSX.writeFile(workbook, 'Final_Merged_Data.xlsx');
@@ -625,23 +592,27 @@ export function DataWeaver() {
         return [...mergeResult.mergedRows, ...manualMatches];
     }, [mergeResult, manualMatches]);
 
+    const handleNewManualMatch = (match: ExcelRow) => {
+        setManualMatches(prev => [...prev, match]);
+    }
+
     const getStepComponent = () => {
         switch (currentStep) {
             case 0: return <ModeSelectionScreen onSelectMode={(mode) => { setEditMode(mode); setCurrentStep(1); }} />;
             case 1: return <Step1_Upload onNext={handleStartMerge} onClearAll={handleClearAll} isMerging={isProcessing} editMode={editMode} />;
             case 2: return isProcessing 
                 ? <div className="flex flex-col items-center justify-center p-12 text-center"><Loader2 className="h-8 w-8 animate-spin text-primary mb-4" /><h3 className='text-lg font-semibold'>Merging Files...</h3><p className="text-muted-foreground">This may take a moment.</p></div> 
-                : <Step2_ManualMatch onNext={handleProceedToResult} mergeResult={mergeResult} editMode={editMode} manualMatches={manualMatches} setManualMatches={setManualMatches} />;
+                : <Step2_ManualMatch onNext={handleProceedToResult} mergeResult={mergeResult} manualMatches={manualMatches} onMatch={handleNewManualMatch} />;
             case 3: return <Step3_Result finalData={finalData} onDownload={handleDownload} />;
             default: return <ModeSelectionScreen onSelectMode={(mode) => { setEditMode(mode); setCurrentStep(1); }} />;
         }
     }
     
-    const stepTitles = ["Select Mode", "Upload & Configure", "Review & Manual Match", "Final Result"];
+    const stepTitles = ["Select Mode", "Upload & Configure", "Manual Match", "Final Result"];
     const stepDescriptions = [
         "Choose the type of data you want to merge or update.",
         "Upload your source files to begin the merge process.",
-        "Review automated matches and manually pair the rest.",
+        "Manually pair the remaining data from your source files.",
         "Your final merged data is ready for download."
     ];
 
@@ -667,5 +638,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
