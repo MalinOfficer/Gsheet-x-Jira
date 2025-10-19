@@ -807,150 +807,62 @@ export async function mergeFilesOnServer(
     }
 
     const nameHeaderKeys = ['nama', 'name', 'username'];
-    const idHeaderKeys = ['id', 'Id', 'ID'];
-
-    const fileAKey = findHeader(fileAData.headers, nameHeaderKeys);
-    if (!fileAKey) return { error: `Required 'Name' column (e.g., '${nameHeaderKeys.join("', '")}') not found in Source File.` };
+    const fileANameKey = findHeader(fileAData.headers, nameHeaderKeys);
+    if (!fileANameKey) return { error: `Required 'Name' column not found in Source File.` };
     
-    const fileBKey = findHeader(fileBData.headers, nameHeaderKeys);
-    if (!fileBKey) return { error: `Required 'Name' column (e.g., '${nameHeaderKeys.join("', '")}') not found in ID File.` };
+    const fileBNameKey = findHeader(fileBData.headers, nameHeaderKeys);
+    if (!fileBNameKey) return { error: `Required 'Name' column not found in ID File.` };
 
-    const fileBIdKey = findHeader(fileBData.headers, idHeaderKeys);
-    if (!fileBIdKey) return { error: `Required 'ID' column (e.g., '${idHeaderKeys.join("', '")}') not found in ID File.` };
+    const fileARows = fileAData.rows;
+    const fileBRows = fileBData.rows;
 
-    const validFileBRows = fileBData.rows.filter((row: any) => {
-        const hasId = idHeaderKeys.some(key => {
-            const header = findHeader(Object.keys(row), [key]);
-            return header && row[header] !== null && row[header] !== undefined && String(row[header]).trim() !== '';
-        });
-        const hasName = nameHeaderKeys.some(key => {
-            const header = findHeader(Object.keys(row), [key]);
-            return header && row[header] !== null && row[header] !== undefined && String(row[header]).trim() !== '';
-        });
-        return hasId || hasName;
-    });
+    const fileBMap = new Map(fileBRows.map((row: any) => [normalizeName(row[fileBNameKey]), row]));
+    
+    const mergedRows: any[] = [];
+    const unmatchedFileA: any[] = [];
+    const usedInMatch = new Set<string>();
 
-    if (validFileBRows.length === 0) {
-        return { error: "No valid rows with an 'ID' or 'Name' found in the ID File." };
+    // Perfect match pass
+    for (const rowA of fileARows) {
+        const normalizedNameA = normalizeName(rowA[fileANameKey]);
+        if (fileBMap.has(normalizedNameA)) {
+            const rowB = fileBMap.get(normalizedNameA)!;
+            mergedRows.push({ ...rowA, ...rowB });
+            usedInMatch.add(normalizedNameA);
+        } else {
+            unmatchedFileA.push(rowA);
+        }
     }
+
+    const unmatchedFileB = fileBRows.filter((rowB: any) => !usedInMatch.has(normalizeName(rowB[fileBNameKey])));
 
     const eliminationKeys: Record<typeof editMode, string[]> = {
         nisn: ['nisn'],
         nis: ['nis'],
         year: ['year', 'tahun ajaran']
     };
-    
     const columnToCheck = findHeader(fileBData.headers, eliminationKeys[editMode]);
-    if (!columnToCheck) {
-        return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
+    const totalInFileB = fileBRows.length;
+    let existingCount = 0;
+    if (columnToCheck) {
+         existingCount = fileBRows.filter((row: any) => {
+            const value = row[columnToCheck!];
+            return value !== null && value !== undefined && String(value).trim() !== '';
+        }).length;
+    } else {
+         return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
     }
-
-    const existingCount = validFileBRows.filter((row: any) => {
-        const value = row[columnToCheck!];
-        return value !== null && value !== undefined && String(value).trim() !== '';
-    }).length;
-
-    const rowsToProcessB = validFileBRows.filter((row: any) => {
-        const value = row[columnToCheck!];
-        return value === null || value === undefined || String(value).trim() === '';
-    });
-
-    const fileAMap = new Map<string, any>();
-    for (const rowA of fileAData.rows) {
-        const keyA = rowA[fileAKey];
-        if (keyA) {
-            fileAMap.set(normalizeName(keyA), rowA);
-        }
-    }
-
-    const mergedRows: any[] = [];
-    const highlySimilarRows: any[] = [];
-    const unmatchedRowsB: any[] = [];
-    
-    const usedInPerfectMatch = new Set<string>();
-
-    for (const rowB of rowsToProcessB) {
-        const keyB = rowB[fileBKey];
-        if (keyB) {
-            const normalizedKeyB = normalizeName(keyB);
-            if (fileAMap.has(normalizedKeyB)) {
-                const rowA = fileAMap.get(normalizedKeyB);
-                mergedRows.push({ ...rowA, ...rowB });
-                usedInPerfectMatch.add(normalizedKeyB);
-            }
-        }
-    }
-
-    const remainingRowsB = rowsToProcessB.filter(rowB => {
-         const keyB = rowB[fileBKey];
-         if (!keyB) return true;
-         const normalizedKeyB = normalizeName(keyB);
-         return !usedInPerfectMatch.has(normalizedKeyB);
-    });
-    
-    const fileAEntries = Array.from(fileAMap.entries());
-
-    for (const rowB of remainingRowsB) {
-        const keyB = rowB[fileBKey];
-        if (!keyB) {
-            unmatchedRowsB.push(rowB);
-            continue;
-        }
-        
-        const normalizedKeyB = normalizeName(keyB);
-        let bestMatch: { row: any; key: string } | null = null;
-        let highestScore = 0.8;
-
-        for (const [normalizedKeyA, rowA] of fileAEntries) {
-            if (usedInPerfectMatch.has(normalizedKeyA)) continue;
-
-            const wordsA = new Set(normalizedKeyA.split(' ').filter(Boolean));
-            const wordsB = new Set(normalizedKeyB.split(' ').filter(Boolean));
-            
-            const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
-            const union = new Set([...wordsA, ...wordsB]);
-            const score = union.size > 0 ? intersection.size / union.size : 0;
-
-            if (score > highestScore) {
-                highestScore = score;
-                bestMatch = { row: rowA, key: normalizedKeyA };
-            }
-        }
-
-        if (bestMatch) {
-            highlySimilarRows.push({
-                rowB: rowB,
-                potentialMatchA: bestMatch.row, 
-                score: highestScore
-            });
-        } else {
-            unmatchedRowsB.push(rowB);
-        }
-    }
-    
-    const finalMergedRows = mergedRows.map(row => {
-        const cleanRow: Record<string, any> = {};
-        for(const header of fileBData.headers) {
-           cleanRow[header] = row[header] ?? '';
-        }
-        for(const header of fileAData.headers) {
-            if(!cleanRow.hasOwnProperty(header)) {
-                cleanRow[header] = row[header] ?? '';
-            }
-        }
-        return cleanRow;
-    });
 
     return {
-        mergedRows: finalMergedRows,
-        highlySimilarRows: highlySimilarRows,
-        unmatchedRows: unmatchedRowsB,
+        mergedRows,
+        unmatchedFileA,
+        unmatchedFileB,
         summary: {
-            total: validFileBRows.length,
+            total: totalInFileB,
             existing: existingCount,
-            matched: finalMergedRows.length,
-            review: highlySimilarRows.length,
-            unmatched: unmatchedRowsB.length,
+            matched: mergedRows.length,
+            unmatchedA: unmatchedFileA.length,
+            unmatchedB: unmatchedFileB.length,
         }
     };
 }
