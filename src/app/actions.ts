@@ -791,12 +791,14 @@ export async function mergeFilesOnServer(
     fileBData: any,
     editMode: 'nisn' | 'year' | 'nis' | null
 ) {
+    // Helper to find a header, case-insensitively
     const findHeader = (headers: string[] | undefined, keys: string[]) => {
         if (!headers) return undefined;
         const lowerKeys = keys.map(k => k.toLowerCase());
         return headers.find(h => lowerKeys.includes(h.toLowerCase()));
     };
 
+    // Helper to normalize names for matching
     const normalizeName = (name: any): string => {
         if (typeof name !== 'string') return '';
         return name.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s{2,}/g, " ");
@@ -809,6 +811,7 @@ export async function mergeFilesOnServer(
     const nameHeaderKeys = ['nama', 'name', 'username'];
     const idHeaderKeys = ['id', 'Id', 'ID'];
 
+    // Validate headers
     const fileAKey = findHeader(fileAData.headers, nameHeaderKeys);
     if (!fileAKey) return { error: `Required 'Name' column (e.g., '${nameHeaderKeys.join("', '")}') not found in Source File.` };
     
@@ -817,6 +820,25 @@ export async function mergeFilesOnServer(
 
     const fileBIdKey = findHeader(fileBData.headers, idHeaderKeys);
     if (!fileBIdKey) return { error: `Required 'ID' column (e.g., '${idHeaderKeys.join("', '")}') not found in ID File.` };
+
+    // --- Start: Robust Validation for File B ---
+    const validFileBRows = fileBData.rows.filter((row: any) => {
+        const hasId = idHeaderKeys.some(key => {
+            const header = findHeader(Object.keys(row), [key]);
+            return header && row[header] !== null && row[header] !== undefined && String(row[header]).trim() !== '';
+        });
+        const hasName = nameHeaderKeys.some(key => {
+            const header = findHeader(Object.keys(row), [key]);
+            return header && row[header] !== null && row[header] !== undefined && String(row[header]).trim() !== '';
+        });
+        // A row is valid if it has at least an ID or a Name
+        return hasId || hasName;
+    });
+
+    if (validFileBRows.length === 0) {
+        return { error: "No valid rows with an 'ID' or 'Name' found in the ID File." };
+    }
+    // --- End: Robust Validation for File B ---
 
     const eliminationKeys: Record<typeof editMode, string[]> = {
         nisn: ['nisn'],
@@ -829,20 +851,6 @@ export async function mergeFilesOnServer(
         return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
     }
 
-    const validFileBRows = fileBData.rows.filter((row: any) => {
-        const hasId = idHeaderKeys.some(key => {
-            const header = findHeader(Object.keys(row), [key]);
-            const value = header ? row[header] : undefined;
-            return value !== null && value !== undefined && String(value).trim() !== '';
-        });
-        const hasName = nameHeaderKeys.some(key => {
-            const header = findHeader(Object.keys(row), [key]);
-            const value = header ? row[header] : undefined;
-            return value !== null && value !== undefined && String(value).trim() !== '';
-        });
-        return hasId || hasName;
-    });
-
     const existingCount = validFileBRows.filter((row: any) => {
         const value = row[columnToCheck!];
         return value !== null && value !== undefined && String(value).trim() !== '';
@@ -853,7 +861,6 @@ export async function mergeFilesOnServer(
         return value === null || value === undefined || String(value).trim() === '';
     });
 
-
     const fileAMap = new Map<string, any>();
     for (const rowA of fileAData.rows) {
         const keyA = rowA[fileAKey];
@@ -863,7 +870,7 @@ export async function mergeFilesOnServer(
     }
 
     const mergedRows: any[] = [];
-    const highlySimilarRows: { rowB: any, potentialMatchA: any, score: number }[] = [];
+    const highlySimilarRows: any[] = [];
     const unmatchedRowsB: any[] = [];
     
     const usedInPerfectMatch = new Set<string>();
@@ -873,9 +880,9 @@ export async function mergeFilesOnServer(
         const keyB = rowB[fileBKey];
         if (keyB) {
             const normalizedKeyB = normalizeName(keyB);
-            if (fileAMap.has(normalizedKeyB) && !usedInPerfectMatch.has(normalizedKeyB)) {
+            if (fileAMap.has(normalizedKeyB)) {
                 const rowA = fileAMap.get(normalizedKeyB);
-                mergedRows.push({ ...rowB, ...rowA });
+                mergedRows.push({ ...rowA, ...rowB });
                 usedInPerfectMatch.add(normalizedKeyB);
             }
         }
@@ -884,127 +891,64 @@ export async function mergeFilesOnServer(
     // Second pass: find similar matches for the remaining rows
     const remainingRowsB = rowsToProcessB.filter(rowB => {
          const keyB = rowB[fileBKey];
-         if (!keyB) return true;
+         if (!keyB) return true; // Keep rows without a name in the unmatched list
          const normalizedKeyB = normalizeName(keyB);
          return !usedInPerfectMatch.has(normalizedKeyB);
     });
-
-    const usedInSimilarMatch = new Set<string>();
+    
+    const fileAEntries = Array.from(fileAMap.entries());
 
     for (const rowB of remainingRowsB) {
         const keyB = rowB[fileBKey];
-        if (keyB) {
-            const normalizedKeyB = normalizeName(keyB);
-            let bestMatch: { row: any, key: string } | null = null;
-            let highestScore = 0.8; 
+        if (!keyB) {
+            unmatchedRowsB.push(rowB);
+            continue;
+        }
+        
+        const normalizedKeyB = normalizeName(keyB);
+        let bestMatch: { row: any; key: string } | null = null;
+        let highestScore = 0.8; // Similarity threshold
 
-            for (const [normalizedKeyA, rowA] of fileAMap.entries()) {
-                if (usedInPerfectMatch.has(normalizedKeyA) || usedInSimilarMatch.has(normalizedKeyA)) continue;
+        for (const [normalizedKeyA, rowA] of fileAEntries) {
+            // Skip if this row from File A was already part of a perfect match
+            if (usedInPerfectMatch.has(normalizedKeyA)) continue;
 
-                const wordsA = new Set(normalizedKeyA.split(' ').filter(Boolean));
-                const wordsB = new Set(normalizedKeyB.split(' ').filter(Boolean));
-                
-                const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
-                const union = new Set([...wordsA, ...wordsB]);
-                const score = union.size > 0 ? intersection.size / union.size : 0;
+            const wordsA = new Set(normalizedKeyA.split(' ').filter(Boolean));
+            const wordsB = new Set(normalizedKeyB.split(' ').filter(Boolean));
+            
+            const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
+            const union = new Set([...wordsA, ...wordsB]);
+            const score = union.size > 0 ? intersection.size / union.size : 0;
 
-                if (score > highestScore) {
-                    highestScore = score;
-                    bestMatch = { row: rowA, key: normalizedKeyA };
-                }
+            if (score > highestScore) {
+                highestScore = score;
+                bestMatch = { row: rowA, key: normalizedKeyA };
             }
+        }
 
-            if (bestMatch) {
-                highlySimilarRows.push({ rowB: rowB, potentialMatchA: bestMatch.row, score: highestScore });
-                usedInSimilarMatch.add(bestMatch.key);
-            } else {
-                unmatchedRowsB.push(rowB);
-            }
+        if (bestMatch) {
+            // CRITICAL FIX: Send the complete, original row objects
+            highlySimilarRows.push({
+                rowB: rowB, // Original row from File B
+                potentialMatchA: bestMatch.row, // Original row from File A
+                score: highestScore
+            });
         } else {
             unmatchedRowsB.push(rowB);
         }
     }
     
-    const createCleanMergedRow = (rowA: any, rowB: any) => {
-        const merged: Record<string, any> = {};
-    
-        const synonymGroups: Record<string, string[]> = {
-            'Id': ['id'],
-            'Name': ['nama', 'name', 'username'],
-            'NISN': ['nisn'],
-            'NIS': ['nis'],
-            'Year': ['year', 'tahun ajaran']
-        };
-    
-        const findValueBySynonym = (synonyms: string[], fromRowA: any, fromRowB: any) => {
-            const lowerSynonyms = synonyms.map(s => s.toLowerCase());
-            
-            const sources = [fromRowB, fromRowA];
-            for (const source of sources) {
-                for (const key in source) {
-                    if (lowerSynonyms.includes(key.toLowerCase())) {
-                        const value = source[key];
-                        if (value !== null && value !== undefined && String(value).trim() !== '') {
-                            return value;
-                        }
-                    }
-                }
-            }
-            return ''; 
-        };
-    
-        const allProcessedKeys = new Set<string>();
-        const priorityGroupsToProcess: Record<string, string[]> = {
-            'Id': synonymGroups.Id,
-            'Name': synonymGroups.Name,
-        };
-        
-        if (editMode) {
-            const editModeKey = editMode.toUpperCase() as keyof typeof synonymGroups;
-            if (synonymGroups[editModeKey]) {
-                priorityGroupsToProcess[editModeKey] = synonymGroups[editModeKey];
-            }
-        }
-        
-        for (const [standardHeader, synonyms] of Object.entries(priorityGroupsToProcess)) {
-             const value = findValueBySynonym(synonyms, rowA, rowB);
-             merged[standardHeader] = value;
-             synonyms.forEach(s => allProcessedKeys.add(s.toLowerCase()));
-        }
-    
-        const addRemainingValue = (row: any) => {
-            for (const key in row) {
-                const lowerKey = key.toLowerCase();
-                if (!allProcessedKeys.has(lowerKey)) {
-                    if (!(key in merged)) {
-                        merged[key] = row[key];
-                    }
-                    allProcessedKeys.add(lowerKey);
-                }
-            }
-        };
-        
-        addRemainingValue(rowB);
-        addRemainingValue(rowA);
-    
-        return merged;
-    };
-    
-    
     const finalMergedRows = mergedRows.map(row => {
-        const originalRowB = fileBData.rows.find((rb: any) => rb[fileBIdKey!] === row[fileBIdKey!]);
-        
-        let matchingRowA = null;
-        const normalizedKeyB = normalizeName(row[fileBKey!]);
-        for (const rA of fileAData.rows) {
-           const normalizedKeyA = normalizeName(rA[fileAKey!]);
-           if (normalizedKeyA === normalizedKeyB) {
-               matchingRowA = rA;
-               break;
-           }
+        const cleanRow: Record<string, any> = {};
+        for(const header of fileBData.headers) {
+           cleanRow[header] = row[header] ?? '';
         }
-
-        return createCleanMergedRow(matchingRowA || {}, originalRowB || {});
+        for(const header of fileAData.headers) {
+            if(!cleanRow.hasOwnProperty(header)) {
+                cleanRow[header] = row[header] ?? '';
+            }
+        }
+        return cleanRow;
     });
 
     return {
@@ -1179,5 +1123,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
       
 
 
+
+    
 
     

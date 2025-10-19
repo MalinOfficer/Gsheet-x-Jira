@@ -245,22 +245,10 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                         >
                             {headers.map(header => {
                                 let cellContent: React.ReactNode;
-                                switch (header) {
-                                    case 'No':
-                                        cellContent = virtualRow.index + 1;
-                                        break;
-                                    case 'Name A':
-                                        cellContent = findNameInRow(row['Name A']);
-                                        break;
-                                    case 'Name B':
-                                        cellContent = findNameInRow(row['Name B']);
-                                        break;
-                                    case 'Potential Match & Action':
-                                        cellContent = row[header];
-                                        break;
-                                    default:
-                                        cellContent = String(row[header] ?? '');
-                                        break;
+                                // The content is now a simple string or a React node, no complex logic needed here.
+                                cellContent = row[header] ?? '';
+                                if (header === 'No') {
+                                    cellContent = virtualRow.index + 1;
                                 }
 
                                 return (
@@ -391,10 +379,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
     const { fileA, fileB } = useApp();
     const { toast } = useToast();
 
-    const [mergedRows, setMergedRows] = useState<ExcelRow[]>([]);
-    const [highlySimilarRows, setHighlySimilarRows] = useState<HighlySimilarRow[]>([]);
-    const [unmatchedRows, setUnmatchedRows] = useState<ExcelRow[]>([]);
-    const [summary, setSummary] = useState<MergeResult['summary'] | null>(null);
+    const [mergeResult, setMergeResult] = useState<Omit<MergeResult, 'error'> | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isMerging, startMerging] = useTransition();
 
@@ -405,10 +390,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
         }
 
         setError(null);
-        setMergedRows([]);
-        setHighlySimilarRows([]);
-        setUnmatchedRows([]);
-        setSummary(null);
+        setMergeResult(null);
 
         startMerging(async () => {
             const result = await mergeFilesOnServer(fileA, fileB, editMode);
@@ -416,10 +398,12 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                 setError(result.error);
                 toast({ variant: 'destructive', title: 'Merge Failed', description: result.error });
             } else {
-                setMergedRows(result.mergedRows || []);
-                setHighlySimilarRows(result.highlySimilarRows || []);
-                setUnmatchedRows(result.unmatchedRows || []);
-                setSummary(result.summary || null);
+                setMergeResult({
+                    mergedRows: result.mergedRows || [],
+                    highlySimilarRows: result.highlySimilarRows || [],
+                    unmatchedRows: result.unmatchedRows || [],
+                    summary: result.summary,
+                });
                 toast({ title: 'Merge Complete', description: `Review the results below.` });
             }
         });
@@ -430,47 +414,43 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
     }, [handleMerge]);
 
     const handleRematch = useCallback((similarItem: HighlySimilarRow) => {
-        setHighlySimilarRows(prev => prev.filter(item => {
-            const nameHeaderKeys = ['nama', 'name', 'username'];
-            const findName = (row: ExcelRow) => {
-                const key = Object.keys(row).find(k => nameHeaderKeys.includes(k.toLowerCase()));
-                return key ? row[key] : '';
-            };
-            return findName(item.rowB) !== findName(similarItem.rowB);
-        }));
-        
-        const nameHeaderKeys = ['nama', 'name', 'username'];
-        const findHeader = (obj: Record<string, any>, keys: string[]) => {
-            const lowerKeys = keys.map(k => k.toLowerCase());
-            const key = Object.keys(obj).find(k => lowerKeys.includes(k.toLowerCase()));
-            return key ? obj[key] : '';
-        };
+        if (!mergeResult) return;
 
-        const finalMergedRow = createCleanMergedRow(
-            similarItem.potentialMatchA,
-            similarItem.rowB,
-            editMode
-        );
+        // 1. Remove from highlySimilarRows
+        const newHighlySimilar = mergeResult.highlySimilarRows.filter(item => item !== similarItem);
 
-        setMergedRows(prev => [...prev, finalMergedRow]);
+        // 2. Create the newly matched row (logic to combine rowA and rowB)
+        // A simple merge, prioritizing File B's data
+        const newMatchedRow = { ...similarItem.potentialMatchA, ...similarItem.rowB };
 
-        setSummary(prev => {
+        // 3. Add to mergedRows
+        const newMergedRows = [...mergeResult.mergedRows, newMatchedRow];
+
+        // 4. Update state
+        setMergeResult(prev => {
             if (!prev) return null;
             return {
                 ...prev,
-                matched: prev.matched + 1,
-                review: prev.review - 1,
+                highlySimilarRows: newHighlySimilar,
+                mergedRows: newMergedRows,
+                summary: {
+                    ...prev.summary,
+                    matched: prev.summary.matched + 1,
+                    review: prev.summary.review - 1,
+                },
             };
         });
 
         toast({
             title: 'Row Rematched',
-            description: `'${findHeader(similarItem.rowB, nameHeaderKeys) || ''}' has been moved to the matched list.`
+            description: `'${findNameInRow(similarItem.rowB)}' has been moved to the matched list.`
         });
-    }, [editMode, toast]);
-    
-    const getUnmatchedTableData = useMemo(() => {
-        const similarData = highlySimilarRows.map(item => {
+    }, [mergeResult, toast]);
+
+    const unmatchedTableData = useMemo(() => {
+        if (!mergeResult) return [];
+
+        const similarData = mergeResult.highlySimilarRows.map(item => {
             const { rowB, potentialMatchA, score } = item;
             
             const actionCell = (
@@ -486,31 +466,29 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
             );
 
             return {
-                "No": 0, // Placeholder
-                "Name A": potentialMatchA,
-                "Name B": rowB,
+                "Name A": findNameInRow(potentialMatchA),
+                "Name B": findNameInRow(rowB),
                 "Potential Match & Action": actionCell,
             };
         });
         
-        const unmatchedData = unmatchedRows.map(row => {
+        const unmatchedData = mergeResult.unmatchedRows.map(row => {
              const actionCell = <p className="text-muted-foreground text-xs italic">No match found</p>;
              return {
-                "No": 0, // Placeholder
-                "Name A": null, // No Name A for unmatched rows
-                "Name B": row,
+                "Name A": "", // Explicitly empty
+                "Name B": findNameInRow(row),
                 "Potential Match & Action": actionCell,
              }
         });
 
         return [...similarData, ...unmatchedData];
 
-    }, [highlySimilarRows, unmatchedRows, handleRematch]);
+    }, [mergeResult, handleRematch]);
 
 
     const unmatchedHeaders = useMemo(() => ["No", "Name A", "Name B", "Potential Match & Action"], []);
 
-    const hasResults = mergedRows.length > 0 || highlySimilarRows.length > 0 || unmatchedRows.length > 0;
+    const hasResults = mergeResult && (mergeResult.mergedRows.length > 0 || mergeResult.highlySimilarRows.length > 0 || mergeResult.unmatchedRows.length > 0);
 
     const summaryLabels: Record<string, { label: string, icon: React.ElementType }> = {
         nisn: { label: "Existing NISN", icon: FileScan },
@@ -518,88 +496,6 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
         nis: { label: "Existing NIS", icon: BookUser },
     };
     const summaryInfo = editMode ? summaryLabels[editMode] : { label: "Existing", icon: BookCheck };
-    
-    const createCleanMergedRow = (rowA: any, rowB: any, currentEditMode: EditMode | null) => {
-        const synonymGroups = {
-            'Id': ['id'],
-            'Name': ['nama', 'name', 'username'],
-            'NISN': ['nisn'],
-            'NIS': ['nis'],
-            'Year': ['year', 'tahun ajaran']
-        };
-
-        const findValueBySynonym = (synonyms: string[], fromRowA: any, fromRowB: any) => {
-            if (currentEditMode) {
-                const editModeKey = currentEditMode.toUpperCase() as keyof typeof synonymGroups;
-                const editModeSynonyms = synonymGroups[editModeKey] || [currentEditMode];
-                if (synonyms.some(s => editModeSynonyms.map(es => es.toLowerCase()).includes(s.toLowerCase()))) {
-                    for (const keyA in fromRowA) {
-                         if (editModeSynonyms.map(es => es.toLowerCase()).includes(keyA.toLowerCase())) {
-                            const value = fromRowA[keyA];
-                            if (value !== null && value !== undefined && String(value).trim() !== '') {
-                                return value;
-                            }
-                        }
-                    }
-                }
-            }
-
-            for (const keyB in fromRowB) {
-                 if (synonyms.map(s => s.toLowerCase()).includes(keyB.toLowerCase())) {
-                    const value = fromRowB[keyB];
-                     if (value !== null && value !== undefined && String(value).trim() !== '') {
-                        return value;
-                    }
-                }
-            }
-            for (const keyA in fromRowA) {
-                if (synonyms.map(s => s.toLowerCase()).includes(keyA.toLowerCase())) {
-                    const value = fromRowA[keyA];
-                    if (value !== null && value !== undefined && String(value).trim() !== '') {
-                        return value;
-                    }
-                }
-            }
-            return ''; 
-        };
-    
-        const allProcessedKeys = new Set<string>();
-        const merged: Record<string, any> = {};
-        
-        const priorityGroupsToProcess: Record<string, string[]> = {
-            'Id': synonymGroups.Id,
-            'Name': synonymGroups.Name,
-        };
-        
-        if (currentEditMode === 'nisn') priorityGroupsToProcess['NISN'] = synonymGroups.NISN;
-        else if (currentEditMode === 'nis') priorityGroupsToProcess['NIS'] = synonymGroups.NIS;
-        else if (currentEditMode === 'year') priorityGroupsToProcess['Year'] = synonymGroups.Year;
-        
-        for (const [standardHeader, synonyms] of Object.entries(priorityGroupsToProcess)) {
-             const value = findValueBySynonym(synonyms, rowA, rowB);
-             merged[standardHeader] = value;
-             synonyms.forEach(s => allProcessedKeys.add(s.toLowerCase()));
-        }
-    
-        const addRemainingValue = (row: any, isPrimary: boolean) => {
-            if (!row) return;
-            for (const key in row) {
-                const lowerKey = key.toLowerCase();
-                if (!allProcessedKeys.has(lowerKey)) {
-                     if (!(key in merged) || isPrimary) {
-                         merged[key] = row[key];
-                     }
-                    allProcessedKeys.add(lowerKey);
-                }
-            }
-        };
-        
-        addRemainingValue(rowB, true);
-        addRemainingValue(rowA, false);
-    
-        return merged;
-    };
-
 
     return (
         <>
@@ -619,7 +515,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                     <p className="text-sm mt-2 ml-8">{error}</p>
                 </div>
             )}
-            {hasResults && !isMerging && summary &&(
+            {hasResults && !isMerging && mergeResult && (
                 <div className="space-y-6">
                     <Card>
                          <CardHeader>
@@ -634,7 +530,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Total</p>
-                                        <p className="text-xl font-bold">{summary.total}</p>
+                                        <p className="text-xl font-bold">{mergeResult.summary.total}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -643,7 +539,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">{summaryInfo.label}</p>
-                                        <p className="text-xl font-bold">{summary.existing}</p>
+                                        <p className="text-xl font-bold">{mergeResult.summary.existing}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -652,7 +548,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Matched</p>
-                                        <p className="text-xl font-bold">{summary.matched}</p>
+                                        <p className="text-xl font-bold">{mergeResult.summary.matched}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -661,7 +557,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Review</p>
-                                        <p className="text-xl font-bold">{summary.review}</p>
+                                        <p className="text-xl font-bold">{mergeResult.summary.review}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -670,7 +566,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Unmatched</p>
-                                        <p className="text-xl font-bold">{summary.unmatched}</p>
+                                        <p className="text-xl font-bold">{mergeResult.summary.unmatched}</p>
                                     </div>
                                 </div>
                             </div>
@@ -679,20 +575,20 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
                     <Tabs defaultValue="unmatched" className="w-full">
                         <TabsList className="grid w-full grid-cols-2 bg-muted/60 p-1 h-auto">
-                             <TabsTrigger value="unmatched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Unmatched ({summary.review + summary.unmatched})</TabsTrigger>
-                            <TabsTrigger value="matched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Matched ({summary.matched})</TabsTrigger>
+                             <TabsTrigger value="unmatched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Unmatched ({mergeResult.summary.review + mergeResult.summary.unmatched})</TabsTrigger>
+                            <TabsTrigger value="matched" className="data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent">Matched ({mergeResult.summary.matched})</TabsTrigger>
                         </TabsList>
                         <TabsContent value="unmatched" className="mt-4">
                              <p className="text-sm text-muted-foreground mb-4">These rows could not be matched automatically. Review potential matches and use the 'Rematch' button to confirm them.</p>
-                             <ResultsTable data={getUnmatchedTableData} headers={unmatchedHeaders} />
+                             <ResultsTable data={unmatchedTableData} headers={unmatchedHeaders} />
                         </TabsContent>
                         <TabsContent value="matched" className="mt-4">
                             <p className="text-sm text-muted-foreground mb-4">These rows were matched automatically. They will be included in the final download.</p>
-                             <ResultsTable data={mergedRows} headers={["No", ...Object.keys(mergedRows[0] || {})]} />
+                             <ResultsTable data={mergeResult.mergedRows} headers={["No", ...Object.keys(mergeResult.mergedRows[0] || {})]} />
                         </TabsContent>
                     </Tabs>
                     <div className="flex justify-end pt-4">
-                        <Button onClick={() => onNext(mergedRows)}>
+                        <Button onClick={() => onNext(mergeResult.mergedRows)}>
                            Continue to Final Result <Send className="ml-2 h-4 w-4" />
                         </Button>
                     </div>
@@ -707,7 +603,8 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
     const resultHeaders = useMemo(() => {
         if (finalData.length === 0) return [];
         
-        const allHeaders = Object.keys(finalData[0] || {});
+        const allHeaders = Object.keys(finalData[0] || {})
+            .filter(h => !['rowB', 'potentialMatchA', 'score'].includes(h));
         
         const priorityOrder: string[] = ['Id', 'Name'];
         if (editMode === 'nisn') priorityOrder.push('NISN');
