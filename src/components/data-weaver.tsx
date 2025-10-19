@@ -5,7 +5,7 @@ import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Upload, Loader2, Trash2, Combine, Download, ArrowLeft, FileScan, BookUser, CalendarDays, Send, Shuffle, Users, CheckCheck, XCircle, FileClock, Wand2 } from 'lucide-react';
+import { Upload, Loader2, Trash2, Combine, Download, ArrowLeft, FileScan, BookUser, CalendarDays, Send, Shuffle, Users, CheckCheck, XCircle, FileClock, Wand2, ArrowRightLeft, List } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { mergeFilesOnServer } from '@/app/actions';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -378,8 +378,8 @@ function SummaryCard({ summary }: { summary: MergeResult['summary'] }) {
 
 // Levenshtein distance function
 const levenshtein = (s1: string, s2: string): number => {
-    s1 = s1.toLowerCase().trim().replace(/\./g, '');
-    s2 = s2.toLowerCase().trim().replace(/\./g, '');
+    s1 = s1.toLowerCase().trim().replace(/[.,]/g, '').replace(/\s+/g, ' ');
+    s2 = s2.toLowerCase().trim().replace(/[.,]/g, '').replace(/\s+/g, ' ');
     if (s1 === s2) return 0;
 
     const len1 = s1.length;
@@ -410,13 +410,8 @@ const levenshtein = (s1: string, s2: string): number => {
     return matrix[len1][len2];
 };
 
-type Recommendation = {
-    rowA: ExcelRow;
-    rowB: ExcelRow;
-    nameA: string;
-    nameB: string;
-    distance: number;
-};
+type AlignedRow = { a: ExcelRow | null; b: ExcelRow | null; similarity: number };
+
 
 function Step2_ManualMatch({
     mergeResult,
@@ -441,82 +436,86 @@ function Step2_ManualMatch({
     const [selectedA, setSelectedA] = useState<ExcelRow | null>(null);
     const [selectedB, setSelectedB] = useState<ExcelRow | null>(null);
 
-    const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-    const [isRecDialogOpen, setIsRecDialogOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<'manual' | 'recommendation'>('manual');
+    const [alignedData, setAlignedData] = useState<AlignedRow[]>([]);
 
 
     useEffect(() => {
         setUnmatchedA(mergeResult?.unmatchedFileA || []);
         setUnmatchedB(mergeResult?.unmatchedFileB || []);
+        setViewMode('manual');
     }, [mergeResult]);
 
 
-    const handleMatch = () => {
-        if (!selectedA || !selectedB) {
-            toast({ variant: 'destructive', title: 'Selection Missing', description: 'Please select one item from each panel to match.' });
-            return;
-        }
-        
-        const newManualMatch = { ...selectedA, ...selectedB };
+    const handleMatch = (rowA: ExcelRow, rowB: ExcelRow) => {
+        const newManualMatch = { ...rowA, ...rowB };
         onMatch(newManualMatch);
 
-        setUnmatchedA(prev => prev.filter(row => row !== selectedA));
-        setUnmatchedB(prev => prev.filter(row => row !== selectedB));
+        setUnmatchedA(prev => prev.filter(row => row !== rowA));
+        setUnmatchedB(prev => prev.filter(row => row !== rowB));
+        
+        setAlignedData(prev => prev.filter(aligned => aligned.a !== rowA && aligned.b !== rowB));
 
         setSelectedA(null);
         setSelectedB(null);
 
-        toast({ title: 'Match Successful', description: `${findNameInRow(selectedA, fileAHeaders)} and ${findNameInRow(selectedB, fileBHeaders)} have been matched.` });
+        toast({ title: 'Match Successful', description: `${findNameInRow(rowA, fileAHeaders)} and ${findNameInRow(rowB, fileBHeaders)} have been matched.` });
     };
+
+    const handleManualMatchClick = () => {
+         if (!selectedA || !selectedB) {
+            toast({ variant: 'destructive', title: 'Selection Missing', description: 'Please select one item from each panel to match.' });
+            return;
+        }
+        handleMatch(selectedA, selectedB);
+    }
 
     const handleRecommendation = () => {
         if (!unmatchedA.length || !unmatchedB.length) {
             toast({ title: "No data to compare", description: "One of the unmatched lists is empty." });
             return;
         }
-        const recs: Recommendation[] = [];
-        const threshold = 5; // Levenshtein distance threshold
-
-        unmatchedA.forEach(rowA => {
+        
+        let tempUnmatchedB = [...unmatchedB];
+        const newAlignedData: AlignedRow[] = unmatchedA.map(rowA => {
             const nameA = findNameInRow(rowA, fileAHeaders);
-            if (!nameA) return;
+            if (!nameA) return { a: rowA, b: null, similarity: -1 };
 
-            let bestMatch: { rowB: ExcelRow, distance: number } | null = null;
-
-            unmatchedB.forEach(rowB => {
+            let bestMatch: { row: ExcelRow; distance: number; index: number } | null = null;
+            
+            tempUnmatchedB.forEach((rowB, index) => {
                 const nameB = findNameInRow(rowB, fileBHeaders);
                 if (!nameB) return;
-                
                 const distance = levenshtein(nameA, nameB);
-                if (distance <= threshold) {
-                    if (!bestMatch || distance < bestMatch.distance) {
-                        bestMatch = { rowB, distance };
-                    }
+                
+                if (!bestMatch || distance < bestMatch.distance) {
+                    bestMatch = { row: rowB, distance, index };
                 }
             });
 
             if (bestMatch) {
-                recs.push({
-                    rowA,
-                    rowB: bestMatch.rowB,
-                    nameA,
-                    nameB: findNameInRow(bestMatch.rowB, fileBHeaders),
-                    distance: bestMatch.distance
-                });
+                // Remove the matched item from tempUnmatchedB so it can't be matched again
+                tempUnmatchedB.splice(bestMatch.index, 1);
+                return { a: rowA, b: bestMatch.row, similarity: bestMatch.distance };
+            } else {
+                return { a: rowA, b: null, similarity: -1 };
             }
         });
-        
-        recs.sort((a, b) => a.distance - b.distance);
-        setRecommendations(recs);
-        setIsRecDialogOpen(true);
+
+        // Add remaining unmatched B items
+        tempUnmatchedB.forEach(rowB => {
+            newAlignedData.push({ a: null, b: rowB, similarity: -1 });
+        });
+
+        newAlignedData.sort((x, y) => {
+             if (x.similarity === -1 && y.similarity > -1) return 1;
+             if (y.similarity === -1 && x.similarity > -1) return -1;
+             return x.similarity - y.similarity;
+        });
+
+        setAlignedData(newAlignedData);
+        setViewMode('recommendation');
     };
-    
-    const selectRecommendation = (rec: Recommendation) => {
-        setSelectedA(rec.rowA);
-        setSelectedB(rec.rowB);
-        setIsRecDialogOpen(false);
-        toast({title: "Selection Made", description: "Recommended items have been selected in the panels."})
-    }
     
     const renderRow = (row: ExcelRow, onSelect: (row: ExcelRow) => void, isSelected: boolean, headers: string[] | undefined) => {
         const name = findNameInRow(row, headers);
@@ -545,14 +544,14 @@ function Step2_ManualMatch({
     }, [editMode]);
 
     const manualTableData = useMemo(() => {
-        if (!editMode || !fileBHeaders || !fileAHeaders) return [];
+        if (!editMode || !fileBHeaders) return [];
         return manualMatches.map((row) => {
             const newRow: ExcelRow = {};
-            const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id');
+            const idHeader = fileBHeaders.find(k => k.toLowerCase() === 'id');
             const nameHeaderB = fileBHeaders.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim()));
 
             newRow['Name'] = (nameHeaderB && row[nameHeaderB]) ? row[nameHeaderB] : '';
-            newRow['Id'] = idHeader ? row[idHeader] : '';
+            newRow['Id'] = idHeader && row[idHeader] ? row[idHeader] : '';
 
             const dynamicHeaderKey = manualMatchHeaders[3]; // e.g., 'NISN', 'Year', or 'NIS'
             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
@@ -562,7 +561,7 @@ function Step2_ManualMatch({
 
             return newRow;
         });
-    }, [manualMatches, manualMatchHeaders, editMode, fileBHeaders, fileAHeaders]);
+    }, [manualMatches, manualMatchHeaders, editMode, fileBHeaders]);
 
 
     if (!mergeResult) return null;
@@ -576,21 +575,41 @@ function Step2_ManualMatch({
                         <CardTitle>Manual Matching</CardTitle>
                         <CardDescription>Select one row from each panel and click "Match & Move" to pair them manually.</CardDescription>
                     </div>
-                    <Button onClick={handleRecommendation} variant="outline" size="sm">
-                        <Wand2 className="mr-2 h-4 w-4" />
-                        Rekomendasi
-                    </Button>
+                     <div className='flex gap-2'>
+                        {viewMode === 'recommendation' ? (
+                            <Button onClick={() => setViewMode('manual')} variant="outline" size="sm">
+                                <List className="mr-2 h-4 w-4" />
+                                Back to Manual View
+                            </Button>
+                        ) : (
+                             <Button onClick={handleRecommendation} variant="outline" size="sm">
+                                <Wand2 className="mr-2 h-4 w-4" />
+                                Rekomendasi
+                            </Button>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Panel title={`Unmatched Source File (${unmatchedA.length})`} data={unmatchedA} selected={selectedA} onSelect={setSelectedA} renderRow={(row, onSelect, isSelected) => renderRow(row, onSelect, isSelected, fileAHeaders)} />
-                        <Panel title={`Unmatched ID File (${unmatchedB.length})`} data={unmatchedB} selected={selectedB} onSelect={setSelectedB} renderRow={(row, onSelect, isSelected) => renderRow(row, onSelect, isSelected, fileBHeaders)} />
-                    </div>
-                     <div className="flex justify-center">
-                        <Button onClick={handleMatch} disabled={!selectedA || !selectedB}>
-                            <Shuffle className="mr-2 h-4 w-4" /> Match & Move
-                        </Button>
-                    </div>
+                    {viewMode === 'manual' ? (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Panel title={`Unmatched Source File (${unmatchedA.length})`} data={unmatchedA} selected={selectedA} onSelect={setSelectedA} renderRow={(row, onSelect, isSelected) => renderRow(row, onSelect, isSelected, fileAHeaders)} />
+                                <Panel title={`Unmatched ID File (${unmatchedB.length})`} data={unmatchedB} selected={selectedB} onSelect={setSelectedB} renderRow={(row, onSelect, isSelected) => renderRow(row, onSelect, isSelected, fileBHeaders)} />
+                            </div>
+                            <div className="flex justify-center">
+                                <Button onClick={handleManualMatchClick} disabled={!selectedA || !selectedB}>
+                                    <Shuffle className="mr-2 h-4 w-4" /> Match & Move
+                                </Button>
+                            </div>
+                        </>
+                    ) : (
+                        <RecommendationView 
+                          alignedData={alignedData} 
+                          onMatch={handleMatch}
+                          fileAHeaders={fileAHeaders}
+                          fileBHeaders={fileBHeaders}
+                        />
+                    )}
                 </CardContent>
             </Card>
 
@@ -610,50 +629,45 @@ function Step2_ManualMatch({
                    Continue to Final Result <Send className="ml-2 h-4 w-4" />
                 </Button>
             </div>
-            
-            <Dialog open={isRecDialogOpen} onOpenChange={setIsRecDialogOpen}>
-                <DialogContent className="sm:max-w-[625px]">
-                    <DialogHeader>
-                        <DialogTitle>Match Recommendations</DialogTitle>
-                        <DialogDescription>
-                            Here are the best potential matches found. Click 'Select' to choose a pair for matching.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <ScrollArea className="h-96">
-                        <div className="p-1">
-                            {recommendations.length > 0 ? recommendations.map((rec, index) => (
-                                <div key={index} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                    <div className="text-sm">
-                                        <p><span className="font-semibold text-foreground">{rec.nameA}</span></p>
-                                        <p className="text-muted-foreground vs-divider relative">vs <span className="font-semibold text-foreground">{rec.nameB}</span></p>
-                                    </div>
-                                    <Button size="sm" variant="secondary" onClick={() => selectRecommendation(rec)}>
-                                        Select
-                                    </Button>
-                                </div>
-                            )) : <div className="text-center p-8 text-muted-foreground">No likely matches found.</div>}
-                        </div>
-                    </ScrollArea>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsRecDialogOpen(false)}>Close</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <style jsx>{`
-                .vs-divider::before {
-                    content: '';
-                    position: absolute;
-                    left: 2px;
-                    top: 50%;
-                    width: 10px;
-                    height: 1px;
-                    background-color: hsl(var(--border));
-                }
-            `}</style>
         </div>
     );
 }
+
+const RecommendationView = ({ alignedData, onMatch, fileAHeaders, fileBHeaders }: {
+    alignedData: AlignedRow[];
+    onMatch: (rowA: ExcelRow, rowB: ExcelRow) => void;
+    fileAHeaders: string[] | undefined;
+    fileBHeaders: string[] | undefined;
+}) => {
+    if (alignedData.length === 0) {
+        return <div className="text-center p-8 text-muted-foreground">No recommendations to show.</div>;
+    }
+    return (
+        <div className="border rounded-lg">
+            <div className="flex bg-muted font-semibold text-sm">
+                <div className="w-2/5 p-3 border-r">Source File (A)</div>
+                <div className="w-2/5 p-3 border-r">ID File (B)</div>
+                <div className="w-1/5 p-3">Action</div>
+            </div>
+            <ScrollArea className="h-96">
+                {alignedData.map((item, index) => (
+                    <div key={index} className="flex items-center border-b">
+                        <div className="w-2/5 p-2 text-sm truncate border-r">{item.a ? findNameInRow(item.a, fileAHeaders) : <span className='italic text-muted-foreground'>No Match</span>}</div>
+                        <div className="w-2/5 p-2 text-sm truncate border-r">{item.b ? findNameInRow(item.b, fileBHeaders) : <span className='italic text-muted-foreground'>No Match</span>}</div>
+                        <div className="w-1/5 p-2 flex justify-center">
+                            {item.a && item.b && (
+                                <Button size="sm" variant="secondary" onClick={() => onMatch(item.a!, item.b!)}>
+                                    <ArrowRightLeft className="mr-2 h-3 w-3" /> Match
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </ScrollArea>
+        </div>
+    );
+};
+
 
 const Panel = ({ title, data, selected, onSelect, renderRow }: { title: string, data: ExcelRow[], selected: ExcelRow | null, onSelect: (row: ExcelRow) => void, renderRow: (row: ExcelRow, onSelect: (row: ExcelRow) => void, isSelected: boolean) => JSX.Element }) => (
     <Card>
@@ -786,31 +800,29 @@ export function DataWeaver() {
             return;
         }
 
-        const modeHeaderMap: Record<EditMode, string> = {
-            nisn: 'NISN',
-            nis: 'NIS',
-            year: 'Year'
+        const modeHeaderMap: Record<EditMode, { key: string, alias: string }> = {
+            nisn: { key: 'NISN', alias: 'nisn' },
+            nis: { key: 'NIS', alias: 'nis' },
+            year: { key: 'Year', alias: 'tahun ajaran' }
         };
-        const dynamicHeader = editMode ? modeHeaderMap[editMode] : 'Value';
+        const dynamicHeader = editMode ? modeHeaderMap[editMode] : { key: 'Value', alias: 'value'};
         
         const dataToExport = data.map((row, index) => {
              const newRow: ExcelRow = {};
              
-             const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id') || 'Id';
+             const idHeader = fileB?.headers?.find(k => k.toLowerCase() === 'id') || 'Id';
              const nameHeaderB = fileB?.headers?.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim())) || 'Name';
              
-             const dynamicHeaderKey = dynamicHeader;
-             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
-             const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias) || dynamicHeaderKey;
+             const sourceHeader = fileA?.headers?.find(k => k.toLowerCase() === dynamicHeader.key.toLowerCase() || k.toLowerCase() === dynamicHeader.alias) || dynamicHeader.key;
              
              newRow['No'] = index + 1;
-             newRow['Id'] = row[idHeader] || '';
-             newRow['Name'] = (fileB && row[nameHeaderB]) ? row[nameHeaderB] : '';
-             newRow[dynamicHeaderKey] = row[sourceHeader] || '';
+             newRow[idHeader] = row[idHeader] || '';
+             newRow[nameHeaderB] = row[nameHeaderB] || '';
+             newRow[sourceHeader] = row[sourceHeader] || '';
              
              return newRow;
         });
-
+        
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Merged Data');
