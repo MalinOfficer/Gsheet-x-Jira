@@ -42,6 +42,7 @@ type MergeResult = {
 const findNameInRow = (row: ExcelRow | null | undefined): string => {
     if (!row) return '';
     const nameHeaderKeys = ['nama', 'name', 'username'];
+    // Find the actual key used in the row object that matches one of the nameHeaderKeys
     const key = Object.keys(row).find(k => nameHeaderKeys.includes(k.toLowerCase().trim()));
     return key ? String(row[key] || '') : '';
 };
@@ -183,7 +184,7 @@ function FileUploader({ onFileProcessed, onFileRemoved, currentFile, disabled, t
     );
 }
 
-const ResultsTable = ({ data, headers, caption }: { data: ExcelRow[]; headers: string[], caption?: string }) => {
+const ResultsTable = ({ data, headers, caption }: { data: ExcelRow[]; headers: string[]; caption?: string }) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const totalWidth = headers.reduce((acc, header) => acc + (header.toLowerCase().includes("nama") || header.toLowerCase().includes("name") ? 250 : 150), 0);
 
@@ -203,16 +204,15 @@ const ResultsTable = ({ data, headers, caption }: { data: ExcelRow[]; headers: s
     
     return (
         <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[60vh]">
-            <table className="relative text-sm" style={{ width: `${totalWidth}px` }}>
-                {caption && <caption className="p-2 text-xs text-muted-foreground">{caption}</caption>}
+            <table style={{ width: `${totalWidth}px` }} className="w-full border-collapse">
                 <thead className="sticky top-0 bg-muted z-10">
                     <tr>
                         {headers.map(header => (
                             <th 
                                 key={header} 
-                                className="p-2 border-b border-r text-left font-semibold whitespace-nowrap"
+                                className="p-2 border-b border-r text-left font-semibold whitespace-nowrap bg-muted"
                                 style={{
-                                    width: header.toLowerCase().includes("nama") || header.toLowerCase().includes("name") ? '250px' : '150px'
+                                    width: header.toLowerCase().includes("nama") || header.toLowerCase().includes("name") ? '250px' : header === 'No' ? '50px' : '150px'
                                 }}
                             >
                                 {header}
@@ -240,10 +240,10 @@ const ResultsTable = ({ data, headers, caption }: { data: ExcelRow[]; headers: s
                                         key={header} 
                                         className="p-2 border-b border-r truncate"
                                         style={{
-                                            width: header.toLowerCase().includes("nama") || header.toLowerCase().includes("name") ? '250px' : '150px',
+                                            width: header.toLowerCase().includes("nama") || header.toLowerCase().includes("name") ? '250px' : header === 'No' ? '50px' : '150px'
                                         }}
                                     >
-                                        {String(row[header] ?? '')}
+                                        {header === 'No' ? virtualRow.index + 1 : String(row[header] ?? '')}
                                     </td>
                                 ))}
                             </tr>
@@ -251,6 +251,7 @@ const ResultsTable = ({ data, headers, caption }: { data: ExcelRow[]; headers: s
                     })}
                 </tbody>
             </table>
+            {caption && <caption className="p-2 text-xs text-muted-foreground">{caption}</caption>}
         </div>
     );
 };
@@ -437,7 +438,6 @@ function Step2_ManualMatch({
     return (
         <div className="space-y-6">
             <SummaryCard summary={mergeResult.summary} />
-
             <Card>
                 <CardHeader>
                     <CardTitle>Manual Matching</CardTitle>
@@ -500,8 +500,9 @@ function Step3_Result({ finalData, onDownload }: { finalData: ExcelRow[], onDown
     const resultHeaders = useMemo(() => {
         if (!fileA || !fileB) return [];
         // Start with File A headers, then add unique headers from File B
-        const headers = [...fileA.headers];
+        const headers = ["No", ...fileA.headers];
         const headerSet = new Set(fileA.headers.map(h => h.toLowerCase()));
+        
         fileB.headers.forEach(header => {
             if (!headerSet.has(header.toLowerCase())) {
                 headers.push(header);
@@ -608,9 +609,14 @@ export function DataWeaver() {
             return;
         }
 
-        const finalHeaders = [...new Set([...fileA.headers, ...fileB.headers])];
+        const finalHeaders = [...new Set(['No', ...fileA.headers, ...fileB.headers])];
 
-        const dataToExport = data.map(row => finalHeaders.map(header => row[header] ?? ''));
+        const dataToExport = data.map((row, index) => {
+            return finalHeaders.map(header => {
+                if (header === 'No') return index + 1;
+                return row[header] ?? '';
+            });
+        });
         
         const worksheet = XLSX.utils.aoa_to_sheet([finalHeaders, ...dataToExport]);
         const workbook = XLSX.utils.book_new();
@@ -639,11 +645,11 @@ export function DataWeaver() {
         }
     }
     
-    const stepTitles = ["Select Mode", "Upload & Configure", "Manual Match", "Final Result"];
+    const stepTitles = ["Select Mode", "Upload & Configure", "Manual Match & Review", "Final Result"];
     const stepDescriptions = [
         "Choose the type of data you want to merge or update.",
         "Upload your source files to begin the merge process.",
-        "Manually pair the remaining data from your source files.",
+        "Review automatic matches and manually pair the remaining data.",
         "Your final merged data is ready for download."
     ];
 
@@ -669,3 +675,5 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
