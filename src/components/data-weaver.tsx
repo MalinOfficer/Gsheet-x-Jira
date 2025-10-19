@@ -380,12 +380,14 @@ function Step2_ManualMatch({
     mergeResult,
     manualMatches,
     onMatch,
-    onNext
+    onNext,
+    editMode
 }: {
     mergeResult: MergeResult | null;
     manualMatches: ExcelRow[];
     onMatch: (match: ExcelRow) => void;
     onNext: () => void;
+    editMode: EditMode | null;
 }) {
     const { toast } = useToast();
     const [unmatchedA, setUnmatchedA] = useState<ExcelRow[]>(mergeResult?.unmatchedFileA || []);
@@ -434,13 +436,33 @@ function Step2_ManualMatch({
     }
     
     const manualMatchHeaders = useMemo(() => {
-        if (manualMatches.length === 0) return [];
-        const { fileA, fileB } = useApp();
-        if (!fileA || !fileB) return [];
-        const headersA = fileA.headers;
-        const headersB = fileB.headers.filter(h => !headersA.includes(h));
-        return ["No", ...headersA, ...headersB];
-    }, [manualMatches]);
+        const modeHeaderMap: Record<EditMode, string> = {
+            nisn: 'NISN',
+            nis: 'NIS',
+            year: 'Year'
+        };
+        const dynamicHeader = editMode ? modeHeaderMap[editMode] : 'NISN';
+        return ['No', 'Id', 'Name', dynamicHeader];
+    }, [editMode]);
+
+    const manualTableData = useMemo(() => {
+        if (!editMode) return [];
+        return manualMatches.map((row) => {
+            const newRow: ExcelRow = {};
+            const nameHeader = Object.keys(row).find(k => k.toLowerCase() === 'name' || k.toLowerCase() === 'nama');
+            const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id');
+            
+            const dynamicHeaderKey = manualMatchHeaders[3]; // e.g., 'NISN', 'Year', or 'NIS'
+            const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
+            const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias);
+
+            newRow['Name'] = nameHeader ? row[nameHeader] : '';
+            newRow['Id'] = idHeader ? row[idHeader] : '';
+            newRow[dynamicHeaderKey] = sourceHeader ? row[sourceHeader] : '';
+
+            return newRow;
+        });
+    }, [manualMatches, manualMatchHeaders, editMode]);
 
 
     if (!mergeResult) return null;
@@ -472,7 +494,7 @@ function Step2_ManualMatch({
                         <CardTitle>Manually Matched Data ({manualMatches.length} rows)</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ResultsTable data={manualMatches} headers={manualMatchHeaders} />
+                        <ResultsTable data={manualTableData} headers={manualMatchHeaders} />
                     </CardContent>
                 </Card>
             )}
@@ -650,7 +672,7 @@ export function DataWeaver() {
             case 1: return <Step1_Upload onNext={handleStartMerge} onClearAll={handleClearAll} isMerging={isProcessing} editMode={editMode} />;
             case 2: return isProcessing 
                 ? <div className="flex flex-col items-center justify-center p-12 text-center"><Loader2 className="h-8 w-8 animate-spin text-primary mb-4" /><h3 className='text-lg font-semibold'>Merging Files...</h3><p className="text-muted-foreground">This may take a moment.</p></div> 
-                : <Step2_ManualMatch onNext={handleProceedToResult} mergeResult={mergeResult} manualMatches={manualMatches} onMatch={handleNewManualMatch} />;
+                : <Step2_ManualMatch onNext={handleProceedToResult} mergeResult={mergeResult} manualMatches={manualMatches} onMatch={handleNewManualMatch} editMode={editMode} />;
             case 3: return <Step3_Result finalData={finalData} onDownload={handleDownload} editMode={editMode} />;
             default: return <ModeSelectionScreen onSelectMode={(mode) => { setEditMode(mode); setCurrentStep(1); }} />;
         }
@@ -686,3 +708,4 @@ export function DataWeaver() {
         </div>
     );
 }
+
