@@ -6,10 +6,10 @@ import { TableDataContextProvider } from "@/store/table-data-context";
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   return (
-    <AppProvider>
-      <TableDataContextProvider>
+    <TableDataContextProvider>
+      <AppProvider>
         {children}
-      </TableDataContextProvider>
-    </AppProvider>
+      </AppProvider>
+    </TableDataContextProvider>
   );
 }
