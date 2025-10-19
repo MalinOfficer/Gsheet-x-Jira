@@ -1001,23 +1001,16 @@ export async function mergeFilesOnServer(
 
         return createCleanMergedRow(matchingRowA || {}, originalRowB || {});
     });
-    
-    const finalHighlySimilarRows = highlySimilarRows.map(item => ({
-        rowB: item.rowB,
-        potentialMatchA: item.potentialMatchA,
-        score: item.score,
-    }));
-
 
     return {
         mergedRows: finalMergedRows,
-        highlySimilarRows: finalHighlySimilarRows,
+        highlySimilarRows: highlySimilarRows,
         unmatchedRows: unmatchedRowsB,
         summary: {
             total: validFileBRows.length,
             existing: existingCount,
             matched: finalMergedRows.length,
-            review: finalHighlySimilarRows.length,
+            review: highlySimilarRows.length,
             unmatched: unmatchedRowsB.length,
         }
     };
