@@ -449,18 +449,19 @@ function Step2_ManualMatch({
     }, [editMode]);
 
     const manualTableData = useMemo(() => {
-        if (!editMode || !fileBHeaders) return [];
+        if (!editMode || !fileBHeaders || !fileAHeaders) return [];
         return manualMatches.map((row) => {
             const newRow: ExcelRow = {};
             const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id');
             const nameHeaderB = fileBHeaders.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim()));
 
+            newRow['Name'] = (nameHeaderB && row[nameHeaderB]) ? row[nameHeaderB] : '';
+            newRow['Id'] = idHeader ? row[idHeader] : '';
+
             const dynamicHeaderKey = manualMatchHeaders[3]; // e.g., 'NISN', 'Year', or 'NIS'
             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
             const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias);
 
-            newRow['Name'] = nameHeaderB && row[nameHeaderB] ? row[nameHeaderB] : findNameInRow(row, fileAHeaders);
-            newRow['Id'] = idHeader ? row[idHeader] : '';
             newRow[dynamicHeaderKey] = sourceHeader ? row[sourceHeader] : '';
 
             return newRow;
@@ -528,7 +529,7 @@ const Panel = ({ title, data, selected, onSelect, renderRow }: { title: string, 
     </Card>
 );
 
-function Step3_Result({ finalData, onDownload, editMode, fileBHeaders }: { finalData: ExcelRow[], onDownload: (data: ExcelRow[], headers: string[]) => void, editMode: EditMode | null, fileBHeaders: string[] | undefined }) {
+function Step3_Result({ finalData, onDownload, editMode, fileBHeaders }: { finalData: ExcelRow[], onDownload: (data: ExcelRow[]) => void, editMode: EditMode | null, fileBHeaders: string[] | undefined }) {
     
     const resultHeaders = useMemo(() => {
         const modeHeaderMap: Record<EditMode, string> = {
@@ -569,7 +570,7 @@ function Step3_Result({ finalData, onDownload, editMode, fileBHeaders }: { final
                         This is the final merged data, including automatic and manual matches. Click download to get the Excel file.
                     </CardDescription>
                 </div>
-                <Button onClick={() => onDownload(finalData, resultHeaders)} variant="default" size="sm" disabled={finalData.length === 0}>
+                <Button onClick={() => onDownload(finalData)} variant="default" size="sm" disabled={finalData.length === 0}>
                     <Download className="mr-2 h-4 w-4" /> Download Merged Data
                 </Button>
             </CardHeader>
@@ -632,7 +633,7 @@ export function DataWeaver() {
         }
     }
     
-    const handleDownload = (data: ExcelRow[], headers: string[]) => {
+    const handleDownload = (data: ExcelRow[]) => {
         if (data.length === 0) {
             toast({ variant: 'destructive', title: 'No Data to Download' });
             return;
@@ -641,14 +642,26 @@ export function DataWeaver() {
             toast({ variant: 'destructive', title: 'Library Not Loaded' });
             return;
         }
+
+        const modeHeaderMap: Record<EditMode, string> = {
+            nisn: 'NISN',
+            nis: 'NIS',
+            year: 'Year'
+        };
+        const dynamicHeader = editMode ? modeHeaderMap[editMode] : 'Value';
+
+        // Create two header rows
+        const headerRow1 = ['No', 'id', 'name', dynamicHeader.toLowerCase()];
+        const headerRow2 = ['', 'Id', 'Name', dynamicHeader];
         
         const dataToExport = data.map((row, index) => {
              const newRowData: (string | number)[] = [index + 1];
-             const dynamicHeaderKey = headers[3];
-             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
              
              const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id') || 'Id';
              const nameHeaderB = fileB?.headers?.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim())) || 'Name';
+             
+             const dynamicHeaderKey = dynamicHeader;
+             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
              const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias) || dynamicHeaderKey;
 
              newRowData.push(row[idHeader] || '');
@@ -658,7 +671,17 @@ export function DataWeaver() {
              return newRowData;
         });
         
-        const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+        const worksheet = XLSX.utils.aoa_to_sheet([headerRow1, headerRow2, ...dataToExport]);
+
+        // Merging the 'No' header cell
+        if (!worksheet['!merges']) worksheet['!merges'] = [];
+        worksheet['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 1, c: 0 } });
+
+        // Optional: Center align the merged header
+        if (!worksheet['A1'].s) worksheet['A1'].s = {};
+        worksheet['A1'].s.alignment = { vertical: 'center', horizontal: 'center' };
+
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Merged Data');
         XLSX.writeFile(workbook, 'Final_Merged_Data.xlsx');
