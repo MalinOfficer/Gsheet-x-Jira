@@ -34,8 +34,7 @@ type MergeResult = {
         total: number;
         existing: number;
         matched: number;
-        unmatchedA: number;
-        unmatchedB: number;
+        unmatched: number;
     };
     error?: string;
 }
@@ -350,10 +349,10 @@ function Step1_Upload({ onNext, onClearAll, isMerging, editMode }: { onNext: () 
 
 function SummaryCard({ summary }: { summary: MergeResult['summary'] }) {
     const stats = [
-        { title: 'Total Rows', value: summary.total, icon: Users, color: 'text-blue-500' },
+        { title: 'Total', value: summary.total, icon: Users, color: 'text-blue-500' },
         { title: 'Existing Data', value: summary.existing, icon: FileClock, color: 'text-orange-500' },
         { title: 'Auto Matched', value: summary.matched, icon: CheckCheck, color: 'text-green-500' },
-        { title: 'Unmatched', value: summary.unmatchedB, icon: XCircle, color: 'text-red-500' },
+        { title: 'Unmatched', value: summary.unmatched, icon: XCircle, color: 'text-red-500' },
     ];
 
     return (
@@ -373,23 +372,23 @@ function SummaryCard({ summary }: { summary: MergeResult['summary'] }) {
     );
 }
 
-function Step2_ManualMatch({ 
-    onNext, 
-    mergeResult, 
-    manualMatches, 
-    onMatch 
-}: { 
-    onNext: () => void; 
+function Step2_ManualMatch({
+    mergeResult,
+    manualMatches,
+    onMatch,
+    onNext
+}: {
     mergeResult: MergeResult | null;
     manualMatches: ExcelRow[];
     onMatch: (match: ExcelRow) => void;
+    onNext: () => void;
 }) {
     const { toast } = useToast();
     const [unmatchedA, setUnmatchedA] = useState<ExcelRow[]>(mergeResult?.unmatchedFileA || []);
     const [unmatchedB, setUnmatchedB] = useState<ExcelRow[]>(mergeResult?.unmatchedFileB || []);
     const [selectedA, setSelectedA] = useState<ExcelRow | null>(null);
     const [selectedB, setSelectedB] = useState<ExcelRow | null>(null);
-    
+
     useEffect(() => {
         setUnmatchedA(mergeResult?.unmatchedFileA || []);
         setUnmatchedB(mergeResult?.unmatchedFileB || []);
@@ -501,7 +500,14 @@ function Step3_Result({ finalData, onDownload }: { finalData: ExcelRow[], onDown
 
     const resultHeaders = useMemo(() => {
         if (!fileA || !fileB) return [];
-        return [...new Set([...fileB.headers, ...fileA.headers])];
+        // Prioritize fileB headers, then add any from fileA that are missing.
+        const headers = [...fileB.headers];
+        fileA.headers.forEach(header => {
+            if (!headers.includes(header)) {
+                headers.push(header);
+            }
+        });
+        return headers;
     }, [fileA, fileB]);
 
     const finalTableData = useMemo(() => {

@@ -845,7 +845,7 @@ export async function mergeFilesOnServer(
         year: ['year', 'tahun ajaran']
     };
     const columnToCheck = findHeader(fileBData.headers, eliminationKeys[editMode]);
-    const totalInFileB = fileBRows.length;
+    const totalInFileA = fileARows.length;
     let existingCount = 0;
     if (columnToCheck) {
          existingCount = fileBRows.filter((row: any) => {
@@ -861,7 +861,7 @@ export async function mergeFilesOnServer(
         unmatchedFileA,
         unmatchedFileB,
         summary: {
-            total: totalInFileB,
+            total: totalInFileA,
             existing: existingCount,
             matched: mergedRows.length,
             unmatched: unmatchedFileB.length,
