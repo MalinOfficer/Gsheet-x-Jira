@@ -823,20 +823,24 @@ export async function mergeFilesOnServer(
         nis: ['nis'],
         year: ['year', 'tahun ajaran']
     };
-
+    
     const columnToCheck = findHeader(fileBData.headers, eliminationKeys[editMode]);
     if (!columnToCheck) {
         return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
     }
 
-    const validRowCheckKeys = ['id', 'name', 'username', 'nama'];
-    const validFileBRows = fileBData.rows.filter((row: any) => {
-        return validRowCheckKeys.some(key => {
+    const validFileBRows = fileBData.rows.filter((row: any) => 
+        idHeaderKeys.some(key => {
             const header = findHeader(Object.keys(row), [key]);
             const value = header ? row[header] : undefined;
             return value !== null && value !== undefined && String(value).trim() !== '';
-        });
-    });
+        }) ||
+        nameHeaderKeys.some(key => {
+            const header = findHeader(Object.keys(row), [key]);
+            const value = header ? row[header] : undefined;
+            return value !== null && value !== undefined && String(value).trim() !== '';
+        })
+    );
 
     const existingCount = validFileBRows.filter((row: any) => {
         const value = row[columnToCheck!];
@@ -910,6 +914,7 @@ export async function mergeFilesOnServer(
             }
 
             if (bestMatch) {
+                // *** FIX: Send the complete original rowA object ***
                 highlySimilarRows.push({ rowB: rowB, potentialMatchA: bestMatch.row, score: highestScore });
                 usedInSimilarMatch.add(bestMatch.key);
             } else {
