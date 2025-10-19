@@ -861,8 +861,7 @@ export async function mergeFilesOnServer(
             total: totalInFileB,
             existing: existingCount,
             matched: mergedRows.length,
-            unmatchedA: unmatchedFileA.length,
-            unmatchedB: unmatchedFileB.length,
+            unmatched: unmatchedFileB.length,
         }
     };
 }
