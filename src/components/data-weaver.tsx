@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -381,13 +382,15 @@ function Step2_ManualMatch({
     manualMatches,
     onMatch,
     onNext,
-    editMode
+    editMode,
+    fileBHeaders,
 }: {
     mergeResult: MergeResult | null;
     manualMatches: ExcelRow[];
     onMatch: (match: ExcelRow) => void;
     onNext: () => void;
     editMode: EditMode | null;
+    fileBHeaders: string[] | undefined;
 }) {
     const { toast } = useToast();
     const [unmatchedA, setUnmatchedA] = useState<ExcelRow[]>(mergeResult?.unmatchedFileA || []);
@@ -449,20 +452,20 @@ function Step2_ManualMatch({
         if (!editMode) return [];
         return manualMatches.map((row) => {
             const newRow: ExcelRow = {};
-            const nameHeader = Object.keys(row).find(k => k.toLowerCase() === 'name' || k.toLowerCase() === 'nama');
             const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id');
-            
+            const nameHeaderB = fileBHeaders?.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim())) || 'Name';
+
             const dynamicHeaderKey = manualMatchHeaders[3]; // e.g., 'NISN', 'Year', or 'NIS'
             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
             const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias);
 
-            newRow['Name'] = nameHeader ? row[nameHeader] : '';
+            newRow['Name'] = row[nameHeaderB] || '';
             newRow['Id'] = idHeader ? row[idHeader] : '';
             newRow[dynamicHeaderKey] = sourceHeader ? row[sourceHeader] : '';
 
             return newRow;
         });
-    }, [manualMatches, manualMatchHeaders, editMode]);
+    }, [manualMatches, manualMatchHeaders, editMode, fileBHeaders]);
 
 
     if (!mergeResult) return null;
@@ -525,7 +528,7 @@ const Panel = ({ title, data, selected, onSelect, renderRow }: { title: string, 
     </Card>
 );
 
-function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow[], onDownload: (data: ExcelRow[], headers: string[]) => void, editMode: EditMode | null }) {
+function Step3_Result({ finalData, onDownload, editMode, fileBHeaders }: { finalData: ExcelRow[], onDownload: (data: ExcelRow[], headers: string[]) => void, editMode: EditMode | null, fileBHeaders: string[] | undefined }) {
     
     const resultHeaders = useMemo(() => {
         const modeHeaderMap: Record<EditMode, string> = {
@@ -541,20 +544,20 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
         if (!editMode) return [];
         return finalData.map((row) => {
             const newRow: ExcelRow = {};
-            const nameHeader = Object.keys(row).find(k => k.toLowerCase() === 'name' || k.toLowerCase() === 'nama');
             const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id');
+            const nameHeaderB = fileBHeaders?.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim())) || 'Name';
             
             const dynamicHeaderKey = resultHeaders[3]; // e.g., 'NISN', 'Year', or 'NIS'
             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
             const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias);
 
-            newRow['Name'] = nameHeader ? row[nameHeader] : '';
+            newRow['Name'] = row[nameHeaderB] || '';
             newRow['Id'] = idHeader ? row[idHeader] : '';
             newRow[dynamicHeaderKey] = sourceHeader ? row[sourceHeader] : '';
 
             return newRow;
         });
-    }, [finalData, resultHeaders, editMode]);
+    }, [finalData, resultHeaders, editMode, fileBHeaders]);
 
 
     return (
@@ -672,8 +675,8 @@ export function DataWeaver() {
             case 1: return <Step1_Upload onNext={handleStartMerge} onClearAll={handleClearAll} isMerging={isProcessing} editMode={editMode} />;
             case 2: return isProcessing 
                 ? <div className="flex flex-col items-center justify-center p-12 text-center"><Loader2 className="h-8 w-8 animate-spin text-primary mb-4" /><h3 className='text-lg font-semibold'>Merging Files...</h3><p className="text-muted-foreground">This may take a moment.</p></div> 
-                : <Step2_ManualMatch onNext={handleProceedToResult} mergeResult={mergeResult} manualMatches={manualMatches} onMatch={handleNewManualMatch} editMode={editMode} />;
-            case 3: return <Step3_Result finalData={finalData} onDownload={handleDownload} editMode={editMode} />;
+                : <Step2_ManualMatch onNext={handleProceedToResult} mergeResult={mergeResult} manualMatches={manualMatches} onMatch={handleNewManualMatch} editMode={editMode} fileBHeaders={fileB?.headers} />;
+            case 3: return <Step3_Result finalData={finalData} onDownload={handleDownload} editMode={editMode} fileBHeaders={fileB?.headers} />;
             default: return <ModeSelectionScreen onSelectMode={(mode) => { setEditMode(mode); setCurrentStep(1); }} />;
         }
     }
