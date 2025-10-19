@@ -244,12 +244,7 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                             className="flex text-xs"
                         >
                             {headers.map(header => {
-                                let cellContent: React.ReactNode;
-                                cellContent = row[header] ?? '';
-                                if (header === 'No') {
-                                    cellContent = virtualRow.index + 1;
-                                }
-
+                                const cellContent = row[header] ?? '';
                                 return (
                                     <div 
                                         key={header} 
@@ -441,8 +436,8 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
     const unmatchedTableData = useMemo(() => {
         if (!mergeResult) return [];
-
-        const similarData = mergeResult.highlySimilarRows.map(item => {
+    
+        const similarData = mergeResult.highlySimilarRows.map((item, index) => {
             const { rowB, potentialMatchA, score } = item;
             
             const actionCell = (
@@ -456,25 +451,27 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                     </div>
                 </div>
             );
-
+    
             return {
+                "No": index + 1,
                 "Name A": findNameInRow(potentialMatchA),
                 "Name B": findNameInRow(rowB),
                 "Potential Match & Action": actionCell,
             };
         });
         
-        const unmatchedData = mergeResult.unmatchedRows.map(row => {
+        const unmatchedData = mergeResult.unmatchedRows.map((row, index) => {
              const actionCell = <p className="text-muted-foreground text-xs italic">No match found</p>;
              return {
+                "No": similarData.length + index + 1,
                 "Name A": "", 
                 "Name B": findNameInRow(row),
                 "Potential Match & Action": actionCell,
              }
         });
-
+    
         return [...similarData, ...unmatchedData];
-
+    
     }, [mergeResult, handleRematch]);
 
 
@@ -576,7 +573,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                         </TabsContent>
                         <TabsContent value="matched" className="mt-4">
                             <p className="text-sm text-muted-foreground mb-4">These rows were matched automatically. They will be included in the final download.</p>
-                             <ResultsTable data={mergeResult.mergedRows} headers={["No", ...Object.keys(mergeResult.mergedRows[0] || {})]} />
+                             <ResultsTable data={mergeResult.mergedRows} headers={["No", ...Object.keys(mergeResult.mergedRows[0] || {})].map((h, i) => i === 0 ? "No" : h)} />
                         </TabsContent>
                     </Tabs>
                     <div className="flex justify-end pt-4">
@@ -614,6 +611,16 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
         return ["No", ...priorityHeaders, ...otherHeaders];
     }, [finalData, editMode]);
 
+    const finalTableData = useMemo(() => {
+        return finalData.map((row, index) => {
+            const newRow: ExcelRow = { "No": index + 1 };
+            resultHeaders.slice(1).forEach(header => {
+                newRow[header] = row[header];
+            });
+            return newRow;
+        });
+    }, [finalData, resultHeaders]);
+
 
     return (
         <Card>
@@ -629,7 +636,7 @@ function Step3_Result({ finalData, onDownload, editMode }: { finalData: ExcelRow
                 </Button>
             </CardHeader>
             <CardContent>
-                <ResultsTable data={finalData} headers={resultHeaders} />
+                <ResultsTable data={finalTableData} headers={resultHeaders} />
             </CardContent>
         </Card>
     );
@@ -733,7 +740,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
-
-    
