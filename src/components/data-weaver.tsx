@@ -245,7 +245,6 @@ const ResultsTable = ({ data, headers }: { data: ExcelRow[]; headers: string[] }
                         >
                             {headers.map(header => {
                                 let cellContent: React.ReactNode;
-                                // The content is now a simple string or a React node, no complex logic needed here.
                                 cellContent = row[header] ?? '';
                                 if (header === 'No') {
                                     cellContent = virtualRow.index + 1;
@@ -416,17 +415,10 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
     const handleRematch = useCallback((similarItem: HighlySimilarRow) => {
         if (!mergeResult) return;
 
-        // 1. Remove from highlySimilarRows
         const newHighlySimilar = mergeResult.highlySimilarRows.filter(item => item !== similarItem);
-
-        // 2. Create the newly matched row (logic to combine rowA and rowB)
-        // A simple merge, prioritizing File B's data
         const newMatchedRow = { ...similarItem.potentialMatchA, ...similarItem.rowB };
-
-        // 3. Add to mergedRows
         const newMergedRows = [...mergeResult.mergedRows, newMatchedRow];
 
-        // 4. Update state
         setMergeResult(prev => {
             if (!prev) return null;
             return {
@@ -475,7 +467,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
         const unmatchedData = mergeResult.unmatchedRows.map(row => {
              const actionCell = <p className="text-muted-foreground text-xs italic">No match found</p>;
              return {
-                "Name A": "", // Explicitly empty
+                "Name A": "", 
                 "Name B": findNameInRow(row),
                 "Potential Match & Action": actionCell,
              }
@@ -741,5 +733,7 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    
 
     

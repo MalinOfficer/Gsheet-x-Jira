@@ -791,14 +791,12 @@ export async function mergeFilesOnServer(
     fileBData: any,
     editMode: 'nisn' | 'year' | 'nis' | null
 ) {
-    // Helper to find a header, case-insensitively
     const findHeader = (headers: string[] | undefined, keys: string[]) => {
         if (!headers) return undefined;
         const lowerKeys = keys.map(k => k.toLowerCase());
         return headers.find(h => lowerKeys.includes(h.toLowerCase()));
     };
 
-    // Helper to normalize names for matching
     const normalizeName = (name: any): string => {
         if (typeof name !== 'string') return '';
         return name.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s{2,}/g, " ");
@@ -811,7 +809,6 @@ export async function mergeFilesOnServer(
     const nameHeaderKeys = ['nama', 'name', 'username'];
     const idHeaderKeys = ['id', 'Id', 'ID'];
 
-    // Validate headers
     const fileAKey = findHeader(fileAData.headers, nameHeaderKeys);
     if (!fileAKey) return { error: `Required 'Name' column (e.g., '${nameHeaderKeys.join("', '")}') not found in Source File.` };
     
@@ -821,7 +818,6 @@ export async function mergeFilesOnServer(
     const fileBIdKey = findHeader(fileBData.headers, idHeaderKeys);
     if (!fileBIdKey) return { error: `Required 'ID' column (e.g., '${idHeaderKeys.join("', '")}') not found in ID File.` };
 
-    // --- Start: Robust Validation for File B ---
     const validFileBRows = fileBData.rows.filter((row: any) => {
         const hasId = idHeaderKeys.some(key => {
             const header = findHeader(Object.keys(row), [key]);
@@ -831,14 +827,12 @@ export async function mergeFilesOnServer(
             const header = findHeader(Object.keys(row), [key]);
             return header && row[header] !== null && row[header] !== undefined && String(row[header]).trim() !== '';
         });
-        // A row is valid if it has at least an ID or a Name
         return hasId || hasName;
     });
 
     if (validFileBRows.length === 0) {
         return { error: "No valid rows with an 'ID' or 'Name' found in the ID File." };
     }
-    // --- End: Robust Validation for File B ---
 
     const eliminationKeys: Record<typeof editMode, string[]> = {
         nisn: ['nisn'],
@@ -875,7 +869,6 @@ export async function mergeFilesOnServer(
     
     const usedInPerfectMatch = new Set<string>();
 
-    // First pass: find perfect matches
     for (const rowB of rowsToProcessB) {
         const keyB = rowB[fileBKey];
         if (keyB) {
@@ -888,10 +881,9 @@ export async function mergeFilesOnServer(
         }
     }
 
-    // Second pass: find similar matches for the remaining rows
     const remainingRowsB = rowsToProcessB.filter(rowB => {
          const keyB = rowB[fileBKey];
-         if (!keyB) return true; // Keep rows without a name in the unmatched list
+         if (!keyB) return true;
          const normalizedKeyB = normalizeName(keyB);
          return !usedInPerfectMatch.has(normalizedKeyB);
     });
@@ -907,10 +899,9 @@ export async function mergeFilesOnServer(
         
         const normalizedKeyB = normalizeName(keyB);
         let bestMatch: { row: any; key: string } | null = null;
-        let highestScore = 0.8; // Similarity threshold
+        let highestScore = 0.8;
 
         for (const [normalizedKeyA, rowA] of fileAEntries) {
-            // Skip if this row from File A was already part of a perfect match
             if (usedInPerfectMatch.has(normalizedKeyA)) continue;
 
             const wordsA = new Set(normalizedKeyA.split(' ').filter(Boolean));
@@ -927,10 +918,9 @@ export async function mergeFilesOnServer(
         }
 
         if (bestMatch) {
-            // CRITICAL FIX: Send the complete, original row objects
             highlySimilarRows.push({
-                rowB: rowB, // Original row from File B
-                potentialMatchA: bestMatch.row, // Original row from File A
+                rowB: rowB,
+                potentialMatchA: bestMatch.row, 
                 score: highestScore
             });
         } else {
@@ -1123,6 +1113,8 @@ export async function fetchL3ReportData(sheetUrl: string) {
       
 
 
+
+    
 
     
 
