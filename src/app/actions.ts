@@ -829,18 +829,19 @@ export async function mergeFilesOnServer(
         return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
     }
 
-    const validFileBRows = fileBData.rows.filter((row: any) => 
-        idHeaderKeys.some(key => {
+    const validFileBRows = fileBData.rows.filter((row: any) => {
+        const hasId = idHeaderKeys.some(key => {
             const header = findHeader(Object.keys(row), [key]);
             const value = header ? row[header] : undefined;
             return value !== null && value !== undefined && String(value).trim() !== '';
-        }) ||
-        nameHeaderKeys.some(key => {
+        });
+        const hasName = nameHeaderKeys.some(key => {
             const header = findHeader(Object.keys(row), [key]);
             const value = header ? row[header] : undefined;
             return value !== null && value !== undefined && String(value).trim() !== '';
-        })
-    );
+        });
+        return hasId || hasName;
+    });
 
     const existingCount = validFileBRows.filter((row: any) => {
         const value = row[columnToCheck!];
@@ -1210,3 +1211,4 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
       
+

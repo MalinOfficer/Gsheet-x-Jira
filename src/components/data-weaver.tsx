@@ -307,13 +307,13 @@ function Step1({ onNext, onClearAll, isMerging, editMode }: { onNext: () => void
         else setFileB(null);
     }, [setFileA, setFileB]);
 
-    const fileADescriptions = {
+    const fileADescriptions: Record<EditMode, string> = {
         nisn: 'The file with student names and NISN.',
         year: 'The file with student names and School Year.',
         nis: 'The file with student names and NIS.',
     };
     
-    const fileATitles = {
+    const fileATitles: Record<EditMode, string> = {
         nisn: 'File NISN (Source Data)',
         year: 'File Year (Source Data)',
         nis: 'File NIS (Source Data)',
@@ -525,10 +525,11 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
         const findValueBySynonym = (synonyms: string[], fromRowA: any, fromRowB: any) => {
             // Prioritize File A for the edit mode column
             if (currentEditMode) {
-                const editModeSynonyms = synonymGroups[currentEditMode.toUpperCase() as keyof typeof synonymGroups] || [currentEditMode];
-                if (synonyms.some(s => editModeSynonyms.includes(s))) {
+                const editModeKey = currentEditMode.toUpperCase() as keyof typeof synonymGroups;
+                const editModeSynonyms = synonymGroups[editModeKey] || [currentEditMode];
+                if (synonyms.some(s => editModeSynonyms.map(es => es.toLowerCase()).includes(s.toLowerCase()))) {
                     for (const keyA in fromRowA) {
-                         if (editModeSynonyms.includes(keyA.toLowerCase())) {
+                         if (editModeSynonyms.map(es => es.toLowerCase()).includes(keyA.toLowerCase())) {
                             const value = fromRowA[keyA];
                             if (value !== null && value !== undefined && String(value).trim() !== '') {
                                 return value;
@@ -540,7 +541,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
 
             // Default behavior for other columns (prioritize File B)
             for (const keyB in fromRowB) {
-                 if (synonyms.includes(keyB.toLowerCase())) {
+                 if (synonyms.map(s => s.toLowerCase()).includes(keyB.toLowerCase())) {
                     const value = fromRowB[keyB];
                      if (value !== null && value !== undefined && String(value).trim() !== '') {
                         return value;
@@ -548,7 +549,7 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
                 }
             }
             for (const keyA in fromRowA) {
-                if (synonyms.includes(keyA.toLowerCase())) {
+                if (synonyms.map(s => s.toLowerCase()).includes(keyA.toLowerCase())) {
                     const value = fromRowA[keyA];
                     if (value !== null && value !== undefined && String(value).trim() !== '') {
                         return value;
@@ -572,12 +573,12 @@ function Step2_Review({ onNext, editMode }: { onNext: (finalMerged: ExcelRow[]) 
         }
         
         for (const [standardHeader, synonyms] of Object.entries(priorityGroupsToProcess)) {
-             const value = findValueBySynonym(synonyms.map(s => s.toLowerCase()), rowA, rowB);
+             const value = findValueBySynonym(synonyms, rowA, rowB);
              merged[standardHeader] = value;
              synonyms.forEach(s => addedKeys.add(s.toLowerCase()));
         }
 
-        const allPrioritySynonyms = Object.values(synonymGroups).flat();
+        const allPrioritySynonyms = Object.values(synonymGroups).flat().map(s => s.toLowerCase());
 
         const addRemainingValue = (key: string, value: any, source: 'A' | 'B') => {
             const lowerKey = key.toLowerCase();
