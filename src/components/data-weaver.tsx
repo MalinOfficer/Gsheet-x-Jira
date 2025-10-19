@@ -12,6 +12,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/contexts/app-provider';
 import { ScrollArea } from './ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 
 
 declare const XLSX: any;
@@ -375,6 +376,48 @@ function SummaryCard({ summary }: { summary: MergeResult['summary'] }) {
     );
 }
 
+// Levenshtein distance function
+const levenshtein = (s1: string, s2: string): number => {
+    s1 = s1.toLowerCase().trim().replace(/\./g, '');
+    s2 = s2.toLowerCase().trim().replace(/\./g, '');
+    if (s1 === s2) return 0;
+
+    const len1 = s1.length;
+    const len2 = s2.length;
+    let matrix = [];
+
+    for (let i = 0; i <= len1; i++) {
+        matrix[i] = [i];
+        if (i === 0) continue;
+        for (let j = 1; j <= len2; j++) {
+            matrix[0][j] = j;
+            if (i === 1) matrix[i][j] = Math.min(
+                matrix[i - 1][j] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j - 1] + (s1[i - 1] === s2[j - 1] ? 0 : 1)
+            );
+        }
+    }
+    for (let i = 1; i <= len1; i++) {
+        for (let j = 1; j <= len2; j++) {
+            if (i > 1) matrix[i][j] = Math.min(
+                matrix[i - 1][j] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j - 1] + (s1[i - 1] === s2[j - 1] ? 0 : 1)
+            );
+        }
+    }
+    return matrix[len1][len2];
+};
+
+type Recommendation = {
+    rowA: ExcelRow;
+    rowB: ExcelRow;
+    nameA: string;
+    nameB: string;
+    distance: number;
+};
+
 function Step2_ManualMatch({
     mergeResult,
     manualMatches,
@@ -397,6 +440,10 @@ function Step2_ManualMatch({
     const [unmatchedB, setUnmatchedB] = useState<ExcelRow[]>(mergeResult?.unmatchedFileB || []);
     const [selectedA, setSelectedA] = useState<ExcelRow | null>(null);
     const [selectedB, setSelectedB] = useState<ExcelRow | null>(null);
+
+    const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+    const [isRecDialogOpen, setIsRecDialogOpen] = useState(false);
+
 
     useEffect(() => {
         setUnmatchedA(mergeResult?.unmatchedFileA || []);
@@ -421,6 +468,55 @@ function Step2_ManualMatch({
 
         toast({ title: 'Match Successful', description: `${findNameInRow(selectedA, fileAHeaders)} and ${findNameInRow(selectedB, fileBHeaders)} have been matched.` });
     };
+
+    const handleRecommendation = () => {
+        if (!unmatchedA.length || !unmatchedB.length) {
+            toast({ title: "No data to compare", description: "One of the unmatched lists is empty." });
+            return;
+        }
+        const recs: Recommendation[] = [];
+        const threshold = 5; // Levenshtein distance threshold
+
+        unmatchedA.forEach(rowA => {
+            const nameA = findNameInRow(rowA, fileAHeaders);
+            if (!nameA) return;
+
+            let bestMatch: { rowB: ExcelRow, distance: number } | null = null;
+
+            unmatchedB.forEach(rowB => {
+                const nameB = findNameInRow(rowB, fileBHeaders);
+                if (!nameB) return;
+                
+                const distance = levenshtein(nameA, nameB);
+                if (distance <= threshold) {
+                    if (!bestMatch || distance < bestMatch.distance) {
+                        bestMatch = { rowB, distance };
+                    }
+                }
+            });
+
+            if (bestMatch) {
+                recs.push({
+                    rowA,
+                    rowB: bestMatch.rowB,
+                    nameA,
+                    nameB: findNameInRow(bestMatch.rowB, fileBHeaders),
+                    distance: bestMatch.distance
+                });
+            }
+        });
+        
+        recs.sort((a, b) => a.distance - b.distance);
+        setRecommendations(recs);
+        setIsRecDialogOpen(true);
+    };
+    
+    const selectRecommendation = (rec: Recommendation) => {
+        setSelectedA(rec.rowA);
+        setSelectedB(rec.rowB);
+        setIsRecDialogOpen(false);
+        toast({title: "Selection Made", description: "Recommended items have been selected in the panels."})
+    }
     
     const renderRow = (row: ExcelRow, onSelect: (row: ExcelRow) => void, isSelected: boolean, headers: string[] | undefined) => {
         const name = findNameInRow(row, headers);
@@ -475,17 +571,15 @@ function Step2_ManualMatch({
         <div className="space-y-6">
             <SummaryCard summary={mergeResult.summary} />
             <Card>
-                <CardHeader>
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <CardTitle>Manual Matching</CardTitle>
-                            <CardDescription>Select one row from each panel and click "Match & Move" to pair them manually.</CardDescription>
-                        </div>
-                        <Button onClick={() => {}} variant="outline">
-                            <Wand2 className="mr-2 h-4 w-4" />
-                            Rekomendasi
-                        </Button>
+                <CardHeader className="flex flex-row items-start justify-between">
+                    <div>
+                        <CardTitle>Manual Matching</CardTitle>
+                        <CardDescription>Select one row from each panel and click "Match & Move" to pair them manually.</CardDescription>
                     </div>
+                    <Button onClick={handleRecommendation} variant="outline" size="sm">
+                        <Wand2 className="mr-2 h-4 w-4" />
+                        Rekomendasi
+                    </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -516,6 +610,47 @@ function Step2_ManualMatch({
                    Continue to Final Result <Send className="ml-2 h-4 w-4" />
                 </Button>
             </div>
+            
+            <Dialog open={isRecDialogOpen} onOpenChange={setIsRecDialogOpen}>
+                <DialogContent className="sm:max-w-[625px]">
+                    <DialogHeader>
+                        <DialogTitle>Match Recommendations</DialogTitle>
+                        <DialogDescription>
+                            Here are the best potential matches found. Click 'Select' to choose a pair for matching.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="h-96">
+                        <div className="p-1">
+                            {recommendations.length > 0 ? recommendations.map((rec, index) => (
+                                <div key={index} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                    <div className="text-sm">
+                                        <p><span className="font-semibold text-foreground">{rec.nameA}</span></p>
+                                        <p className="text-muted-foreground vs-divider relative">vs <span className="font-semibold text-foreground">{rec.nameB}</span></p>
+                                    </div>
+                                    <Button size="sm" variant="secondary" onClick={() => selectRecommendation(rec)}>
+                                        Select
+                                    </Button>
+                                </div>
+                            )) : <div className="text-center p-8 text-muted-foreground">No likely matches found.</div>}
+                        </div>
+                    </ScrollArea>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsRecDialogOpen(false)}>Close</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <style jsx>{`
+                .vs-divider::before {
+                    content: '';
+                    position: absolute;
+                    left: 2px;
+                    top: 50%;
+                    width: 10px;
+                    height: 1px;
+                    background-color: hsl(var(--border));
+                }
+            `}</style>
         </div>
     );
 }
@@ -657,13 +792,9 @@ export function DataWeaver() {
             year: 'Year'
         };
         const dynamicHeader = editMode ? modeHeaderMap[editMode] : 'Value';
-
-        // Create two header rows
-        const headerRow1 = ['No', 'id', 'name', dynamicHeader.toLowerCase()];
-        const headerRow2 = ['', 'Id', 'Name', dynamicHeader];
         
         const dataToExport = data.map((row, index) => {
-             const newRowData: (string | number)[] = [index + 1];
+             const newRow: ExcelRow = {};
              
              const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id') || 'Id';
              const nameHeaderB = fileB?.headers?.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim())) || 'Name';
@@ -671,25 +802,16 @@ export function DataWeaver() {
              const dynamicHeaderKey = dynamicHeader;
              const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
              const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias) || dynamicHeaderKey;
-
-             newRowData.push(row[idHeader] || '');
-             newRowData.push((fileB && row[nameHeaderB]) ? row[nameHeaderB] : '');
-             newRowData.push(row[sourceHeader] || '');
-
-             return newRowData;
+             
+             newRow['No'] = index + 1;
+             newRow['Id'] = row[idHeader] || '';
+             newRow['Name'] = (fileB && row[nameHeaderB]) ? row[nameHeaderB] : '';
+             newRow[dynamicHeaderKey] = row[sourceHeader] || '';
+             
+             return newRow;
         });
-        
-        const worksheet = XLSX.utils.aoa_to_sheet([headerRow1, headerRow2, ...dataToExport]);
 
-        // Merging the 'No' header cell
-        if (!worksheet['!merges']) worksheet['!merges'] = [];
-        worksheet['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 1, c: 0 } });
-
-        // Optional: Center align the merged header
-        if (!worksheet['A1'].s) worksheet['A1'].s = {};
-        worksheet['A1'].s.alignment = { vertical: 'center', horizontal: 'center' };
-
-
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Merged Data');
         XLSX.writeFile(workbook, 'Final_Merged_Data.xlsx');
