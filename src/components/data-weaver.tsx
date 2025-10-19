@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -40,12 +39,11 @@ type MergeResult = {
     error?: string;
 }
 
-const findNameInRow = (row: ExcelRow | null | undefined): string => {
-    if (!row) return '';
+const findNameInRow = (row: ExcelRow | null | undefined, headers: string[] | undefined): string => {
+    if (!row || !headers) return '';
     const nameHeaderKeys = ['nama', 'name', 'username'];
-    // Find the actual key used in the row object that matches one of the nameHeaderKeys
-    const key = Object.keys(row).find(k => nameHeaderKeys.includes(k.toLowerCase().trim()));
-    return key ? String(row[key] || '') : '';
+    const key = headers.find(h => nameHeaderKeys.includes(h.toLowerCase().trim()));
+    return key && row[key] ? String(row[key]) : '';
 };
 
 
@@ -383,6 +381,7 @@ function Step2_ManualMatch({
     onMatch,
     onNext,
     editMode,
+    fileAHeaders,
     fileBHeaders,
 }: {
     mergeResult: MergeResult | null;
@@ -390,6 +389,7 @@ function Step2_ManualMatch({
     onMatch: (match: ExcelRow) => void;
     onNext: () => void;
     editMode: EditMode | null;
+    fileAHeaders: string[] | undefined;
     fileBHeaders: string[] | undefined;
 }) {
     const { toast } = useToast();
@@ -419,11 +419,11 @@ function Step2_ManualMatch({
         setSelectedA(null);
         setSelectedB(null);
 
-        toast({ title: 'Match Successful', description: `${findNameInRow(selectedA)} and ${findNameInRow(selectedB)} have been matched.` });
+        toast({ title: 'Match Successful', description: `${findNameInRow(selectedA, fileAHeaders)} and ${findNameInRow(selectedB, fileBHeaders)} have been matched.` });
     };
     
-    const renderRow = (row: ExcelRow, onSelect: (row: ExcelRow) => void, isSelected: boolean) => {
-        const name = findNameInRow(row);
+    const renderRow = (row: ExcelRow, onSelect: (row: ExcelRow) => void, isSelected: boolean, headers: string[] | undefined) => {
+        const name = findNameInRow(row, headers);
         return (
             <div 
                 key={name + Math.random()} 
@@ -444,28 +444,28 @@ function Step2_ManualMatch({
             nis: 'NIS',
             year: 'Year'
         };
-        const dynamicHeader = editMode ? modeHeaderMap[editMode] : 'NISN';
+        const dynamicHeader = editMode ? modeHeaderMap[editMode] : 'Value';
         return ['No', 'Id', 'Name', dynamicHeader];
     }, [editMode]);
 
     const manualTableData = useMemo(() => {
-        if (!editMode) return [];
+        if (!editMode || !fileBHeaders) return [];
         return manualMatches.map((row) => {
             const newRow: ExcelRow = {};
             const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id');
-            const nameHeaderB = fileBHeaders?.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim())) || 'Name';
+            const nameHeaderB = fileBHeaders.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim()));
 
             const dynamicHeaderKey = manualMatchHeaders[3]; // e.g., 'NISN', 'Year', or 'NIS'
             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
             const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias);
 
-            newRow['Name'] = row[nameHeaderB] || '';
+            newRow['Name'] = nameHeaderB && row[nameHeaderB] ? row[nameHeaderB] : findNameInRow(row, fileAHeaders);
             newRow['Id'] = idHeader ? row[idHeader] : '';
             newRow[dynamicHeaderKey] = sourceHeader ? row[sourceHeader] : '';
 
             return newRow;
         });
-    }, [manualMatches, manualMatchHeaders, editMode, fileBHeaders]);
+    }, [manualMatches, manualMatchHeaders, editMode, fileBHeaders, fileAHeaders]);
 
 
     if (!mergeResult) return null;
@@ -480,8 +480,8 @@ function Step2_ManualMatch({
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Panel title={`Unmatched Source File (${unmatchedA.length})`} data={unmatchedA} selected={selectedA} onSelect={setSelectedA} renderRow={renderRow} />
-                        <Panel title={`Unmatched ID File (${unmatchedB.length})`} data={unmatchedB} selected={selectedB} onSelect={setSelectedB} renderRow={renderRow} />
+                        <Panel title={`Unmatched Source File (${unmatchedA.length})`} data={unmatchedA} selected={selectedA} onSelect={setSelectedA} renderRow={(row, onSelect, isSelected) => renderRow(row, onSelect, isSelected, fileAHeaders)} />
+                        <Panel title={`Unmatched ID File (${unmatchedB.length})`} data={unmatchedB} selected={selectedB} onSelect={setSelectedB} renderRow={(row, onSelect, isSelected) => renderRow(row, onSelect, isSelected, fileBHeaders)} />
                     </div>
                      <div className="flex justify-center">
                         <Button onClick={handleMatch} disabled={!selectedA || !selectedB}>
@@ -536,22 +536,22 @@ function Step3_Result({ finalData, onDownload, editMode, fileBHeaders }: { final
             nis: 'NIS',
             year: 'Year'
         };
-        const dynamicHeader = editMode ? modeHeaderMap[editMode] : 'NISN';
+        const dynamicHeader = editMode ? modeHeaderMap[editMode] : 'Value';
         return ['No', 'Id', 'Name', dynamicHeader];
     }, [editMode]);
 
     const finalTableData = useMemo(() => {
-        if (!editMode) return [];
+        if (!editMode || !fileBHeaders) return [];
         return finalData.map((row) => {
             const newRow: ExcelRow = {};
             const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id');
-            const nameHeaderB = fileBHeaders?.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim())) || 'Name';
+            const nameHeaderB = fileBHeaders.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim()));
             
-            const dynamicHeaderKey = resultHeaders[3]; // e.g., 'NISN', 'Year', or 'NIS'
+            const dynamicHeaderKey = resultHeaders[3]; 
             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
             const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias);
 
-            newRow['Name'] = row[nameHeaderB] || '';
+            newRow['Name'] = (nameHeaderB && row[nameHeaderB]) ? row[nameHeaderB] : '';
             newRow['Id'] = idHeader ? row[idHeader] : '';
             newRow[dynamicHeaderKey] = sourceHeader ? row[sourceHeader] : '';
 
@@ -581,7 +581,7 @@ function Step3_Result({ finalData, onDownload, editMode, fileBHeaders }: { final
 }
 
 export function DataWeaver() {
-    const { fileA, fileB, resetState } = useApp();
+    const { fileA, setFileA, fileB, setFileB, resetState } = useApp();
     const { toast } = useToast();
     const [isProcessing, startProcessing] = useTransition();
     const [editMode, setEditMode] = useState<EditMode | null>(null);
@@ -644,13 +644,17 @@ export function DataWeaver() {
         
         const dataToExport = data.map((row, index) => {
              const newRowData: (string | number)[] = [index + 1];
-             // Start from the second header ('Id')
-             for(let i = 1; i < headers.length; i++) {
-                const header = headers[i];
-                const dynamicHeaderAlias = header === 'Year' ? 'tahun ajaran' : header.toLowerCase();
-                const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === header.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias);
-                newRowData.push(sourceHeader ? row[sourceHeader] : '');
-             }
+             const dynamicHeaderKey = headers[3];
+             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
+             
+             const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id') || 'Id';
+             const nameHeaderB = fileB?.headers?.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim())) || 'Name';
+             const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias) || dynamicHeaderKey;
+
+             newRowData.push(row[idHeader] || '');
+             newRowData.push((fileB && row[nameHeaderB]) ? row[nameHeaderB] : '');
+             newRowData.push(row[sourceHeader] || '');
+
              return newRowData;
         });
         
@@ -675,7 +679,7 @@ export function DataWeaver() {
             case 1: return <Step1_Upload onNext={handleStartMerge} onClearAll={handleClearAll} isMerging={isProcessing} editMode={editMode} />;
             case 2: return isProcessing 
                 ? <div className="flex flex-col items-center justify-center p-12 text-center"><Loader2 className="h-8 w-8 animate-spin text-primary mb-4" /><h3 className='text-lg font-semibold'>Merging Files...</h3><p className="text-muted-foreground">This may take a moment.</p></div> 
-                : <Step2_ManualMatch onNext={handleProceedToResult} mergeResult={mergeResult} manualMatches={manualMatches} onMatch={handleNewManualMatch} editMode={editMode} fileBHeaders={fileB?.headers} />;
+                : <Step2_ManualMatch onNext={handleProceedToResult} mergeResult={mergeResult} manualMatches={manualMatches} onMatch={handleNewManualMatch} editMode={editMode} fileAHeaders={fileA?.headers} fileBHeaders={fileB?.headers} />;
             case 3: return <Step3_Result finalData={finalData} onDownload={handleDownload} editMode={editMode} fileBHeaders={fileB?.headers} />;
             default: return <ModeSelectionScreen onSelectMode={(mode) => { setEditMode(mode); setCurrentStep(1); }} />;
         }
@@ -711,4 +715,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
