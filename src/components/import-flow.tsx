@@ -193,7 +193,12 @@ export function ImportFlow() {
             return;
         }
 
-        if (result.changes && result.changes.length > 0) {
+        if (result.message && result.message.includes('No changes detected')) {
+             toast({
+                title: "Everything is Up-to-Date",
+                description: "No changes were detected between your data and the Google Sheet.",
+            });
+        } else if (result.changes && result.changes.length > 0) {
             setUpdatePreview(result.changes);
             setIsUpdateConfirmOpen(true);
         } else {
@@ -750,7 +755,7 @@ export function ImportFlow() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel onClick={() => setUpdatePreview([])}>Batal</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleConfirmUpdate} disabled={isUpdating || isPreviewing}>
+                          <AlertDialogAction onClick={handleConfirmUpdate} disabled={isUpdating || isPreviewing || updatePreview.length === 0}>
                             {isUpdating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Memperbarui...</> : "Ya, Lanjutkan Update"}
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -991,18 +996,3 @@ function PreviewTable({
         </Card>
     );
 }
-
-    
-
-    
-
-    
-
-    
-
-    
-
-
-    
-
-    
