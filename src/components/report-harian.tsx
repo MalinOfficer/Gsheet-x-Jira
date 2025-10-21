@@ -115,7 +115,7 @@ function DailyReportCard() {
           return caseDetail.trim();
         }
         
-        const reportText = `Case report ${todayDate} (update last entry time ${formattedLatestTime})
+        const reportText = `*Case report ${todayDate} (update last entry time ${formattedLatestTime})*
 
 Total cases: ${totalCases}
 Escalated L1: ${escalatedL1}
@@ -126,10 +126,10 @@ Solved: ${solved}
 Client Trend: ${trendingClient}
 Case Trend: ${trendingCase}
 
-Summary of unresolved case details:
+*Summary of unresolved case details:*
 ${notResolvedCases.map((item, i) => `${i + 1}. ${formatUnresolvedCase(item.clientName, item.title, item.status)}`).join('\n') || 'No unresolved cases.'}
 
-Solved cases:
+*Solved cases:*
 ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, item.title)}`).join('\n') || 'No solved cases yet.'}
 `;
         return reportText.trim();
