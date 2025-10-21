@@ -825,9 +825,9 @@ function PreviewTable({
             </CardHeader>
              <CardContent>
                 <div className="overflow-auto w-full h-[500px] border rounded-md">
-                    <table className="w-full table-fixed" style={{ minWidth: '1864px' }}>
-                        <thead className="sticky top-0 z-10">
-                            <tr className="border-b bg-muted transition-colors hover:bg-muted/50">
+                    <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                        <thead className="sticky top-0 z-10 bg-muted">
+                            <tr className="border-b transition-colors hover:bg-muted/50">
                                 <th
                                     className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r sticky left-0 bg-muted"
                                     style={{ width: '64px' }}
@@ -837,7 +837,7 @@ function PreviewTable({
                                 {localTableData.headers.map((header, index) => (
                                     <th 
                                       key={`header-${header}-${index}`}
-                                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r bg-muted"
+                                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r"
                                       style={{ width: header === 'Title' ? '384px' : '128px' }}
                                     >
                                         {(header === 'Created At' || header === 'Resolved At') ? (
@@ -901,9 +901,9 @@ function PreviewTable({
                                                     disabled={isProcessing}
                                                 />
                                             ) : (header === 'Created At' || header === 'Resolved At') ? (
-                                                <span className="truncate px-2">{formatDateTime(row[header], dateFormats[header] || 'report')}</span>
+                                                <span className="truncate block px-2">{formatDateTime(row[header], dateFormats[header] || 'report')}</span>
                                             ) : (
-                                                <span className="truncate px-2">{String(row[header] || '')}</span>
+                                                <span className="truncate block px-2">{String(row[header] || '')}</span>
                                             )}
                                         </td>
                                     ))}
