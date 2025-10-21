@@ -825,94 +825,92 @@ function PreviewTable({
             </CardHeader>
              <CardContent>
                 <div className="overflow-auto w-full h-[500px] border rounded-md">
-                    <div className="relative">
-                        <table className="table-fixed" style={{ minWidth: '1864px' }}>
-                            <thead>
-                                <tr className="border-b transition-colors hover:bg-muted/50">
-                                    <th
-                                        className="h-12 px-4 align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-b border-r sticky top-0 bg-muted z-10 flex items-center justify-center"
+                    <table className="w-full table-fixed" style={{ minWidth: '1864px' }}>
+                        <thead className="sticky top-0 z-10">
+                            <tr className="border-b bg-muted transition-colors hover:bg-muted/50">
+                                <th
+                                    className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r sticky left-0 bg-muted"
+                                    style={{ width: '64px' }}
+                                >
+                                    No
+                                </th>
+                                {localTableData.headers.map((header, index) => (
+                                    <th 
+                                      key={`header-${header}-${index}`}
+                                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r bg-muted"
+                                      style={{ width: header === 'Title' ? '384px' : '128px' }}
+                                    >
+                                        {(header === 'Created At' || header === 'Resolved At') ? (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="pl-0 text-xs text-left font-bold" disabled={isProcessing}>
+                                                        <span className="flex items-center gap-1">
+                                                            {header}
+                                                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                                                        </span>
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent>
+                                                    <DropdownMenuLabel>Date Format</DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuRadioGroup value={dateFormats[header] || 'report'} onValueChange={(value) => handleDateFormatChange(header, value)}>
+                                                        <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
+                                                        <DropdownMenuRadioItem value="jam">Time</DropdownMenuRadioItem>
+                                                        <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
+                                                    </DropdownMenuRadioGroup>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        ) : <span className="truncate">{header}</span>}
+                                    </th>
+                                ))}
+                             </tr>
+                        </thead>
+                         <tbody>
+                            {localTableData.rows.map((row, rowIndex) => (
+                                <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                    <td
+                                        className="align-middle p-1 border-r text-sm text-muted-foreground text-center sticky left-0 bg-background"
                                         style={{ width: '64px' }}
                                     >
-                                        No
-                                    </th>
-                                    {localTableData.headers.map((header, index) => (
-                                        <th 
-                                          key={`${header}-${index}`} 
-                                          className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-b border-r sticky top-0 bg-muted z-10"
-                                          style={{ width: header === 'Title' ? '384px' : '128px' }}
+                                        {rowIndex + 1}
+                                    </td>
+                                    {localTableData.headers.map((header, headerIndex) => (
+                                        <td 
+                                            key={`cell-${header}-${headerIndex}-${rowIndex}`}
+                                            className="align-middle p-1 border-r"
+                                            style={{ width: header === 'Title' ? '384px' : '128px' }}
                                         >
-                                            {(header === 'Created At' || header === 'Resolved At') ? (
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" className="pl-0 text-xs text-left font-bold" disabled={isProcessing}>
-                                                            <span className="flex items-center gap-1">
-                                                                {header}
-                                                                <Pencil className="h-3 w-3 text-muted-foreground" />
-                                                            </span>
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent>
-                                                        <DropdownMenuLabel>Date Format</DropdownMenuLabel>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuRadioGroup value={dateFormats[header] || 'report'} onValueChange={(value) => handleDateFormatChange(header, value)}>
-                                                            <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
-                                                            <DropdownMenuRadioItem value="jam">Time</DropdownMenuRadioItem>
-                                                            <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
-                                                        </DropdownMenuRadioGroup>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            ) : <span className="truncate">{header}</span>}
-                                        </th>
-                                    ))}
-                                 </tr>
-                            </thead>
-                             <tbody>
-                                {localTableData.rows.map((row, rowIndex) => (
-                                    <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                        <td
-                                            className="align-middle p-1 border-r text-sm text-muted-foreground flex items-center justify-center h-full"
-                                            style={{ width: '64px' }}
-                                        >
-                                            {rowIndex + 1}
+                                           {header === 'Status' ? (
+                                                <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(rowIndex, header, newStatus)} disabled={isProcessing}>
+                                                    <SelectTrigger className="w-full h-8 text-xs">
+                                                        <SelectValue placeholder="Select status" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="L1">L1</SelectItem>
+                                                        <SelectItem value="L2">L2</SelectItem>
+                                                        <SelectItem value="L3">L3</SelectItem>
+                                                        <SelectItem value="Solved">Solved</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : header === 'Ticket OP' ? (
+                                                <Input
+                                                    type="text"
+                                                    value={row[header] || ''}
+                                                    onChange={(e) => handleStatusChange(rowIndex, header, e.target.value)}
+                                                    className="w-full h-8 text-xs"
+                                                    disabled={isProcessing}
+                                                />
+                                            ) : (header === 'Created At' || header === 'Resolved At') ? (
+                                                <span className="truncate px-2">{formatDateTime(row[header], dateFormats[header] || 'report')}</span>
+                                            ) : (
+                                                <span className="truncate px-2">{String(row[header] || '')}</span>
+                                            )}
                                         </td>
-                                        {localTableData.headers.map((header, headerIndex) => (
-                                            <td 
-                                                key={`${header}-${headerIndex}-${rowIndex}`} 
-                                                className="align-middle p-1 border-r"
-                                                style={{ width: header === 'Title' ? '384px' : '128px' }}
-                                            >
-                                               {header === 'Status' ? (
-                                                    <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(rowIndex, header, newStatus)} disabled={isProcessing}>
-                                                        <SelectTrigger className="w-full h-8 text-xs">
-                                                            <SelectValue placeholder="Select status" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="L1">L1</SelectItem>
-                                                            <SelectItem value="L2">L2</SelectItem>
-                                                            <SelectItem value="L3">L3</SelectItem>
-                                                            <SelectItem value="Solved">Solved</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                ) : header === 'Ticket OP' ? (
-                                                    <Input
-                                                        type="text"
-                                                        value={row[header] || ''}
-                                                        onChange={(e) => handleStatusChange(rowIndex, header, e.target.value)}
-                                                        className="w-full h-8 text-xs"
-                                                        disabled={isProcessing}
-                                                    />
-                                                ) : (header === 'Created At' || header === 'Resolved At') ? (
-                                                    <span className="truncate px-2">{formatDateTime(row[header], dateFormats[header] || 'report')}</span>
-                                                ) : (
-                                                    <span className="truncate px-2">{String(row[header] || '')}</span>
-                                                )}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </CardContent>
             <CardFooter className="pt-4">
@@ -921,24 +919,3 @@ function PreviewTable({
         </Card>
     );
 }
-
-
-
-
-    
-
-    
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
