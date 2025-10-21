@@ -136,31 +136,32 @@ export async function getProjectFileContents() {
 }
 
 export async function syncQiscusToSheet(appCode: string, secretKey: string, sheetUrl: string) {
-    if (!appCode || !secretKey) {
-        return { error: 'Qiscus App Code and Secret Key are required.' };
+    if (!secretKey) {
+        return { error: 'Qiscus Secret Key are required.' };
     }
 
-    const webhookUrl = 'https://go-rest.pintro.id/api/webhook/tickets';
+    const webhookUrl = 'https://helpdesk.qiscus.io/api/v1/tickets';
 
     try {
         const response = await fetch(webhookUrl, {
-            method: 'GET', // Or 'POST' if the API expects that
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'QISCUS-SDK-APP-ID': appCode,
-                'QISCUS-SDK-SECRET': secretKey,
+                'Authorization': `Bearer ${secretKey}`
             },
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            // Try to parse as JSON, but fall back to raw text if it fails
             let errorDetail = errorText;
             try {
                 const errorJson = JSON.parse(errorText);
                 errorDetail = errorJson.message || JSON.stringify(errorJson);
             } catch (e) {
                 // Not a JSON response, use the raw text
+            }
+             if (response.status === 401) {
+                errorDetail = `401 Bad credentials. Please check your Secret Key/API Token.`;
             }
             throw new Error(`HTTP error! status: ${response.status}, message: ${errorDetail}`);
         }
@@ -359,14 +360,40 @@ const areDatesEffectivelyEqual = (dateStr1: string, dateStr2: string): boolean =
     if (dateStr1.trim() === dateStr2.trim()) return true;
 
     try {
-        const date1 = new Date(dateStr1);
-        const date2 = new Date(dateStr2);
-
-        if (isNaN(date1.getTime()) || isNaN(date2.getTime())) {
-            return false; // If either is invalid, they aren't equal
+        // Attempt to parse both dates. Google Sheets might use DD/MM/YYYY.
+        const parseDate = (str: string): Date | null => {
+            const trimmed = str.trim();
+            // Try ISO format first (from our app)
+            let d = new Date(trimmed);
+            if (!isNaN(d.getTime())) return d;
+            
+            // Try DD/MM/YYYY HH:mm format (from Google Sheets)
+            const parts = trimmed.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2}))?/);
+            if (parts) {
+                const day = parseInt(parts[1], 10);
+                const month = parseInt(parts[2], 10) - 1; // JS months are 0-indexed
+                const year = parseInt(parts[3], 10);
+                const hour = parseInt(parts[4] || '0', 10);
+                const minute = parseInt(parts[5] || '0', 10);
+                d = new Date(year, month, day, hour, minute);
+                if (!isNaN(d.getTime())) return d;
+            }
+            return null;
         }
-        // Compare based on the same point in time (e.g., ignoring milliseconds)
-        return Math.abs(date1.getTime() - date2.getTime()) < 1000;
+
+        const date1 = parseDate(dateStr1);
+        const date2 = parseDate(dateStr2);
+
+        if (!date1 || !date2) {
+             return false;
+        }
+
+        // Compare by ignoring seconds and milliseconds
+        date1.setSeconds(0, 0);
+        date2.setSeconds(0, 0);
+        
+        return date1.getTime() === date2.getTime();
+
     } catch (e) {
         return false;
     }
@@ -1141,6 +1168,8 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
 
+
+    
 
     
 
