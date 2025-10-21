@@ -10,6 +10,7 @@ import { ArrowLeft, Copy, Check, BarChart } from 'lucide-react';
 import { formatDateTime } from '@/lib/date-utils';
 import { TableDataContext, L3ReportData } from '@/store/table-data-context';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 function InitialState() {
   const router = useRouter();
@@ -178,15 +179,22 @@ function L3CaseReportCard() {
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
 
-    const reportText = useMemo(() => {
+    const reportTextForDisplay = useMemo(() => {
         if (!l3ReportData) return "Go to the Import Flow page and click 'Verify' to generate this report.";
         if (l3ReportData.error) return `Error: ${l3ReportData.error}`;
         return l3ReportData.report || "No L3 cases found.";
     }, [l3ReportData]);
 
+    const reportTextForCopy = useMemo(() => {
+        if (!l3ReportData?.report) return '';
+        // Strip HTML tags for plain text copy
+        return l3ReportData.report.replace(/<[^>]+>/g, '');
+    }, [l3ReportData]);
+
+
     const handleCopy = () => {
-        if (!l3ReportData || l3ReportData.error || !l3ReportData.report) return;
-        navigator.clipboard.writeText(l3ReportData.report).then(() => {
+        if (!reportTextForCopy) return;
+        navigator.clipboard.writeText(reportTextForCopy).then(() => {
             toast({ title: "Copied to clipboard!" });
             setIsCopied(true);
             setTimeout(() => setIsCopied(false), 2000);
@@ -210,11 +218,13 @@ function L3CaseReportCard() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-grow">
-                <Textarea
-                    readOnly
-                    value={reportText}
-                    className="h-96 text-xs font-mono bg-muted/20"
-                    placeholder="L3 report data will appear here..."
+                <div
+                    className={cn(
+                        "h-96 text-xs font-mono bg-muted/20 rounded-md border p-3 overflow-auto whitespace-pre-wrap",
+                        l3ReportData?.error && "text-destructive",
+                        !l3ReportData && "text-muted-foreground"
+                    )}
+                    dangerouslySetInnerHTML={{ __html: reportTextForDisplay.replace(/\n/g, '<br />') }}
                 />
             </CardContent>
         </Card>
