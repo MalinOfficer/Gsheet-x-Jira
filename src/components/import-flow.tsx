@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useTransition, useEffect, useContext, useCallback, useRef } from 'react';
@@ -808,7 +807,7 @@ function PreviewTable({
         if (lowerHeader.includes('client name')) return '160px';
         if (lowerHeader.includes('ticket number')) return '150px';
         if (lowerHeader.includes('ticket category')) return '150px';
-        if (lowerHeader.includes('kolom kosong')) return '60px';
+        if (lowerHeader.includes('kolom kosong')) return '100px';
         if (lowerHeader === 'status' || lowerHeader === 'ticket op') return '100px';
         return '128px';
     };
@@ -932,5 +931,7 @@ function PreviewTable({
         </Card>
     );
 }
+
+    
 
     
