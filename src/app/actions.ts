@@ -960,7 +960,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
         const sheets = getGoogleSheetsClient();
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'All Case!B:T', // DATE to Ticket OP
+            range: 'All Case!B:X', // DATE to new Jira URL column (W)
         });
 
         const rows = response.data.values;
@@ -970,12 +970,14 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
         const dataRows = rows.slice(1);
 
-        // Hardcoded indexes based on the provided range B:T
+        // Hardcoded indexes based on the provided range B:X
         const dateIndex = 0;         // DATE is in column B (index 0)
+        const clientNameIndex = 3;   // Client Name is in column E (index 3)
         const statusIndex = 5;       // STATUS CASE is in column G (index 5)
         const moduleIndex = 8;       // Modul is in column J (index 8)
         const titleIndex = 11;       // TITLE is in column M (index 11)
         const ticketOpIndex = 18;    // Ticket OP is in column T (index 18)
+        const jiraUrlIndex = 21;     // New Jira URL is in column W (index 21)
 
         const l3Cases = dataRows.filter(row => row[statusIndex] === 'L3');
 
@@ -989,7 +991,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
                     // Assuming DD/MM/YYYY
                     const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
                     if (!isNaN(caseDate.getTime())) {
-                        // Set time to 00:00:00 for both dates to get clean day difference
                         const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                         const caseDateAtMidnight = new Date(caseDate.getFullYear(), caseDate.getMonth(), caseDate.getDate());
                         
@@ -1009,9 +1010,12 @@ export async function fetchL3ReportData(sheetUrl: string) {
                 category = 'Akses Portal';
             }
 
+            const clientName = row[clientNameIndex] || '';
             const title = row[titleIndex] || '';
             const ticketOp = row[ticketOpIndex] || '';
-            const fullTitle = [title, ticketOp].filter(Boolean).join(' ');
+            const jiraUrl = row[jiraUrlIndex] || '';
+            
+            const fullTitle = [clientName, title, ticketOp, jiraUrl].filter(Boolean).join(' ');
 
             return {
                 category: category,
@@ -1063,7 +1067,8 @@ export async function fetchL3ReportData(sheetUrl: string) {
         Object.entries(groupedCases).forEach(([category, cases]) => {
             reportText += `${category.toUpperCase()} > L3\n`;
             cases.forEach((caseItem, index) => {
-                reportText += `${index + 1}. ${caseItem.title} (${caseItem.duration >= 0 ? `${caseItem.duration} hari` : 'N/A'})\n`;
+                const durationText = caseItem.duration >= 0 ? `(${caseItem.duration} hari)` : '';
+                reportText += `${index + 1}. ${caseItem.title} ${durationText}\n`;
             });
             reportText += '\n';
         });
