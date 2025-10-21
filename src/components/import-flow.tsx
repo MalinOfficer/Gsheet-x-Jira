@@ -801,6 +801,19 @@ function PreviewTable({
         onUndoDataChange(null);
     };
 
+    const getColumnWidth = (header: string) => {
+        const lowerHeader = header.toLowerCase();
+        if (lowerHeader === 'title') return '384px';
+        if (lowerHeader.includes('customer name')) return '180px';
+        if (lowerHeader.includes('client name')) return '160px';
+        if (lowerHeader.includes('ticket number')) return '150px';
+        if (lowerHeader.includes('ticket category')) return '150px';
+        if (lowerHeader.includes('kolom kosong')) return '60px';
+        if (lowerHeader === 'status' || lowerHeader === 'ticket op') return '100px';
+        return '128px';
+    };
+
+
     return (
          <Card className="shadow-lg mt-6">
             <CardHeader>
@@ -838,7 +851,7 @@ function PreviewTable({
                                     <th 
                                       key={`header-${header}-${index}`}
                                       className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r"
-                                      style={{ width: header === 'Title' ? '384px' : '128px' }}
+                                      style={{ width: getColumnWidth(header) }}
                                     >
                                         {(header === 'Created At' || header === 'Resolved At') ? (
                                             <DropdownMenu>
@@ -878,7 +891,7 @@ function PreviewTable({
                                         <td 
                                             key={`cell-${header}-${headerIndex}-${rowIndex}`}
                                             className="align-middle p-1 border-r"
-                                            style={{ width: header === 'Title' ? '384px' : '128px' }}
+                                            style={{ width: getColumnWidth(header) }}
                                         >
                                            {header === 'Status' ? (
                                                 <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(rowIndex, header, newStatus)} disabled={isProcessing}>
