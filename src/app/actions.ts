@@ -89,7 +89,7 @@ const projectFilesForAction = [
   "src/components/ui/progress.tsx",
   "src/components/ui/radio-group.tsx",
   "src/components/ui/scroll-area.tsx",
-  "srcsrc/components/ui/select.tsx",
+  "src/components/ui/select.tsx",
   "src/components/ui/separator.tsx",
   "src/components/ui/sheet.tsx",
   "src/components/ui/skeleton.tsx",
@@ -469,8 +469,7 @@ export async function updateSheetStatus(
                         const statusChanged = sheetRowInfo.currentStatus !== newStatus;
                         // Only trigger an update if the new Ticket OP from the app is not empty and different.
                         const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
-                        const isSolvedNow = newStatus === 'Solved';
-                        const checkoutWillChange = isSolvedNow && sheetRowInfo.currentCheckout !== newCheckout;
+                        const checkoutWillChange = newStatus === 'Solved' && sheetRowInfo.currentCheckout !== newCheckout;
                         
                         if (statusChanged || ticketOpChanged || checkoutWillChange) {
                             if (statusChanged) {
@@ -500,7 +499,7 @@ export async function updateSheetStatus(
                                 oldTicketOp: sheetRowInfo.currentTicketOp,
                                 newTicketOp: ticketOpChanged ? newTicketOp : sheetRowInfo.currentTicketOp,
                                 oldCheckout: sheetRowInfo.currentCheckout,
-                                newCheckout: isSolvedNow ? newCheckout : sheetRowInfo.currentCheckout
+                                newCheckout: newStatus === 'Solved' ? newCheckout : sheetRowInfo.currentCheckout
                             });
                         }
                     }
@@ -1115,3 +1114,6 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
 
+
+
+    
