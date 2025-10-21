@@ -352,58 +352,43 @@ async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: str
     return rowMap;
 }
 
-const areDatesEffectivelyEqual = (dateStr1: string, dateStr2: string): boolean => {
-    if (!dateStr1 && !dateStr2) return true;
-    if (!dateStr1 || !dateStr2) return false;
+const normalizeAndFormatDate = (dateStr: string): string | null => {
+    if (!dateStr || typeof dateStr !== 'string' || dateStr.trim() === '') {
+        return null;
+    }
+    const trimmed = dateStr.trim();
 
-    // Direct string comparison as a quick check
-    if (dateStr1.trim() === dateStr2.trim()) return true;
-
-    // Function to parse a date string into its components [YYYY, MM, DD, HH, mm]
-    const parseDateComponents = (str: string): number[] | null => {
-        const trimmed = str.trim();
-        
-        // Try ISO format (from our app) e.g., "2024-07-31T07:38:15.123Z"
-        const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-        if (isoMatch) {
-            const [_, year, month, day, hour, minute] = isoMatch;
-            return [parseInt(year, 10), parseInt(month, 10), parseInt(day, 10), parseInt(hour, 10), parseInt(minute, 10)];
+    // Try parsing various formats into a Date object
+    let dateObj: Date | null = null;
+    try {
+        // Try ISO format first (from our app) e.g., "2024-07-31T07:38:15.123Z"
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(trimmed)) {
+            dateObj = new Date(trimmed);
+        } else {
+            // Try DD/MM/YYYY HH:mm format (from Google Sheets)
+            const gsheetMatch = trimmed.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2})/);
+            if (gsheetMatch) {
+                const [_, day, month, year, hour, minute] = gsheetMatch;
+                dateObj = new Date(`${year}-${month}-${day}T${hour}:${minute}:00`);
+            }
         }
-        
-        // Try DD/MM/YYYY HH:mm format (from Google Sheets)
-        const gsheetMatch = trimmed.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2})/);
-        if (gsheetMatch) {
-            const [_, day, month, year, hour, minute] = gsheetMatch;
-            return [parseInt(year, 10), parseInt(month, 10), parseInt(day, 10), parseInt(hour, 10), parseInt(minute, 10)];
-        }
+    } catch (e) {
+        return null; // Invalid date string
+    }
 
+    if (!dateObj || isNaN(dateObj.getTime())) {
         return null;
     }
 
-    try {
-        const components1 = parseDateComponents(dateStr1);
-        const components2 = parseDateComponents(dateStr2);
+    // Format to a consistent YYYY-MM-DD HH:mm string
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const hour = String(dateObj.getHours()).padStart(2, '0');
+    const minute = String(dateObj.getMinutes()).padStart(2, '0');
 
-        if (!components1 || !components2) {
-             // If parsing fails for either, fall back to simple string comparison.
-             return dateStr1.trim() === dateStr2.trim();
-        }
-
-        // Compare all components: [YYYY, MM, DD, HH, mm]
-        for (let i = 0; i < 5; i++) {
-            if (components1[i] !== components2[i]) {
-                return false;
-            }
-        }
-
-        return true; // All components match
-
-    } catch (e) {
-        // In case of any error, it's safer to assume they are not equal.
-        return false;
-    }
+    return `${year}-${month}-${day} ${hour}:${minute}`;
 };
-
 
 export async function getUpdatePreview(
     data: { rows: Record<string, any>[] },
@@ -437,7 +422,7 @@ export async function getUpdatePreview(
             const detailCase = appRow['Title'];
             const newStatus = appRow['Status'];
             const newTicketOp = appRow['Ticket OP'] || '';
-            const newCheckout = appRow['Resolved At'] || '';
+            const newCheckoutRaw = appRow['Resolved At'] || '';
 
             if (typeof detailCase === 'string') {
                 const match = detailCase.match(ticketNumberRegex);
@@ -449,7 +434,10 @@ export async function getUpdatePreview(
                         const statusChanged = sheetRowInfo.currentStatus !== newStatus;
                         // Only consider it a change if the new Ticket OP is not empty
                         const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
-                        const checkoutChanged = newStatus === 'Solved' && !areDatesEffectivelyEqual(sheetRowInfo.currentCheckout, newCheckout);
+                        
+                        const formattedSheetCheckout = normalizeAndFormatDate(sheetRowInfo.currentCheckout);
+                        const formattedNewCheckout = normalizeAndFormatDate(newCheckoutRaw);
+                        const checkoutChanged = newStatus === 'Solved' && formattedSheetCheckout !== formattedNewCheckout;
 
                         if (statusChanged || ticketOpChanged || checkoutChanged) {
                              changesToPreview.push({
@@ -459,7 +447,7 @@ export async function getUpdatePreview(
                                 oldTicketOp: sheetRowInfo.currentTicketOp,
                                 newTicketOp: ticketOpChanged ? newTicketOp : sheetRowInfo.currentTicketOp,
                                 oldCheckout: sheetRowInfo.currentCheckout,
-                                newCheckout: newStatus === 'Solved' ? newCheckout : sheetRowInfo.currentCheckout,
+                                newCheckout: newStatus === 'Solved' ? newCheckoutRaw : sheetRowInfo.currentCheckout,
                             });
                         }
                     }
@@ -515,7 +503,7 @@ export async function updateSheetStatus(
             const detailCase = appRow['Title'];
             const newStatus = appRow['Status'];
             const newTicketOp = appRow['Ticket OP'] || '';
-            const newCheckout = appRow['Resolved At'] || '';
+            const newCheckoutRaw = appRow['Resolved At'] || '';
 
             if (typeof detailCase === 'string') {
                 const match = detailCase.match(ticketNumberRegex);
@@ -527,7 +515,10 @@ export async function updateSheetStatus(
                         const statusChanged = sheetRowInfo.currentStatus !== newStatus;
                         // Only trigger an update if the new Ticket OP from the app is not empty and different.
                         const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
-                        const checkoutWillChange = newStatus === 'Solved' && !areDatesEffectivelyEqual(sheetRowInfo.currentCheckout, newCheckout);
+
+                        const formattedSheetCheckout = normalizeAndFormatDate(sheetRowInfo.currentCheckout);
+                        const formattedNewCheckout = normalizeAndFormatDate(newCheckoutRaw);
+                        const checkoutWillChange = newStatus === 'Solved' && formattedSheetCheckout !== formattedNewCheckout;
                         
                         if (statusChanged || ticketOpChanged || checkoutWillChange) {
                             if (statusChanged) {
@@ -545,7 +536,7 @@ export async function updateSheetStatus(
                              if (checkoutWillChange) { // Only update checkout if it's changing
                                 updateRequests.push({
                                     range: `${sheetName}!O${sheetRowInfo.rowIndex}`,
-                                    values: [[newCheckout]],
+                                    values: [[newCheckoutRaw]],
                                 });
                             }
 
@@ -557,7 +548,7 @@ export async function updateSheetStatus(
                                 oldTicketOp: sheetRowInfo.currentTicketOp,
                                 newTicketOp: ticketOpChanged ? newTicketOp : sheetRowInfo.currentTicketOp,
                                 oldCheckout: sheetRowInfo.currentCheckout,
-                                newCheckout: newStatus === 'Solved' ? newCheckout : sheetRowInfo.currentCheckout
+                                newCheckout: newStatus === 'Solved' ? newCheckoutRaw : sheetRowInfo.currentCheckout
                             });
                         }
                     }
