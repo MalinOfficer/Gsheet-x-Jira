@@ -5,7 +5,7 @@ import { useState, useTransition, useEffect, useContext, useCallback, useRef, Mo
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart } from 'lucide-react';
+import { Loader2, Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart, FileCog } from 'lucide-react';
 import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction, fetchL3ReportData } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
@@ -899,10 +899,10 @@ function PreviewTable({
              <CardContent>
                 <div className="overflow-auto w-full h-[500px] border rounded-md">
                     <table className="w-full" style={{ tableLayout: 'fixed', width: `${Object.values(columnWidths).reduce((a, b) => a + b, 64)}px` }}>
-                        <thead className="sticky top-0 z-10 bg-muted">
+                        <thead className="sticky top-0 z-20 bg-muted">
                             <tr className="border-b transition-colors hover:bg-muted/50">
                                 <th
-                                    className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r sticky left-0 bg-muted"
+                                    className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r sticky left-0 bg-muted z-10"
                                     style={{ width: '64px', minWidth: '64px' }}
                                 >
                                     No
@@ -946,7 +946,7 @@ function PreviewTable({
                             {localTableData.rows.map((row, rowIndex) => (
                                 <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                                     <td
-                                        className="align-middle p-1 border-r text-sm text-muted-foreground text-center sticky left-0 bg-background"
+                                        className="align-middle p-1 border-r text-sm text-muted-foreground text-center sticky left-0 bg-background z-10"
                                         style={{ width: '64px', minWidth: '64px' }}
                                     >
                                         {rowIndex + 1}
