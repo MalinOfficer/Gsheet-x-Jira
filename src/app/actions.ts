@@ -1058,14 +1058,14 @@ export async function fetchL3ReportData(sheetUrl: string) {
             return `${day}/${month}/${year}`;
         }
 
-        let reportText = `<strong>Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})</strong>\n\n`;
+        let reportText = `*Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})*\n\n`;
         reportText += `Total : ${l3Cases.length}\n`;
         
         const categoryCounts = Object.entries(groupedCases).map(([category, cases]) => `${category} > L3 : ${cases.length}`).join('\n');
         reportText += `${categoryCounts}\n\n`;
 
         Object.entries(groupedCases).forEach(([category, cases]) => {
-            reportText += `<strong>${category.toUpperCase()} > L3</strong>\n`;
+            reportText += `*${category.toUpperCase()} > L3*\n`;
             cases.forEach((caseItem, index) => {
                 const durationText = caseItem.duration >= 0 ? `(${caseItem.duration} hari)` : '';
                 reportText += `${index + 1}. ${caseItem.title} ${durationText}\n`;

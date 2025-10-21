@@ -182,13 +182,16 @@ function L3CaseReportCard() {
     const reportTextForDisplay = useMemo(() => {
         if (!l3ReportData) return "Go to the Import Flow page and click 'Verify' to generate this report.";
         if (l3ReportData.error) return `Error: ${l3ReportData.error}`;
-        return l3ReportData.report || "No L3 cases found.";
+        if (!l3ReportData.report) return "No L3 cases found.";
+
+        // Replace markdown-style bold with HTML bold for display
+        return l3ReportData.report.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
     }, [l3ReportData]);
 
     const reportTextForCopy = useMemo(() => {
         if (!l3ReportData?.report) return '';
-        // Strip HTML tags for plain text copy
-        return l3ReportData.report.replace(/<[^>]+>/g, '');
+        // The report is already formatted for WhatsApp, so just use it as is.
+        return l3ReportData.report;
     }, [l3ReportData]);
 
 
