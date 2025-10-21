@@ -388,6 +388,13 @@ export function ImportFlow() {
       });
       return res;
   };
+    
+    const toTitleCase = (str: string) => {
+        return str.replace(
+            /\w\S*/g,
+            (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase()
+        );
+    };
 
   const handleConvert = () => {
     startConverting(() => {
@@ -409,7 +416,7 @@ export function ImportFlow() {
             }
 
             const flattenedData = data.map((item: any) => flattenJson(item));
-            const headers = templateInput.split(',').map(h => h.trim());
+            const headers = templateInput.split(',').map(h => toTitleCase(h.trim()));
             
             let processedRows = flattenedData.map(flatRow => {
                 const newRow: Record<string, any> = {};
@@ -841,7 +848,7 @@ function PreviewTable({
                         <thead className="sticky top-0 z-10 bg-muted">
                             <tr className="border-b transition-colors hover:bg-muted/50">
                                 <th
-                                    className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r sticky left-0 bg-muted"
+                                    className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r sticky left-0 bg-muted"
                                     style={{ width: '64px' }}
                                 >
                                     No
@@ -849,16 +856,16 @@ function PreviewTable({
                                 {localTableData.headers.map((header, index) => (
                                     <th 
                                       key={`header-${header}-${index}`}
-                                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r"
+                                      className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r"
                                       style={{ width: getColumnWidth(header) }}
                                     >
                                         {(header === 'Created At' || header === 'Resolved At') ? (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="pl-0 text-xs text-left font-bold" disabled={isProcessing}>
-                                                        <span className="flex items-center gap-1">
+                                                    <Button variant="ghost" className="p-0 h-auto text-sm font-medium text-muted-foreground" disabled={isProcessing}>
+                                                        <span className="flex items-center justify-center gap-1 w-full">
                                                             {header}
-                                                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                                                            <Pencil className="h-3 w-3" />
                                                         </span>
                                                     </Button>
                                                 </DropdownMenuTrigger>
@@ -872,7 +879,7 @@ function PreviewTable({
                                                     </DropdownMenuRadioGroup>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
-                                        ) : <span className="truncate">{header}</span>}
+                                        ) : <span className="truncate block w-full">{header}</span>}
                                     </th>
                                 ))}
                              </tr>
@@ -904,7 +911,7 @@ function PreviewTable({
                                                         <SelectItem value="Solved">Solved</SelectItem>
                                                     </SelectContent>
                                                 </Select>
-                                            ) : header === 'Ticket OP' ? (
+                                            ) : header === 'Ticket Op' ? (
                                                 <Input
                                                     type="text"
                                                     value={row[header] || ''}
@@ -931,6 +938,8 @@ function PreviewTable({
         </Card>
     );
 }
+
+    
 
     
 
