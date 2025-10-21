@@ -359,42 +359,47 @@ const areDatesEffectivelyEqual = (dateStr1: string, dateStr2: string): boolean =
     // Direct string comparison as a quick check
     if (dateStr1.trim() === dateStr2.trim()) return true;
 
-    try {
-        // Attempt to parse both dates. Google Sheets might use DD/MM/YYYY.
-        const parseDate = (str: string): Date | null => {
-            const trimmed = str.trim();
-            // Try ISO format first (from our app)
-            let d = new Date(trimmed);
-            if (!isNaN(d.getTime())) return d;
-            
-            // Try DD/MM/YYYY HH:mm format (from Google Sheets)
-            const parts = trimmed.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2}))?/);
-            if (parts) {
-                const day = parseInt(parts[1], 10);
-                const month = parseInt(parts[2], 10) - 1; // JS months are 0-indexed
-                const year = parseInt(parts[3], 10);
-                const hour = parseInt(parts[4] || '0', 10);
-                const minute = parseInt(parts[5] || '0', 10);
-                d = new Date(year, month, day, hour, minute);
-                if (!isNaN(d.getTime())) return d;
-            }
-            return null;
-        }
-
-        const date1 = parseDate(dateStr1);
-        const date2 = parseDate(dateStr2);
-
-        if (!date1 || !date2) {
-             return false;
-        }
-
-        // Compare by ignoring seconds and milliseconds
-        date1.setSeconds(0, 0);
-        date2.setSeconds(0, 0);
+    // Function to parse a date string into its components [YYYY, MM, DD, HH, mm]
+    const parseDateComponents = (str: string): number[] | null => {
+        const trimmed = str.trim();
         
-        return date1.getTime() === date2.getTime();
+        // Try ISO format (from our app) e.g., "2024-07-31T07:38:15.123Z"
+        const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+        if (isoMatch) {
+            const [_, year, month, day, hour, minute] = isoMatch;
+            return [parseInt(year, 10), parseInt(month, 10), parseInt(day, 10), parseInt(hour, 10), parseInt(minute, 10)];
+        }
+        
+        // Try DD/MM/YYYY HH:mm format (from Google Sheets)
+        const gsheetMatch = trimmed.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2})/);
+        if (gsheetMatch) {
+            const [_, day, month, year, hour, minute] = gsheetMatch;
+            return [parseInt(year, 10), parseInt(month, 10), parseInt(day, 10), parseInt(hour, 10), parseInt(minute, 10)];
+        }
+
+        return null;
+    }
+
+    try {
+        const components1 = parseDateComponents(dateStr1);
+        const components2 = parseDateComponents(dateStr2);
+
+        if (!components1 || !components2) {
+             // If parsing fails for either, fall back to simple string comparison.
+             return dateStr1.trim() === dateStr2.trim();
+        }
+
+        // Compare all components: [YYYY, MM, DD, HH, mm]
+        for (let i = 0; i < 5; i++) {
+            if (components1[i] !== components2[i]) {
+                return false;
+            }
+        }
+
+        return true; // All components match
 
     } catch (e) {
+        // In case of any error, it's safer to assume they are not equal.
         return false;
     }
 };
