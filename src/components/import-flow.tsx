@@ -807,7 +807,7 @@ function PreviewTable({
         if (lowerHeader.includes('client name')) return '160px';
         if (lowerHeader.includes('ticket number')) return '150px';
         if (lowerHeader.includes('ticket category')) return '150px';
-        if (lowerHeader.includes('kolom kosong')) return '128px';
+        if (lowerHeader.includes('kolom kosong')) return '150px';
         if (lowerHeader === 'status' || lowerHeader === 'ticket op') return '100px';
         return '128px';
     };
@@ -931,6 +931,8 @@ function PreviewTable({
         </Card>
     );
 }
+
+    
 
     
 
