@@ -955,99 +955,107 @@ export async function fetchL3ReportData(sheetUrl: string) {
         return { error: 'Invalid Google Sheets URL format.' };
     }
     const spreadsheetId = match[1];
+    const sheetName = 'All Case';
 
     try {
         const sheets = getGoogleSheetsClient();
-        const response = await sheets.spreadsheets.values.get({
+        
+        // Optimization: Get the last row of the sheet to define a more targeted range
+        const sheetMetadata = await sheets.spreadsheets.get({
             spreadsheetId,
-            range: 'All Case!B:X', // DATE to new Jira URL column (W)
+            fields: 'sheets(properties(gridProperties(rowCount)))'
+        });
+        const mainSheetProps = sheetMetadata.data.sheets?.find(s => s.properties?.title === sheetName);
+        const lastRow = mainSheetProps?.properties?.gridProperties?.rowCount || 1000; // fallback to 1000
+        
+        // Define a reasonable range to check from the bottom, e.g., last 1000 rows
+        const searchRangeStart = Math.max(2, lastRow - 1000);
+        
+        // 1. First pass: Get only the STATUS column to find L3 rows
+        const statusResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: `${sheetName}!G${searchRangeStart}:G${lastRow}`,
         });
 
-        const rows = response.data.values;
-        if (!rows || rows.length < 2) {
-            return { error: 'No data found in the sheet.' };
+        const statusRows = statusResponse.data.values;
+        if (!statusRows || statusRows.length === 0) {
+            return { error: 'No data found in the specified range.' };
         }
 
-        const dataRows = rows.slice(1);
+        const l3RowNumbers: number[] = [];
+        statusRows.forEach((row, index) => {
+            if (row[0] === 'L3') {
+                l3RowNumbers.push(searchRangeStart + index);
+            }
+        });
 
-        // Hardcoded indexes based on the provided range B:X
-        const dateIndex = 0;         // DATE is in column B (index 0)
-        const clientNameIndex = 3;   // Client Name is in column E (index 3)
-        const statusIndex = 5;       // STATUS CASE is in column G (index 5)
-        const moduleIndex = 8;       // Modul is in column J (index 8)
-        const titleIndex = 11;       // TITLE is in column M (index 11)
-        const ticketOpIndex = 18;    // Ticket OP is in column T (index 18)
-        const jiraUrlIndex = 21;     // New Jira URL is in column W (index 21)
+        if (l3RowNumbers.length === 0) {
+            return { success: true, report: `*Update cases yang belum solved L3 on hold*\n\nTotal : 0` };
+        }
+        
+        // 2. Second pass: Get the full data only for the identified L3 rows
+        const l3DataRanges = l3RowNumbers.map(rowNum => `${sheetName}!B${rowNum}:W${rowNum}`);
+        const fullDataResponse = await sheets.spreadsheets.values.batchGet({
+            spreadsheetId,
+            ranges: l3DataRanges,
+        });
 
-        const l3Cases = dataRows.filter(row => row[statusIndex] === 'L3');
+        const l3Rows = fullDataResponse.data.valueRanges?.map(vr => vr.values?.[0] || []) || [];
 
-        const l3CasesWithDuration = l3Cases.map(row => {
+        const l3CasesWithDuration = l3Rows.map(row => {
             const today = new Date();
-            const dateStr = row[dateIndex];
-            let duration = -1; // Default/error value
+            // Indexes are now relative to the range B:W (0 to 21)
+            const dateStr = row[0]; // B
+            let duration = -1;
             if (dateStr) {
                 const parts = dateStr.split('/');
                 if (parts.length === 3) {
-                    // Assuming DD/MM/YYYY
-                    const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                    const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`); // DD/MM/YYYY
                     if (!isNaN(caseDate.getTime())) {
-                        const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                        const caseDateAtMidnight = new Date(caseDate.getFullYear(), caseDate.getMonth(), caseDate.getDate());
-                        
-                        const diffTime = Math.abs(todayAtMidnight.getTime() - caseDateAtMidnight.getTime());
-                        duration = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                         const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                         const caseDateAtMidnight = new Date(caseDate.getFullYear(), caseDate.getMonth(), caseDate.getDate());
+                         const diffTime = Math.abs(todayAtMidnight.getTime() - caseDateAtMidnight.getTime());
+                         duration = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                     }
                 }
             }
-            
-            const moduleValue = row[moduleIndex] || '';
-            let category = 'Akademik'; // Default category
-            if (moduleValue === 'Payment' || moduleValue === 'Pintro Pay') {
-                category = 'Payment';
-            } else if (moduleValue === 'Aplikasi/Mobile') {
-                category = 'Aplikasi/Mobile';
-            } else if (moduleValue === 'Akses Portal') {
-                category = 'Akses Portal';
-            }
 
-            const clientName = row[clientNameIndex] || '';
-            const title = row[titleIndex] || '';
-            const ticketOp = row[ticketOpIndex] || '';
-            const jiraUrl = row[jiraUrlIndex] || '';
+            const clientName = row[3] || '';  // E
+            const moduleValue = row[8] || ''; // J
+            const title = row[11] || '';      // M
+            const ticketOp = row[18] || '';   // T
+            const jiraUrl = row[21] || '';    // W
+
+            let category = 'Akademik';
+            if (['Payment', 'Pintro Pay'].includes(moduleValue)) category = 'Payment';
+            else if (moduleValue === 'Aplikasi/Mobile') category = 'Aplikasi/Mobile';
+            else if (moduleValue === 'Akses Portal') category = 'Akses Portal';
             
             const fullTitle = [clientName, title, ticketOp, jiraUrl].filter(Boolean).join(' ');
 
-            return {
-                category: category,
-                title: fullTitle,
-                duration: duration,
-            };
+            return { category, title: fullTitle, duration, date: dateStr };
         });
 
         const groupedCases: Record<string, typeof l3CasesWithDuration> = {};
         l3CasesWithDuration.forEach(caseItem => {
-            if (!groupedCases[caseItem.category]) {
-                groupedCases[caseItem.category] = [];
-            }
+            if (!groupedCases[caseItem.category]) groupedCases[caseItem.category] = [];
             groupedCases[caseItem.category].push(caseItem);
         });
 
-        const minDate = l3Cases.reduce((min, row) => {
-             const dateStr = row[dateIndex];
-             if (!dateStr) return min;
-             const parts = dateStr.split('/');
-             if (parts.length !== 3) return min;
-             const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-             return !min || caseDate < min ? caseDate : min;
+        const minDate = l3CasesWithDuration.reduce((min, item) => {
+            if (!item.date) return min;
+            const parts = item.date.split('/');
+            if (parts.length !== 3) return min;
+            const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            return !min || caseDate < min ? caseDate : min;
         }, null as Date | null);
 
-        const maxDate = l3Cases.reduce((max, row) => {
-            const dateStr = row[dateIndex];
-             if (!dateStr) return max;
-             const parts = dateStr.split('/');
-             if (parts.length !== 3) return max;
-             const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-             return !max || caseDate > max ? caseDate : max;
+        const maxDate = l3CasesWithDuration.reduce((max, item) => {
+            if (!item.date) return max;
+            const parts = item.date.split('/');
+            if (parts.length !== 3) return max;
+            const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            return !max || caseDate > max ? caseDate : max;
         }, null as Date | null);
 
         const formatDate = (date: Date | null) => {
@@ -1059,7 +1067,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
         }
 
         let reportText = `*Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})*\n\n`;
-        reportText += `Total : ${l3Cases.length}\n`;
+        reportText += `Total : ${l3Rows.length}\n`;
         
         const categoryCounts = Object.entries(groupedCases).map(([category, cases]) => `${category} > L3 : ${cases.length}`).join('\n');
         reportText += `${categoryCounts}\n\n`;
@@ -1114,3 +1122,4 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
