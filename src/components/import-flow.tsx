@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useTransition, useEffect, useContext, useCallback, useRef } from 'react';
+import { useState, useTransition, useEffect, useContext, useCallback, useRef, MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -28,6 +28,7 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
+import { cn } from '@/lib/utils';
 
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
@@ -792,9 +793,60 @@ function PreviewTable({
     const { setTableData } = useContext(TableDataContext);
     const [localTableData, setLocalTableData] = useState<TableData>(initialData);
 
+    const initialColumnWidths = useCallback(() => {
+        const widths: Record<string, number> = {};
+        initialData.headers.forEach(header => {
+            const lowerHeader = header.toLowerCase();
+            if (lowerHeader === 'title') widths[header] = 384;
+            else if (lowerHeader.includes('customer name')) widths[header] = 180;
+            else if (lowerHeader.includes('client name')) widths[header] = 160;
+            else if (lowerHeader.includes('ticket number')) widths[header] = 150;
+            else if (lowerHeader.includes('ticket category')) widths[header] = 150;
+            else if (lowerHeader.includes('kolom kosong')) widths[header] = 150;
+            else if (lowerHeader === 'status' || lowerHeader === 'ticket op') widths[header] = 100;
+            else widths[header] = 128;
+        });
+        return widths;
+    }, [initialData.headers]);
+
+    const [columnWidths, setColumnWidths] = useState<Record<string, number>>(initialColumnWidths);
+
+    const isResizing = useRef<string | null>(null);
+    const startX = useRef(0);
+    const startWidth = useRef(0);
+    
     useEffect(() => {
         setLocalTableData(initialData);
-    }, [initialData]);
+        setColumnWidths(initialColumnWidths());
+    }, [initialData, initialColumnWidths]);
+
+
+    const handleResizeMouseDown = (header: string, e: MouseEvent) => {
+        isResizing.current = header;
+        startX.current = e.clientX;
+        startWidth.current = columnWidths[header];
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        window.addEventListener('mousemove', handleResizeMouseMove);
+        window.addEventListener('mouseup', handleResizeMouseUp);
+    };
+
+    const handleResizeMouseMove = useCallback((e: globalThis.MouseEvent) => {
+        if (!isResizing.current) return;
+        const currentWidth = startWidth.current + e.clientX - startX.current;
+        setColumnWidths(prev => ({
+            ...prev,
+            [isResizing.current as string]: Math.max(40, currentWidth) // Minimum width 40px
+        }));
+    }, []);
+
+    const handleResizeMouseUp = useCallback(() => {
+        isResizing.current = null;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        window.removeEventListener('mousemove', handleResizeMouseMove);
+        window.removeEventListener('mouseup', handleResizeMouseUp);
+    }, [handleResizeMouseMove]);
 
     const handleStatusChange = (rowIndex: number, header: string, value: string) => {
         const newRows = [...localTableData.rows];
@@ -802,23 +854,9 @@ function PreviewTable({
         const newTableData = { ...localTableData, rows: newRows };
         
         setLocalTableData(newTableData);
-        // This is the key change: update the global state as well so export functions have the latest data
         setTableData(newTableData);
         onUndoDataChange(null);
     };
-
-    const getColumnWidth = (header: string) => {
-        const lowerHeader = header.toLowerCase();
-        if (lowerHeader === 'title') return '384px';
-        if (lowerHeader.includes('customer name')) return '180px';
-        if (lowerHeader.includes('client name')) return '160px';
-        if (lowerHeader.includes('ticket number')) return '150px';
-        if (lowerHeader.includes('ticket category')) return '150px';
-        if (lowerHeader.includes('kolom kosong')) return '150px';
-        if (lowerHeader === 'status' || lowerHeader === 'ticket op') return '100px';
-        return '128px';
-    };
-
 
     return (
          <Card className="shadow-lg mt-6">
@@ -844,25 +882,25 @@ function PreviewTable({
             </CardHeader>
              <CardContent>
                 <div className="overflow-auto w-full h-[500px] border rounded-md">
-                    <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                    <table className="w-full" style={{ tableLayout: 'fixed', width: `${Object.values(columnWidths).reduce((a, b) => a + b, 64)}px` }}>
                         <thead className="sticky top-0 z-10 bg-muted">
                             <tr className="border-b transition-colors hover:bg-muted/50">
                                 <th
                                     className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r sticky left-0 bg-muted"
-                                    style={{ width: '64px' }}
+                                    style={{ width: '64px', minWidth: '64px' }}
                                 >
                                     No
                                 </th>
                                 {localTableData.headers.map((header, index) => (
                                     <th 
                                       key={`header-${header}-${index}`}
-                                      className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r"
-                                      style={{ width: getColumnWidth(header) }}
+                                      className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r relative"
+                                      style={{ width: columnWidths[header] || 128, minWidth: columnWidths[header] || 128 }}
                                     >
                                         {(header === 'Created At' || header === 'Resolved At') ? (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="p-0 h-auto text-sm font-medium text-muted-foreground" disabled={isProcessing}>
+                                                    <Button variant="ghost" className="p-0 h-auto text-sm font-medium text-muted-foreground hover:bg-transparent" disabled={isProcessing}>
                                                         <span className="flex items-center justify-center gap-1 w-full">
                                                             {header}
                                                             <Pencil className="h-3 w-3" />
@@ -880,6 +918,10 @@ function PreviewTable({
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         ) : <span className="truncate block w-full">{header}</span>}
+                                        <div
+                                            onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
+                                            className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
+                                        />
                                     </th>
                                 ))}
                              </tr>
@@ -889,7 +931,7 @@ function PreviewTable({
                                 <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                                     <td
                                         className="align-middle p-1 border-r text-sm text-muted-foreground text-center sticky left-0 bg-background"
-                                        style={{ width: '64px' }}
+                                        style={{ width: '64px', minWidth: '64px' }}
                                     >
                                         {rowIndex + 1}
                                     </td>
@@ -897,7 +939,7 @@ function PreviewTable({
                                         <td 
                                             key={`cell-${header}-${headerIndex}-${rowIndex}`}
                                             className="align-middle p-1 border-r"
-                                            style={{ width: getColumnWidth(header) }}
+                                            style={{ width: columnWidths[header] || 128, minWidth: columnWidths[header] || 128 }}
                                         >
                                            {header === 'Status' ? (
                                                 <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(rowIndex, header, newStatus)} disabled={isProcessing}>
