@@ -89,7 +89,7 @@ const projectFilesForAction = [
   "src/components/ui/progress.tsx",
   "src/components/ui/radio-group.tsx",
   "src/components/ui/scroll-area.tsx",
-  "src/components/ui/select.tsx",
+  "srcsrc/components/ui/select.tsx",
   "src/components/ui/separator.tsx",
   "src/components/ui/sheet.tsx",
   "src/components/ui/skeleton.tsx",
@@ -960,32 +960,23 @@ export async function fetchL3ReportData(sheetUrl: string) {
     try {
         const sheets = getGoogleSheetsClient();
         
-        // Optimization: Get the last row of the sheet to define a more targeted range
-        const sheetMetadata = await sheets.spreadsheets.get({
-            spreadsheetId,
-            fields: 'sheets(properties(gridProperties(rowCount)))'
-        });
-        const mainSheetProps = sheetMetadata.data.sheets?.find(s => s.properties?.title === sheetName);
-        const lastRow = mainSheetProps?.properties?.gridProperties?.rowCount || 1000; // fallback to 1000
-        
-        // Define a reasonable range to check from the bottom, e.g., last 1000 rows
-        const searchRangeStart = Math.max(2, lastRow - 1000);
-        
-        // 1. First pass: Get only the STATUS column to find L3 rows
+        // 1. First pass: Get only the STATUS column (G) from the second row downwards
         const statusResponse = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: `${sheetName}!G${searchRangeStart}:G${lastRow}`,
+            range: `${sheetName}!G2:G`,
         });
 
         const statusRows = statusResponse.data.values;
         if (!statusRows || statusRows.length === 0) {
-            return { error: 'No data found in the specified range.' };
+            return { error: 'No data found in the status column.' };
         }
 
         const l3RowNumbers: number[] = [];
         statusRows.forEach((row, index) => {
+            // Check if the first cell of the row is 'L3'
             if (row[0] === 'L3') {
-                l3RowNumbers.push(searchRangeStart + index);
+                // Add 2 to the index because our range starts from G2 and indices are 0-based
+                l3RowNumbers.push(index + 2);
             }
         });
 
@@ -1069,7 +1060,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
         let reportText = `*Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})*\n\n`;
         reportText += `Total : ${l3Rows.length}\n`;
         
-        const categoryCounts = Object.entries(groupedCases).map(([category, cases]) => `${category} > L3 : ${cases.length}`).join('\n');
+        const categoryCounts = Object.entries(groupedCases).map(([category, cases]) => `*${category} > L3* : ${cases.length}`).join('\n');
         reportText += `${categoryCounts}\n\n`;
 
         Object.entries(groupedCases).forEach(([category, cases]) => {
@@ -1122,4 +1113,5 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+
 
