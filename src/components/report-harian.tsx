@@ -43,7 +43,7 @@ function DailyReportCard() {
         setTodayDate(`${day}/${month}/${year}`);
     }, []);
 
-    const reportStats = useMemo(() => {
+    const reportTextForCopy = useMemo(() => {
         if (!tableData?.rows) return null;
 
         const rows = tableData.rows;
@@ -135,9 +135,16 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
         return reportText.trim();
     }, [tableData, todayDate]);
 
+    const reportTextForDisplay = useMemo(() => {
+        if (!reportTextForCopy) return '';
+        // Convert markdown-style bold to HTML strong tags for display
+        return reportTextForCopy.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
+    }, [reportTextForCopy]);
+
+
     const handleCopy = () => {
-        if (!reportStats) return;
-        navigator.clipboard.writeText(reportStats).then(() => {
+        if (!reportTextForCopy) return;
+        navigator.clipboard.writeText(reportTextForCopy).then(() => {
             toast({ title: "Copied to clipboard!" });
             setIsCopied(true);
             setTimeout(() => setIsCopied(false), 2000);
@@ -146,7 +153,7 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
         });
     };
 
-    if (!reportStats) return null;
+    if (!reportTextForCopy) return null;
 
     return (
         <Card className="shadow-lg flex flex-col">
@@ -163,10 +170,9 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-grow">
-                <Textarea
-                    readOnly
-                    value={reportStats}
-                    className="h-96 text-xs font-mono bg-muted/20"
+                 <div
+                    className="h-96 text-xs font-mono bg-muted/20 rounded-md border p-3 overflow-auto whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{ __html: reportTextForDisplay.replace(/\n/g, '<br />') }}
                 />
             </CardContent>
             <CardFooter />
