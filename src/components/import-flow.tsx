@@ -721,25 +721,34 @@ export function ImportFlow() {
                         <AlertDialogHeader>
                            <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
                            <div className="text-sm text-muted-foreground">
-                                <p className='mb-2'>Apakah Anda yakin ingin memperbarui {updatePreview.length} kasus di sheet target?</p>
-                                <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
-                                    <p className="font-bold">Detail Perubahan:</p>
-                                    <ul className="list-disc pl-5">
-                                        {updatePreview.map((item, index) => (
-                                          <li key={index} className='text-foreground'>
-                                            {item.title}:
-                                            {item.oldStatus !== item.newStatus && <span> Status: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> {'→'} <strong>{item.newStatus}</strong></span>}
-                                            {item.oldTicketOp !== item.newTicketOp && <span>, Ticket OP: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> {'→'} <strong>{item.newTicketOp}</strong></span>}
-                                            {item.newStatus === 'Solved' && item.oldCheckout !== item.newCheckout && <span>, Check Out: <strong>{formatDateTime(item.newCheckout, 'jam')}</strong></span>}
-                                          </li>
-                                        ))}
-                                    </ul>
-                                </div>
+                                {isPreviewing ? (
+                                    <div className="flex items-center justify-center p-8">
+                                        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                                        <span>Mencari perubahan...</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <p className='mb-2'>Apakah Anda yakin ingin memperbarui {updatePreview.length} kasus di sheet target?</p>
+                                        <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
+                                            <p className="font-bold">Detail Perubahan:</p>
+                                            <ul className="list-disc pl-5">
+                                                {updatePreview.map((item, index) => (
+                                                  <li key={index} className='text-foreground'>
+                                                    {item.title}:
+                                                    {item.oldStatus !== item.newStatus && <span> Status: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> {'→'} <strong>{item.newStatus}</strong></span>}
+                                                    {item.oldTicketOp !== item.newTicketOp && <span>, Ticket OP: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> {'→'} <strong>{item.newTicketOp}</strong></span>}
+                                                    {item.newStatus === 'Solved' && item.oldCheckout !== item.newCheckout && <span>, Check Out: <strong>{formatDateTime(item.newCheckout, 'jam')}</strong></span>}
+                                                  </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel onClick={() => setUpdatePreview([])}>Batal</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleConfirmUpdate} disabled={isUpdating}>
+                          <AlertDialogAction onClick={handleConfirmUpdate} disabled={isUpdating || isPreviewing}>
                             {isUpdating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Memperbarui...</> : "Ya, Lanjutkan Update"}
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -988,5 +997,8 @@ function PreviewTable({
     
 
     
+
+    
+
 
     
