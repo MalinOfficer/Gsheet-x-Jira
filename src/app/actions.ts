@@ -39,7 +39,7 @@ const projectFilesForAction = [
   "src/components/migrasi-murid.tsx",
   "src/components/cek-duplikasi.tsx",
   "src/components/data-weaver.tsx",
-  "src/components/layout/client-layout.tsx",
+  "srcsrc/components/layout/client-layout.tsx",
   "src/components/api-qiscus.tsx",
 
 
@@ -351,6 +351,28 @@ async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: str
     return rowMap;
 }
 
+const areDatesEffectivelyEqual = (dateStr1: string, dateStr2: string): boolean => {
+    if (!dateStr1 && !dateStr2) return true;
+    if (!dateStr1 || !dateStr2) return false;
+
+    // Direct string comparison as a quick check
+    if (dateStr1.trim() === dateStr2.trim()) return true;
+
+    try {
+        const date1 = new Date(dateStr1);
+        const date2 = new Date(dateStr2);
+
+        if (isNaN(date1.getTime()) || isNaN(date2.getTime())) {
+            return false; // If either is invalid, they aren't equal
+        }
+        // Compare based on the same point in time (e.g., ignoring milliseconds)
+        return Math.abs(date1.getTime() - date2.getTime()) < 1000;
+    } catch (e) {
+        return false;
+    }
+};
+
+
 export async function getUpdatePreview(
     data: { rows: Record<string, any>[] },
     sheetUrl: string
@@ -395,7 +417,7 @@ export async function getUpdatePreview(
                         const statusChanged = sheetRowInfo.currentStatus !== newStatus;
                         // Only consider it a change if the new Ticket OP is not empty
                         const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
-                        const checkoutChanged = newStatus === 'Solved' && sheetRowInfo.currentCheckout !== newCheckout;
+                        const checkoutChanged = newStatus === 'Solved' && !areDatesEffectivelyEqual(sheetRowInfo.currentCheckout, newCheckout);
 
                         if (statusChanged || ticketOpChanged || checkoutChanged) {
                              changesToPreview.push({
@@ -469,7 +491,7 @@ export async function updateSheetStatus(
                         const statusChanged = sheetRowInfo.currentStatus !== newStatus;
                         // Only trigger an update if the new Ticket OP from the app is not empty and different.
                         const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
-                        const checkoutWillChange = newStatus === 'Solved' && sheetRowInfo.currentCheckout !== newCheckout;
+                        const checkoutWillChange = newStatus === 'Solved' && !areDatesEffectivelyEqual(sheetRowInfo.currentCheckout, newCheckout);
                         
                         if (statusChanged || ticketOpChanged || checkoutWillChange) {
                             if (statusChanged) {
@@ -1013,7 +1035,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
             const clientName = row[3] || '';  // E
             const moduleValue = row[8] || ''; // J
             const title = row[11] || '';      // M
-            const ticketOp = row[18] || '';   // T
+            const ticketOp = row[18] || '';    // T
             const jiraUrl = row[21] || '';    // W
 
             let category = 'Akademik';
@@ -1115,5 +1137,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
 
+
+    
 
     

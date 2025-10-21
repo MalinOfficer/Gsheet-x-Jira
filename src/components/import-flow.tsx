@@ -198,8 +198,8 @@ export function ImportFlow() {
             setIsUpdateConfirmOpen(true);
         } else {
             toast({
-                title: "No Changes Detected",
-                description: "All statuses and ticket OPs are already up-to-date in the Google Sheet.",
+                title: "Everything is Up-to-Date",
+                description: "No changes were detected between your data and the Google Sheet.",
             });
         }
     });
@@ -221,27 +221,29 @@ export function ImportFlow() {
         });
         setLastActionUndoData(null);
       } else {
-        toast({
-          title: "Update Successful",
-          description: (
-            <div>
-              <p className="mb-2">{result.message}</p>
-              {result.updatedRows && result.updatedRows.length > 0 && (
-                <div className="mt-2 text-xs">
-                  <p className="font-bold">Updated Cases:</p>
-                  <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
-                    {result.updatedRows.map((item: { title: string, newStatus: string, newTicketOp: string }, index: number) => (
-                      <li key={index}>{item.title} {'→'} <strong>{item.newStatus} / {item.newTicketOp}</strong></li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ),
-        });
         if (result.updatedRows && result.updatedRows.length > 0) {
+            toast({
+              title: "Update Successful",
+              description: (
+                <div>
+                  <p className="mb-2">{result.message}</p>
+                  <div className="mt-2 text-xs">
+                    <p className="font-bold">Updated Cases:</p>
+                    <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
+                      {result.updatedRows.map((item: { title: string, newStatus: string, newTicketOp: string }, index: number) => (
+                        <li key={index}>{item.title} {'→'} <strong>{item.newStatus} / {item.newTicketOp}</strong></li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ),
+            });
             setLastActionUndoData({ operationType: 'UPDATE', updatedRows: result.updatedRows });
         } else {
+            toast({
+                title: "Everything is Up-to-Date",
+                description: "No changes were detected, so no updates were made.",
+            });
             setLastActionUndoData(null);
         }
       }
@@ -1000,5 +1002,7 @@ function PreviewTable({
 
     
 
+
+    
 
     
