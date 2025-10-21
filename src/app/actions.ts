@@ -435,6 +435,10 @@ export async function getUpdatePreview(
             }
         }
         
+        if (changesToPreview.length === 0) {
+            return { success: true, message: 'No changes detected. Everything is up-to-date.' };
+        }
+
         return { success: true, changes: changesToPreview };
 
     } catch (error: any) {
@@ -1081,7 +1085,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
         let reportText = `*Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})*\n\n`;
         reportText += `Total : ${l3Rows.length}\n`;
         
-        const categoryCounts = Object.entries(groupedCases).map(([category, cases]) => `*${category} > L3* : ${cases.length}`).join('\n');
+        const categoryCounts = Object.entries(groupedCases).map(([category, cases]) => `${category} > L3 : ${cases.length}`).join('\n');
         reportText += `${categoryCounts}\n\n`;
 
         Object.entries(groupedCases).forEach(([category, cases]) => {
@@ -1137,6 +1141,8 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
 
+
+    
 
     
 
