@@ -665,7 +665,7 @@ export async function importToSheet(
             const mainDataHeaders = [
                 'Client Name', 'Customer Name', 'Status', 'Kolom kosong1', 
                 'Ticket Category', 'Module', 'Detail Module', 'Created At', 
-                'Title', 'Kolom kosong2', 'Resolved At'
+                'Title', 'Kolom kosong2', 'Resolved At', 'Ticket OP'
             ];
             
             const mainData = mainDataHeaders.map(header => row[header] || '');
@@ -675,11 +675,13 @@ export async function importToSheet(
                 dateStr,                   // B - DATE
                 monthStr,                  // C - MONTH
                 ticketFormula,             // D - TICKET NUMBER (Formula)
-                ...mainData,               // E-O (11 columns from JSON)
+                ...mainData.slice(0, 9),   // E-M (Client Name to Title)
+                mainData[9],               // N - Kolom kosong2
+                mainData[10],              // O - Resolved At
                 '', '',                    // P-Q - Empty
                 statusCase2Formula,        // R - STATUS CASE 2 (Formula)
                 '',                        // S - Empty
-                row['Ticket OP'] || '',    // T - Ticket OP
+                mainData[11],              // T - Ticket OP
                 '',                        // U - Empty
                 durationFormula            // V - Umur Case/Hari (Formula)
             ];

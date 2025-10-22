@@ -34,7 +34,6 @@ import { cn } from '@/lib/utils';
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1aWpDRyFyl6a8bV0-e1ddYVkcfDK5WA498OHMU2Wv9iU/edit?gid=0#gid=0';
 const LOCAL_storage_key_template = 'jsonConverterHeaderTemplate';
-const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
 const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,TICKET NUMBER,Ticket Category,Module,Detail Module,Created At,Title,Kolom kosong2,Resolved At,Ticket OP';
 
 
@@ -402,6 +401,7 @@ export function ImportFlow() {
   };
     
     const toTitleCase = (str: string) => {
+        if (str.toUpperCase() === 'TICKET OP') return 'Ticket OP';
         return str.replace(
             /\w\S*/g,
             (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase()
@@ -971,7 +971,7 @@ function PreviewTable({
                                                         <SelectItem value="Solved">Solved</SelectItem>
                                                     </SelectContent>
                                                 </Select>
-                                            ) : header === 'Ticket Op' ? (
+                                            ) : header === 'Ticket OP' ? (
                                                 <Input
                                                     type="text"
                                                     value={row[header] || ''}
