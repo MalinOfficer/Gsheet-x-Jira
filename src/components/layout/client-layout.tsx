@@ -54,7 +54,7 @@ function NavLinksDesktop() {
         <NavigationMenuList>
           {primaryNavItems.map((item) => (
             <NavigationMenuItem key={item.label}>
-              <Link href={item.href} legacyBehavior={false}>
+              <Link href={item.href} legacyBehavior passHref>
                 <NavigationMenuLink
                   active={pathname === item.href}
                   className={navigationMenuTriggerStyle()}
@@ -263,3 +263,5 @@ const ListItem = React.forwardRef<
   );
 });
 ListItem.displayName = "ListItem"
+
+    

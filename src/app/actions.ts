@@ -31,7 +31,6 @@ const projectFilesForAction = [
   "src/app/data-weaver/page.tsx",
   "src/app/settings/page.tsx",
   "src/app/code-viewer/page.tsx",
-  "src/app/api-qiscus/page.tsx",
 
   // Komponen Utama (logika untuk setiap halaman)
   "src/components/import-flow.tsx",
@@ -40,7 +39,6 @@ const projectFilesForAction = [
   "src/components/cek-duplikasi.tsx",
   "src/components/data-weaver.tsx",
   "src/components/layout/client-layout.tsx",
-  "src/components/api-qiscus.tsx",
 
 
   // Aksi & Logika Server
@@ -134,51 +132,6 @@ export async function getProjectFileContents() {
         return { success: false, error: "Gagal mengambil file proyek. Silakan coba lagi." };
     }
 }
-
-export async function syncQiscusToSheet(appCode: string, secretKey: string, sheetUrl: string) {
-    if (!secretKey) {
-        return { error: 'Qiscus Secret Key are required.' };
-    }
-
-    const webhookUrl = 'https://helpdesk.qiscus.io/api/v1/tickets';
-
-    try {
-        const response = await fetch(webhookUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${secretKey}`
-            },
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            let errorDetail = errorText;
-            try {
-                const errorJson = JSON.parse(errorText);
-                errorDetail = errorJson.message || JSON.stringify(errorJson);
-            } catch (e) {
-                // Not a JSON response, use the raw text
-            }
-             if (response.status === 401) {
-                errorDetail = `401 Bad credentials. Please check your Secret Key/API Token.`;
-            }
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorDetail}`);
-        }
-
-        const data = await response.json();
-
-        // ** NEXT STEP: Parse the 'data' and sync it to Google Sheets **
-        // For now, we just confirm that we can fetch it.
-        
-        return { success: true, message: 'Successfully fetched data from Qiscus API. Sync to GSheet is the next step.' };
-
-    } catch (error: any) {
-        console.error('Failed to sync data from Qiscus:', error);
-        return { error: error.message || 'An unknown error occurred during sync.' };
-    }
-}
-
 
 const getSheetData = unstable_cache(
     async (url: string) => {
@@ -1164,6 +1117,8 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
 
+
+    
 
     
 
