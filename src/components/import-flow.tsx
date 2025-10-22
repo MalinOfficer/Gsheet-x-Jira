@@ -35,6 +35,7 @@ const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1aWpDRyFyl6a8bV0-e1ddYVkcfDK5WA498OHMU2Wv9iU/edit?gid=0#gid=0';
 const LOCAL_storage_key_template = 'jsonConverterHeaderTemplate';
 const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,TICKET NUMBER,Ticket Category,Module,Detail Module,Created At,Title,Kolom kosong2,Resolved At,Ticket OP';
+const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
 
 
 type UpdatePreview = {
@@ -437,7 +438,13 @@ export function ImportFlow() {
                         newRow[header] = '';
                         return;
                     }
-                    const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
+                    const matchingKey = Object.keys(flatRow).find(k => {
+                        if (header === 'Ticket OP') {
+                             return k.toLowerCase() === 'ticket op';
+                        }
+                        return k.toLowerCase() === header.toLowerCase();
+                    });
+                    
                     let value = matchingKey ? flatRow[matchingKey] : '';
 
                     if (header.toLowerCase() === 'status') {
@@ -745,7 +752,7 @@ export function ImportFlow() {
                                                   <li key={index} className='text-foreground'>
                                                     {item.title}:
                                                     {item.oldStatus !== item.newStatus && <span> Status: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> {'→'} <strong>{item.newStatus}</strong></span>}
-                                                    {item.oldTicketOp !== item.newTicketOp && <span>, Ticket OP: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> {'→'} <strong>{item.newTicketOp}</strong></span>}
+                                                    {item.oldTicketOp !== item.newTicketOp && <span>, Ticket Op: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> {'→'} <strong>{item.newTicketOp}</strong></span>}
                                                     {item.newStatus === 'Solved' && item.oldCheckout !== item.newCheckout && <span>, Check Out: <strong>{formatDateTime(item.newCheckout, 'jam')}</strong></span>}
                                                   </li>
                                                 ))}
