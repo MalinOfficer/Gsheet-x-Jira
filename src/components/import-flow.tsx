@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Textarea } from './ui/textarea';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
@@ -190,15 +190,12 @@ export function ImportFlow() {
                 title: "Preview Error",
                 description: `Failed to get update preview: ${result.error}`,
             });
+            setUpdatePreview([]);
+            setIsUpdateConfirmOpen(false);
             return;
         }
 
-        if (result.message && result.message.includes('No changes detected')) {
-             toast({
-                title: "Everything is Up-to-Date",
-                description: "No changes were detected between your data and the Google Sheet.",
-            });
-        } else if (result.changes && result.changes.length > 0) {
+        if (result.changes && result.changes.length > 0) {
             setUpdatePreview(result.changes);
             setIsUpdateConfirmOpen(true);
         } else {
@@ -206,6 +203,8 @@ export function ImportFlow() {
                 title: "Everything is Up-to-Date",
                 description: "No changes were detected between your data and the Google Sheet.",
             });
+            setUpdatePreview([]);
+            setIsUpdateConfirmOpen(false);
         }
     });
   };
@@ -719,11 +718,9 @@ export function ImportFlow() {
                     </AlertDialog>
                     
                     <AlertDialog open={isUpdateConfirmOpen} onOpenChange={setIsUpdateConfirmOpen}>
-                      <AlertDialogTrigger asChild>
-                         <Button onClick={handleUpdatePreview} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950" disabled={isProcessing || !isVerified}>
+                        <Button onClick={handleUpdatePreview} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950" disabled={isProcessing || !isVerified}>
                             {isPreviewing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Mengecek...</> : <><DatabaseZap className="mr-2 h-4 w-4" />Update Status</>}
                         </Button>
-                      </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
                            <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
@@ -996,3 +993,6 @@ function PreviewTable({
         </Card>
     );
 }
+
+
+    
