@@ -200,7 +200,12 @@ export function ImportFlow() {
             setIsUpdateConfirmOpen(true);
         } else {
             toast({
-                title: "Everything is Up-to-Date",
+                title: (
+                    <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        Everything is Up-to-Date
+                    </div>
+                ),
                 description: "No changes were detected between your data and the Google Sheet.",
             });
             setUpdatePreview([]);
@@ -993,6 +998,6 @@ function PreviewTable({
         </Card>
     );
 }
-
+    
 
     
