@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, BarChart, GanttChartSquare, Settings, Loader2, ListTree, GitBranch, Files, Combine, CodeXml, FileCog } from "lucide-react";
+import { Menu, BarChart, GanttChartSquare, Settings, Loader2, ListTree, GitBranch, Files, Combine, CodeXml, FileCog, PackageSearch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useContext, useEffect, useState } from "react";
 import { TableDataContext } from "@/store/table-data-context";
@@ -31,6 +31,7 @@ const primaryNavItems = [
 const secondaryNavItems = [
     { href: "/cek-duplikasi", label: "Cek Duplikasi", description: "Temukan NIS duplikat atau data tidak valid di beberapa file Excel.", icon: Files },
     { href: "/data-weaver", label: "Data Weaver (edit file bulk)", description: "Gabungkan dua file Excel berdasarkan kolom yang sama.", icon: Combine },
+    { href: "/migrasi-produk", label: "Migrasi Product", description: "Alat untuk migrasi data produk.", icon: PackageSearch },
 ];
 
 const advancedNavItems = [
