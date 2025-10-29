@@ -4,7 +4,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Upload, FileText, X, Download } from 'lucide-react';
+import { Upload, FileText, X, Download, Trash2, FileCog } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 
@@ -54,10 +54,10 @@ export function MigrasiProduk() {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
     
-    const handleDownloadTemplate = () => {
+    const handleProcess = () => {
          toast({
             title: "Fitur Belum Tersedia",
-            description: "Fungsi untuk mengunduh template akan segera ditambahkan.",
+            description: "Fungsi untuk memproses file akan segera ditambahkan.",
         });
     }
 
@@ -73,7 +73,7 @@ export function MigrasiProduk() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>1. Upload Template</CardTitle>
+                        <CardTitle>Upload Template</CardTitle>
                         <CardDescription>
                             Gunakan template Excel yang disediakan atau unggah file Anda untuk memulai.
                         </CardDescription>
@@ -127,13 +127,13 @@ export function MigrasiProduk() {
                         </div>
                     </CardContent>
                     <CardFooter className="flex-wrap gap-2">
-                        <Button onClick={() => fileInputRef.current?.click()} disabled={isProcessing}>
-                            <Upload className="mr-2 h-4 w-4" />
-                            Import Template
+                        <Button onClick={handleProcess} disabled={isProcessing || !file}>
+                           <FileCog className="mr-2 h-4 w-4" />
+                           Proses Edit
                         </Button>
-                        <Button onClick={handleDownloadTemplate} variant="outline" disabled={isProcessing}>
-                           <Download className="mr-2 h-4 w-4" />
-                           Download Template
+                        <Button onClick={handleClearFile} variant="destructive" disabled={isProcessing || !file}>
+                           <Trash2 className="mr-2 h-4 w-4" />
+                           Delete
                         </Button>
                     </CardFooter>
                 </Card>
@@ -141,14 +141,14 @@ export function MigrasiProduk() {
                  {/* Placeholder for the data table */}
                  <Card>
                     <CardHeader>
-                        <CardTitle>2. Data Produk</CardTitle>
+                        <CardTitle>Data Produk</CardTitle>
                         <CardDescription>
-                            Data dari template Anda akan ditampilkan di sini.
+                            Data dari template Anda akan ditampilkan di sini setelah diproses.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="h-64 flex items-center justify-center border-2 border-dashed rounded-lg">
-                            <p className="text-muted-foreground">Tabel data akan muncul di sini setelah file diimpor.</p>
+                            <p className="text-muted-foreground">Tabel data akan muncul di sini setelah file diproses.</p>
                         </div>
                     </CardContent>
                 </Card>
