@@ -8,14 +8,18 @@ import { Upload, FileText, X, Download, Trash2, FileCog, Loader2, ArrowLeft } fr
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 declare const XLSX: any;
 
 type ExcelRow = Record<string, any>;
-type PreviewData = {
+type SheetData = {
+    sheetName: string;
     headers: string[];
     rows: ExcelRow[];
 };
+type PreviewData = SheetData[];
 
 const readFile = (file: File): Promise<PreviewData> => {
     return new Promise((resolve, reject) => {
@@ -27,27 +31,39 @@ const readFile = (file: File): Promise<PreviewData> => {
             try {
                 const data = new Uint8Array(e.target?.result as ArrayBuffer);
                 const workbook = XLSX.read(data, { type: "array" });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
                 
-                if (json.length < 1) {
-                    return reject(new Error("File is empty or format is invalid."));
+                const allSheetsData: PreviewData = [];
+
+                for (const sheetName of workbook.SheetNames) {
+                    const worksheet = workbook.Sheets[sheetName];
+                    const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                    
+                    if (json.length < 1) {
+                        continue; // Skip empty sheets
+                    }
+
+                    const headers = json[0].map(h => String(h || '').trim());
+                    const dataRows = json.slice(1);
+
+                    const rows = dataRows.map((rowArray: any[]) => {
+                        const row: ExcelRow = {};
+                        headers.forEach((header, i) => {
+                            row[header] = rowArray[i];
+                        });
+                        return row;
+                    }).filter(row => Object.values(row).some(val => val !== ''));
+                    
+                    if (rows.length > 0) {
+                        allSheetsData.push({ sheetName, headers, rows });
+                    }
+                }
+                
+                if (allSheetsData.length === 0) {
+                    return reject(new Error("No data found in any of the sheets."));
                 }
 
-                const headers = json[0].map(h => String(h || '').trim());
-                const dataRows = json.slice(1);
+                resolve(allSheetsData);
 
-                const rows = dataRows.map((rowArray: any[]) => {
-                    const row: ExcelRow = {};
-                    headers.forEach((header, i) => {
-                        row[header] = rowArray[i];
-                    });
-                    return row;
-                }).filter(row => Object.values(row).some(val => val !== ''));
-
-
-                resolve({ headers, rows });
             } catch (error) {
                 reject(error);
             }
@@ -181,7 +197,7 @@ export function MigrasiProduk() {
             const data = await readFile(file);
             setPreviewData(data);
             setCurrentStep('preview');
-             toast({ title: "File Processed", description: "Showing preview of your data." });
+             toast({ title: "File Processed", description: `Showing preview for ${data.length} sheet(s).` });
         } catch (error) {
              toast({
                 variant: 'destructive',
@@ -215,13 +231,26 @@ export function MigrasiProduk() {
                     </header>
                      <Card>
                         <CardHeader>
-                            <CardTitle>Data Preview ({previewData.rows.length} rows)</CardTitle>
+                            <CardTitle>Sheet Data</CardTitle>
                              <CardDescription>
-                                Review your data below. More actions will be available in future updates.
+                                Browse through the sheets from your uploaded file.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                           <ResultsTable headers={previewData.headers} data={previewData.rows} />
+                            <Tabs defaultValue={previewData[0]?.sheetName} className="w-full">
+                                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 h-auto">
+                                    {previewData.map(sheet => (
+                                        <TabsTrigger key={sheet.sheetName} value={sheet.sheetName} className="truncate">
+                                            {sheet.sheetName}
+                                        </TabsTrigger>
+                                    ))}
+                                </TabsList>
+                                {previewData.map(sheet => (
+                                     <TabsContent key={sheet.sheetName} value={sheet.sheetName} className="mt-4">
+                                        <ResultsTable headers={sheet.headers} data={sheet.rows} />
+                                     </TabsContent>
+                                ))}
+                            </Tabs>
                         </CardContent>
                         <CardFooter>
                            <Button disabled>
@@ -315,3 +344,5 @@ export function MigrasiProduk() {
         </div>
     );
 }
+
+    
