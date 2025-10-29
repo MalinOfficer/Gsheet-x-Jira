@@ -4,7 +4,7 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Upload, FileText, X, Download, Trash2, FileCog, Loader2, ArrowLeft } from 'lucide-react';
+import { Upload, FileText, X, Trash2, FileCog, Loader2, ArrowLeft, ShieldOff, View } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -35,7 +35,6 @@ const readFile = (file: File): Promise<PreviewData> => {
                     const worksheet = workbook.Sheets[sheetName];
                     const sheetData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
                     
-                    // Even if sheetData is empty, we add it to show the empty sheet in preview
                     allSheetsData.push({ sheetName, data: sheetData });
                 }
                 
@@ -68,13 +67,17 @@ function ExcelSheetPreview({ sheet }: { sheet: ExcelSheetData }) {
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const { data } = sheet;
 
-    const maxCols = useMemo(() => data.reduce((max, row) => Math.max(max, row.length), 0), [data]);
-    const rowCount = useMemo(() => data.length, [data]);
+    const maxCols = useMemo(() => {
+        if (!data || data.length === 0) return 0;
+        return data.reduce((max, row) => Math.max(max, row ? row.length : 0), 0)
+    }, [data]);
+
+    const rowCount = useMemo(() => data ? data.length : 0, [data]);
 
     const rowVirtualizer = useVirtualizer({
         count: rowCount,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 25, // h-6 + border
+        estimateSize: () => 25,
         overscan: 10,
     });
     
@@ -82,7 +85,7 @@ function ExcelSheetPreview({ sheet }: { sheet: ExcelSheetData }) {
         horizontal: true,
         count: maxCols,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 100, // w-24
+        estimateSize: () => 120, // default column width
         overscan: 5,
     });
 
@@ -91,19 +94,25 @@ function ExcelSheetPreview({ sheet }: { sheet: ExcelSheetData }) {
 
     const totalHeight = rowVirtualizer.getTotalSize();
     const totalWidth = colVirtualizer.getTotalSize();
+    
+    const ROW_HEADER_WIDTH = 50;
 
     return (
         <div ref={tableContainerRef} className="w-full h-full overflow-auto rounded-md border bg-card">
-            <div style={{ width: `${totalWidth + 40}px`, height: `${totalHeight + 25}px`, position: 'relative' }}>
+             <div style={{ width: `${totalWidth + ROW_HEADER_WIDTH}px`, height: `${totalHeight + 25}px`, position: 'relative' }}>
+                
                 {/* Top-left empty corner */}
-                <div className="sticky top-0 left-0 z-30 w-10 h-[25px] bg-muted border-b border-r"></div>
+                <div 
+                    className="sticky top-0 left-0 z-30 bg-muted border-b border-r"
+                    style={{ width: `${ROW_HEADER_WIDTH}px`, height: `25px`, boxShadow: '2px 2px 3px -1px rgba(0,0,0,0.1)' }}
+                />
                 
                 {/* Column Headers */}
-                <div className="sticky top-0 left-10 z-20" style={{ width: `${totalWidth}px` }}>
+                <div className="sticky top-0 z-20" style={{ left: `${ROW_HEADER_WIDTH}px`, width: `${totalWidth}px`, height: '25px', boxShadow: '0px 2px 3px -1px rgba(0,0,0,0.1)' }}>
                     {virtualCols.map(virtualCol => (
                         <div
                             key={virtualCol.key}
-                            className="absolute top-0 left-0 flex h-[25px] w-24 items-center justify-center bg-muted border-b border-r text-xs font-semibold"
+                            className="absolute top-0 left-0 flex h-[25px] items-center justify-center bg-muted border-b border-r text-xs font-semibold text-muted-foreground"
                             style={{ width: `${virtualCol.size}px`, transform: `translateX(${virtualCol.start}px)` }}
                         >
                             {toColumnName(virtualCol.index + 1)}
@@ -112,12 +121,12 @@ function ExcelSheetPreview({ sheet }: { sheet: ExcelSheetData }) {
                 </div>
 
                 {/* Row Headers */}
-                <div className="sticky top-[25px] left-0 z-20" style={{ height: `${totalHeight}px` }}>
+                <div className="sticky left-0 z-20" style={{ top: '25px', width: `${ROW_HEADER_WIDTH}px`, height: `${totalHeight}px`, boxShadow: '2px 0px 3px -1px rgba(0,0,0,0.1)' }}>
                      {virtualRows.map(virtualRow => (
                         <div
                             key={virtualRow.key}
-                            className="absolute top-0 left-0 flex w-10 h-[25px] items-center justify-center bg-muted border-b border-r text-xs font-semibold"
-                            style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
+                            className="absolute top-0 left-0 flex items-center justify-center bg-muted border-b border-r text-xs font-semibold text-muted-foreground"
+                            style={{ width: `${ROW_HEADER_WIDTH}px`, height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
                         >
                             {virtualRow.index + 1}
                         </div>
@@ -125,7 +134,7 @@ function ExcelSheetPreview({ sheet }: { sheet: ExcelSheetData }) {
                 </div>
 
                 {/* Grid Data */}
-                <div className="absolute top-[25px] left-10" style={{ width: totalWidth, height: totalHeight }}>
+                <div className="absolute" style={{ top: '25px', left: `${ROW_HEADER_WIDTH}px`, width: totalWidth, height: totalHeight }}>
                     {virtualRows.map(virtualRow => (
                         <div key={virtualRow.key} className="flex absolute top-0 left-0" style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)`}}>
                            {virtualCols.map(virtualCol => {
@@ -133,7 +142,7 @@ function ExcelSheetPreview({ sheet }: { sheet: ExcelSheetData }) {
                                 return (
                                      <div
                                         key={virtualCol.key}
-                                        className="absolute top-0 left-0 flex items-center border-b border-r px-2 text-xs truncate"
+                                        className="absolute top-0 left-0 flex items-center border-b border-r px-2 text-sm truncate bg-background"
                                         style={{ height: `${virtualRow.size}px`, width: `${virtualCol.size}px`, transform: `translateX(${virtualCol.start}px)` }}
                                      >
                                         {String(cellData)}
@@ -231,35 +240,43 @@ export function MigrasiProduk() {
 
     if (currentStep === 'preview' && previewData) {
         return (
-            <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8 flex flex-col h-full">
-                <div className="max-w-full mx-auto space-y-4 w-full flex flex-col flex-grow h-full">
-                    <header className="flex items-center gap-4 flex-shrink-0">
+            <div className="flex-1 bg-background text-foreground p-0 sm:p-2 md:p-4 flex flex-col h-full">
+                <div className="flex flex-col flex-grow h-full max-w-full mx-auto w-full space-y-2">
+                    <header className="flex items-center gap-4 flex-shrink-0 px-4 sm:px-0">
                         <Button variant="outline" size="icon" onClick={handleBackToUpload}>
                             <ArrowLeft className="h-4 w-4" />
                         </Button>
                         <div>
-                            <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Preview Data</h1>
+                            <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Excel Viewer</h1>
                             <p className="text-sm text-muted-foreground mt-1">
-                              This is a preview of the data from <strong>{file?.name}</strong>.
+                              File: <strong>{file?.name}</strong>
                             </p>
                         </div>
                     </header>
                     <div className="flex-grow flex flex-col min-h-0">
-                        {displayedSheet ? <ExcelSheetPreview sheet={displayedSheet} /> : <p>Select a sheet to view.</p>}
+                        {displayedSheet ? <ExcelSheetPreview sheet={displayedSheet} /> : <div className='flex-grow flex items-center justify-center text-muted-foreground'>Select a sheet to view.</div>}
                     </div>
-                    <div className="flex-shrink-0 border-t pt-2 mt-2">
-                        <div className="flex items-center gap-1 overflow-x-auto pb-2">
-                            {previewData.map(sheet => (
-                                <Button
-                                    key={sheet.sheetName}
-                                    variant={activeSheet === sheet.sheetName ? "secondary" : "ghost"}
-                                    size="sm"
-                                    onClick={() => setActiveSheet(sheet.sheetName)}
-                                    className="h-8 px-3 flex-shrink-0"
-                                >
-                                    {sheet.sheetName}
-                                </Button>
-                            ))}
+                    <div className="flex-shrink-0 border-t pt-2 mt-auto">
+                        <div className="flex justify-between items-center px-2">
+                            <div className="flex items-center gap-1 overflow-x-auto pb-2 flex-grow">
+                                {previewData.map(sheet => (
+                                    <Button
+                                        key={sheet.sheetName}
+                                        variant={activeSheet === sheet.sheetName ? "secondary" : "ghost"}
+                                        size="sm"
+                                        onClick={() => setActiveSheet(sheet.sheetName)}
+                                        className="h-8 px-3 flex-shrink-0 text-sm"
+                                    >
+                                        {sheet.sheetName}
+                                    </Button>
+                                ))}
+                            </div>
+                            <div className="flex-shrink-0 pl-4">
+                                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground bg-muted px-3 py-1.5 rounded-md">
+                                    <ShieldOff className="h-4 w-4" />
+                                    <span>VIEWER MODE - EDITING DISABLED</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -279,9 +296,9 @@ export function MigrasiProduk() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Upload Template</CardTitle>
+                        <CardTitle>Upload File</CardTitle>
                         <CardDescription>
-                            Unggah file Excel Anda untuk memulai.
+                            Unggah file Excel Anda untuk melihat pratinjau.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -334,18 +351,18 @@ export function MigrasiProduk() {
                     </CardContent>
                     <CardFooter className="flex-wrap gap-2">
                         <Button onClick={handleProcess} disabled={isProcessing || !file}>
-                           {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileCog className="mr-2 h-4 w-4" />}
-                           {isProcessing ? "Processing..." : "Proses Edit"}
+                           {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <View className="mr-2 h-4 w-4" />}
+                           {isProcessing ? "Processing..." : "Preview File"}
                         </Button>
-                        <Button onClick={handleClearFile} variant="destructive" disabled={isProcessing || !file}>
-                           <Trash2 className="mr-2 h-4 w-4" />
-                           Delete
-                        </Button>
+                         {file && (
+                            <Button onClick={handleClearFile} variant="destructive" disabled={isProcessing}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                            </Button>
+                        )}
                     </CardFooter>
                 </Card>
              </div>
         </div>
     );
 }
-
-    
