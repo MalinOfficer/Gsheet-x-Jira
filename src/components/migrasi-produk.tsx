@@ -8,18 +8,15 @@ import { Upload, FileText, X, Download, Trash2, FileCog, Loader2, ArrowLeft } fr
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 declare const XLSX: any;
 
-type ExcelRow = Record<string, any>;
-type SheetData = {
+type ExcelSheetData = {
     sheetName: string;
-    headers: string[];
-    rows: ExcelRow[];
+    data: any[][];
 };
-type PreviewData = SheetData[];
+type PreviewData = ExcelSheetData[];
 
 const readFile = (file: File): Promise<PreviewData> => {
     return new Promise((resolve, reject) => {
@@ -36,25 +33,10 @@ const readFile = (file: File): Promise<PreviewData> => {
 
                 for (const sheetName of workbook.SheetNames) {
                     const worksheet = workbook.Sheets[sheetName];
-                    const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                    const sheetData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
                     
-                    if (json.length < 1) {
-                        continue; // Skip empty sheets
-                    }
-
-                    const headers = json[0].map(h => String(h || '').trim());
-                    const dataRows = json.slice(1);
-
-                    const rows = dataRows.map((rowArray: any[]) => {
-                        const row: ExcelRow = {};
-                        headers.forEach((header, i) => {
-                            row[header] = rowArray[i];
-                        });
-                        return row;
-                    }).filter(row => Object.values(row).some(val => val !== ''));
-                    
-                    if (rows.length > 0) {
-                        allSheetsData.push({ sheetName, headers, rows });
+                    if (sheetData.length > 0) {
+                        allSheetsData.push({ sheetName, data: sheetData });
                     }
                 }
                 
@@ -73,81 +55,105 @@ const readFile = (file: File): Promise<PreviewData> => {
     });
 };
 
+const toColumnName = (num: number) => {
+  let s = '', t;
+  while (num > 0) {
+    t = (num - 1) % 26;
+    s = String.fromCharCode(65 + t) + s;
+    num = (num - t) / 26 | 0;
+  }
+  return s || undefined;
+};
 
-function ResultsTable({ data, headers }: { data: ExcelRow[]; headers: string[]; }) {
+function ExcelSheetPreview({ sheet }: { sheet: ExcelSheetData }) {
     const tableContainerRef = useRef<HTMLDivElement>(null);
+    const { data } = sheet;
+
+    const maxCols = useMemo(() => data.reduce((max, row) => Math.max(max, row.length), 0), [data]);
     
     const rowVirtualizer = useVirtualizer({
         count: data.length,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 37, // h-9 + border
-        overscan: 5,
+        estimateSize: () => 25, // h-6 + border
+        overscan: 10,
     });
     
-    const virtualRows = rowVirtualizer.getVirtualItems();
-    const totalHeight = rowVirtualizer.getTotalSize();
+    const colVirtualizer = useVirtualizer({
+        horizontal: true,
+        count: maxCols,
+        getScrollElement: () => tableContainerRef.current,
+        estimateSize: () => 100, // w-24
+        overscan: 5,
+    });
 
-    if (data.length === 0) {
-        return <div className="text-center py-8 text-muted-foreground">No data to display.</div>;
-    }
-    
-    const totalWidth = headers.reduce((acc, header) => acc + (header.length * 8 + 40), 0);
+    const virtualRows = rowVirtualizer.getVirtualItems();
+    const virtualCols = colVirtualizer.getVirtualItems();
+
+    const totalHeight = rowVirtualizer.getTotalSize();
+    const totalWidth = colVirtualizer.getTotalSize();
 
     return (
-        <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[60vh]">
-            <table className="border-collapse min-w-full" style={{ width: Math.max(totalWidth, window.innerWidth) }}>
-                <thead className="sticky top-0 bg-muted z-10">
-                    <tr>
-                        {headers.map(header => (
-                            <th 
-                                key={header} 
-                                className="p-2 border-b border-r text-left font-semibold whitespace-nowrap bg-muted"
-                                style={{ minWidth: 150 }}
-                            >
-                                {header}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody style={{ height: `${totalHeight}px`, position: 'relative' }}>
-                    {virtualRows.map(virtualRow => {
-                        const row = data[virtualRow.index];
-                        return (
-                            <tr
-                                key={virtualRow.key}
-                                style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    width: '100%',
-                                    height: `${virtualRow.size}px`,
-                                    transform: `translateY(${virtualRow.start}px)`,
-                                }}
-                            >
-                                {headers.map(header => (
-                                    <td 
-                                        key={header} 
-                                        className="p-2 border-b border-r truncate"
-                                        style={{ minWidth: 150 }}
-                                    >
-                                        {String(row[header] ?? '')}
-                                    </td>
-                                ))}
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
+        <div ref={tableContainerRef} className="w-full overflow-auto rounded-md border h-[70vh] bg-card">
+            <div style={{ width: `${totalWidth + 40}px`, height: `${totalHeight + 25}px`, position: 'relative' }}>
+                {/* Top-left empty corner */}
+                <div className="sticky top-0 left-0 z-30 w-10 h-6 bg-muted border-b border-r"></div>
+                
+                {/* Column Headers */}
+                <div className="sticky top-0 left-10 z-20 flex" style={{ width: `${totalWidth}px` }}>
+                    {virtualCols.map(virtualCol => (
+                        <div
+                            key={virtualCol.key}
+                            className="absolute top-0 left-0 flex h-6 w-24 items-center justify-center bg-muted border-b border-r text-xs font-semibold"
+                            style={{ transform: `translateX(${virtualCol.start}px)` }}
+                        >
+                            {toColumnName(virtualCol.index + 1)}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Row Headers */}
+                <div className="sticky top-6 left-0 z-20" style={{ height: `${totalHeight}px` }}>
+                     {virtualRows.map(virtualRow => (
+                        <div
+                            key={virtualRow.key}
+                            className="absolute top-0 left-0 flex w-10 h-6 items-center justify-center bg-muted border-b border-r text-xs font-semibold"
+                            style={{ transform: `translateY(${virtualRow.start}px)` }}
+                        >
+                            {virtualRow.index + 1}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Grid Data */}
+                <div className="absolute top-6 left-10" style={{ width: totalWidth, height: totalHeight }}>
+                    {virtualRows.map(virtualRow => (
+                        <div key={virtualRow.key} className="flex absolute top-0 left-0" style={{ transform: `translateY(${virtualRow.start}px)`, height: `${virtualRow.size}px`}}>
+                           {virtualCols.map(virtualCol => {
+                                const cellData = data[virtualRow.index]?.[virtualCol.index] ?? '';
+                                return (
+                                     <div
+                                        key={virtualCol.key}
+                                        className="absolute top-0 left-0 flex w-24 h-6 items-center border-b border-r px-2 text-xs truncate"
+                                        style={{ transform: `translateX(${virtualCol.start}px)` }}
+                                     >
+                                        {String(cellData)}
+                                    </div>
+                                );
+                           })}
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
     );
-};
-
+}
 
 export function MigrasiProduk() {
     const [file, setFile] = useState<File | null>(null);
     const [previewData, setPreviewData] = useState<PreviewData | null>(null);
     const [currentStep, setCurrentStep] = useState<'upload' | 'preview'>('upload');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [activeSheet, setActiveSheet] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
 
@@ -174,6 +180,7 @@ export function MigrasiProduk() {
         setFile(null);
         setPreviewData(null);
         setCurrentStep('upload');
+        setActiveSheet(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -196,6 +203,9 @@ export function MigrasiProduk() {
         try {
             const data = await readFile(file);
             setPreviewData(data);
+            if (data.length > 0) {
+                setActiveSheet(data[0].sheetName);
+            }
             setCurrentStep('preview');
              toast({ title: "File Processed", description: `Showing preview for ${data.length} sheet(s).` });
         } catch (error) {
@@ -210,14 +220,19 @@ export function MigrasiProduk() {
     };
 
     const handleBackToUpload = () => {
-        setPreviewData(null);
-        setCurrentStep('upload');
+        handleClearFile();
     }
+
+    const displayedSheet = useMemo(() => {
+        if (!previewData || !activeSheet) return null;
+        return previewData.find(s => s.sheetName === activeSheet) || null;
+    }, [previewData, activeSheet]);
+
 
     if (currentStep === 'preview' && previewData) {
         return (
-            <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-                <div className="max-w-7xl mx-auto space-y-6">
+            <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8 flex flex-col">
+                <div className="max-w-7xl mx-auto space-y-6 w-full flex flex-col flex-grow">
                     <header className="flex items-center gap-4">
                         <Button variant="outline" size="icon" onClick={handleBackToUpload}>
                             <ArrowLeft className="h-4 w-4" />
@@ -229,36 +244,24 @@ export function MigrasiProduk() {
                             </p>
                         </div>
                     </header>
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Sheet Data</CardTitle>
-                             <CardDescription>
-                                Browse through the sheets from your uploaded file.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Tabs defaultValue={previewData[0]?.sheetName} className="w-full">
-                                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 h-auto">
-                                    {previewData.map(sheet => (
-                                        <TabsTrigger key={sheet.sheetName} value={sheet.sheetName} className="truncate">
-                                            {sheet.sheetName}
-                                        </TabsTrigger>
-                                    ))}
-                                </TabsList>
-                                {previewData.map(sheet => (
-                                     <TabsContent key={sheet.sheetName} value={sheet.sheetName} className="mt-4">
-                                        <ResultsTable headers={sheet.headers} data={sheet.rows} />
-                                     </TabsContent>
-                                ))}
-                            </Tabs>
-                        </CardContent>
-                        <CardFooter>
-                           <Button disabled>
-                               <Download className="mr-2 h-4 w-4" />
-                               Download (coming soon)
-                           </Button>
-                        </CardFooter>
-                    </Card>
+                    <div className="flex-grow flex flex-col">
+                        {displayedSheet ? <ExcelSheetPreview sheet={displayedSheet} /> : <p>Select a sheet to view.</p>}
+                    </div>
+                    <div className="flex-shrink-0 border-t pt-2">
+                        <div className="flex items-center gap-1">
+                            {previewData.map(sheet => (
+                                <Button
+                                    key={sheet.sheetName}
+                                    variant={activeSheet === sheet.sheetName ? "secondary" : "ghost"}
+                                    size="sm"
+                                    onClick={() => setActiveSheet(sheet.sheetName)}
+                                    className="h-8 px-3"
+                                >
+                                    {sheet.sheetName}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
         )
