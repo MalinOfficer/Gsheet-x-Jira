@@ -78,7 +78,8 @@ export function ImportFlow() {
   });
    const [isCopied, setIsCopied] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const jsonFileInputRef = useRef<HTMLInputElement>(null);
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
   const destinationCardRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef(false);
   const router = useRouter();
@@ -402,119 +403,123 @@ export function ImportFlow() {
       return res;
   };
     
-    const toTitleCase = (str: string) => {
-        if (str.toUpperCase() === 'TICKET OP') return 'Ticket OP';
-        return str.replace(
-            /\w\S*/g,
-            (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase()
-        );
+  const toTitleCase = (str: string) => {
+      // Specific check for 'Ticket OP' to prevent it from becoming 'Ticket Op'
+      if (str.toUpperCase() === 'TICKET OP') return 'Ticket OP';
+      return str.replace(
+          /\w\S*/g,
+          (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase()
+      );
+  };
+
+
+    const processAndSetTableData = (data: any[]) => {
+        if (!Array.isArray(data)) data = [data];
+        if (data.length === 0) {
+            setJsonError("Input data is empty.");
+            return;
+        }
+
+        const flattenedData = data.map((item: any) => flattenJson(item));
+        const headers = templateInput.split(',').map(h => {
+            const trimmed = h.trim();
+            return toTitleCase(trimmed);
+        });
+        
+        let processedRows = flattenedData.map(flatRow => {
+            const newRow: Record<string, any> = {};
+            headers.forEach(header => {
+                if (header.toLowerCase().startsWith('kolom kosong')) {
+                    newRow[header] = '';
+                    return;
+                }
+
+                const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
+                
+                let value = matchingKey ? flatRow[matchingKey] : '';
+
+                if (header.toLowerCase() === 'status') {
+                    const lowerCaseValue = String(value).toLowerCase();
+                    switch (lowerCaseValue) {
+                        case 'resolved': value = 'Solved'; break;
+                        case 'open': value = 'L2'; break;
+                        case 'pending': value = 'L1'; break;
+                        case 'on hold': case 'on-hold': value = 'L3'; break;
+                        case 'new': value = 'L1'; break;
+                        default: break;
+                    }
+                    if (!value) {
+                        value = 'L1';
+                    }
+                }
+                newRow[header] = value;
+            });
+            return newRow;
+        });
+
+        const extractTicketNumber = (title: string) => {
+            if (typeof title !== 'string') return null;
+            const match = title.match(/#(\d+)/);
+            return match ? parseInt(match[1], 10) : null;
+        };
+
+        processedRows.sort((a, b) => {
+            const dateA = new Date(a['Created At']);
+            const dateB = new Date(b['Created At']);
+            
+            if (dateA.getTime() !== dateB.getTime()) {
+                return dateA.getTime() - dateB.getTime();
+            }
+
+            const numA = extractTicketNumber(a.Title);
+            const numB = extractTicketNumber(b.Title);
+            if (numA === null && numB === null) return 0;
+            if (numA === null) return 1;
+            if (numB === null) return -1;
+            return numA - numB;
+        });
+        
+        setTableData({ headers, rows: processedRows });
+        toast({ title: "Conversion Successful", description: "Your data has been converted and sorted." });
     };
 
-    const handleConvert = () => {
+    const handleConvert = (input: string, format: 'json' | 'csv') => {
         startConverting(() => {
             setJsonError(null);
             setTableData(null);
             hasScrolledRef.current = false; // Reset scroll flag
-    
-            if (!jsonInput.trim()) {
+
+            if (!input.trim()) {
                 setJsonError("Input cannot be empty.");
                 return;
             }
-    
+
             try {
-                let data;
-                // Attempt to parse as JSON first
-                if (jsonInput.trim().startsWith('{') || jsonInput.trim().startsWith('[')) {
-                    data = JSON.parse(jsonInput);
-                } else {
-                    // Fallback to CSV parsing
+                let data: any[];
+                if (format === 'json') {
+                    data = JSON.parse(input);
+                } else { // csv
                     if (typeof XLSX === 'undefined') {
-                      setJsonError("CSV parsing library (xlsx.js) is not loaded. Please try again.");
-                      return;
+                        setJsonError("CSV parsing library (xlsx.js) is not loaded. Please try again.");
+                        return;
                     }
-                    const workbook = XLSX.read(jsonInput, { type: 'string' });
+                    const workbook = XLSX.read(input, { type: 'string' });
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     data = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
                 }
                 
-                if (!Array.isArray(data)) data = [data];
-                if (data.length === 0) {
-                    setJsonError("Input data is empty.");
-                    return;
-                }
-    
-                const flattenedData = data.map((item: any) => flattenJson(item));
-                const headers = templateInput.split(',').map(h => {
-                    const trimmed = h.trim();
-                    return trimmed.toUpperCase() === 'TICKET OP' ? 'Ticket OP' : toTitleCase(trimmed);
-                });
-                
-                let processedRows = flattenedData.map(flatRow => {
-                    const newRow: Record<string, any> = {};
-                    headers.forEach(header => {
-                        if (header.toLowerCase().startsWith('kolom kosong')) {
-                            newRow[header] = '';
-                            return;
-                        }
+                processAndSetTableData(data);
+                setJsonInput(input); // Store the raw input for reference
+                localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, input);
 
-                        // Try to find a matching key by case-insensitive comparison
-                        const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
-                        
-                        let value = matchingKey ? flatRow[matchingKey] : '';
-    
-                        if (header.toLowerCase() === 'status') {
-                            const lowerCaseValue = String(value).toLowerCase();
-                            switch (lowerCaseValue) {
-                                case 'resolved': value = 'Solved'; break;
-                                case 'open': value = 'L2'; break;
-                                case 'pending': value = 'L1'; break;
-                                case 'on hold': case 'on-hold': value = 'L3'; break;
-                                case 'new': value = 'L1'; break;
-                                default: break;
-                            }
-                            if (!value) {
-                                value = 'L1';
-                            }
-                        }
-                        newRow[header] = value;
-                    });
-                    return newRow;
-                });
-    
-                const extractTicketNumber = (title: string) => {
-                    if (typeof title !== 'string') return null;
-                    const match = title.match(/#(\d+)/);
-                    return match ? parseInt(match[1], 10) : null;
-                };
-    
-                processedRows.sort((a, b) => {
-                    const dateA = new Date(a['Created At']);
-                    const dateB = new Date(b['Created At']);
-                    
-                    if (dateA.getTime() !== dateB.getTime()) {
-                        return dateA.getTime() - dateB.getTime();
-                    }
-    
-                    const numA = extractTicketNumber(a.Title);
-                    const numB = extractTicketNumber(b.Title);
-                    if (numA === null && numB === null) return 0;
-                    if (numA === null) return 1;
-                    if (numB === null) return -1;
-                    return numA - numB;
-                });
-                
-                setTableData({ headers, rows: processedRows });
-                localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, jsonInput);
-                toast({ title: "Conversion Successful", description: "Your data has been converted and sorted." });
-    
             } catch (e) {
-                setJsonError(e instanceof Error ? `Invalid format: ${e.message}` : "An unknown error occurred during conversion.");
+                setJsonError(e instanceof Error ? `Invalid ${format.toUpperCase()} format: ${e.message}` : "An unknown error occurred during conversion.");
             }
         });
-      };
+    };
     
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, format: 'json' | 'csv') => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -522,14 +527,17 @@ export function ImportFlow() {
     reader.onload = (e) => {
         const text = e.target?.result;
         if (typeof text === 'string') {
-            setJsonInput(text);
+            handleConvert(text, format);
         }
     };
     reader.onerror = () => setJsonError("Failed to read file.");
     reader.readAsText(file);
-    event.target.value = '';
+    event.target.value = ''; // Reset file input
   };
-  const handleImportClick = () => fileInputRef.current?.click();
+
+  const handleJsonImportClick = () => jsonFileInputRef.current?.click();
+  const handleCsvImportClick = () => csvFileInputRef.current?.click();
+
   const handleDeleteInput = () => {
     setJsonInput('');
     setTableData(null);
@@ -613,13 +621,13 @@ export function ImportFlow() {
           <CardHeader>
             <CardTitle>1. Convert JSON / CSV</CardTitle>
             <CardDescription>
-              Tempel JSON atau impor file. Konversikan untuk melihat pratinjau tabel.
+              Impor file JSON atau CSV, atau tempel kontennya. Data akan dikonversi secara otomatis.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                 <div className="grid gap-2">
-                    <Label htmlFor="json-input">JSON / CSV Input</Label>
+                    <Label htmlFor="json-input">Paste Content (JSON or CSV)</Label>
                     <Textarea
                         id="json-input"
                         placeholder='Paste your JSON or CSV data here, e.g., [{"id": 1, "name": "John"}]'
@@ -630,14 +638,13 @@ export function ImportFlow() {
                         disabled={isProcessing || !!tableData}
                     />
                     <div className="flex flex-wrap gap-2">
-                        <Button onClick={handleImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
-                            <Upload className="mr-2 h-4 w-4" /> Import File
+                        <Button onClick={() => handleConvert(jsonInput, jsonInput.trim().startsWith('[') || jsonInput.trim().startsWith('{') ? 'json' : 'csv')} size="sm" disabled={!jsonInput || isProcessing || !!tableData}>
+                            <Braces className="mr-2 h-4 w-4" /> Convert
                         </Button>
                         <Button onClick={handleDeleteInput} variant="destructive" size="sm" disabled={isProcessing}>
                             <Trash2 className="mr-2 h-4 w-4" /> Clear Input
                         </Button>
                     </div>
-                    <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="application/json,.json,text/csv,.csv" />
                 </div>
                  <div className="grid gap-2">
                     <Label htmlFor="template-input">"Convert To" Headers</Label>
@@ -658,12 +665,18 @@ export function ImportFlow() {
                 </div>
             </div>
 
-            <div className="mt-4">
-                <Button onClick={handleConvert} size="sm" disabled={!jsonInput || isProcessing || !!tableData}>
-                    {isConverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Braces className="mr-2 h-4 w-4" />}
-                    {isConverting ? 'Converting...' : 'Convert to Table'}
+            <div className="mt-4 flex flex-wrap gap-2">
+                <Button onClick={handleJsonImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
+                    <Upload className="mr-2 h-4 w-4" /> Import Json
+                </Button>
+                <Button onClick={handleCsvImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
+                    <Upload className="mr-2 h-4 w-4" /> Import CSV
                 </Button>
             </div>
+
+            <Input type="file" ref={jsonFileInputRef} onChange={(e) => handleFileChange(e, 'json')} className="hidden" accept=".json" />
+            <Input type="file" ref={csvFileInputRef} onChange={(e) => handleFileChange(e, 'csv')} className="hidden" accept=".csv" />
+            
             {jsonError && <JsonErrorAlert message={jsonError} />}
           </CardContent>
         </Card>
