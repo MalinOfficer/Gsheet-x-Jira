@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useTransition, useEffect, useContext, useCallback, useRef, MouseEvent } from 'react';
@@ -411,6 +410,24 @@ export function ImportFlow() {
       );
   };
 
+  const parseCsvToJson = (csv: string): Record<string, any>[] => {
+    const lines = csv.trim().split('\n');
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const jsonResult = [];
+
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+        const entry: Record<string, string> = {};
+        for (let j = 0; j < headers.length; j++) {
+            entry[headers[j]] = (values[j] || '').trim().replace(/^"|"$/g, '');
+        }
+        jsonResult.push(entry);
+    }
+    return jsonResult;
+  };
+
 
     const processAndSetTableData = (data: any[], isCsv: boolean = false) => {
         if (!Array.isArray(data)) data = [data];
@@ -422,7 +439,7 @@ export function ImportFlow() {
         let processedData = data;
         if (isCsv) {
             const csvHeaderMapping: Record<string, string> = {
-                'Issue type': 'Ticket Category',
+                'Issue Type': 'Ticket Category', // Corrected key
                 'Issue key': 'Title', // Will be combined
                 'Summary': 'Title', // Will be combined
                 'Custom field (Client Name)': 'Client Name',
@@ -440,20 +457,21 @@ export function ImportFlow() {
                     const mappedKey = csvHeaderMapping[originalKey];
                     if (mappedKey) {
                         // Special handling for combining Issue key and Summary into Title
-                        if (originalKey === 'Issue key') {
-                            newRow[mappedKey] = `${row['Issue key'] || ''} ${row['Summary'] || ''}`.trim();
-                        } else if (originalKey === 'Summary' && !newRow['Title']) {
-                            // If Issue key wasn't present, use Summary alone for Title
-                            newRow[mappedKey] = row[originalKey];
+                        if (mappedKey === 'Title') {
+                             if (!newRow[mappedKey]) newRow[mappedKey] = '';
+                             newRow[mappedKey] += `${row[originalKey] || ''} `;
                         } else {
                            newRow[mappedKey] = row[originalKey];
                         }
-                    } else {
-                       // If there's no mapping, keep the original key-value pair, but also check if it's one we want anyway
-                       if (Object.values(csvHeaderMapping).includes(originalKey)) {
-                         newRow[originalKey] = row[originalKey];
-                       }
                     }
+                }
+                 // Trim the combined title
+                if (newRow.Title) {
+                    newRow.Title = newRow.Title.trim();
+                }
+                // Also map the original Customer Name if it exists
+                if (row['Customer Name'] && !newRow['Customer Name']) {
+                    newRow['Customer Name'] = row['Customer Name'];
                 }
                 return newRow;
             });
@@ -537,18 +555,10 @@ export function ImportFlow() {
                 let data: any[];
                 if (format === 'json') {
                     data = JSON.parse(input);
-                    processAndSetTableData(data, false);
                 } else { // csv
-                    if (typeof XLSX === 'undefined') {
-                        setJsonError("CSV parsing library (xlsx.js) is not loaded. Please try again.");
-                        return;
-                    }
-                    const workbook = XLSX.read(input, { type: 'string', raw: true });
-                    const sheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheetName];
-                    data = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-                    processAndSetTableData(data, true);
+                    data = parseCsvToJson(input);
                 }
+                processAndSetTableData(data, format === 'csv');
                 
                 setJsonInput(input); // Store the raw input for reference
                 localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, input);
