@@ -439,12 +439,15 @@ export function ImportFlow() {
                 for (const key in row) {
                     const mappedKey = csvHeaderMapping[key];
                     if (mappedKey) {
-                        if (key === 'Issue key') {
-                            const summary = row['Summary'] || '';
-                            newRow[mappedKey] = `${row[key]} ${summary}`.trim();
-                        } else if (key === 'Summary' && !('Title' in newRow)) {
-                            newRow[mappedKey] = row[key];
-                        } else if (key !== 'Issue key' && key !== 'Summary') {
+                        // Special handling for combining Issue key and Summary into Title
+                        if (mappedKey === 'Title') {
+                            if (key === 'Issue key') {
+                                newRow[mappedKey] = `${row[key] || ''} ${row['Summary'] || ''}`.trim();
+                            } else if (key === 'Summary' && !('Title' in newRow)) {
+                                // If Issue key wasn't present, use Summary alone for Title
+                                newRow[mappedKey] = row[key];
+                            }
+                        } else {
                            newRow[mappedKey] = row[key];
                         }
                     } else {
