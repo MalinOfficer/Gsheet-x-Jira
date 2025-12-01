@@ -450,7 +450,9 @@ export function ImportFlow() {
                 'Custom field (Detail Module)': 'Detail Module',
                 'Created': 'Created At',
                 'Resolved': 'Resolved At',
-                'Customer Name': 'Customer Name'
+                'Resolve': 'Resolved At',
+                'Customer Name': 'Customer Name',
+                'Custom field (Customer Name)': 'Customer Name',
             };
 
             processedData = data.map(row => {
@@ -1094,6 +1096,8 @@ function PreviewTable({
 
 
 
+
+    
 
     
 
