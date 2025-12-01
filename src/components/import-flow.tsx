@@ -53,6 +53,8 @@ type LastActionUndoData = {
     [key: string]: any;
 } | null;
 
+declare const XLSX: any;
+
 export function ImportFlow() {
   const { 
     tableData, setTableData, 
@@ -86,6 +88,7 @@ export function ImportFlow() {
   const [isUndoing, startUndoing] = useTransition();
   const [isAnalyzing, startAnalyzing] = useTransition();
   const [isConverting, startConverting] = useTransition();
+  const { toast } = useToast();
   
   const isAnyProcessing = isImporting || isUpdating || isPreviewing || isUndoing || isAnalyzing || isConverting;
 
@@ -93,8 +96,6 @@ export function ImportFlow() {
     setGlobalProcessing(isAnyProcessing);
   }, [isAnyProcessing, setGlobalProcessing]);
 
-
-  const { toast } = useToast();
 
   useEffect(() => {
     const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
@@ -409,97 +410,110 @@ export function ImportFlow() {
         );
     };
 
-  const handleConvert = () => {
-    startConverting(() => {
-        setJsonError(null);
-        setTableData(null);
-        hasScrolledRef.current = false; // Reset scroll flag
-
-        if (!jsonInput.trim()) {
-            setJsonError("JSON input cannot be empty.");
-            return;
-        }
-
-        try {
-            let data = JSON.parse(jsonInput);
-            if (!Array.isArray(data)) data = [data];
-            if (data.length === 0) {
-                setJsonError("JSON array is empty.");
+    const handleConvert = () => {
+        startConverting(() => {
+            setJsonError(null);
+            setTableData(null);
+            hasScrolledRef.current = false; // Reset scroll flag
+    
+            if (!jsonInput.trim()) {
+                setJsonError("Input cannot be empty.");
                 return;
             }
-
-            const flattenedData = data.map((item: any) => flattenJson(item));
-            const headers = templateInput.split(',').map(h => {
-                const trimmed = h.trim();
-                return trimmed.toUpperCase() === 'TICKET OP' ? 'Ticket OP' : toTitleCase(trimmed);
-            });
-            
-            let processedRows = flattenedData.map(flatRow => {
-                const newRow: Record<string, any> = {};
-                headers.forEach(header => {
-                    if (header.toLowerCase().startsWith('kolom kosong')) {
-                        newRow[header] = '';
-                        return;
+    
+            try {
+                let data;
+                // Attempt to parse as JSON first
+                if (jsonInput.trim().startsWith('{') || jsonInput.trim().startsWith('[')) {
+                    data = JSON.parse(jsonInput);
+                } else {
+                    // Fallback to CSV parsing
+                    if (typeof XLSX === 'undefined') {
+                      setJsonError("CSV parsing library (xlsx.js) is not loaded. Please try again.");
+                      return;
                     }
-                    const matchingKey = Object.keys(flatRow).find(k => {
-                        return k.toLowerCase() === header.toLowerCase();
-                    });
-                    
-                    let value = matchingKey ? flatRow[matchingKey] : '';
-
-                    if (header.toLowerCase() === 'status') {
-                        const lowerCaseValue = String(value).toLowerCase();
-                        switch (lowerCaseValue) {
-                            case 'resolved': value = 'Solved'; break;
-                            case 'open': value = 'L2'; break;
-                            case 'pending': value = 'L1'; break;
-                            case 'on hold': case 'on-hold': value = 'L3'; break;
-                            case 'new': value = 'L1'; break;
-                            default: break;
-                        }
-                        if (!value) {
-                            value = 'L1';
-                        }
-                    }
-                    newRow[header] = value;
-                });
-                return newRow;
-            });
-
-            const extractTicketNumber = (title: string) => {
-                if (typeof title !== 'string') return null;
-                const match = title.match(/#(\d+)/);
-                return match ? parseInt(match[1], 10) : null;
-            };
-
-            processedRows.sort((a, b) => {
-                // Primary sort: by "Created At" date
-                const dateA = new Date(a['Created At']);
-                const dateB = new Date(b['Created At']);
-                
-                if (dateA.getTime() !== dateB.getTime()) {
-                    return dateA.getTime() - dateB.getTime();
+                    const workbook = XLSX.read(jsonInput, { type: 'string' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    data = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
                 }
+                
+                if (!Array.isArray(data)) data = [data];
+                if (data.length === 0) {
+                    setJsonError("Input data is empty.");
+                    return;
+                }
+    
+                const flattenedData = data.map((item: any) => flattenJson(item));
+                const headers = templateInput.split(',').map(h => {
+                    const trimmed = h.trim();
+                    return trimmed.toUpperCase() === 'TICKET OP' ? 'Ticket OP' : toTitleCase(trimmed);
+                });
+                
+                let processedRows = flattenedData.map(flatRow => {
+                    const newRow: Record<string, any> = {};
+                    headers.forEach(header => {
+                        if (header.toLowerCase().startsWith('kolom kosong')) {
+                            newRow[header] = '';
+                            return;
+                        }
 
-                // Secondary sort: by ticket number
-                const numA = extractTicketNumber(a.Title);
-                const numB = extractTicketNumber(b.Title);
-                if (numA === null && numB === null) return 0;
-                if (numA === null) return 1;
-                if (numB === null) return -1;
-                return numA - numB;
-            });
-            
-            setTableData({ headers, rows: processedRows });
-            localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, jsonInput);
-            toast({ title: "Conversion Successful", description: "Your JSON has been converted and sorted." });
-
-        } catch (e) {
-            setJsonError(e instanceof Error ? `Invalid JSON: ${e.message}` : "An unknown error occurred during conversion.");
-        }
-    });
-  };
-
+                        // Try to find a matching key by case-insensitive comparison
+                        const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
+                        
+                        let value = matchingKey ? flatRow[matchingKey] : '';
+    
+                        if (header.toLowerCase() === 'status') {
+                            const lowerCaseValue = String(value).toLowerCase();
+                            switch (lowerCaseValue) {
+                                case 'resolved': value = 'Solved'; break;
+                                case 'open': value = 'L2'; break;
+                                case 'pending': value = 'L1'; break;
+                                case 'on hold': case 'on-hold': value = 'L3'; break;
+                                case 'new': value = 'L1'; break;
+                                default: break;
+                            }
+                            if (!value) {
+                                value = 'L1';
+                            }
+                        }
+                        newRow[header] = value;
+                    });
+                    return newRow;
+                });
+    
+                const extractTicketNumber = (title: string) => {
+                    if (typeof title !== 'string') return null;
+                    const match = title.match(/#(\d+)/);
+                    return match ? parseInt(match[1], 10) : null;
+                };
+    
+                processedRows.sort((a, b) => {
+                    const dateA = new Date(a['Created At']);
+                    const dateB = new Date(b['Created At']);
+                    
+                    if (dateA.getTime() !== dateB.getTime()) {
+                        return dateA.getTime() - dateB.getTime();
+                    }
+    
+                    const numA = extractTicketNumber(a.Title);
+                    const numB = extractTicketNumber(b.Title);
+                    if (numA === null && numB === null) return 0;
+                    if (numA === null) return 1;
+                    if (numB === null) return -1;
+                    return numA - numB;
+                });
+                
+                setTableData({ headers, rows: processedRows });
+                localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, jsonInput);
+                toast({ title: "Conversion Successful", description: "Your data has been converted and sorted." });
+    
+            } catch (e) {
+                setJsonError(e instanceof Error ? `Invalid format: ${e.message}` : "An unknown error occurred during conversion.");
+            }
+        });
+      };
+    
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -521,7 +535,7 @@ export function ImportFlow() {
     setTableData(null);
     setJsonError(null);
     localStorage.removeItem(LOCAL_STORAGE_KEY_INPUT);
-    toast({ title: "Input Cleared", description: "JSON input has been cleared." });
+    toast({ title: "Input Cleared", description: "JSON or CSV input has been cleared." });
   };
   const handleSaveTemplate = () => {
     localStorage.setItem(LOCAL_storage_key_template, templateInput);
