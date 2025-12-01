@@ -463,8 +463,6 @@ export function ImportFlow() {
                         } else {
                            newRow[mappedKey] = row[originalKey];
                         }
-                    } else if (originalKey === 'Customer Name') { // Direct mapping for Customer Name if no other mapping applies
-                        newRow['Customer Name'] = row[originalKey];
                     }
                 }
                  if (newRow.Title) {
@@ -496,6 +494,7 @@ export function ImportFlow() {
                     const lowerCaseValue = String(value).toLowerCase();
                     switch (lowerCaseValue) {
                         case 'resolved': value = 'Solved'; break;
+                        case 'resolve': value = 'Solved'; break;
                         case 'open': value = 'L2'; break;
                         case 'pending': value = 'L1'; break;
                         case 'on hold': case 'on-hold': value = 'L3'; break;
@@ -1092,5 +1091,7 @@ function PreviewTable({
 
 
 
+
+    
 
     
