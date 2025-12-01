@@ -423,8 +423,8 @@ export function ImportFlow() {
         if (isCsv) {
             const csvHeaderMapping: Record<string, string> = {
                 'Issue type': 'Ticket Category',
-                'Issue key': 'Title',
-                'Summary': 'Title',
+                'Issue key': 'Title', // Will be combined
+                'Summary': 'Title', // Will be combined
                 'Custom field (Client Name)': 'Client Name',
                 'Status': 'Status',
                 'Custom field (Module)': 'Module',
@@ -436,28 +436,24 @@ export function ImportFlow() {
 
             processedData = data.map(row => {
                 const newRow: Record<string, any> = {};
-                for (const key in row) {
-                    const mappedKey = csvHeaderMapping[key];
+                for (const originalKey in row) {
+                    const mappedKey = csvHeaderMapping[originalKey];
                     if (mappedKey) {
                         // Special handling for combining Issue key and Summary into Title
-                        if (mappedKey === 'Title') {
-                            if (key === 'Issue key') {
-                                newRow[mappedKey] = `${row[key] || ''} ${row['Summary'] || ''}`.trim();
-                            } else if (key === 'Summary' && !('Title' in newRow)) {
-                                // If Issue key wasn't present, use Summary alone for Title
-                                newRow[mappedKey] = row[key];
-                            }
+                        if (originalKey === 'Issue key') {
+                            newRow[mappedKey] = `${row['Issue key'] || ''} ${row['Summary'] || ''}`.trim();
+                        } else if (originalKey === 'Summary' && !newRow['Title']) {
+                            // If Issue key wasn't present, use Summary alone for Title
+                            newRow[mappedKey] = row[originalKey];
                         } else {
-                           newRow[mappedKey] = row[key];
+                           newRow[mappedKey] = row[originalKey];
                         }
                     } else {
-                       // If there's no mapping, keep the original key-value pair
-                       newRow[key] = row[key];
+                       // If there's no mapping, keep the original key-value pair, but also check if it's one we want anyway
+                       if (Object.values(csvHeaderMapping).includes(originalKey)) {
+                         newRow[originalKey] = row[originalKey];
+                       }
                     }
-                }
-                 // Handle Customer Name explicitly if it wasn't mapped due to same name
-                if ('Customer Name' in row && !('Customer Name' in newRow)) {
-                    newRow['Customer Name'] = row['Customer Name'];
                 }
                 return newRow;
             });
@@ -1083,3 +1079,4 @@ function PreviewTable({
     
 
     
+
