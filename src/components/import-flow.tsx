@@ -423,8 +423,8 @@ export function ImportFlow() {
         if (isCsv) {
             const csvHeaderMapping: Record<string, string> = {
                 'Issue type': 'Ticket Category',
-                'Issue key': 'Title', // Map Issue Key to Title as per user request
-                'Summary': 'Title', // Also map Summary to Title, Issue Key will be concatenated.
+                'Issue key': 'Title',
+                'Summary': 'Title',
                 'Custom field (Client Name)': 'Client Name',
                 'Status': 'Status',
                 'Custom field (Module)': 'Module',
@@ -437,23 +437,16 @@ export function ImportFlow() {
             processedData = data.map(row => {
                 const newRow: Record<string, any> = {};
                 for (const key in row) {
-                    if (csvHeaderMapping[key]) {
-                        // Special handling for Title to combine Issue Key and Summary
+                    const mappedKey = csvHeaderMapping[key];
+                    if (mappedKey) {
                         if (key === 'Issue key') {
                             const summary = row['Summary'] || '';
-                            newRow[csvHeaderMapping[key]] = `${row[key]} ${summary}`.trim();
-                        } else if (key === 'Summary' && !row['Issue key']) {
-                             // Only map Summary if Issue Key is not present, to avoid duplication
-                            newRow[csvHeaderMapping[key]] = row[key];
+                            newRow[mappedKey] = `${row[key]} ${summary}`.trim();
+                        } else if (key === 'Summary' && !('Title' in newRow)) {
+                            newRow[mappedKey] = row[key];
+                        } else if (key !== 'Issue key' && key !== 'Summary') {
+                           newRow[mappedKey] = row[key];
                         }
-                        else if (csvHeaderMapping[key] in newRow) {
-                            // If target key already exists (like Title), do nothing to avoid overwrite.
-                        }
-                        else {
-                            newRow[csvHeaderMapping[key]] = row[key];
-                        }
-                    } else {
-                        newRow[key] = row[key];
                     }
                 }
                 return newRow;
@@ -1073,6 +1066,8 @@ function PreviewTable({
         </Card>
     );
 }
+    
+
     
 
     
