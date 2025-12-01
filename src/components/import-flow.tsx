@@ -68,7 +68,7 @@ export function ImportFlow() {
 
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
-  const [lastActionUndoData, setLastActionUndoData] = useState<LastActionUndoData>(null);
+  const [lastActionUndoData, setLastActionUndoData] = useState<LastActionUndoData | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [jsonInput, setJsonInput] = useState('');
   const [templateInput, setTemplateInput] = useState(DEFAULT_TEMPLATE);
@@ -412,13 +412,14 @@ export function ImportFlow() {
   };
 
   const parseCsvToJson = (csv: string): Record<string, any>[] => {
-    const lines = csv.trim().split('\n');
+    const lines = csv.trim().split(/\r\n|\n/);
     if (lines.length < 2) return [];
 
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
     const jsonResult = [];
 
     for (let i = 1; i < lines.length; i++) {
+        // Regex to split by comma but ignore commas inside double quotes
         const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
         const entry: Record<string, string> = {};
         for (let j = 0; j < headers.length; j++) {
@@ -463,6 +464,8 @@ export function ImportFlow() {
                         } else {
                            newRow[mappedKey] = row[originalKey];
                         }
+                    } else if (row.hasOwnProperty(originalKey)) { // Handle keys not in mapping, e.g., Customer Name
+                        newRow[originalKey] = row[originalKey];
                     }
                 }
                  if (newRow.Title) {
@@ -493,8 +496,8 @@ export function ImportFlow() {
                 if (header.toLowerCase() === 'status') {
                     const lowerCaseValue = String(value).toLowerCase();
                     switch (lowerCaseValue) {
+                        case 'resolve':
                         case 'resolved': value = 'Solved'; break;
-                        case 'resolve': value = 'Solved'; break;
                         case 'open': value = 'L2'; break;
                         case 'pending': value = 'L1'; break;
                         case 'on hold': case 'on-hold': value = 'L3'; break;
@@ -1091,6 +1094,8 @@ function PreviewTable({
 
 
 
+
+    
 
     
 
