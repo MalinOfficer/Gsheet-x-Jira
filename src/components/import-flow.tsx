@@ -439,9 +439,9 @@ export function ImportFlow() {
         let processedData = data;
         if (isCsv) {
             const csvHeaderMapping: Record<string, string> = {
-                'Issue Type': 'Ticket Category', // Corrected key
-                'Issue key': 'Title', // Will be combined
-                'Summary': 'Title', // Will be combined
+                'Issue Type': 'Ticket Category',
+                'Issue key': 'Title',
+                'Summary': 'Title',
                 'Custom field (Client Name)': 'Client Name',
                 'Status': 'Status',
                 'Custom field (Module)': 'Module',
@@ -456,22 +456,18 @@ export function ImportFlow() {
                 for (const originalKey in row) {
                     const mappedKey = csvHeaderMapping[originalKey];
                     if (mappedKey) {
-                        // Special handling for combining Issue key and Summary into Title
                         if (mappedKey === 'Title') {
                              if (!newRow[mappedKey]) newRow[mappedKey] = '';
                              newRow[mappedKey] += `${row[originalKey] || ''} `;
                         } else {
                            newRow[mappedKey] = row[originalKey];
                         }
+                    } else if (originalKey === 'Customer Name') { // Direct mapping for Customer Name if no other mapping applies
+                        newRow['Customer Name'] = row[originalKey];
                     }
                 }
-                 // Trim the combined title
-                if (newRow.Title) {
+                 if (newRow.Title) {
                     newRow.Title = newRow.Title.trim();
-                }
-                // Also map the original Customer Name if it exists
-                if (row['Customer Name'] && !newRow['Customer Name']) {
-                    newRow['Customer Name'] = row['Customer Name'];
                 }
                 return newRow;
             });
@@ -1089,4 +1085,5 @@ function PreviewTable({
     
 
     
+
 
