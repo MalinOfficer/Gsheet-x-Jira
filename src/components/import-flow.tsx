@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils';
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1aWpDRyFyl6a8bV0-e1ddYVkcfDK5WA498OHMU2Wv9iU/edit?gid=0#gid=0';
-const LOCAL_storage_key_template = 'jsonConverterHeaderTemplate';
+const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
 const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,TICKET NUMBER,Ticket Category,Module,Detail Module,Created At,Title,Kolom kosong2,Resolved At,Ticket OP';
 const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
 
@@ -64,6 +64,7 @@ export function ImportFlow() {
     verifiedUrl, setVerifiedUrl,
     spreadsheetTitle, setSpreadsheetTitle
   } = useContext(TableDataContext);
+  const { toast } = useToast();
 
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
@@ -89,7 +90,6 @@ export function ImportFlow() {
   const [isUndoing, startUndoing] = useTransition();
   const [isAnalyzing, startAnalyzing] = useTransition();
   const [isConverting, startConverting] = useTransition();
-  const { toast } = useToast();
   
   const isAnyProcessing = isImporting || isUpdating || isPreviewing || isUndoing || isAnalyzing || isConverting;
 
@@ -103,7 +103,7 @@ export function ImportFlow() {
     if (!sheetUrl) { // Only set from localStorage if context is empty
         setSheetUrl(savedUrl || DEFAULT_SHEET_URL);
     }
-    const savedTemplate = localStorage.getItem(LOCAL_storage_key_template);
+    const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE);
     setTemplateInput(savedTemplate || DEFAULT_TEMPLATE);
     const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
     if (savedJson) {
@@ -404,7 +404,6 @@ export function ImportFlow() {
   };
     
   const toTitleCase = (str: string) => {
-      // Specific check for 'Ticket OP' to prevent it from becoming 'Ticket Op'
       if (str.toUpperCase() === 'TICKET OP') return 'Ticket OP';
       return str.replace(
           /\w\S*/g,
@@ -413,14 +412,55 @@ export function ImportFlow() {
   };
 
 
-    const processAndSetTableData = (data: any[]) => {
+    const processAndSetTableData = (data: any[], isCsv: boolean = false) => {
         if (!Array.isArray(data)) data = [data];
         if (data.length === 0) {
             setJsonError("Input data is empty.");
             return;
         }
 
-        const flattenedData = data.map((item: any) => flattenJson(item));
+        let processedData = data;
+        if (isCsv) {
+            const csvHeaderMapping: Record<string, string> = {
+                'Issue type': 'Ticket Category',
+                'Issue key': 'Title', // Map Issue Key to Title as per user request
+                'Summary': 'Title', // Also map Summary to Title, Issue Key will be concatenated.
+                'Custom field (Client Name)': 'Client Name',
+                'Status': 'Status',
+                'Custom field (Module)': 'Module',
+                'Custom field (Detail Module)': 'Detail Module',
+                'Created': 'Created At',
+                'Resolved': 'Resolved At',
+                'Customer Name': 'Customer Name'
+            };
+
+            processedData = data.map(row => {
+                const newRow: Record<string, any> = {};
+                for (const key in row) {
+                    if (csvHeaderMapping[key]) {
+                        // Special handling for Title to combine Issue Key and Summary
+                        if (key === 'Issue key') {
+                            const summary = row['Summary'] || '';
+                            newRow[csvHeaderMapping[key]] = `${row[key]} ${summary}`.trim();
+                        } else if (key === 'Summary' && !row['Issue key']) {
+                             // Only map Summary if Issue Key is not present, to avoid duplication
+                            newRow[csvHeaderMapping[key]] = row[key];
+                        }
+                        else if (csvHeaderMapping[key] in newRow) {
+                            // If target key already exists (like Title), do nothing to avoid overwrite.
+                        }
+                        else {
+                            newRow[csvHeaderMapping[key]] = row[key];
+                        }
+                    } else {
+                        newRow[key] = row[key];
+                    }
+                }
+                return newRow;
+            });
+        }
+        
+        const flattenedData = processedData.map((item: any) => flattenJson(item));
         const headers = templateInput.split(',').map(h => {
             const trimmed = h.trim();
             return toTitleCase(trimmed);
@@ -498,6 +538,7 @@ export function ImportFlow() {
                 let data: any[];
                 if (format === 'json') {
                     data = JSON.parse(input);
+                    processAndSetTableData(data, false);
                 } else { // csv
                     if (typeof XLSX === 'undefined') {
                         setJsonError("CSV parsing library (xlsx.js) is not loaded. Please try again.");
@@ -507,9 +548,9 @@ export function ImportFlow() {
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     data = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                    processAndSetTableData(data, true);
                 }
                 
-                processAndSetTableData(data);
                 setJsonInput(input); // Store the raw input for reference
                 localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, input);
 
@@ -546,7 +587,7 @@ export function ImportFlow() {
     toast({ title: "Input Cleared", description: "JSON or CSV input has been cleared." });
   };
   const handleSaveTemplate = () => {
-    localStorage.setItem(LOCAL_storage_key_template, templateInput);
+    localStorage.setItem(LOCAL_STORAGE_KEY_TEMPLATE, templateInput);
     toast({ title: "Template Saved", description: "Header template has been saved." });
   };
   const isVerified = !!verifiedUrl && verifiedUrl === sheetUrl;
@@ -1032,6 +1073,8 @@ function PreviewTable({
         </Card>
     );
 }
+    
+
     
 
     
