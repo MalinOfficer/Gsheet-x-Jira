@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useTransition, useEffect, useContext, useCallback, useRef, MouseEvent } from 'react';
@@ -499,6 +500,9 @@ export function ImportFlow() {
                         case 'pending': value = 'L1'; break;
                         case 'on hold': case 'on-hold': value = 'L3'; break;
                         case 'new': value = 'L1'; break;
+                        case 'in progress l1': value = 'L1'; break;
+                        case 'in progress l2': value = 'L2'; break;
+                        case 'in progress l3': value = 'L3'; break;
                         default: break;
                     }
                     if (!value) {
@@ -1087,3 +1091,6 @@ function PreviewTable({
     
 
 
+
+
+    
