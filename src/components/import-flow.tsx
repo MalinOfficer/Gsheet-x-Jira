@@ -447,7 +447,14 @@ export function ImportFlow() {
                         } else if (key !== 'Issue key' && key !== 'Summary') {
                            newRow[mappedKey] = row[key];
                         }
+                    } else {
+                       // If there's no mapping, keep the original key-value pair
+                       newRow[key] = row[key];
                     }
+                }
+                 // Handle Customer Name explicitly if it wasn't mapped due to same name
+                if ('Customer Name' in row && !('Customer Name' in newRow)) {
+                    newRow['Customer Name'] = row['Customer Name'];
                 }
                 return newRow;
             });
@@ -537,7 +544,7 @@ export function ImportFlow() {
                         setJsonError("CSV parsing library (xlsx.js) is not loaded. Please try again.");
                         return;
                     }
-                    const workbook = XLSX.read(input, { type: 'string' });
+                    const workbook = XLSX.read(input, { type: 'string', raw: true });
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     data = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
