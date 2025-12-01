@@ -429,7 +429,10 @@ export function ImportFlow() {
             }
 
             const flattenedData = data.map((item: any) => flattenJson(item));
-            const headers = templateInput.split(',').map(h => toTitleCase(h.trim()));
+            const headers = templateInput.split(',').map(h => {
+                const trimmed = h.trim();
+                return trimmed.toUpperCase() === 'TICKET OP' ? 'Ticket OP' : toTitleCase(trimmed);
+            });
             
             let processedRows = flattenedData.map(flatRow => {
                 const newRow: Record<string, any> = {};
@@ -439,9 +442,6 @@ export function ImportFlow() {
                         return;
                     }
                     const matchingKey = Object.keys(flatRow).find(k => {
-                        if (header === 'Ticket OP') {
-                             return k.toLowerCase() === 'ticket op';
-                        }
                         return k.toLowerCase() === header.toLowerCase();
                     });
                     
@@ -597,7 +597,7 @@ export function ImportFlow() {
 
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>1. Provide and Convert JSON</CardTitle>
+            <CardTitle>1. Convert JSON / CSV</CardTitle>
             <CardDescription>
               Tempel JSON atau impor file. Konversikan untuk melihat pratinjau tabel.
             </CardDescription>
@@ -605,10 +605,10 @@ export function ImportFlow() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                 <div className="grid gap-2">
-                    <Label htmlFor="json-input">JSON Input</Label>
+                    <Label htmlFor="json-input">JSON / CSV Input</Label>
                     <Textarea
                         id="json-input"
-                        placeholder='[{"id": 1, "name": "John"}]'
+                        placeholder='Paste your JSON or CSV data here, e.g., [{"id": 1, "name": "John"}]'
                         value={jsonInput}
                         onChange={(e) => { setJsonInput(e.target.value); setTableData(null); setJsonError(null); }}
                         rows={8}
@@ -617,13 +617,13 @@ export function ImportFlow() {
                     />
                     <div className="flex flex-wrap gap-2">
                         <Button onClick={handleImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
-                            <Upload className="mr-2 h-4 w-4" /> Import JSON
+                            <Upload className="mr-2 h-4 w-4" /> Import File
                         </Button>
                         <Button onClick={handleDeleteInput} variant="destructive" size="sm" disabled={isProcessing}>
                             <Trash2 className="mr-2 h-4 w-4" /> Clear Input
                         </Button>
                     </div>
-                    <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="application/json,.json" />
+                    <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="application/json,.json,text/csv,.csv" />
                 </div>
                  <div className="grid gap-2">
                     <Label htmlFor="template-input">"Convert To" Headers</Label>
