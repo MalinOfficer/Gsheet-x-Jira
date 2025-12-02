@@ -178,7 +178,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                         className="flex items-center gap-2 font-semibold text-primary"
                                     >
                                         <GanttChartSquare className="h-6 w-6" />
-                                        <span>Gsheet Tools V2</span>
+                                        <span>Gsheet Tools V3</span>
                                     </Link>
                                 </SheetTitle>
                             </SheetHeader>
@@ -206,7 +206,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     {/* Desktop Logo */}
                     <Link href="/" className="hidden md:flex items-center gap-2 font-semibold text-primary">
                         <GanttChartSquare className="h-6 w-6" />
-                        <span className="text-lg">Gsheet Tools V2</span>
+                        <span className="text-lg">Gsheet Tools V3</span>
                     </Link>
                     
                     {/* Desktop Navigation */}
@@ -264,5 +264,3 @@ const ListItem = React.forwardRef<
   );
 });
 ListItem.displayName = "ListItem"
-
-    
