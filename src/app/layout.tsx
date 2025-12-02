@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 const ANTI_FLICKER_SCRIPT = `
 (function() {
   try {
-    const theme = localStorage.getItem('app-theme') || 'default';
+    const theme = localStorage.getItem('app-theme') || 'dark';
     const root = document.documentElement;
     root.classList.add(theme);
   } catch (e) {}
@@ -38,7 +38,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased overflow-hidden" suppressHydrationWarning>
         <ThemeProvider
-            defaultTheme="default"
+            defaultTheme="dark"
             storageKey="app-theme"
         >
             <StoreProvider>
