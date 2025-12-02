@@ -466,7 +466,7 @@ export function ImportFlow() {
                         } else {
                            newRow[mappedKey] = row[originalKey];
                         }
-                    } else if (row.hasOwnProperty(originalKey)) { // Handle keys not in mapping, e.g., Customer Name
+                    } else if (row.hasOwnProperty(originalKey)) { // Handle keys not in mapping
                         newRow[originalKey] = row[originalKey];
                     }
                 }
@@ -507,6 +507,7 @@ export function ImportFlow() {
                         case 'in progress l1': value = 'L1'; break;
                         case 'in progress l2': value = 'L2'; break;
                         case 'in progress l3': value = 'L3'; break;
+                        case 'client review l1': value = 'L1'; break;
                         default: break;
                     }
                     if (!value) {
@@ -1096,6 +1097,8 @@ function PreviewTable({
 
 
 
+
+    
 
     
 
