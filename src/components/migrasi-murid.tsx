@@ -64,7 +64,7 @@ const monthMap: { [key: string]: string } = {
 const parseAndFormatDate = (dateStr: string): string | null => {
     if (!dateStr || typeof dateStr !== 'string') return null;
 
-    const trimmedDate = dateStr.trim().toLowerCase();
+    const trimmedDate = dateStr.trim().toLowerCase().replace(/,/g, '/');
     
     // Check if it's already in DD/MM/YYYY format
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmedDate)) {
