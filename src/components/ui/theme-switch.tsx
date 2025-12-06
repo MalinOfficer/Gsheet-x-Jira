@@ -16,10 +16,12 @@ export function ThemeSwitch() {
     return <div style={{width: '68px', height: '37.4px'}} />; // Placeholder for SSR
   }
   
+  // A theme is considered "dark" if it's explicitly 'dark'.
+  // Otherwise ('light', 'system', 'default'), we'll treat it as light for the toggle's purpose.
   const isDarkMode = theme === 'dark';
 
   const toggleTheme = () => {
-    setTheme(isDarkMode ? 'default' : 'dark');
+    setTheme(isDarkMode ? 'light' : 'dark');
   };
 
   return (
@@ -29,6 +31,7 @@ export function ThemeSwitch() {
             id="theme-switch-checkbox"
             checked={!isDarkMode}
             onChange={toggleTheme}
+            aria-label="Toggle theme"
         />
         <span className="slider">
             <div className="star star_1"></div>
