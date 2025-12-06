@@ -445,6 +445,7 @@ export function ImportFlow() {
                 'Issue key': 'Title',
                 'Summary': 'Title',
                 'Custom field (Client Name)': 'Client Name',
+                'Client Name': 'Client Name',
                 'Status': 'Status',
                 'Custom field (Module)': 'Module',
                 'Custom field (Detail Module)': 'Detail Module',
@@ -458,7 +459,8 @@ export function ImportFlow() {
             processedData = data.map(row => {
                 const newRow: Record<string, any> = {};
                 for (const originalKey in row) {
-                    const mappedKey = csvHeaderMapping[originalKey];
+                    const cleanOriginalKey = originalKey.trim().replace(/^"|"$/g, '');
+                    const mappedKey = csvHeaderMapping[cleanOriginalKey];
                     if (mappedKey) {
                         if (mappedKey === 'Title') {
                              if (!newRow[mappedKey]) newRow[mappedKey] = '';
@@ -467,7 +469,7 @@ export function ImportFlow() {
                            newRow[mappedKey] = row[originalKey];
                         }
                     } else if (row.hasOwnProperty(originalKey)) { // Handle keys not in mapping
-                        newRow[originalKey] = row[originalKey];
+                        newRow[cleanOriginalKey] = row[originalKey];
                     }
                 }
                  if (newRow.Title) {
@@ -1097,6 +1099,8 @@ function PreviewTable({
 
 
 
+
+    
 
     
 

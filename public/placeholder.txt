@@ -1,1 +1,0 @@
-This is a placeholder file to ensure the 'public' directory is created. You can safely delete this file after adding your own static assets, like 'favicon.ico'.
