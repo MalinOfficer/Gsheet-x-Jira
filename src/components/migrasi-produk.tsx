@@ -4,10 +4,11 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Upload, FileText, X, Trash2, FileCog, Loader2, ArrowLeft, ShieldOff, View } from 'lucide-react';
+import { Upload, FileText, X, Trash2, FileCog, ArrowLeft, ShieldOff, View } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { Spinner } from './ui/spinner';
 
 
 declare const XLSX: any;
@@ -351,7 +352,7 @@ export function MigrasiProduk() {
                     </CardContent>
                     <CardFooter className="flex-wrap gap-2">
                         <Button onClick={handleProcess} disabled={isProcessing || !file}>
-                           {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <View className="mr-2 h-4 w-4" />}
+                           {isProcessing ? <Spinner className="mr-2 h-4 w-4" style={{ width: '16px', height: '16px' }} /> : <View className="mr-2 h-4 w-4" />}
                            {isProcessing ? "Processing..." : "Preview File"}
                         </Button>
                          {file && (

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, BarChart, GanttChartSquare, Settings, Loader2, ListTree, GitBranch, Files, Combine, CodeXml, FileCog, PackageSearch } from "lucide-react";
+import { Menu, BarChart, GanttChartSquare, Settings, ListTree, GitBranch, Files, Combine, CodeXml, FileCog, PackageSearch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useContext, useEffect, useState } from "react";
 import { TableDataContext } from "@/store/table-data-context";
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/navigation-menu";
 import React from "react";
 import { ThemeSwitch } from "../ui/theme-switch";
+import { Spinner } from "../ui/spinner";
 
 
 const primaryNavItems = [
@@ -130,7 +131,7 @@ function ProcessingIndicator() {
 
     return (
         <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary">
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Spinner className="w-5 h-5" style={{width: '20px', height: '20px'}}/>
             <span className="text-sm font-medium">Processing...</span>
         </div>
     );
