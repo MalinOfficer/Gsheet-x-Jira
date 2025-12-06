@@ -5,7 +5,7 @@ import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Upload, Trash2, Combine, Download, ArrowLeft, FileScan, BookUser, CalendarDays, Send, Shuffle, Users, CheckCheck, XCircle, FileClock, Wand2, ArrowRightLeft, List } from 'lucide-react';
+import { Upload, Trash2, Combine, Download, ArrowLeft, FileScan, BookUser, CalendarDays, Send, Shuffle, Users, CheckCheck, XCircle, FileClock, Wand2, ArrowRightLeft, List, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { mergeFilesOnServer } from '@/app/actions';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -153,7 +153,7 @@ function FileUploader({ onFileProcessed, onFileRemoved, currentFile, disabled, t
                 <input ref={inputRef} type="file" className="hidden" onChange={handleFileChange} disabled={disabled || isUploading} accept=".xlsx,.xls,.csv" />
                 {isUploading ? (
                     <div className="flex flex-col items-center justify-center h-24">
-                        <Spinner className="h-8 w-8" style={{ width: '32px', height: '32px' }} />
+                        <RefreshCw className="h-8 w-8 animate-spin" />
                         <p className="mt-2 text-sm text-muted-foreground">Processing...</p>
                     </div>
                 ) : currentFile ? (
@@ -341,7 +341,7 @@ function Step1_Upload({ onNext, onClearAll, isMerging, editMode }: { onNext: () 
             </CardContent>
             <CardFooter className="flex justify-between flex-wrap gap-2">
                 <Button onClick={onNext} disabled={!fileA || !fileB || isMerging}>
-                    {isMerging ? <Spinner className="mr-2 h-4 w-4" style={{ width: '16px', height: '16px' }} /> : <Combine className="mr-2 h-4 w-4" />}
+                    {isMerging ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Combine className="mr-2 h-4 w-4" />}
                     {isMerging ? 'Merging...' : 'Merge & Review'}
                 </Button>
                 <Button onClick={onClearAll} variant="destructive" disabled={isMerging}>
@@ -869,7 +869,7 @@ export function DataWeaver() {
             case 0: return <ModeSelectionScreen onSelectMode={(mode) => { setEditMode(mode); setCurrentStep(1); }} />;
             case 1: return <Step1_Upload onNext={handleStartMerge} onClearAll={handleClearAll} isMerging={isProcessing} editMode={editMode} />;
             case 2: return isProcessing 
-                ? <div className="flex flex-col items-center justify-center p-12 text-center"><Spinner className="h-8 w-8 mb-4" style={{ width: '32px', height: '32px' }} /><h3 className='text-lg font-semibold'>Merging Files...</h3><p className="text-muted-foreground">This may take a moment.</p></div> 
+                ? <div className="flex flex-col items-center justify-center p-12 text-center"><RefreshCw className="h-8 w-8 mb-4 animate-spin" /><h3 className='text-lg font-semibold'>Merging Files...</h3><p className="text-muted-foreground">This may take a moment.</p></div> 
                 : <Step2_ManualMatch onNext={handleProceedToResult} mergeResult={mergeResult} manualMatches={manualMatches} onMatch={handleNewManualMatch} editMode={editMode} fileAHeaders={fileA?.headers} fileBHeaders={fileB?.headers} />;
             case 3: return <Step3_Result finalData={finalData} onDownload={handleDownload} editMode={editMode} fileBHeaders={fileB?.headers} />;
             default: return <ModeSelectionScreen onSelectMode={(mode) => { setEditMode(mode); setCurrentStep(1); }} />;
@@ -906,3 +906,6 @@ export function DataWeaver() {
         </div>
     );
 }
+
+
+    

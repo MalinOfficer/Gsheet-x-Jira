@@ -5,7 +5,7 @@ import { useState, useTransition, useEffect, useContext, useCallback, useRef, Mo
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart, FileCog } from 'lucide-react';
+import { Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart, FileCog, RefreshCw } from 'lucide-react';
 import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction, fetchL3ReportData } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
@@ -799,13 +799,13 @@ export function ImportFlow() {
                               className={!isVerified ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}
                               disabled={isProcessing || !sheetUrl}
                             >
-                                {isAnalyzing ? <Spinner className="w-4 h-4 mr-2" style={{ width: '16px', height: '16px' }} /> : <ShieldCheck className="w-4 h-4 mr-2" />}
+                                {isAnalyzing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
                                 {isAnalyzing ? 'Verifying...' : 'Verify'}
                             </Button>
                         )}
                      </div>
                     <div className="mt-1 h-5">
-                      {isAnalyzing && <div className="flex items-center text-xs text-muted-foreground"><Spinner className="w-3 h-3 mr-1.5" style={{ width: '12px', height: '12px' }} /><span>Analyzing...</span></div>}
+                      {isAnalyzing && <div className="flex items-center text-xs text-muted-foreground"><RefreshCw className="w-3 h-3 mr-1.5 animate-spin" /><span>Analyzing...</span></div>}
                       {spreadsheetTitle && <div className="flex items-center text-xs text-green-600 font-medium"><CheckCircle2 className="w-3 h-3 mr-1.5" /><span>{spreadsheetTitle}</span></div>}
                       {analysisError && <div className="flex items-center text-xs text-destructive font-medium"><XCircle className="w-3 h-3 mr-1.5" /><span>{analysisError}</span></div>}
                     </div>
@@ -815,7 +815,7 @@ export function ImportFlow() {
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                          <Button size="sm" disabled={isProcessing || !isVerified}>
-                           {isImporting ? <><Spinner className="mr-2 h-4 w-4" style={{ width: '16px', height: '16px' }} />Mengekspor...</> : <><Upload className="mr-2 h-4 w-4" />Export to GSheet</>}
+                           {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : <><Upload className="mr-2 h-4 w-4" />Export to GSheet</>}
                          </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -828,7 +828,7 @@ export function ImportFlow() {
                         <AlertDialogFooter>
                           <AlertDialogCancel>Batal</AlertDialogCancel>
                           <AlertDialogAction onClick={handleImport} disabled={isImporting}>
-                            {isImporting ? <><Spinner className="mr-2 h-4 w-4" style={{ width: '16px', height: '16px' }} />Mengekspor...</> : "Ya, Lanjutkan Ekspor"}
+                            {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : "Ya, Lanjutkan Ekspor"}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -836,7 +836,7 @@ export function ImportFlow() {
                     
                     <AlertDialog open={isUpdateConfirmOpen} onOpenChange={setIsUpdateConfirmOpen}>
                         <Button onClick={handleUpdatePreview} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950" disabled={isProcessing || !isVerified}>
-                            {isPreviewing ? <><Spinner className="mr-2 h-4 w-4" style={{ width: '16px', height: '16px' }} />Mengecek...</> : <><DatabaseZap className="mr-2 h-4 w-4" />Update Status</>}
+                            {isPreviewing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengecek...</> : <><DatabaseZap className="mr-2 h-4 w-4" />Update Status</>}
                         </Button>
                       <AlertDialogContent>
                         <AlertDialogHeader>
@@ -844,7 +844,7 @@ export function ImportFlow() {
                            <div className="text-sm text-muted-foreground">
                                 {isPreviewing ? (
                                     <div className="flex items-center justify-center p-8">
-                                        <Spinner className="mr-2 h-6 w-6" style={{ width: '24px', height: '24px' }} />
+                                        <RefreshCw className="mr-2 h-6 w-6 animate-spin" />
                                         <span>Mencari perubahan...</span>
                                     </div>
                                 ) : (
@@ -870,14 +870,14 @@ export function ImportFlow() {
                         <AlertDialogFooter>
                           <AlertDialogCancel onClick={() => setUpdatePreview([])}>Batal</AlertDialogCancel>
                           <AlertDialogAction onClick={handleConfirmUpdate} disabled={isUpdating || isPreviewing || updatePreview.length === 0}>
-                            {isUpdating ? <><Spinner className="mr-2 h-4 w-4" style={{ width: '16px', height: '16px' }} />Memperbarui...</> : "Ya, Lanjutkan Update"}
+                            {isUpdating ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Memperbarui...</> : "Ya, Lanjutkan Update"}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
 
                     <Button onClick={handleUndo} size="sm" variant="destructive" disabled={!lastActionUndoData || isProcessing || !isVerified}>
-                        {isUndoing ? <><Spinner className="mr-2 h-4 w-4" style={{ width: '16px', height: '16px' }} />Membatalkan...</> : <><Undo className="mr-2 h-4 w-4" />Undo Last Action</>}
+                        {isUndoing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Membatalkan...</> : <><Undo className="mr-2 h-4 w-4" />Undo Last Action</>}
                     </Button>
                 </div>
               </CardContent>
@@ -1134,3 +1134,6 @@ function PreviewTable({
     
 
 
+
+
+    
