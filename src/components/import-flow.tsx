@@ -415,15 +415,26 @@ export function ImportFlow() {
     const lines = csv.trim().split(/\r\n|\n/);
     if (lines.length < 2) return [];
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const headerLine = lines[0];
+    const headerCounts: Record<string, number> = {};
+    const uniqueHeaders = headerLine.split(',').map(h => {
+        const cleanedHeader = h.trim().replace(/^"|"$/g, '');
+        if (headerCounts[cleanedHeader]) {
+            headerCounts[cleanedHeader]++;
+            return `${cleanedHeader}_${headerCounts[cleanedHeader] - 1}`;
+        } else {
+            headerCounts[cleanedHeader] = 1;
+            return cleanedHeader;
+        }
+    });
+
     const jsonResult = [];
 
     for (let i = 1; i < lines.length; i++) {
-        // Regex to split by comma but ignore commas inside double quotes
         const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
         const entry: Record<string, string> = {};
-        for (let j = 0; j < headers.length; j++) {
-            entry[headers[j]] = (values[j] || '').trim().replace(/^"|"$/g, '');
+        for (let j = 0; j < uniqueHeaders.length; j++) {
+            entry[uniqueHeaders[j]] = (values[j] || '').trim().replace(/^"|"$/g, '');
         }
         jsonResult.push(entry);
     }
@@ -440,20 +451,24 @@ export function ImportFlow() {
 
         let processedData = data;
         if (isCsv) {
-            const csvHeaderMapping: Record<string, string> = {
+             const csvHeaderMapping: Record<string, string> = {
                 'Issue Type': 'Ticket Category',
                 'Issue key': 'Title',
                 'Summary': 'Title',
                 'Custom field (Client Name)': 'Client Name',
+                'Custom field (Client Name)_1': 'Client Name',
+                'Custom field (Client Name)_2': 'Client Name',
+                'Custom field (Client Name)_3': 'Client Name',
+                'Custom field (Customer Name)': 'Customer Name',
+                'Custom field (Customer Name)_1': 'Customer Name',
                 'Client Name': 'Client Name',
+                'Customer Name': 'Customer Name',
                 'Status': 'Status',
                 'Custom field (Module)': 'Module',
                 'Custom field (Detail Module)': 'Detail Module',
                 'Created': 'Created At',
                 'Resolved': 'Resolved At',
                 'Resolve': 'Resolved At',
-                'Customer Name': 'Customer Name',
-                'Custom field (Customer Name)': 'Customer Name',
             };
 
             processedData = data.map(row => {
@@ -465,7 +480,7 @@ export function ImportFlow() {
                         if (mappedKey === 'Title') {
                              if (!newRow[mappedKey]) newRow[mappedKey] = '';
                              newRow[mappedKey] += `${row[originalKey] || ''} `;
-                        } else {
+                        } else if (!newRow[mappedKey]) { // Only assign if target is empty to prioritize first match
                            newRow[mappedKey] = row[originalKey];
                         }
                     } else if (row.hasOwnProperty(originalKey)) { // Handle keys not in mapping
@@ -1111,3 +1126,4 @@ function PreviewTable({
     
 
     
+
