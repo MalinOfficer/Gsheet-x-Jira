@@ -456,11 +456,11 @@ export function ImportFlow() {
                 'Issue key': 'Title',
                 'Summary': 'Title',
                 'Custom field (Client Name)': 'Client Name',
-                'Custom field (Client Name)_1': 'Client Name', // Handle duplicates
+                'Custom field (Client Name)_1': 'Client Name',
                 'Custom field (Client Name)_2': 'Client Name',
                 'Custom field (Client Name)_3': 'Client Name',
                 'Custom field (Customer Name)': 'Customer Name',
-                'Custom field (Customer Name)_1': 'Customer Name', // Handle duplicates
+                'Custom field (Customer Name)_1': 'Customer Name',
                 'Client Name': 'Client Name',
                 'Customer Name': 'Customer Name',
                 'Status': 'Status',
@@ -527,6 +527,9 @@ export function ImportFlow() {
                         case 'in progress l2': value = 'L2'; break;
                         case 'in progress l3': value = 'L3'; break;
                         case 'client review l1': value = 'L1'; break;
+                        case 'l3 (on progress)': value = 'L3'; break;
+                        case 'l3 need release': value = 'L3'; break;
+                        case 'l3 review': value = 'L3'; break;
                         default: break;
                     }
                     if (!value) {
@@ -1128,5 +1131,6 @@ function PreviewTable({
     
 
     
+
 
 
