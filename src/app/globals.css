@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import "../components/ui/theme-switch.css";
+
 @layer base {
   :root {
     --background: 240 10% 97%;
@@ -56,6 +58,8 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    --container-light-bg: #1D1F2C;
+    --container-night-bg: #3D7EAE;
   }
 }
 

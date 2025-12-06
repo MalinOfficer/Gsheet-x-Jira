@@ -20,6 +20,7 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import React from "react";
+import { ThemeSwitch } from "../ui/theme-switch";
 
 
 const primaryNavItems = [
@@ -214,10 +215,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* Right side of header */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
                     <div className="hidden md:block">
                         <ProcessingIndicator />
                     </div>
+                    <ThemeSwitch />
                      <Link
                         href="/settings"
                         className={cn(
