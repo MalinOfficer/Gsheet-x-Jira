@@ -456,16 +456,18 @@ export function ImportFlow() {
                 'Issue key': 'Title',
                 'Summary': 'Title',
                 'Custom field (Client Name)': 'Client Name',
-                'Custom field (Client Name)_1': 'Client Name',
+                'Custom field (Client Name)_1': 'Client Name', // Handle duplicates
                 'Custom field (Client Name)_2': 'Client Name',
                 'Custom field (Client Name)_3': 'Client Name',
                 'Custom field (Customer Name)': 'Customer Name',
-                'Custom field (Customer Name)_1': 'Customer Name',
+                'Custom field (Customer Name)_1': 'Customer Name', // Handle duplicates
                 'Client Name': 'Client Name',
                 'Customer Name': 'Customer Name',
                 'Status': 'Status',
                 'Custom field (Module)': 'Module',
                 'Custom field (Detail Module)': 'Detail Module',
+                'Custom field (Detail Module)_1': 'Detail Module',
+                'Custom field (Detail Module)_2': 'Detail Module',
                 'Created': 'Created At',
                 'Resolved': 'Resolved At',
                 'Resolve': 'Resolved At',
@@ -1126,4 +1128,5 @@ function PreviewTable({
     
 
     
+
 
