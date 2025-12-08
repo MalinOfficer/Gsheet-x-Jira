@@ -575,7 +575,7 @@ function Step2_ManualMatch({
                 <CardHeader className="flex flex-row items-start justify-between">
                     <div>
                         <CardTitle>Manual Matching</CardTitle>
-                        <CardDescription>Select one row from each panel and click "Match & Move" to pair them manually.</CardDescription>
+                        <CardDescription>Select one row from each panel and click "Match &amp; Move" to pair them manually.</CardDescription>
                     </div>
                      <div className='flex gap-2'>
                         {viewMode === 'recommendation' ? (
@@ -600,7 +600,7 @@ function Step2_ManualMatch({
                             </div>
                             <div className="flex justify-center">
                                 <Button onClick={handleManualMatchClick} disabled={!selectedA || !selectedB}>
-                                    <Shuffle className="mr-2 h-4 w-4" /> Match & Move
+                                    <Shuffle className="mr-2 h-4 w-4" /> Match &amp; Move
                                 </Button>
                             </div>
                         </>
@@ -908,4 +908,5 @@ export function DataWeaver() {
 }
 
 
+    
     
