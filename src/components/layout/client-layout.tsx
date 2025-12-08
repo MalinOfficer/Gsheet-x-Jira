@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, BarChart, GanttChartSquare, Settings, ListTree, GitBranch, Files, Combine, CodeXml, FileCog, PackageSearch } from "lucide-react";
+import { Menu, BarChart, GanttChartSquare, Settings, ListTree, GitBranch, Files, Combine, CodeXml, FileCog, PackageSearch, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useContext, useEffect, useState } from "react";
 import { TableDataContext } from "@/store/table-data-context";
