@@ -114,7 +114,7 @@ export default function CodeViewerPage() {
                     <div className='flex gap-2'>
                         <Button onClick={handleSync} disabled={isSyncing || isZipping} className="w-full sm:w-auto">
                             {isSyncing ? (
-                              <Spinner className="mr-2 h-4 w-4" style={{ width: '16px', height: '16px' }} />
+                              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                             ) : (
                               <RefreshCw className="mr-2 h-4 w-4" />
                             )}
@@ -123,7 +123,7 @@ export default function CodeViewerPage() {
                          {fileContents && (
                             <Button onClick={handleDownloadAll} disabled={isZipping || isSyncing} className="w-full sm:w-auto">
                                 {isZipping ? (
-                                    <Spinner className="mr-2 h-4 w-4" style={{ width: '16px', height: '16px' }} />
+                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                                 ) : (
                                     <Archive className="mr-2 h-4 w-4" />
                                 )}
@@ -135,7 +135,7 @@ export default function CodeViewerPage() {
                 
                 {isSyncing && (
                     <div className="flex items-center justify-center p-12">
-                        <Spinner className="h-8 w-8" style={{ width: '32px', height: '32px' }}/>
+                        <RefreshCw className="h-8 w-8 animate-spin text-primary" />
                     </div>
                 )}
                 
