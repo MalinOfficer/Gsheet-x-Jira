@@ -704,18 +704,25 @@ function Step3_Result({ finalData, onDownload, editMode, fileBHeaders }: { final
         if (!editMode || !fileBHeaders) return [];
         return finalData.map((row) => {
             const newRow: ExcelRow = {};
-            const idHeader = Object.keys(row).find(k => k.toLowerCase() === 'id');
+            const idHeader = fileBHeaders.find(k => k.toLowerCase() === 'id');
             const nameHeaderB = fileBHeaders.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim()));
             
-            const dynamicHeaderKey = resultHeaders[3]; 
+            const dynamicHeaderKey = resultHeaders[3]; // e.g., 'NISN'
             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
             const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias);
 
+            newRow['No'] = '';
+            newRow['Id'] = idHeader && row[idHeader] ? row[idHeader] : '';
             newRow['Name'] = (nameHeaderB && row[nameHeaderB]) ? row[nameHeaderB] : '';
-            newRow['Id'] = idHeader ? row[idHeader] : '';
             newRow[dynamicHeaderKey] = sourceHeader ? row[sourceHeader] : '';
+            
+            // Reorder to match resultHeaders
+            const orderedRow: ExcelRow = {};
+            resultHeaders.forEach(header => {
+                orderedRow[header] = newRow[header];
+            });
 
-            return newRow;
+            return orderedRow;
         });
     }, [finalData, resultHeaders, editMode, fileBHeaders]);
 
@@ -909,4 +916,6 @@ export function DataWeaver() {
 
 
     
+    
+
     
