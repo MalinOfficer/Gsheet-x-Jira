@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -19,8 +20,8 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import React from "react";
-import { ThemeSwitch } from "@/components/ui/theme-switch";
-import { Spinner } from "@/components/ui/spinner";
+import { ThemeSwitch } from "../ui/theme-switch";
+import { Spinner } from "../ui/spinner";
 
 
 const primaryNavItems = [
