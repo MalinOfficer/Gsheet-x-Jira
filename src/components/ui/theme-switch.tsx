@@ -3,6 +3,7 @@
 
 import { useTheme } from '@/hooks/use-theme';
 import { useEffect, useState } from 'react';
+import './theme-switch.css';
 
 export function ThemeSwitch() {
   const { theme, setTheme } = useTheme();
@@ -13,11 +14,9 @@ export function ThemeSwitch() {
   }, []);
 
   if (!isClient) {
-    return <div style={{width: '68px', height: '37.4px'}} />; // Placeholder for SSR
+    return <div style={{width: '4em', height: '2.2em'}} />; // Placeholder for SSR
   }
   
-  // A theme is considered "dark" if it's explicitly 'dark'.
-  // Otherwise ('light', 'system', 'default'), we'll treat it as light for the toggle's purpose.
   const isDarkMode = theme === 'dark';
 
   const toggleTheme = () => {
