@@ -91,6 +91,7 @@ const projectFilesForAction = [
   "src/components/ui/sheet.tsx",
   "src/components/ui/skeleton.tsx",
   "src/components/ui/slider.tsx",
+  "src/components/ui/spinner.tsx",
   "src/components/ui/switch.tsx",
   "src/components/ui/table.tsx",
   "src/components/ui/tabs.tsx",
@@ -98,6 +99,8 @@ const projectFilesForAction = [
   "src/components/ui/toast.tsx",
   "src/components/ui/toaster.tsx",
   "src/components/ui/tooltip.tsx",
+  "src/components/ui/theme-switch.css",
+  "src/components/ui/theme-switch.tsx",
 ];
 
 
@@ -1130,4 +1133,3 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
-
