@@ -522,15 +522,17 @@ export function ImportFlow() {
                         case 'resolved': value = 'Solved'; break;
                         case 'open': value = 'L2'; break;
                         case 'pending': value = 'L1'; break;
-                        case 'on hold': case 'on-hold': value = 'L3'; break;
+                        case 'on hold':
+                        case 'on-hold':
+                        case 'in progress l3':
+                        case 'l3 (on progress)':
+                        case 'l3 need release':
+                        case 'l3 review':
+                        case 'queue l3': value = 'L3'; break;
                         case 'new': value = 'L1'; break;
                         case 'in progress l1': value = 'L1'; break;
                         case 'in progress l2': value = 'L2'; break;
-                        case 'in progress l3': value = 'L3'; break;
                         case 'client review l1': value = 'L1'; break;
-                        case 'l3 (on progress)': value = 'L3'; break;
-                        case 'l3 need release': value = 'L3'; break;
-                        case 'l3 review': value = 'L3'; break;
                         default: break;
                     }
                     if (!value) {
@@ -1134,6 +1136,9 @@ function PreviewTable({
     
 
 
+
+
+    
 
 
     
