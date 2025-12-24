@@ -338,12 +338,24 @@ export function MigrasiMurid() {
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, { row, col }: CellSelection) => {
         const move = (dRow: number, dCol: number) => {
             e.preventDefault();
-            const nextRow = Math.max(0, Math.min(rows.length - 1, row + dRow));
-            const nextCol = Math.max(1, Math.min(tableHeaders.length - 1, col + dCol)); // skip "No" column
-            const nextCell = document.querySelector(`[data-row='${nextRow}'][data-col='${nextCol}']`) as HTMLInputElement;
-            if (nextCell) {
-                nextCell.focus();
-                setSelectedRange({ start: { row: nextRow, col: nextCol }, end: { row: nextRow, col: nextCol } });
+            const endCell = selectedRange.end || selectedRange.start;
+            if (!endCell) return;
+    
+            const nextRow = Math.max(0, Math.min(rows.length - 1, (e.shiftKey ? endCell.row : row) + dRow));
+            const nextCol = Math.max(1, Math.min(tableHeaders.length - 1, (e.shiftKey ? endCell.col : col) + dCol));
+            
+            const nextCellEl = document.querySelector(`[data-row='${nextRow}'][data-col='${nextCol}']`) as HTMLInputElement;
+            if (nextCellEl) {
+                if (!e.shiftKey) {
+                    nextCellEl.focus();
+                }
+            }
+            
+            if (e.shiftKey) {
+                setSelectedRange(prev => ({...prev, end: { row: nextRow, col: nextCol }}));
+            } else {
+                 if (nextCellEl) nextCellEl.focus(); // Only focus if not shift-selecting
+                 setSelectedRange({ start: { row: nextRow, col: nextCol }, end: { row: nextRow, col: nextCol } });
             }
         };
 
