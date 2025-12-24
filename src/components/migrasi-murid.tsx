@@ -359,6 +359,31 @@ export function MigrasiMurid() {
             }
         };
 
+        const extendSelection = (direction: 'up' | 'down' | 'left' | 'right') => {
+             e.preventDefault();
+            if (!selectedRange.start) return;
+
+            const { endRow, endCol } = normalizedSelectedRange;
+            let finalRow = endRow;
+            let finalCol = endCol;
+            
+            switch (direction) {
+                case 'down':
+                    finalRow = rows.length - 1;
+                    break;
+                case 'up':
+                    finalRow = 0;
+                    break;
+                case 'right':
+                    finalCol = tableHeaders.length - 1;
+                    break;
+                case 'left':
+                    finalCol = 1; // Cannot select "No" column
+                    break;
+            }
+            setSelectedRange(prev => ({ ...prev, end: { row: finalRow, col: finalCol } }));
+        }
+
         if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
             e.preventDefault();
             handleCopy();
@@ -374,6 +399,16 @@ export function MigrasiMurid() {
         if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'Z' && e.shiftKey))) {
             e.preventDefault();
             handleRedo();
+            return;
+        }
+
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+            switch (e.key) {
+                case "ArrowUp": extendSelection('up'); break;
+                case "ArrowDown": extendSelection('down'); break;
+                case "ArrowLeft": extendSelection('left'); break;
+                case "ArrowRight": extendSelection('right'); break;
+            }
             return;
         }
 
