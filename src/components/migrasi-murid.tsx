@@ -360,29 +360,57 @@ export function MigrasiMurid() {
         };
 
         const extendSelection = (direction: 'up' | 'down' | 'left' | 'right') => {
-             e.preventDefault();
-            if (!selectedRange.start) return;
+            e.preventDefault();
+            const startCell = selectedRange.start;
+            if (!startCell) return;
 
-            const { endRow, endCol } = normalizedSelectedRange;
-            let finalRow = endRow;
-            let finalCol = endCol;
-            
+            let finalRow = startCell.row;
+            let finalCol = startCell.col;
+            const header = tableHeaders[finalCol];
+
             switch (direction) {
                 case 'down':
-                    finalRow = rows.length - 1;
+                    for (let r = startCell.row; r < rows.length; r++) {
+                        if (String(rows[r][header] || '').trim() !== '') {
+                            finalRow = r;
+                        } else {
+                            break;
+                        }
+                    }
                     break;
                 case 'up':
-                    finalRow = 0;
+                    for (let r = startCell.row; r >= 0; r--) {
+                         if (String(rows[r][header] || '').trim() !== '') {
+                            finalRow = r;
+                        } else {
+                            break;
+                        }
+                    }
                     break;
                 case 'right':
-                    finalCol = tableHeaders.length - 1;
+                    const currentRow = rows[finalRow];
+                    for (let c = startCell.col; c < tableHeaders.length; c++) {
+                        if (String(currentRow[tableHeaders[c]] || '').trim() !== '') {
+                            finalCol = c;
+                        } else {
+                            break;
+                        }
+                    }
                     break;
                 case 'left':
-                    finalCol = 1; // Cannot select "No" column
+                    const currentRowLeft = rows[finalRow];
+                    for (let c = startCell.col; c >= 1; c--) {
+                        if (String(currentRowLeft[tableHeaders[c]] || '').trim() !== '') {
+                            finalCol = c;
+                        } else {
+                            break;
+                        }
+                    }
                     break;
             }
             setSelectedRange(prev => ({ ...prev, end: { row: finalRow, col: finalCol } }));
         }
+
 
         if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
             e.preventDefault();
