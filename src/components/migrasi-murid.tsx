@@ -362,48 +362,58 @@ export function MigrasiMurid() {
         const extendSelection = (direction: 'up' | 'down' | 'left' | 'right') => {
             e.preventDefault();
             const startCell = selectedRange.start;
-            if (!startCell) return;
+            const endCell = selectedRange.end || startCell;
+            if (!startCell || !endCell) return;
 
-            let finalRow = startCell.row;
-            let finalCol = startCell.col;
-            const header = tableHeaders[finalCol];
+            let finalRow = endCell.row;
+            let finalCol = endCell.col;
 
             switch (direction) {
                 case 'down':
-                    for (let r = startCell.row; r < rows.length; r++) {
-                        if (String(rows[r][header] || '').trim() !== '') {
+                    if (endCell.row < rows.length - 1 && String(rows[endCell.row + 1][tableHeaders[endCell.col]] || '').trim() === '') {
+                        finalRow = rows.length - 1;
+                    } else {
+                        for (let r = endCell.row + 1; r < rows.length; r++) {
+                            if (String(rows[r][tableHeaders[endCell.col]] || '').trim() === '') {
+                                break;
+                            }
                             finalRow = r;
-                        } else {
-                            break;
                         }
                     }
                     break;
                 case 'up':
-                    for (let r = startCell.row; r >= 0; r--) {
-                         if (String(rows[r][header] || '').trim() !== '') {
+                    if (endCell.row > 0 && String(rows[endCell.row - 1][tableHeaders[endCell.col]] || '').trim() === '') {
+                        finalRow = 0;
+                    } else {
+                        for (let r = endCell.row - 1; r >= 0; r--) {
+                            if (String(rows[r][tableHeaders[endCell.col]] || '').trim() === '') {
+                                break;
+                            }
                             finalRow = r;
-                        } else {
-                            break;
                         }
                     }
                     break;
                 case 'right':
-                    const currentRow = rows[finalRow];
-                    for (let c = startCell.col; c < tableHeaders.length; c++) {
-                        if (String(currentRow[tableHeaders[c]] || '').trim() !== '') {
+                     if (endCell.col < tableHeaders.length - 1 && String(rows[endCell.row][tableHeaders[endCell.col + 1]] || '').trim() === '') {
+                        finalCol = tableHeaders.length - 1;
+                    } else {
+                        for (let c = endCell.col + 1; c < tableHeaders.length; c++) {
+                            if (String(rows[endCell.row][tableHeaders[c]] || '').trim() === '') {
+                                break;
+                            }
                             finalCol = c;
-                        } else {
-                            break;
                         }
                     }
                     break;
                 case 'left':
-                    const currentRowLeft = rows[finalRow];
-                    for (let c = startCell.col; c >= 1; c--) {
-                        if (String(currentRowLeft[tableHeaders[c]] || '').trim() !== '') {
+                    if (endCell.col > 1 && String(rows[endCell.row][tableHeaders[endCell.col - 1]] || '').trim() === '') {
+                         finalCol = 1;
+                    } else {
+                         for (let c = endCell.col - 1; c >= 1; c--) {
+                            if (String(rows[endCell.row][tableHeaders[c]] || '').trim() === '') {
+                                break;
+                            }
                             finalCol = c;
-                        } else {
-                            break;
                         }
                     }
                     break;
@@ -923,3 +933,4 @@ export function MigrasiMurid() {
     );
 }
 
+    
