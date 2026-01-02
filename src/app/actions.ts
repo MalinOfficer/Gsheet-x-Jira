@@ -98,8 +98,7 @@ const projectFilesForAction = [
   "src/components/ui/textarea.tsx",
   "src/components/ui/toast.tsx",
   "src/components/ui/toaster.tsx",
-  "src/components/ui/tooltip.tsx",
-  "src/components/ui/theme-switch.css",
+  "src_components/ui/theme-switch.css",
   "src/components/ui/theme-switch.tsx",
 ];
 
@@ -281,26 +280,35 @@ async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: str
     if (!sheetRows || sheetRows.length === 0) {
         return {};
     }
-
-    const ticketNumberRegex = /#(\d+)/;
+    
     const rowMap: Record<string, { rowIndex: number, currentStatus: string; currentTicketOp: string; title: string, currentCheckout: string; }> = {};
+    const ticketNumberRegex = /#(\d+)/;
+
     sheetRows.forEach((row, index) => {
         const currentStatus = row[0] || ''; // Column G
-        const detailCase = row[6]; // Column M (G is 0, so M is 6)
+        const detailCase = row[6] || ''; // Column M (G is 0, so M is 6)
         const currentCheckout = row[8] || ''; // Column O (G is 0, so O is 8)
         const currentTicketOp = row[13] || ''; // Column T (G is 0, so T is 13)
 
-        if (typeof detailCase === 'string') {
+        if (typeof detailCase === 'string' && detailCase.trim() !== '') {
+            const key = detailCase.trim();
             const match = detailCase.match(ticketNumberRegex);
+            
+            // Primary key: full title string
+            rowMap[key] = {
+                rowIndex: index + 1, // 1-based index
+                currentStatus: currentStatus,
+                currentTicketOp: currentTicketOp,
+                title: detailCase,
+                currentCheckout: currentCheckout
+            };
+            
+            // Secondary key (fallback): ticket number if it exists
             if (match && match[1]) {
-                const ticketNumber = match[1];
-                rowMap[ticketNumber] = {
-                    rowIndex: index + 1, // 1-based index
-                    currentStatus: currentStatus,
-                    currentTicketOp: currentTicketOp,
-                    title: detailCase,
-                    currentCheckout: currentCheckout
-                };
+                const ticketNumberKey = `#${match[1]}`;
+                 if (!rowMap[ticketNumberKey]) { // Avoid overwriting if already set by full title
+                    rowMap[ticketNumberKey] = rowMap[key];
+                 }
             }
         }
     });
@@ -379,32 +387,30 @@ export async function getUpdatePreview(
             const newTicketOp = appRow['Ticket OP'] || '';
             const newCheckoutRaw = appRow['Resolved At'] || '';
 
-            if (typeof detailCase === 'string') {
+            if (typeof detailCase === 'string' && detailCase.trim()) {
                 const match = detailCase.match(ticketNumberRegex);
-                if (match && match[1]) {
-                    const ticketNumber = match[1];
-                    const sheetRowInfo = rowMap[ticketNumber];
+                // First, try matching by full title. If not found, try matching by ticket number as a fallback.
+                const sheetRowInfo = rowMap[detailCase.trim()] || (match && match[1] ? rowMap[`#${match[1]}`] : undefined);
+                
+                if (sheetRowInfo) {
+                    const statusChanged = sheetRowInfo.currentStatus !== newStatus;
+                    // Only consider it a change if the new Ticket OP is not empty
+                    const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
                     
-                    if (sheetRowInfo) {
-                        const statusChanged = sheetRowInfo.currentStatus !== newStatus;
-                        // Only consider it a change if the new Ticket OP is not empty
-                        const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
-                        
-                        const formattedSheetCheckout = normalizeAndFormatDate(sheetRowInfo.currentCheckout);
-                        const formattedNewCheckout = normalizeAndFormatDate(newCheckoutRaw);
-                        const checkoutChanged = newStatus === 'Solved' && formattedSheetCheckout !== formattedNewCheckout;
+                    const formattedSheetCheckout = normalizeAndFormatDate(sheetRowInfo.currentCheckout);
+                    const formattedNewCheckout = normalizeAndFormatDate(newCheckoutRaw);
+                    const checkoutChanged = newStatus === 'Solved' && formattedSheetCheckout !== formattedNewCheckout;
 
-                        if (statusChanged || ticketOpChanged || checkoutChanged) {
-                             changesToPreview.push({
-                                title: sheetRowInfo.title,
-                                oldStatus: sheetRowInfo.currentStatus,
-                                newStatus: newStatus,
-                                oldTicketOp: sheetRowInfo.currentTicketOp,
-                                newTicketOp: ticketOpChanged ? newTicketOp : sheetRowInfo.currentTicketOp,
-                                oldCheckout: sheetRowInfo.currentCheckout,
-                                newCheckout: newStatus === 'Solved' ? newCheckoutRaw : sheetRowInfo.currentCheckout,
-                            });
-                        }
+                    if (statusChanged || ticketOpChanged || checkoutChanged) {
+                         changesToPreview.push({
+                            title: sheetRowInfo.title,
+                            oldStatus: sheetRowInfo.currentStatus,
+                            newStatus: newStatus,
+                            oldTicketOp: sheetRowInfo.currentTicketOp,
+                            newTicketOp: ticketOpChanged ? newTicketOp : sheetRowInfo.currentTicketOp,
+                            oldCheckout: sheetRowInfo.currentCheckout,
+                            newCheckout: newStatus === 'Solved' ? newCheckoutRaw : sheetRowInfo.currentCheckout,
+                        });
                     }
                 }
             }
@@ -460,52 +466,50 @@ export async function updateSheetStatus(
             const newTicketOp = appRow['Ticket OP'] || '';
             const newCheckoutRaw = appRow['Resolved At'] || '';
 
-            if (typeof detailCase === 'string') {
+            if (typeof detailCase === 'string' && detailCase.trim()) {
                 const match = detailCase.match(ticketNumberRegex);
-                if (match && match[1]) {
-                    const ticketNumber = match[1];
-                    const sheetRowInfo = rowMap[ticketNumber];
+                 // First, try matching by full title. If not found, try matching by ticket number as a fallback.
+                const sheetRowInfo = rowMap[detailCase.trim()] || (match && match[1] ? rowMap[`#${match[1]}`] : undefined);
+                
+                if (sheetRowInfo) {
+                    const statusChanged = sheetRowInfo.currentStatus !== newStatus;
+                    // Only trigger an update if the new Ticket OP from the app is not empty and different.
+                    const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
+
+                    const formattedSheetCheckout = normalizeAndFormatDate(sheetRowInfo.currentCheckout);
+                    const formattedNewCheckout = normalizeAndFormatDate(newCheckoutRaw);
+                    const checkoutWillChange = newStatus === 'Solved' && formattedSheetCheckout !== formattedNewCheckout;
                     
-                    if (sheetRowInfo) {
-                        const statusChanged = sheetRowInfo.currentStatus !== newStatus;
-                        // Only trigger an update if the new Ticket OP from the app is not empty and different.
-                        const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
-
-                        const formattedSheetCheckout = normalizeAndFormatDate(sheetRowInfo.currentCheckout);
-                        const formattedNewCheckout = normalizeAndFormatDate(newCheckoutRaw);
-                        const checkoutWillChange = newStatus === 'Solved' && formattedSheetCheckout !== formattedNewCheckout;
-                        
-                        if (statusChanged || ticketOpChanged || checkoutWillChange) {
-                            if (statusChanged) {
-                                updateRequests.push({
-                                    range: `${sheetName}!G${sheetRowInfo.rowIndex}`,
-                                    values: [[newStatus]],
-                                });
-                            }
-                             if (ticketOpChanged) {
-                                updateRequests.push({
-                                    range: `${sheetName}!T${sheetRowInfo.rowIndex}`,
-                                    values: [[newTicketOp]],
-                                });
-                            }
-                             if (checkoutWillChange) { // Only update checkout if it's changing
-                                updateRequests.push({
-                                    range: `${sheetName}!O${sheetRowInfo.rowIndex}`,
-                                    values: [[newCheckoutRaw]],
-                                });
-                            }
-
-                            updatedRows.push({ 
-                                title: detailCase, 
-                                rowIndex: sheetRowInfo.rowIndex,
-                                oldStatus: sheetRowInfo.currentStatus, 
-                                newStatus, 
-                                oldTicketOp: sheetRowInfo.currentTicketOp,
-                                newTicketOp: ticketOpChanged ? newTicketOp : sheetRowInfo.currentTicketOp,
-                                oldCheckout: sheetRowInfo.currentCheckout,
-                                newCheckout: newStatus === 'Solved' ? newCheckoutRaw : sheetRowInfo.currentCheckout
+                    if (statusChanged || ticketOpChanged || checkoutWillChange) {
+                        if (statusChanged) {
+                            updateRequests.push({
+                                range: `${sheetName}!G${sheetRowInfo.rowIndex}`,
+                                values: [[newStatus]],
                             });
                         }
+                         if (ticketOpChanged) {
+                            updateRequests.push({
+                                range: `${sheetName}!T${sheetRowInfo.rowIndex}`,
+                                values: [[newTicketOp]],
+                            });
+                        }
+                         if (checkoutWillChange) { // Only update checkout if it's changing
+                            updateRequests.push({
+                                range: `${sheetName}!O${sheetRowInfo.rowIndex}`,
+                                values: [[newCheckoutRaw]],
+                            });
+                        }
+
+                        updatedRows.push({ 
+                            title: detailCase, 
+                            rowIndex: sheetRowInfo.rowIndex,
+                            oldStatus: sheetRowInfo.currentStatus, 
+                            newStatus, 
+                            oldTicketOp: sheetRowInfo.currentTicketOp,
+                            newTicketOp: ticketOpChanged ? newTicketOp : sheetRowInfo.currentTicketOp,
+                            oldCheckout: sheetRowInfo.currentCheckout,
+                            newCheckout: newStatus === 'Solved' ? newCheckoutRaw : sheetRowInfo.currentCheckout
+                        });
                     }
                 }
             }
@@ -1121,6 +1125,8 @@ export async function fetchL3ReportData(sheetUrl: string) {
 
 
 
+
+    
 
     
 
