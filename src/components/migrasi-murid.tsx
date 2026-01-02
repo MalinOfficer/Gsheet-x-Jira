@@ -47,6 +47,7 @@ const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ 
 const INITIAL_ROWS = 23;
 
 const monthMap: { [key: string]: string } = {
+    // Indonesian
     'januari': '01', 'janu': '01', 'jan': '01',
     'februari': '02', 'feb': '02', 'febr': '02',
     'maret': '03', 'mar': '03',
@@ -56,9 +57,19 @@ const monthMap: { [key: string]: string } = {
     'juli': '07', 'jul': '07',
     'agustus': '08', 'agu': '08', 'ags': '08',
     'september': '09', 'sep': '09', 'sept': '09',
-    'oktober': '10', 'okt': '10', 'oct': '10',
+    'oktober': '10', 'okt': '10',
     'november': '11', 'nov': '11',
     'desember': '12', 'des': '12',
+    // English
+    'january': '01',
+    'february': '02',
+    'march': '03',
+    'may': '05',
+    'june': '06',
+    'july': '07',
+    'august': '08', 'aug': '08',
+    'october': '10', 'oct': '10',
+    'december': '12', 'dec': '12'
 };
 
 const parseAndFormatDate = (dateStr: string): string | null => {
@@ -90,7 +101,7 @@ const parseAndFormatDate = (dateStr: string): string | null => {
         return `${day}/${month}/${year}`;
     }
 
-    // Try parsing DD NamaBulan YYYY (e.g., 21 januari 2000)
+    // Try parsing DD NamaBulan YYYY (e.g., 21 januari 2000 or 12 dec 2025)
     const dayFirstMatch = trimmedDate.match(/^(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})$/);
     if (dayFirstMatch) {
         const day = dayFirstMatch[1].padStart(2, '0');
@@ -141,7 +152,7 @@ const parseAndFormatDate = (dateStr: string): string | null => {
         return `${day}/${month}/${year}`;
     }
 
-    // Try parsing MonthName DD YYYY (e.g., januari 21 2000)
+    // Try parsing MonthName DD YYYY (e.g., januari 21 2000 or may 13 2023)
     const monthFirstMatch = trimmedDate.match(/^([a-zA-Z]+)\s(\d{1,2})\s(\d{4})$/);
     if (monthFirstMatch) {
         const monthName = monthFirstMatch[1];
@@ -367,56 +378,55 @@ export function MigrasiMurid() {
 
             let finalRow = endCell.row;
             let finalCol = endCell.col;
+            
+            let isAtEdgeOfData = false;
 
-            switch (direction) {
-                case 'down':
-                    if (endCell.row < rows.length - 1 && String(rows[endCell.row + 1][tableHeaders[endCell.col]] || '').trim() === '') {
-                        finalRow = rows.length - 1;
-                    } else {
+            // Determine if we are at the edge of a data block
+            if (direction === 'down' && endCell.row < rows.length - 1) {
+                isAtEdgeOfData = String(rows[endCell.row][tableHeaders[endCell.col]] || '').trim() !== '' && String(rows[endCell.row + 1][tableHeaders[endCell.col]] || '').trim() === '';
+            } else if (direction === 'up' && endCell.row > 0) {
+                 isAtEdgeOfData = String(rows[endCell.row][tableHeaders[endCell.col]] || '').trim() !== '' && String(rows[endCell.row - 1][tableHeaders[endCell.col]] || '').trim() === '';
+            } else if (direction === 'right' && endCell.col < tableHeaders.length - 1) {
+                 isAtEdgeOfData = String(rows[endCell.row][tableHeaders[endCell.col]] || '').trim() !== '' && String(rows[endCell.row][tableHeaders[endCell.col+1]] || '').trim() === '';
+            } else if (direction === 'left' && endCell.col > 1) {
+                isAtEdgeOfData = String(rows[endCell.row][tableHeaders[endCell.col]] || '').trim() !== '' && String(rows[endCell.row][tableHeaders[endCell.col-1]] || '').trim() === '';
+            }
+
+
+            if (isAtEdgeOfData) { // Second press: jump to table end
+                 switch (direction) {
+                    case 'down': finalRow = rows.length - 1; break;
+                    case 'up': finalRow = 0; break;
+                    case 'right': finalCol = tableHeaders.length - 1; break;
+                    case 'left': finalCol = 1; break;
+                }
+            } else { // First press: jump to data edge
+                switch (direction) {
+                    case 'down':
                         for (let r = endCell.row + 1; r < rows.length; r++) {
-                            if (String(rows[r][tableHeaders[endCell.col]] || '').trim() === '') {
-                                break;
-                            }
+                            if (String(rows[r][tableHeaders[endCell.col]] || '').trim() === '') break;
                             finalRow = r;
                         }
-                    }
-                    break;
-                case 'up':
-                    if (endCell.row > 0 && String(rows[endCell.row - 1][tableHeaders[endCell.col]] || '').trim() === '') {
-                        finalRow = 0;
-                    } else {
+                        break;
+                    case 'up':
                         for (let r = endCell.row - 1; r >= 0; r--) {
-                            if (String(rows[r][tableHeaders[endCell.col]] || '').trim() === '') {
-                                break;
-                            }
+                            if (String(rows[r][tableHeaders[endCell.col]] || '').trim() === '') break;
                             finalRow = r;
                         }
-                    }
-                    break;
-                case 'right':
-                     if (endCell.col < tableHeaders.length - 1 && String(rows[endCell.row][tableHeaders[endCell.col + 1]] || '').trim() === '') {
-                        finalCol = tableHeaders.length - 1;
-                    } else {
+                        break;
+                    case 'right':
                         for (let c = endCell.col + 1; c < tableHeaders.length; c++) {
-                            if (String(rows[endCell.row][tableHeaders[c]] || '').trim() === '') {
-                                break;
-                            }
+                            if (String(rows[endCell.row][tableHeaders[c]] || '').trim() === '') break;
                             finalCol = c;
                         }
-                    }
-                    break;
-                case 'left':
-                    if (endCell.col > 1 && String(rows[endCell.row][tableHeaders[endCell.col - 1]] || '').trim() === '') {
-                         finalCol = 1;
-                    } else {
-                         for (let c = endCell.col - 1; c >= 1; c--) {
-                            if (String(rows[endCell.row][tableHeaders[c]] || '').trim() === '') {
-                                break;
-                            }
+                        break;
+                    case 'left':
+                        for (let c = endCell.col - 1; c >= 1; c--) {
+                            if (String(rows[endCell.row][tableHeaders[c]] || '').trim() === '') break;
                             finalCol = c;
                         }
-                    }
-                    break;
+                        break;
+                }
             }
             setSelectedRange(prev => ({ ...prev, end: { row: finalRow, col: finalCol } }));
         }
@@ -932,5 +942,7 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
 
     
