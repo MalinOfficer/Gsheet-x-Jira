@@ -373,7 +373,7 @@ export function MigrasiMurid() {
 
             let isAtEdgeOfData = false;
             if (direction === 'down' && endCell.row < rows.length - 1) {
-                isAtEdgeOfData = String(rows[endCell.row][tableHeaders[endCell.col]] || '').trim() !== '' && String(rows[endCell.row + 1][tableHeaders[endCell.col]] || '').trim() === '';
+                 isAtEdgeOfData = String(rows[endCell.row][tableHeaders[endCell.col]] || '').trim() !== '' && String(rows[endCell.row + 1][tableHeaders[endCell.col]] || '').trim() === '';
             } else if (direction === 'up' && endCell.row > 0) {
                  isAtEdgeOfData = String(rows[endCell.row][tableHeaders[endCell.col]] || '').trim() !== '' && String(rows[endCell.row - 1][tableHeaders[endCell.col]] || '').trim() === '';
             } else if (direction === 'right' && endCell.col < tableHeaders.length - 1) {
@@ -820,7 +820,7 @@ export function MigrasiMurid() {
                                 }}
                                 className={cn(
                                     "relative select-none border-r border-b px-2 py-2 flex items-center justify-center font-semibold text-xs text-foreground",
-                                    header === "No" && "sticky z-20 bg-secondary"
+                                    header === "No" && "sticky z-40 bg-secondary"
                                 )}
                             >
                                 <span className="truncate">{header}</span>
@@ -885,7 +885,7 @@ export function MigrasiMurid() {
                                                 }}
                                                 className={cn(
                                                     "p-0 m-0 border-r border-b relative flex items-center",
-                                                    header === "No" && "sticky z-10"
+                                                    header === "No" && "sticky z-20 bg-background"
                                                 )}
                                             >
                                                 <Input
