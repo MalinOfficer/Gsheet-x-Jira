@@ -5,6 +5,9 @@ import { unstable_cache } from 'next/cache';
 import { google } from 'googleapis';
 import fs from 'fs';
 import path from 'path';
+import { redis } from '@/lib/redis';
+
+const CACHE_KEY = 'dashboard_data_cache';
 
 // Daftar file yang sama seperti di code-viewer sebelumnya
 const projectFilesForAction = [
@@ -44,6 +47,7 @@ const projectFilesForAction = [
   "src/app/actions.ts",
   "src/lib/utils.ts",
   "src/lib/date-utils.ts",
+  "src/lib/redis.ts",
 
   // Manajemen State (Konteks & Provider)
   "src/store/store-provider.tsx",
@@ -76,6 +80,7 @@ const projectFilesForAction = [
   "src/components/ui/command.tsx",
   "src/components/ui/dialog.tsx",
   "src/components/ui/dropdown-menu.tsx",
+  "src_components/ui/theme-switch.css",
   "src/components/ui/form.tsx",
   "src/components/ui/input.tsx",
   "src/components/ui/label.tsx",
@@ -527,6 +532,9 @@ export async function updateSheetStatus(
             },
         });
         
+        // After successful update, trigger cache sync
+        await syncDashboardCache(sheetUrl);
+
         return { success: true, message: `Successfully updated ${updatedRows.length} rows.`, updatedRows, operationType: 'UPDATE' };
 
     } catch (error: any) {
@@ -706,6 +714,8 @@ export async function importToSheet(
             },
         });
 
+        // After successful import, trigger cache sync
+        await syncDashboardCache(sheetUrl);
 
         // 7. Prepare data for the 'Undo' action
         const updatedRange = updateResult.data.updatedRange;
@@ -784,6 +794,7 @@ export async function undoLastAction(
                     }]
                 }
             });
+            await syncDashboardCache(sheetUrl); // Resync cache after undo
             return { success: true, message: `Successfully undone import of ${undoData.count} rows.` };
         }
 
@@ -830,6 +841,7 @@ export async function undoLastAction(
                     },
                 });
             }
+            await syncDashboardCache(sheetUrl); // Resync cache after undo
             return { success: true, message: `Successfully undone update of ${undoData.updatedRows.length} rows.` };
         }
 
@@ -1090,6 +1102,105 @@ export async function fetchL3ReportData(sheetUrl: string) {
     }
 }
     
+export async function getDashboardData(sheetUrl: string) {
+    if (process.env.UPSTASH_REDIS_REST_URL) {
+        try {
+            const cachedData = await redis.get(CACHE_KEY);
+            if (cachedData) {
+                console.log('Cache hit for dashboard data.');
+                return { data: JSON.parse(cachedData as string), source: 'cache' };
+            }
+        } catch (error) {
+            console.warn('Could not read from Redis cache. Falling back to Google Sheets.', error);
+        }
+    }
+
+    console.log('Cache miss. Fetching dashboard data from Google Sheets.');
+    const result = await fetchDashboardDataFromSheet(sheetUrl);
+
+    if (result.data) {
+        // Asynchronously update cache but don't block the response
+        syncDashboardCache(sheetUrl).catch(err => {
+             console.error("Async cache update failed:", err);
+        });
+    }
+
+    return { ...result, source: 'sheet' };
+}
+
+async function fetchDashboardDataFromSheet(sheetUrl: string) {
+     if (!sheetUrl) {
+        return { error: "URL is empty. Please provide a Google Sheet URL." };
+    }
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
+    const match = sheetUrl.match(sheetIdRegex);
+    if (!match || !match[1]) {
+        return { error: 'Invalid Google Sheets URL format.' };
+    }
+    const spreadsheetId = match[1];
+    const sheetName = 'Summary';
+
+    try {
+        const sheets = getGoogleSheetsClient();
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: `${sheetName}!A:Z`,
+        });
+
+        const rows = response.data.values;
+        if (!rows || rows.length === 0) {
+            return { error: 'No data found in the Summary sheet.' };
+        }
+
+        const headers = rows.shift();
+        if (!headers) {
+             return { error: 'No headers found in the Summary sheet.' };
+        }
+
+        const jsonData = rows.map(row => {
+            const rowData: Record<string, string> = {};
+            headers.forEach((header, index) => {
+                rowData[header] = row[index] || '';
+            });
+            return rowData;
+        });
+
+        return { data: jsonData };
+
+    } catch (error: any) {
+        console.error('Failed to fetch summary data from sheet:', error.message);
+        const apiError = error.errors?.[0]?.message || 'An unknown error occurred while fetching dashboard data.';
+        return { error: `Dashboard Fetch Failed: ${apiError}` };
+    }
+}
+
+export async function syncDashboardCache(sheetUrl: string) {
+    if (!process.env.UPSTASH_REDIS_REST_URL) {
+        console.log('Skipping cache sync: Redis is not configured.');
+        return { success: true, message: "Skipped: Redis not configured." };
+    }
+
+    try {
+        const result = await fetchDashboardDataFromSheet(sheetUrl);
+
+        if (result.error) {
+            console.warn(`Cache sync failed: Could not fetch data from sheet. Reason: ${result.error}`);
+            return { success: false, error: result.error };
+        }
+        
+        if (result.data) {
+            await redis.set(CACHE_KEY, JSON.stringify(result.data));
+            console.log('Successfully synchronized dashboard data to Redis cache.');
+            return { success: true, message: 'Cache synchronized.' };
+        }
+
+        return { success: false, error: 'No data returned from sheet to sync.' };
+
+    } catch (error: any) {
+        console.error('An unexpected error occurred during cache synchronization:', error);
+        return { success: false, error: error.message || 'Unknown error during cache sync.' };
+    }
+}
     
 
     
@@ -1139,3 +1250,4 @@ export async function fetchL3ReportData(sheetUrl: string) {
     
 
     
+

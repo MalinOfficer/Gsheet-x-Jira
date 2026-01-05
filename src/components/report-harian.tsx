@@ -5,21 +5,25 @@ import { useState, useMemo, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Copy, Check, BarChart } from 'lucide-react';
+import { ArrowLeft, Copy, Check, BarChart, AlertTriangle } from 'lucide-react';
 import { formatDateTime } from '@/lib/date-utils';
 import { TableDataContext, L3ReportData } from '@/store/table-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
-function InitialState() {
+function InitialState({ error }: { error?: string }) {
   const router = useRouter();
   return (
     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
-        <BarChart className="w-16 h-16 text-muted-foreground mb-4" />
-        <CardTitle>No Report Data Found</CardTitle>
+        {error ? (
+          <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
+        ) : (
+          <BarChart className="w-16 h-16 text-muted-foreground mb-4" />
+        )}
+        <CardTitle>{error ? "Failed to Load Data" : "No Report Data Found"}</CardTitle>
         <CardDescription className="mt-2 mb-4 max-w-sm">
-            To view reports, please go to the Import Flow page, convert your JSON data, and verify your Google Sheet URL.
+            {error ? error : "To view reports, please go to the Import Flow page, convert your JSON data, and verify your Google Sheet URL."}
         </CardDescription>
         <Button onClick={() => router.push('/')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -29,11 +33,14 @@ function InitialState() {
   );
 };
 
-function DailyReportCard() {
-    const { tableData } = useContext(TableDataContext);
+function DailyReportCard({ initialData }: { initialData: any[] | null }) {
+    const { tableData: contextData } = useContext(TableDataContext);
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
     const [todayDate, setTodayDate] = useState('');
+
+    // Use context data if available (after import), otherwise use initial server-fetched data.
+    const finalData = contextData?.rows || initialData;
 
     useEffect(() => {
         const today = new Date();
@@ -44,9 +51,9 @@ function DailyReportCard() {
     }, []);
 
     const reportTextForCopy = useMemo(() => {
-        if (!tableData?.rows) return null;
+        if (!finalData || finalData.length === 0) return null;
 
-        const rows = tableData.rows;
+        const rows = finalData;
         const totalCases = rows.length;
         const escalatedL1 = rows.filter(r => String(r.Status).toLowerCase() === 'l1').length;
         const escalatedL2 = rows.filter(r => String(r.Status).toLowerCase() === 'l2').length;
@@ -133,11 +140,10 @@ ${notResolvedCases.map((item, i) => `${i + 1}. ${formatUnresolvedCase(item.clien
 ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, item.title)}`).join('\n') || 'No solved cases yet.'}
 `;
         return reportText.trim();
-    }, [tableData, todayDate]);
+    }, [finalData, todayDate]);
 
     const reportTextForDisplay = useMemo(() => {
         if (!reportTextForCopy) return '';
-        // Convert markdown-style bold to HTML strong tags for display
         return reportTextForCopy.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
     }, [reportTextForCopy]);
 
@@ -153,7 +159,9 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
         });
     };
 
-    if (!reportTextForCopy) return null;
+    if (!finalData || finalData.length === 0) {
+        return <InitialState />;
+    }
 
     return (
         <Card className="shadow-lg flex flex-col">
@@ -166,7 +174,7 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
                   </Button>
                 </div>
                 <CardDescription>
-                    This report is generated from the data you converted on the Import Flow page.
+                    This report is generated from the most recently available data (from import or cache).
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-grow">
@@ -190,13 +198,11 @@ function L3CaseReportCard() {
         if (l3ReportData.error) return `Error: ${l3ReportData.error}`;
         if (!l3ReportData.report) return "No L3 cases found.";
 
-        // Replace markdown-style bold with HTML bold for display
         return l3ReportData.report.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
     }, [l3ReportData]);
 
     const reportTextForCopy = useMemo(() => {
         if (!l3ReportData?.report) return '';
-        // The report is already formatted for WhatsApp, so just use it as is.
         return l3ReportData.report;
     }, [l3ReportData]);
 
@@ -240,11 +246,23 @@ function L3CaseReportCard() {
     );
 }
 
-export function ReportHarian() {
-  const { tableData, l3ReportData } = useContext(TableDataContext);
+interface ReportHarianProps {
+  initialDashboardData: any[] | null;
+  error?: string;
+}
+
+export function ReportHarian({ initialDashboardData, error }: ReportHarianProps) {
   const router = useRouter();
 
-  const hasAnyData = tableData || l3ReportData;
+  if (error && !initialDashboardData) {
+      return (
+          <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+              <div className="max-w-7xl mx-auto space-y-6">
+                <InitialState error={error} />
+              </div>
+          </div>
+      )
+  }
 
   return (
     <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -267,14 +285,10 @@ export function ReportHarian() {
           </div>
         </header>
 
-        {!hasAnyData ? (
-          <InitialState />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            <DailyReportCard />
-            <L3CaseReportCard />
-          </div>
-        )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+          <DailyReportCard initialData={initialDashboardData} />
+          <L3CaseReportCard />
+        </div>
       </div>
     </div>
   );
