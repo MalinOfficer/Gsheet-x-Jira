@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useCallback, useTransition, useMemo, useRef, DragEvent } from 'react';
@@ -43,7 +42,7 @@ type HeaderValidationResult = {
     headerInfo: HeaderInfo;
 } | {
     success: false;
-    missing: ('Nama' | 'NIS/NISN')[];
+    missing: ('Nama' | 'NIS/NISN')[] | string;
 };
 
 
@@ -171,8 +170,12 @@ export function CekDuplikasi() {
         if (nisIndex === -1 && nisnIndex === -1) {
             missing.push('NIS/NISN');
         }
+        
+        if (potentialHeaderRow === -1) {
+             return { success: false, missing: `No valid header row found.` };
+        }
 
-        if (potentialHeaderRow === -1 || missing.length > 0) {
+        if (missing.length > 0) {
             return { success: false, missing };
         }
 
@@ -230,12 +233,18 @@ export function CekDuplikasi() {
                         const headerResult = findHeaderRow(sheetData);
                         
                         if (!headerResult.success) {
-                             if(headerResult.missing.length > 0) {
+                             if(Array.isArray(headerResult.missing)) {
                                 const missingMessage = `Sheet '${sheetName}' is missing required column(s): ${headerResult.missing.join(', ')}.`;
                                 toast({
                                     variant: 'destructive',
                                     title: `Invalid Format: ${fileData.name}`,
                                     description: missingMessage,
+                                });
+                            } else {
+                                toast({
+                                    variant: 'destructive',
+                                    title: `Invalid Format: ${fileData.name}`,
+                                    description: `Sheet '${sheetName}': ${headerResult.missing}`,
                                 });
                             }
                             continue; // Skip this sheet
@@ -671,14 +680,3 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
         </Card>
     );
 }
-    
-
-
-    
-
-
-
-
-    
-
-    

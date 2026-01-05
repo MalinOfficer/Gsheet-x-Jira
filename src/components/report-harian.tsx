@@ -293,5 +293,3 @@ export function ReportHarian({ initialDashboardData, error }: ReportHarianProps)
     </div>
   );
 }
-
-    
