@@ -117,7 +117,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className={cn(
             "grid h-screen w-full",
-            isMobile ? "grid-rows-[auto_1fr]" : "grid-cols-[1fr_4fr]", // 20% sidebar, 80% content
+            isMobile ? "grid-rows-[auto_1fr]" : "grid-cols-[15fr_85fr]", // 15% sidebar, 85% content
             isProcessing && "pointer-events-none"
         )}>
             {/* --- Desktop Sidebar --- */}
