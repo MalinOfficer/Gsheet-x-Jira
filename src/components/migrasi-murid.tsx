@@ -764,7 +764,7 @@ export function MigrasiMurid() {
                         <Link href="/dashboard" passHref>
                             <Button variant="outline" size="sm">
                                 <ArrowLeft className="mr-2 h-4 w-4" />
-                                Back to Dashboard
+                                Back
                             </Button>
                         </Link>
                         <div>
