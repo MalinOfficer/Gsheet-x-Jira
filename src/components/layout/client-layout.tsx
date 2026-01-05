@@ -116,7 +116,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
     if (pathname === '/migrasi-murid') {
         return (
-             <div className="flex-1 flex flex-col bg-background h-screen">
+             <div className="h-full flex flex-col bg-background">
                 {children}
             </div>
         )
@@ -155,9 +155,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             )}
             
             {/* --- Main Content Area --- */}
-            <div className="flex flex-col">
+            <div className="flex flex-col overflow-hidden">
                  {/* --- Mobile/Main Header --- */}
-                <header className="flex h-16 items-center gap-4 border-b bg-background px-4 lg:px-6">
+                <header className="flex h-16 items-center gap-4 border-b bg-background px-4 lg:px-6 flex-shrink-0">
                     {/* Hamburger Menu for Mobile */}
                     {isMobile && (
                         <Sheet>
@@ -206,7 +206,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         </Link>
                     )}
                 </header>
-                <main className="flex-1 flex-col bg-muted/20 overflow-auto">
+                <main className="flex-1 flex flex-col bg-muted/20 overflow-auto min-h-0">
                     {children}
                 </main>
             </div>
