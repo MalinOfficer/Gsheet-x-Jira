@@ -67,7 +67,7 @@ export function Dashboard({ initialData, source, error }: DashboardProps) {
             <div className="max-w-7xl mx-auto space-y-6">
                  <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Dasbor Ringkasan</h1>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Dashboard Summary</h1>
                         <p className="text-sm text-muted-foreground mt-1">
                           Menampilkan data ringkasan dari Google Sheet "Summary".
                         </p>

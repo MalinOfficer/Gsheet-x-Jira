@@ -17,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/
 
 
 const primaryNavItems = [
-    { href: "/dashboard", label: "Dasbor", icon: LayoutDashboard },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/", label: "Import Flow", icon: ListTree },
     { href: "/report-harian", label: "Daily Report", icon: BarChart },
     { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
@@ -85,7 +85,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     
     const pageTitles: Record<string, string> = {
         "/": "Import Flow",
-        "/dashboard": "Dasbor Ringkasan",
+        "/dashboard": "Dashboard",
         "/report-harian": "Report Center",
         "/migrasi-murid": "Migrasi Murid",
         "/cek-duplikasi": "Cek Duplikasi",
@@ -125,7 +125,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className={cn(
             "grid h-screen w-full",
-            isMobile ? "grid-rows-[auto_1fr]" : "grid-cols-[15fr_85fr]",
+            isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[15fr_85fr]",
             isProcessing && "pointer-events-none"
         )}>
             {/* --- Desktop Sidebar --- */}
