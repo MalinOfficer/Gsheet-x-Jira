@@ -113,11 +113,19 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             </div>
         );
     }
+
+    if (pathname === '/migrasi-murid') {
+        return (
+             <div className="flex-1 flex flex-col bg-background h-screen">
+                {children}
+            </div>
+        )
+    }
     
     return (
         <div className={cn(
             "grid h-screen w-full",
-            isMobile ? "grid-rows-[auto_1fr]" : "grid-cols-[15fr_85fr]", // 15% sidebar, 85% content
+            isMobile ? "grid-rows-[auto_1fr]" : "grid-cols-[15fr_85fr]",
             isProcessing && "pointer-events-none"
         )}>
             {/* --- Desktop Sidebar --- */}

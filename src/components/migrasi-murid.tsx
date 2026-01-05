@@ -7,7 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { PlusCircle, Wand2, Download, Undo2, Redo2, Trash2 } from "lucide-react";
+import { PlusCircle, Wand2, Download, Undo2, Redo2, Trash2, ArrowLeft } from "lucide-react";
+import Link from 'next/link';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -759,9 +760,17 @@ export function MigrasiMurid() {
         <div className="h-full flex flex-col bg-background" onMouseUp={handleMouseUp} onPaste={handlePaste}>
             <div className="flex-shrink-0 p-4 border-b">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tight">Data Murid</h1>
-                        <p className="text-sm text-muted-foreground mt-1">Input dan format data migrasi siswa seperti menggunakan spreadsheet.</p>
+                     <div className="flex items-center gap-4">
+                        <Link href="/dashboard" passHref>
+                            <Button variant="outline" size="sm">
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Kembali ke Dasbor
+                            </Button>
+                        </Link>
+                        <div>
+                            <h1 className="text-xl font-bold tracking-tight">Data Murid</h1>
+                            <p className="text-sm text-muted-foreground mt-1">Input dan format data migrasi siswa seperti menggunakan spreadsheet.</p>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                         <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
