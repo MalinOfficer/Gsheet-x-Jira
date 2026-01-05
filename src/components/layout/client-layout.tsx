@@ -117,12 +117,12 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className={cn(
             "grid h-screen w-full",
-            isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]",
+            isMobile ? "grid-rows-[auto_1fr]" : "grid-cols-[1fr_4fr]", // 20% sidebar, 80% content
             isProcessing && "pointer-events-none"
         )}>
             {/* --- Desktop Sidebar --- */}
             {!isMobile && (
-                <div className="hidden border-r bg-muted/40 md:block">
+                <div className="hidden border-r bg-muted/40 md:flex flex-col">
                     <div className="flex h-full max-h-screen flex-col gap-2">
                         <div className="flex h-16 items-center border-b px-4 lg:px-6">
                             <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
