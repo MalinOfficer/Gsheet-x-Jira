@@ -98,7 +98,7 @@ const projectFilesForAction = [
   "src/components/ui/textarea.tsx",
   "src/components/ui/toast.tsx",
   "src/components/ui/toaster.tsx",
-  "src_components/ui/theme-switch.css",
+  "src/components/ui/theme-switch.css",
   "src/components/ui/theme-switch.tsx",
 ];
 
