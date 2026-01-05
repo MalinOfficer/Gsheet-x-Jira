@@ -688,7 +688,7 @@ export function ImportFlow() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="flex flex-col gap-4 p-4 lg:gap-6 lg:p-6">
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Import Flow</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -1138,6 +1138,8 @@ function PreviewTable({
 
     
 
+
+    
 
     
 
