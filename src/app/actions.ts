@@ -32,6 +32,7 @@ const projectFilesForAction = [
   "src/app/settings/page.tsx",
   "src/app/code-viewer/page.tsx",
   "src/app/migrasi-produk/page.tsx",
+  "src/app/dashboard/page.tsx",
 
   // Komponen Utama (logika untuk setiap halaman)
   "src/components/import-flow.tsx",
@@ -41,6 +42,7 @@ const projectFilesForAction = [
   "src/components/data-weaver.tsx",
   "src/components/layout/client-layout.tsx",
   "src/components/migrasi-produk.tsx",
+  "src/components/dashboard.tsx",
 
 
   // Aksi & Logika Server
@@ -80,7 +82,7 @@ const projectFilesForAction = [
   "src/components/ui/command.tsx",
   "src/components/ui/dialog.tsx",
   "src/components/ui/dropdown-menu.tsx",
-  "src_components/ui/theme-switch.css",
+  "src/components/ui/theme-switch.css",
   "src/components/ui/form.tsx",
   "src/components/ui/input.tsx",
   "src/components/ui/label.tsx",
@@ -1251,3 +1253,6 @@ export async function syncDashboardCache(sheetUrl: string) {
 
     
 
+
+
+    
