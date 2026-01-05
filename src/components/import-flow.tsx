@@ -688,216 +688,214 @@ export function ImportFlow() {
   );
 
   return (
-    <div className="bg-background text-foreground">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Import Flow</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Satu alur kerja untuk mengonversi JSON, meninjaunya, dan mengekspornya ke Google Sheets.
-          </p>
-        </header>
+    <div className="max-w-7xl mx-auto space-y-6">
+      <header>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Import Flow</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Satu alur kerja untuk mengonversi JSON, meninjaunya, dan mengekspornya ke Google Sheets.
+        </p>
+      </header>
 
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle>1. Convert JSON / CSV</CardTitle>
-            <CardDescription>
-              Impor file JSON atau CSV, atau tempel kontennya. Data akan dikonversi secara otomatis.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                <div className="grid gap-2">
-                    <Label htmlFor="json-input">Paste Content (JSON or CSV)</Label>
-                    <Textarea
-                        id="json-input"
-                        placeholder='Paste your JSON or CSV data here, e.g., [{"id": 1, "name": "John"}]'
-                        value={jsonInput}
-                        onChange={(e) => { setJsonInput(e.target.value); setTableData(null); setJsonError(null); }}
-                        rows={8}
-                        className="font-mono text-xs"
-                        disabled={isProcessing || !!tableData}
-                    />
-                    <div className="flex flex-wrap gap-2">
-                        <Button onClick={() => handleConvert(jsonInput, jsonInput.trim().startsWith('[') || jsonInput.trim().startsWith('{') ? 'json' : 'csv')} size="sm" disabled={!jsonInput || isProcessing || !!tableData}>
-                            <Braces className="mr-2 h-4 w-4" /> Convert
-                        </Button>
-                        <Button onClick={handleDeleteInput} variant="destructive" size="sm" disabled={isProcessing}>
-                            <Trash2 className="mr-2 h-4 w-4" /> Clear Input
-                        </Button>
-                    </div>
-                </div>
-                 <div className="grid gap-2">
-                    <Label htmlFor="template-input">"Convert To" Headers</Label>
-                    <Textarea
-                        id="template-input"
-                        placeholder="e.g., id,name,email"
-                        value={templateInput}
-                        onChange={(e) => setTemplateInput(e.target.value)}
-                        rows={4}
-                        className="font-mono text-xs"
-                        disabled={isProcessing || !!tableData}
-                    />
-                    <div className="flex flex-wrap gap-2">
-                        <Button onClick={handleSaveTemplate} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
-                            <Save className="mr-2 h-4 w-4" /> Save Template
-                        </Button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-                <Button onClick={handleJsonImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
-                    <Upload className="mr-2 h-4 w-4" /> Import Json
-                </Button>
-                <Button onClick={handleCsvImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
-                    <Upload className="mr-2 h-4 w-4" /> Import CSV
-                </Button>
-            </div>
-
-            <Input type="file" ref={jsonFileInputRef} onChange={(e) => handleFileChange(e, 'json')} className="hidden" accept=".json" />
-            <Input type="file" ref={csvFileInputRef} onChange={(e) => handleFileChange(e, 'csv')} className="hidden" accept=".csv" />
-            
-            {jsonError && <JsonErrorAlert message={jsonError} />}
-          </CardContent>
-        </Card>
-        
-        {tableData && (
-          <>
-            <Card className="shadow-lg" ref={destinationCardRef}>
-              <CardHeader>
-                <CardTitle>2. Set Destination and Export</CardTitle>
-                <CardDescription>
-                  Verifikasi URL Google Sheet Anda, lalu ekspor atau perbarui data.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                 <div className="grid gap-2">
-                    <Label htmlFor="gsheet-url">Target Google Sheet URL</Label>
-                    <div className="flex flex-col sm:flex-row items-stretch gap-2">
-                      <Input
-                        id="gsheet-url"
-                        type="url"
-                        placeholder="https://docs.google.com/spreadsheets/d/..."
-                        value={sheetUrl}
-                        onChange={handleUrlChange}
-                        className="flex-grow"
-                        disabled={isProcessing}
-                      />
-                       <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
-                          <Save className="h-4 w-4 mr-2" /> Set as Default
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle>1. Convert JSON / CSV</CardTitle>
+          <CardDescription>
+            Impor file JSON atau CSV, atau tempel kontennya. Data akan dikonversi secara otomatis.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+              <div className="grid gap-2">
+                  <Label htmlFor="json-input">Paste Content (JSON or CSV)</Label>
+                  <Textarea
+                      id="json-input"
+                      placeholder='Paste your JSON or CSV data here, e.g., [{"id": 1, "name": "John"}]'
+                      value={jsonInput}
+                      onChange={(e) => { setJsonInput(e.target.value); setTableData(null); setJsonError(null); }}
+                      rows={8}
+                      className="font-mono text-xs"
+                      disabled={isProcessing || !!tableData}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                      <Button onClick={() => handleConvert(jsonInput, jsonInput.trim().startsWith('[') || jsonInput.trim().startsWith('{') ? 'json' : 'csv')} size="sm" disabled={!jsonInput || isProcessing || !!tableData}>
+                          <Braces className="mr-2 h-4 w-4" /> Convert
                       </Button>
-                    </div>
-                     <div className='mt-2'>
-                        {isVerified ? (
-                            <Button size="sm" disabled className="bg-green-600 hover:bg-green-600 text-white">
-                                <CheckCircle2 className="w-4 h-4 mr-2" />
-                                Verified
-                            </Button>
-                        ) : (
-                            <Button
-                              onClick={handleAnalyzeSheet}
-                              variant={isVerified ? 'secondary' : 'default'}
-                              size="sm"
-                              className={!isVerified ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}
-                              disabled={isProcessing || !sheetUrl}
-                            >
-                                {isAnalyzing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
-                                {isAnalyzing ? 'Verifying...' : 'Verify'}
-                            </Button>
-                        )}
-                     </div>
-                    <div className="mt-1 h-5">
-                      {isAnalyzing && <div className="flex items-center text-xs text-muted-foreground"><RefreshCw className="w-3 h-3 mr-1.5 animate-spin" /><span>Analyzing...</span></div>}
-                      {spreadsheetTitle && <div className="flex items-center text-xs text-green-600 font-medium"><CheckCircle2 className="w-3 h-3 mr-1.5" /><span>{spreadsheetTitle}</span></div>}
-                      {analysisError && <div className="flex items-center text-xs text-destructive font-medium"><XCircle className="w-3 h-3 mr-1.5" /><span>{analysisError}</span></div>}
-                    </div>
+                      <Button onClick={handleDeleteInput} variant="destructive" size="sm" disabled={isProcessing}>
+                          <Trash2 className="mr-2 h-4 w-4" /> Clear Input
+                      </Button>
                   </div>
-                
-                <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                         <Button size="sm" disabled={isProcessing || !isVerified}>
-                           {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : <><Upload className="mr-2 h-4 w-4" />Export to GSheet</>}
-                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Konfirmasi Ekspor</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Apakah Anda yakin akan mengekspor {tableData.rows.length} baris ke sheet <span className="font-bold">{spreadsheetTitle || 'target'}</span>?
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Batal</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleImport} disabled={isImporting}>
-                            {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : "Ya, Lanjutkan Ekspor"}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    
-                    <AlertDialog open={isUpdateConfirmOpen} onOpenChange={setIsUpdateConfirmOpen}>
-                        <Button onClick={handleUpdatePreview} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950" disabled={isProcessing || !isVerified}>
-                            {isPreviewing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengecek...</> : <><DatabaseZap className="mr-2 h-4 w-4" />Update Status</>}
-                        </Button>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                           <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
-                           <div className="text-sm text-muted-foreground">
-                                {isPreviewing ? (
-                                    <div className="flex items-center justify-center p-8">
-                                        <RefreshCw className="mr-2 h-6 w-6 animate-spin" />
-                                        <span>Mencari perubahan...</span>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <p className='mb-2'>Apakah Anda yakin ingin memperbarui {updatePreview.length} kasus di sheet target?</p>
-                                        <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
-                                            <p className="font-bold">Detail Perubahan:</p>
-                                            <ul className="list-disc pl-5">
-                                                {updatePreview.map((item, index) => (
-                                                  <li key={index} className='text-foreground'>
-                                                    {item.title}:
-                                                    {item.oldStatus !== item.newStatus && <span> Status: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> {'→'} <strong>{item.newStatus}</strong></span>}
-                                                    {item.oldTicketOp !== item.newTicketOp && <span>, Ticket Op: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> {'→'} <strong>{item.newTicketOp}</strong></span>}
-                                                    {item.newStatus === 'Solved' && item.oldCheckout !== item.newCheckout && <span>, Check Out: <strong>{formatDateTime(item.newCheckout, 'jam')}</strong></span>}
-                                                  </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setUpdatePreview([])}>Batal</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleConfirmUpdate} disabled={isUpdating || isPreviewing || updatePreview.length === 0}>
-                            {isUpdating ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Memperbarui...</> : "Ya, Lanjutkan Update"}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+              </div>
+               <div className="grid gap-2">
+                  <Label htmlFor="template-input">"Convert To" Headers</Label>
+                  <Textarea
+                      id="template-input"
+                      placeholder="e.g., id,name,email"
+                      value={templateInput}
+                      onChange={(e) => setTemplateInput(e.target.value)}
+                      rows={4}
+                      className="font-mono text-xs"
+                      disabled={isProcessing || !!tableData}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                      <Button onClick={handleSaveTemplate} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
+                          <Save className="mr-2 h-4 w-4" /> Save Template
+                      </Button>
+                  </div>
+              </div>
+          </div>
 
-                    <Button onClick={handleUndo} size="sm" variant="destructive" disabled={!lastActionUndoData || isProcessing || !isVerified}>
-                        {isUndoing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Membatalkan...</> : <><Undo className="mr-2 h-4 w-4" />Undo Last Action</>}
+          <div className="mt-4 flex flex-wrap gap-2">
+              <Button onClick={handleJsonImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
+                  <Upload className="mr-2 h-4 w-4" /> Import Json
+              </Button>
+              <Button onClick={handleCsvImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
+                  <Upload className="mr-2 h-4 w-4" /> Import CSV
+              </Button>
+          </div>
+
+          <Input type="file" ref={jsonFileInputRef} onChange={(e) => handleFileChange(e, 'json')} className="hidden" accept=".json" />
+          <Input type="file" ref={csvFileInputRef} onChange={(e) => handleFileChange(e, 'csv')} className="hidden" accept=".csv" />
+          
+          {jsonError && <JsonErrorAlert message={jsonError} />}
+        </CardContent>
+      </Card>
+      
+      {tableData && (
+        <>
+          <Card className="shadow-lg" ref={destinationCardRef}>
+            <CardHeader>
+              <CardTitle>2. Set Destination and Export</CardTitle>
+              <CardDescription>
+                Verifikasi URL Google Sheet Anda, lalu ekspor atau perbarui data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+               <div className="grid gap-2">
+                  <Label htmlFor="gsheet-url">Target Google Sheet URL</Label>
+                  <div className="flex flex-col sm:flex-row items-stretch gap-2">
+                    <Input
+                      id="gsheet-url"
+                      type="url"
+                      placeholder="https://docs.google.com/spreadsheets/d/..."
+                      value={sheetUrl}
+                      onChange={handleUrlChange}
+                      className="flex-grow"
+                      disabled={isProcessing}
+                    />
+                     <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
+                        <Save className="h-4 w-4 mr-2" /> Set as Default
                     </Button>
+                  </div>
+                   <div className='mt-2'>
+                      {isVerified ? (
+                          <Button size="sm" disabled className="bg-green-600 hover:bg-green-600 text-white">
+                              <CheckCircle2 className="w-4 h-4 mr-2" />
+                              Verified
+                          </Button>
+                      ) : (
+                          <Button
+                            onClick={handleAnalyzeSheet}
+                            variant={isVerified ? 'secondary' : 'default'}
+                            size="sm"
+                            className={!isVerified ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}
+                            disabled={isProcessing || !sheetUrl}
+                          >
+                              {isAnalyzing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
+                              {isAnalyzing ? 'Verifying...' : 'Verify'}
+                          </Button>
+                      )}
+                   </div>
+                  <div className="mt-1 h-5">
+                    {isAnalyzing && <div className="flex items-center text-xs text-muted-foreground"><RefreshCw className="w-3 h-3 mr-1.5 animate-spin" /><span>Analyzing...</span></div>}
+                    {spreadsheetTitle && <div className="flex items-center text-xs text-green-600 font-medium"><CheckCircle2 className="w-3 h-3 mr-1.5" /><span>{spreadsheetTitle}</span></div>}
+                    {analysisError && <div className="flex items-center text-xs text-destructive font-medium"><XCircle className="w-3 h-3 mr-1.5" /><span>{analysisError}</span></div>}
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                       <Button size="sm" disabled={isProcessing || !isVerified}>
+                         {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : <><Upload className="mr-2 h-4 w-4" />Export to GSheet</>}
+                       </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Konfirmasi Ekspor</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Apakah Anda yakin akan mengekspor {tableData.rows.length} baris ke sheet <span className="font-bold">{spreadsheetTitle || 'target'}</span>?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleImport} disabled={isImporting}>
+                          {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : "Ya, Lanjutkan Ekspor"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  
+                  <AlertDialog open={isUpdateConfirmOpen} onOpenChange={setIsUpdateConfirmOpen}>
+                      <Button onClick={handleUpdatePreview} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950" disabled={isProcessing || !isVerified}>
+                          {isPreviewing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengecek...</> : <><DatabaseZap className="mr-2 h-4 w-4" />Update Status</>}
+                      </Button>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                         <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
+                         <div className="text-sm text-muted-foreground">
+                              {isPreviewing ? (
+                                  <div className="flex items-center justify-center p-8">
+                                      <RefreshCw className="mr-2 h-6 w-6 animate-spin" />
+                                      <span>Mencari perubahan...</span>
+                                  </div>
+                              ) : (
+                                  <>
+                                      <p className='mb-2'>Apakah Anda yakin ingin memperbarui {updatePreview.length} kasus di sheet target?</p>
+                                      <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
+                                          <p className="font-bold">Detail Perubahan:</p>
+                                          <ul className="list-disc pl-5">
+                                              {updatePreview.map((item, index) => (
+                                                <li key={index} className='text-foreground'>
+                                                  {item.title}:
+                                                  {item.oldStatus !== item.newStatus && <span> Status: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> {'→'} <strong>{item.newStatus}</strong></span>}
+                                                  {item.oldTicketOp !== item.newTicketOp && <span>, Ticket Op: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> {'→'} <strong>{item.newTicketOp}</strong></span>}
+                                                  {item.newStatus === 'Solved' && item.oldCheckout !== item.newCheckout && <span>, Check Out: <strong>{formatDateTime(item.newCheckout, 'jam')}</strong></span>}
+                                                </li>
+                                              ))}
+                                          </ul>
+                                      </div>
+                                  </>
+                              )}
+                          </div>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setUpdatePreview([])}>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmUpdate} disabled={isUpdating || isPreviewing || updatePreview.length === 0}>
+                          {isUpdating ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Memperbarui...</> : "Ya, Lanjutkan Update"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
 
-            <PreviewTable
-                initialData={tableData}
-                dateFormats={dateFormats}
-                isProcessing={isProcessing}
-                onUndoDataChange={setLastActionUndoData}
-                handleDateFormatChange={handleDateFormatChange}
-                handleCopyToClipboard={handleCopyToClipboard}
-                isCopied={isCopied}
-                handleNavigateToReport={handleNavigateToReport}
-            />
-          </>
-        )}
-      </div>
+                  <Button onClick={handleUndo} size="sm" variant="destructive" disabled={!lastActionUndoData || isProcessing || !isVerified}>
+                      {isUndoing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Membatalkan...</> : <><Undo className="mr-2 h-4 w-4" />Undo Last Action</>}
+                  </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <PreviewTable
+              initialData={tableData}
+              dateFormats={dateFormats}
+              isProcessing={isProcessing}
+              onUndoDataChange={setLastActionUndoData}
+              handleDateFormatChange={handleDateFormatChange}
+              handleCopyToClipboard={handleCopyToClipboard}
+              isCopied={isCopied}
+              handleNavigateToReport={handleNavigateToReport}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -1140,6 +1138,8 @@ function PreviewTable({
 
     
 
+
+    
 
     
 
