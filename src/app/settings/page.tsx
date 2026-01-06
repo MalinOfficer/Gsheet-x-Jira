@@ -46,17 +46,8 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="flex-1 overflow-auto bg-background text-foreground p-4 sm:p-6 md:p-8">
+    <div className="flex-1 overflow-auto p-4 sm:p-6 md:p-8">
       <div className="max-w-4xl mx-auto space-y-8">
-        <header>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">
-            Settings
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Sesuaikan tampilan dan nuansa aplikasi sesuai preferensi Anda.
-          </p>
-        </header>
-        
         <Card>
             <CardHeader>
                 <CardTitle>Feature Activation</CardTitle>
@@ -107,5 +98,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
