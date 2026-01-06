@@ -2,7 +2,7 @@
 const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
-  skipWaiting: true, // Ini adalah bagian penting, memaksa service worker baru untuk segera aktif
+  skipWaiting: true, // This forces the new service worker to activate immediately.
   disable: process.env.NODE_ENV === 'development',
 });
 
