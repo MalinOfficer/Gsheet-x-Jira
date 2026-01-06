@@ -22,6 +22,8 @@ interface TableDataContextType {
     setIsProcessing: (processing: boolean) => void;
     isCodeViewerEnabled: boolean;
     toggleCodeViewer: () => void;
+    areSecondaryToolsEnabled: boolean;
+    toggleSecondaryTools: () => void;
     sheetUrl: string;
     setSheetUrl: (url: string) => void;
     verifiedUrl: string;
@@ -39,6 +41,8 @@ export const TableDataContext = createContext<TableDataContextType>({
     setIsProcessing: () => {},
     isCodeViewerEnabled: false,
     toggleCodeViewer: () => {},
+    areSecondaryToolsEnabled: false,
+    toggleSecondaryTools: () => {},
     sheetUrl: '',
     setSheetUrl: () => {},
     verifiedUrl: '',
@@ -48,12 +52,14 @@ export const TableDataContext = createContext<TableDataContextType>({
 });
 
 const LOCAL_STORAGE_KEY_CODE_VIEWER = 'isCodeViewerEnabled';
+const LOCAL_STORAGE_KEY_SECONDARY_TOOLS = 'areSecondaryToolsEnabled';
 
 export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [tableData, setTableData] = useState<TableData | null>(null);
     const [l3ReportData, setL3ReportData] = useState<L3ReportData>(null);
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
     const [isCodeViewerEnabled, setIsCodeViewerEnabled] = useState<boolean>(false);
+    const [areSecondaryToolsEnabled, setAreSecondaryToolsEnabled] = useState<boolean>(false);
     
     // Verification-related state
     const [sheetUrl, setSheetUrl] = useState('');
@@ -62,27 +68,38 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
 
     useEffect(() => {
         try {
-            const savedValue = localStorage.getItem(LOCAL_STORAGE_KEY_CODE_VIEWER);
-            if (savedValue) {
-                setIsCodeViewerEnabled(JSON.parse(savedValue));
+            const savedCodeViewer = localStorage.getItem(LOCAL_STORAGE_KEY_CODE_VIEWER);
+            if (savedCodeViewer) {
+                setIsCodeViewerEnabled(JSON.parse(savedCodeViewer));
+            }
+            const savedSecondaryTools = localStorage.getItem(LOCAL_STORAGE_KEY_SECONDARY_TOOLS);
+            if (savedSecondaryTools) {
+                setAreSecondaryToolsEnabled(JSON.parse(savedSecondaryTools));
             }
         } catch (error) {
-            console.error("Failed to parse code viewer setting from localStorage", error);
-            setIsCodeViewerEnabled(false);
+            console.error("Failed to parse settings from localStorage", error);
         }
     }, []);
 
-    const toggleCodeViewer = useCallback(() => {
-        setIsCodeViewerEnabled(prev => {
-            const newValue = !prev;
-            try {
-                localStorage.setItem(LOCAL_STORAGE_KEY_CODE_VIEWER, JSON.stringify(newValue));
-            } catch (error) {
-                 console.error("Failed to save code viewer setting to localStorage", error);
-            }
-            return newValue;
-        });
-    }, []);
+    const createToggle = (
+        setter: React.Dispatch<React.SetStateAction<boolean>>,
+        key: string
+    ) => {
+        return useCallback(() => {
+            setter(prev => {
+                const newValue = !prev;
+                try {
+                    localStorage.setItem(key, JSON.stringify(newValue));
+                } catch (error) {
+                     console.error(`Failed to save ${key} to localStorage`, error);
+                }
+                return newValue;
+            });
+        }, [setter, key]);
+    };
+
+    const toggleCodeViewer = createToggle(setIsCodeViewerEnabled, LOCAL_STORAGE_KEY_CODE_VIEWER);
+    const toggleSecondaryTools = createToggle(setAreSecondaryToolsEnabled, LOCAL_STORAGE_KEY_SECONDARY_TOOLS);
 
     return (
         <TableDataContext.Provider value={{ 
@@ -94,6 +111,8 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
             setIsProcessing,
             isCodeViewerEnabled,
             toggleCodeViewer,
+            areSecondaryToolsEnabled,
+            toggleSecondaryTools,
             sheetUrl,
             setSheetUrl,
             verifiedUrl,

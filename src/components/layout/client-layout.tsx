@@ -24,9 +24,9 @@ const primaryNavItems = [
 ];
 
 const secondaryNavItems = [
-    { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files },
-    { href: "/data-weaver", label: "Edit NIS", icon: Combine },
-    { href: "/migrasi-produk", label: "Migrasi Produk", icon: PackageSearch },
+    { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files, featureFlag: 'areSecondaryToolsEnabled' },
+    { href: "/data-weaver", label: "Edit NIS", icon: Combine, featureFlag: 'areSecondaryToolsEnabled' },
+    { href: "/migrasi-produk", label: "Migrasi Produk", icon: PackageSearch, featureFlag: 'areSecondaryToolsEnabled' },
 ];
 
 const advancedNavItems = [
@@ -36,18 +36,23 @@ const advancedNavItems = [
 
 function NavLinks() {
     const pathname = usePathname();
-    const { isCodeViewerEnabled } = useContext(TableDataContext);
-
-    const visibleAdvancedItems = advancedNavItems.filter(item => {
+    const { isCodeViewerEnabled, areSecondaryToolsEnabled } = useContext(TableDataContext);
+    
+    const isVisible = (item: { featureFlag?: string }) => {
+        if (!item.featureFlag) return true;
         if (item.featureFlag === 'isCodeViewerEnabled') return isCodeViewerEnabled;
+        if (item.featureFlag === 'areSecondaryToolsEnabled') return areSecondaryToolsEnabled;
         return true;
-    });
+    }
 
-    const allNavItems = [...primaryNavItems, ...secondaryNavItems, ...visibleAdvancedItems];
+    const visibleSecondaryItems = secondaryNavItems.filter(isVisible);
+    const visibleAdvancedItems = advancedNavItems.filter(isVisible);
+
+    const allVisibleItems = [...primaryNavItems, ...visibleSecondaryItems, ...visibleAdvancedItems];
 
     return (
         <nav className="grid items-start gap-1 px-2 text-sm font-medium">
-            {allNavItems.map((item) => (
+            {allVisibleItems.map((item) => (
                 <Link
                     key={item.label}
                     href={item.href}

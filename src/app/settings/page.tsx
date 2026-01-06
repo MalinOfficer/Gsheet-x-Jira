@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Check, CodeXml } from 'lucide-react';
+import { Check, CodeXml, Files } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TableDataContext } from '@/store/table-data-context';
 import { Switch } from '@/components/ui/switch';
@@ -19,15 +19,34 @@ import { Label } from '@/components/ui/label';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { isCodeViewerEnabled, toggleCodeViewer } = useContext(TableDataContext);
+  const { isCodeViewerEnabled, toggleCodeViewer, areSecondaryToolsEnabled, toggleSecondaryTools } = useContext(TableDataContext);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
+  const featureToggles = [
+    {
+        id: 'secondary-tools-toggle',
+        label: 'Tampilkan Alat Sekunder',
+        description: 'Aktifkan untuk menampilkan menu Cek Duplikasi, Edit NIS, & Migrasi Produk.',
+        icon: Files,
+        checked: areSecondaryToolsEnabled,
+        onCheckedChange: toggleSecondaryTools,
+    },
+    {
+        id: 'code-viewer-toggle',
+        label: 'Code Viewer',
+        description: 'Tampilkan menu untuk melihat dan mengunduh kode sumber aplikasi.',
+        icon: CodeXml,
+        checked: isCodeViewerEnabled,
+        onCheckedChange: toggleCodeViewer,
+    }
+  ];
+
   return (
-    <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+    <div className="flex-1 overflow-auto bg-background text-foreground p-4 sm:p-6 md:p-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <header>
           <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">
@@ -55,26 +74,30 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 ) : (
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="flex items-center space-x-3">
-                            <div className='bg-muted p-2 rounded-full'>
-                                <CodeXml className="h-5 w-5 text-muted-foreground" />
+                    <div className="space-y-4">
+                        {featureToggles.map(feature => (
+                             <div key={feature.id} className="flex items-center justify-between rounded-lg border p-4">
+                                <div className="flex items-center space-x-3">
+                                    <div className='bg-muted p-2 rounded-full'>
+                                        <feature.icon className="h-5 w-5 text-muted-foreground" />
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <Label htmlFor={feature.id} className="text-base font-medium">
+                                            {feature.label}
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                           {feature.description}
+                                        </p>
+                                    </div>
+                                </div>
+                                <Switch
+                                    id={feature.id}
+                                    checked={feature.checked}
+                                    onCheckedChange={feature.onCheckedChange}
+                                    aria-label={`Toggle ${feature.label}`}
+                                />
                             </div>
-                            <div className="space-y-0.5">
-                                <Label htmlFor="code-viewer-toggle" className="text-base font-medium">
-                                    Code Viewer
-                                </Label>
-                                <p className="text-xs text-muted-foreground">
-                                    Tampilkan menu untuk melihat dan mengunduh kode sumber aplikasi.
-                                </p>
-                            </div>
-                        </div>
-                        <Switch
-                            id="code-viewer-toggle"
-                            checked={isCodeViewerEnabled}
-                            onCheckedChange={toggleCodeViewer}
-                            aria-label="Toggle Code Viewer"
-                        />
+                        ))}
                     </div>
                 )}
             </CardContent>
