@@ -7,7 +7,8 @@ import {
     CardContent, 
     CardDescription, 
     CardHeader, 
-    CardTitle 
+    CardTitle,
+    CardFooter
 } from "@/components/ui/card";
 import { 
     Table, 
@@ -18,7 +19,6 @@ import {
     TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface DbViewerProps {
     initialData: any[] | null;
@@ -80,7 +80,7 @@ export function DbViewer({ initialData, source, error }: DbViewerProps) {
                 
                 <Card>
                     <CardContent className="p-0">
-                        <ScrollArea className="h-[75vh]">
+                        <div className="overflow-x-auto h-[75vh]">
                             <Table>
                                 <TableHeader className="sticky top-0 bg-muted z-10">
                                     <TableRow>
@@ -101,8 +101,11 @@ export function DbViewer({ initialData, source, error }: DbViewerProps) {
                                     ))}
                                 </TableBody>
                             </Table>
-                        </ScrollArea>
+                        </div>
                     </CardContent>
+                    <CardFooter className="p-2 border-t overflow-x-auto">
+                        <div className="text-xs text-muted-foreground">Scroll horizontally to see more columns.</div>
+                    </CardFooter>
                 </Card>
             </div>
         </div>
