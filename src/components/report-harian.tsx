@@ -40,7 +40,7 @@ function DailyReportCard({ initialData }: { initialData: any[] | null }) {
     const [todayDate, setTodayDate] = useState('');
 
     // Use context data if available (after import), otherwise use initial server-fetched data.
-    const finalData = contextData?.rows || initialData;
+    const finalData = contextData?.rows && contextData.rows.length > 0 ? contextData.rows : initialData;
 
     useEffect(() => {
         const today = new Date();
