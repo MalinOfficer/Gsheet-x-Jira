@@ -1,7 +1,7 @@
 
 import { ImportFlow } from "@/components/import-flow";
 
-export default function ImportFlowPage() {
+export default function ImportDataPage() {
     return (
         <ImportFlow />
     );

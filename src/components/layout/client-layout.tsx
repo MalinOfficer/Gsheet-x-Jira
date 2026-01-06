@@ -18,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/
 
 const primaryNavItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/", label: "Import Flow", icon: ListTree },
+    { href: "/", label: "Import Data", icon: ListTree },
     { href: "/report-harian", label: "Daily Report", icon: BarChart },
     { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
 ];
@@ -26,7 +26,7 @@ const primaryNavItems = [
 const secondaryNavItems = [
     { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files },
     { href: "/data-weaver", label: "Edit NIS", icon: Combine },
-    { href: "/migrasi-produk", label: "Migrasi Product", icon: PackageSearch },
+    { href: "/migrasi-produk", label: "Migrasi Produk", icon: PackageSearch },
 ];
 
 const advancedNavItems = [
@@ -84,7 +84,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     const isMobile = useIsMobile();
     
     const pageTitles: Record<string, string> = {
-        "/": "Import Flow",
+        "/": "Import Data",
         "/dashboard": "Dashboard",
         "/report-harian": "Report Center",
         "/migrasi-murid": "Migrasi Murid",
@@ -206,7 +206,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         </Link>
                     )}
                 </header>
-                <main className="flex-1 flex flex-col bg-muted/20 overflow-auto min-h-0">
+                <main className="flex-1 flex flex-col bg-muted/20 min-h-0">
                     {children}
                 </main>
             </div>

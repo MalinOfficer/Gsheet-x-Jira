@@ -690,7 +690,7 @@ export function ImportFlow() {
   return (
     <div className="flex flex-col gap-4 p-4 lg:gap-6 lg:p-6">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Import Flow</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Import Data</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Satu alur kerja untuk mengonversi JSON, meninjaunya, dan mengekspornya ke Google Sheets.
         </p>
