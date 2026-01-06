@@ -198,7 +198,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     )}
 
                     <div className="w-full flex-1">
-                       <h1 className="text-xl font-semibold md:text-2xl">{currentPageTitle}</h1>
+                       <h1 className="font-semibold">{currentPageTitle}</h1>
                     </div>
 
                     <ThemeSwitch />
@@ -218,5 +218,3 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         </div>
     );
 }
-
-    
