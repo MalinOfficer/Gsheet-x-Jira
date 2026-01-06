@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, BarChart, GanttChartSquare, Settings, ListTree, GitBranch, Files, Combine, CodeXml, FileCog, PackageSearch, RefreshCw, LayoutDashboard } from "lucide-react";
+import { Menu, BarChart, GanttChartSquare, Settings, ListTree, GitBranch, Files, Combine, CodeXml, FileCog, PackageSearch, RefreshCw, LayoutDashboard, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useContext, useEffect, useState } from "react";
 import { TableDataContext } from "@/store/table-data-context";
@@ -19,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/
 const primaryNavItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/", label: "Import Data", icon: ListTree },
+    { href: "/db", label: "DB", icon: Database },
     { href: "/report-harian", label: "Daily Report", icon: BarChart },
     { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
 ];
@@ -91,6 +92,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     const pageTitles: Record<string, string> = {
         "/": "Import Data",
         "/dashboard": "Dashboard",
+        "/db": "All Case Database",
         "/report-harian": "Report Center",
         "/migrasi-murid": "Migrasi Murid",
         "/cek-duplikasi": "Cek Duplikasi",

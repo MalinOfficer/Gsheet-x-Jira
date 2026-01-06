@@ -8,6 +8,8 @@ import path from 'path';
 import { redis } from '@/lib/redis';
 
 const CACHE_KEY = 'dashboard_data_cache';
+const CACHE_KEY_ALL_CASE = 'all_case_data_cache';
+
 
 // Daftar file yang sama seperti di code-viewer sebelumnya
 const projectFilesForAction = [
@@ -33,6 +35,7 @@ const projectFilesForAction = [
   "src/app/code-viewer/page.tsx",
   "src/app/migrasi-produk/page.tsx",
   "src/app/dashboard/page.tsx",
+  "src/app/db/page.tsx",
 
   // Komponen Utama (logika untuk setiap halaman)
   "src/components/import-flow.tsx",
@@ -43,6 +46,7 @@ const projectFilesForAction = [
   "src/components/layout/client-layout.tsx",
   "src/components/migrasi-produk.tsx",
   "src/components/dashboard.tsx",
+  "src/components/db-viewer.tsx",
 
 
   // Aksi & Logika Server
@@ -1118,19 +1122,19 @@ export async function getDashboardData(sheetUrl: string) {
     }
 
     console.log('Cache miss. Fetching dashboard data from Google Sheets.');
-    const result = await fetchDashboardDataFromSheet(sheetUrl);
+    const result = await fetchDashboardDataFromSheet(sheetUrl, "Summary");
 
     if (result.data) {
         // Asynchronously update cache but don't block the response
-        syncDashboardCache(sheetUrl).catch(err => {
-             console.error("Async cache update failed:", err);
+        syncCache(sheetUrl, result.data, CACHE_KEY).catch(err => {
+             console.error("Async dashboard cache update failed:", err);
         });
     }
 
     return { ...result, source: 'sheet' };
 }
 
-async function fetchDashboardDataFromSheet(sheetUrl: string) {
+async function fetchDashboardDataFromSheet(sheetUrl: string, sheetName: 'Summary' | 'All Case') {
      if (!sheetUrl) {
         return { error: "URL is empty. Please provide a Google Sheet URL." };
     }
@@ -1140,7 +1144,6 @@ async function fetchDashboardDataFromSheet(sheetUrl: string) {
         return { error: 'Invalid Google Sheets URL format.' };
     }
     const spreadsheetId = match[1];
-    const sheetName = 'Summary';
 
     try {
         const sheets = getGoogleSheetsClient();
@@ -1151,12 +1154,12 @@ async function fetchDashboardDataFromSheet(sheetUrl: string) {
 
         const rows = response.data.values;
         if (!rows || rows.length === 0) {
-            return { error: 'No data found in the Summary sheet.' };
+            return { error: `No data found in the ${sheetName} sheet.` };
         }
 
         const headers = rows.shift();
         if (!headers) {
-             return { error: 'No headers found in the Summary sheet.' };
+             return { error: `No headers found in the ${sheetName} sheet.` };
         }
 
         const jsonData = rows.map(row => {
@@ -1170,38 +1173,64 @@ async function fetchDashboardDataFromSheet(sheetUrl: string) {
         return { data: jsonData };
 
     } catch (error: any) {
-        console.error('Failed to fetch summary data from sheet:', error.message);
-        const apiError = error.errors?.[0]?.message || 'An unknown error occurred while fetching dashboard data.';
-        return { error: `Dashboard Fetch Failed: ${apiError}` };
+        console.error(`Failed to fetch ${sheetName} data from sheet:`, error.message);
+        const apiError = error.errors?.[0]?.message || `An unknown error occurred while fetching ${sheetName} data.`;
+        return { error: `Fetch Failed: ${apiError}` };
     }
 }
 
-export async function syncDashboardCache(sheetUrl: string) {
+async function syncCache(sheetUrl: string, data: any, cacheKey: string) {
     if (!process.env.UPSTASH_REDIS_REST_URL) {
-        console.log('Skipping cache sync: Redis is not configured.');
+        console.log(`Skipping cache sync for ${cacheKey}: Redis is not configured.`);
         return { success: true, message: "Skipped: Redis not configured." };
     }
 
     try {
-        const result = await fetchDashboardDataFromSheet(sheetUrl);
-
-        if (result.error) {
-            console.warn(`Cache sync failed: Could not fetch data from sheet. Reason: ${result.error}`);
-            return { success: false, error: result.error };
-        }
-        
-        if (result.data) {
-            await redis.set(CACHE_KEY, JSON.stringify(result.data));
-            console.log('Successfully synchronized dashboard data to Redis cache.');
+        if (data) {
+            await redis.set(cacheKey, JSON.stringify(data));
+            console.log(`Successfully synchronized ${cacheKey} to Redis cache.`);
             return { success: true, message: 'Cache synchronized.' };
         }
-
-        return { success: false, error: 'No data returned from sheet to sync.' };
-
+        return { success: false, error: `No data provided to sync for ${cacheKey}.` };
     } catch (error: any) {
-        console.error('An unexpected error occurred during cache synchronization:', error);
-        return { success: false, error: error.message || 'Unknown error during cache sync.' };
+        console.error(`An unexpected error occurred during cache synchronization for ${cacheKey}:`, error);
+        return { success: false, error: error.message || `Unknown error during ${cacheKey} sync.` };
     }
+}
+
+export async function syncDashboardCache(sheetUrl: string) {
+    const result = await fetchDashboardDataFromSheet(sheetUrl, "Summary");
+    if (result.error) {
+        console.warn(`Dashboard cache sync failed: ${result.error}`);
+        return { success: false, error: result.error };
+    }
+    return syncCache(sheetUrl, result.data, CACHE_KEY);
+}
+
+export async function getAllCaseData(sheetUrl: string) {
+    if (process.env.UPSTASH_REDIS_REST_URL) {
+        try {
+            const cachedData = await redis.get(CACHE_KEY_ALL_CASE);
+            if (cachedData) {
+                console.log('Cache hit for All Case data.');
+                return { data: JSON.parse(cachedData as string), source: 'cache' };
+            }
+        } catch (error) {
+            console.warn('Could not read All Case from Redis cache. Falling back to Google Sheets.', error);
+        }
+    }
+
+    console.log('Cache miss. Fetching All Case data from Google Sheets.');
+    const result = await fetchDashboardDataFromSheet(sheetUrl, "All Case");
+
+    if (result.data) {
+        // Asynchronously update cache
+        syncCache(sheetUrl, result.data, CACHE_KEY_ALL_CASE).catch(err => {
+             console.error("Async All Case cache update failed:", err);
+        });
+    }
+
+    return { ...result, source: 'sheet' };
 }
     
 
