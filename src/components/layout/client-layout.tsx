@@ -25,7 +25,7 @@ const primaryNavItems = [
 
 const secondaryNavItems = [
     { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files },
-    { href: "/data-weaver", label: "Data Weaver", icon: Combine },
+    { href: "/data-weaver", label: "Edit NIS", icon: Combine },
     { href: "/migrasi-produk", label: "Migrasi Product", icon: PackageSearch },
 ];
 
@@ -89,7 +89,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         "/report-harian": "Report Center",
         "/migrasi-murid": "Migrasi Murid",
         "/cek-duplikasi": "Cek Duplikasi",
-        "/data-weaver": "Data Weaver",
+        "/data-weaver": "Edit NIS",
         "/migrasi-produk": "Migrasi Produk",
         "/code-viewer": "Code Viewer",
         "/settings": "Settings",
