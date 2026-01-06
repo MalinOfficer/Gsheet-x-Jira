@@ -100,7 +100,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         "/settings": "Settings",
     };
 
-    const currentPageTitle = pageTitles[pathname] || "Gsheet Tools";
+    const currentPageTitle = pageTitles[pathname] || "Gsheet Case";
 
 
     useEffect(() => {
@@ -140,7 +140,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         <div className="flex h-16 items-center border-b px-4 lg:px-6">
                             <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                                 <GanttChartSquare className="h-6 w-6" />
-                                <span className="">Gsheet Tools V3</span>
+                                <span className="">Gsheet Case</span>
                             </Link>
                         </div>
                         <div className="flex-1 overflow-y-auto">
@@ -177,7 +177,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                     <SheetTitle asChild>
                                         <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                                             <GanttChartSquare className="h-6 w-6" />
-                                            <span>Gsheet Tools V3</span>
+                                            <span>Gsheet Case</span>
                                         </Link>
                                     </SheetTitle>
                                 </SheetHeader>
