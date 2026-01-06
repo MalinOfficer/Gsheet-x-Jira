@@ -739,10 +739,7 @@ export function MigrasiMurid() {
     const totalHeight = rowVirtualizer.getTotalSize();
     
     const getRowNumberValue = (row: MuridData, index: number) => {
-        if (index === 0) {
-            return "1";
-        }
-        return row["Username"] ? String(index + 1) : "";
+        return String(index + 1);
     };
 
     const handleFillHandleMouseDown = (e: MouseEvent) => {
