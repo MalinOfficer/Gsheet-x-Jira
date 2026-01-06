@@ -130,7 +130,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className={cn(
             "grid h-screen w-full",
-            isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[15fr_85fr]",
+            isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[220px_1fr]",
             isProcessing && "pointer-events-none"
         )}>
             {/* --- Desktop Sidebar --- */}
@@ -160,7 +160,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             )}
             
             {/* --- Main Content Area --- */}
-            <div className="flex flex-col overflow-hidden">
+            <div className="flex flex-col">
                  {/* --- Mobile/Main Header --- */}
                 <header className="flex h-16 items-center gap-4 border-b bg-background px-4 lg:px-6 flex-shrink-0">
                     {/* Hamburger Menu for Mobile */}
@@ -218,3 +218,5 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         </div>
     );
 }
+
+    

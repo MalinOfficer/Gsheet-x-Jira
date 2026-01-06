@@ -688,14 +688,7 @@ export function ImportFlow() {
   );
 
   return (
-    <div className="flex flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Import Data</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Satu alur kerja untuk mengonversi JSON, meninjaunya, dan mengekspornya ke Google Sheets.
-        </p>
-      </header>
-
+    <div className="flex-1 overflow-auto p-4 lg:p-6 flex flex-col gap-4 lg:gap-6">
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>1. Convert JSON / CSV</CardTitle>
@@ -1110,3 +1103,5 @@ function PreviewTable({
         </Card>
     );
 }
+
+    
