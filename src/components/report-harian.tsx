@@ -23,11 +23,11 @@ function InitialState({ error }: { error?: string }) {
         )}
         <CardTitle>{error ? "Failed to Load Data" : "No Report Data Found"}</CardTitle>
         <CardDescription className="mt-2 mb-4 max-w-sm">
-            {error ? error : "To view reports, please go to the Import Flow page, convert your JSON data, and verify your Google Sheet URL."}
+            {error ? error : "To view reports, please go to the Import Data page, convert your JSON data, and verify your Google Sheet URL."}
         </CardDescription>
         <Button onClick={() => router.push('/')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Import Flow
+            Back to Import Data
         </Button>
     </Card>
   );
@@ -163,12 +163,12 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
              <Card className="shadow-lg flex flex-col">
                 <CardHeader>
                     <CardTitle>Daily Report</CardTitle>
-                    <CardDescription>This report is generated from the data you converted on the Import Flow page.</CardDescription>
+                    <CardDescription>This report is generated from the data you converted on the Import Data page.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow flex items-center justify-center">
                    <div className="text-center text-muted-foreground">
                         <BarChart className="mx-auto h-12 w-12 mb-2" />
-                        <p>No data from Import Flow found.</p>
+                        <p>No data from Import Data found.</p>
                    </div>
                 </CardContent>
             </Card>
@@ -186,7 +186,7 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
                   </Button>
                 </div>
                 <CardDescription>
-                    This report is generated from the data you converted on the Import Flow page.
+                    This report is generated from the data you converted on the Import Data page.
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-grow">
@@ -205,7 +205,7 @@ function L3CaseReportCard() {
     const [isCopied, setIsCopied] = useState(false);
 
     const reportTextForDisplay = useMemo(() => {
-        if (!l3ReportData) return "Go to the Import Flow page and click 'Verify' to generate this report.";
+        if (!l3ReportData) return "Go to the Import Data page and click 'Verify' to generate this report.";
         if (l3ReportData.error) return `Error: ${l3ReportData.error}`;
         if (!l3ReportData.report) return "No L3 cases found.";
 
@@ -278,23 +278,16 @@ export function ReportHarian({ error }: ReportHarianProps) {
   return (
     <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <header className="relative flex justify-center items-center h-10">
-            <Button
-              onClick={() => router.push('/')}
-              variant="outline"
-              size="sm"
-              className="absolute left-0 top-1/2 -translate-y-1/2"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Import Flow
-            </Button>
-          <div className="text-center">
-             <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Report Center</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                View the daily case summary and the L3 case report from your Google Sheet.
-              </p>
-          </div>
-        </header>
+        <div className="flex">
+          <Button
+            onClick={() => router.push('/')}
+            variant="outline"
+            size="sm"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Import Data
+          </Button>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <DailyReportCard />
