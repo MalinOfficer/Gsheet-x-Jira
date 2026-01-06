@@ -1109,7 +1109,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
 }
     
 export async function getDashboardData(sheetUrl: string) {
-    if (process.env.UPSTASH_REDIS_REST_URL) {
+    if (process.env.KV_REST_API_URL) {
         try {
             const cachedData = await redis.get(CACHE_KEY);
             if (cachedData) {
@@ -1180,7 +1180,7 @@ async function fetchDashboardDataFromSheet(sheetUrl: string, sheetName: 'Summary
 }
 
 async function syncCache(sheetUrl: string, data: any, cacheKey: string) {
-    if (!process.env.UPSTASH_REDIS_REST_URL) {
+    if (!process.env.KV_REST_API_URL) {
         console.log(`Skipping cache sync for ${cacheKey}: Redis is not configured.`);
         return { success: true, message: "Skipped: Redis not configured." };
     }
@@ -1208,7 +1208,7 @@ export async function syncDashboardCache(sheetUrl: string) {
 }
 
 export async function getAllCaseData(sheetUrl: string) {
-    if (process.env.UPSTASH_REDIS_REST_URL) {
+    if (process.env.KV_REST_API_URL) {
         try {
             const cachedData = await redis.get(CACHE_KEY_ALL_CASE);
             if (cachedData) {
