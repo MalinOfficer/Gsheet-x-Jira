@@ -776,7 +776,7 @@ export function MigrasiMurid() {
                         <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
                             <Undo2 className="mr-2 h-4 w-4" /> Undo
                         </Button>
-                        <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
+                        <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex < history.length - 1}>
                             <Redo2 className="mr-2 h-4 w-4" /> Redo
                         </Button>
                         <AlertDialog>
@@ -811,7 +811,7 @@ export function MigrasiMurid() {
                 </div>
             </div>
 
-            <div className="flex-grow overflow-auto" ref={tableContainerRef}>
+            <div className="flex-grow overflow-y-auto overflow-x-auto" ref={tableContainerRef}>
                  <div 
                     style={{ 
                         width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
