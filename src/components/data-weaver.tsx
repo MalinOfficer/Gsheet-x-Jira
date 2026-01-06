@@ -273,7 +273,7 @@ function ModeSelectionScreen({ onSelectMode }: { onSelectMode: (mode: EditMode) 
     return (
         <Card>
             <CardHeader className="items-center text-center">
-                <CardTitle>Select Bulk Edit Mode</CardTitle>
+                <CardTitle className="text-xl">Select Bulk Edit Mode</CardTitle>
                 <CardDescription>Choose the type of data you want to merge or update in bulk.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -316,7 +316,7 @@ function Step1_Upload({ onNext, onClearAll, isMerging, editMode }: { onNext: () 
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Step 1: Upload & Configure</CardTitle>
+                <CardTitle className="text-xl">Step 1: Upload & Configure</CardTitle>
                 <CardDescription>Upload your source file and ID file to begin the merge process.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -574,7 +574,7 @@ function Step2_ManualMatch({
             <Card>
                 <CardHeader className="flex flex-row items-start justify-between">
                     <div>
-                        <CardTitle>Manual Matching</CardTitle>
+                        <CardTitle className="text-xl">Manual Matching</CardTitle>
                         <CardDescription>Select one row from each panel and click "Match &amp; Move" to pair them manually.</CardDescription>
                     </div>
                      <div className='flex gap-2'>
@@ -618,7 +618,7 @@ function Step2_ManualMatch({
             {manualMatches.length > 0 && (
                 <Card>
                      <CardHeader>
-                        <CardTitle>Manually Matched Data ({manualMatches.length} rows)</CardTitle>
+                        <CardTitle className="text-xl">Manually Matched Data ({manualMatches.length} rows)</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <ResultsTable data={manualTableData} headers={manualMatchHeaders} />
@@ -731,7 +731,7 @@ function Step3_Result({ finalData, onDownload, editMode, fileBHeaders }: { final
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle>Step 3: Final Result</CardTitle>
+                    <CardTitle className="text-xl">Step 3: Final Result</CardTitle>
                     <CardDescription className='mt-1'>
                         This is the final merged data, including automatic and manual matches. Click download to get the Excel file.
                     </CardDescription>
@@ -913,3 +913,5 @@ export function DataWeaver() {
         </div>
     );
 }
+
+    

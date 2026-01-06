@@ -691,7 +691,7 @@ export function ImportFlow() {
     <div className="flex-1 overflow-auto p-4 lg:p-6 flex flex-col gap-4 lg:gap-6">
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>1. Convert JSON / CSV</CardTitle>
+          <CardTitle className="text-xl">1. Convert JSON / CSV</CardTitle>
           <CardDescription>
             Impor file JSON atau CSV, atau tempel kontennya. Data akan dikonversi secara otomatis.
           </CardDescription>
@@ -757,7 +757,7 @@ export function ImportFlow() {
         <>
           <Card className="shadow-lg" ref={destinationCardRef}>
             <CardHeader>
-              <CardTitle>2. Set Destination and Export</CardTitle>
+              <CardTitle className="text-xl">2. Set Destination and Export</CardTitle>
               <CardDescription>
                 Verifikasi URL Google Sheet Anda, lalu ekspor atau perbarui data.
               </CardDescription>
@@ -986,7 +986,7 @@ function PreviewTable({
             <CardHeader>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <div>
-                        <CardTitle>3. Data Preview</CardTitle>
+                        <CardTitle className="text-xl">3. Data Preview</CardTitle>
                         <CardDescription>
                             Ini adalah pratinjau data yang akan diekspor. Anda dapat mengubah status di sini sebelum mengekspor.
                         </CardDescription>
@@ -998,7 +998,7 @@ function PreviewTable({
                         </Button>
                          <Button onClick={handleNavigateToReport} size="sm" className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white" disabled={isProcessing || !localTableData}>
                             <BarChart className="mr-2 h-4 w-4" />
-                            Report Harian
+                            Daily Report
                         </Button>
                     </div>
                 </div>

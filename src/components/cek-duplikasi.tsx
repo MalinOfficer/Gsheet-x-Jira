@@ -446,7 +446,7 @@ export function CekDuplikasi() {
                     <div>
                         <Card>
                             <CardHeader>
-                                <CardTitle>Summary</CardTitle>
+                                <CardTitle className="text-xl">Summary</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <Textarea
@@ -490,7 +490,7 @@ export function CekDuplikasi() {
                 <Card>
                     <CardHeader className="flex-row items-center justify-between">
                         <div>
-                            <CardTitle>1. Upload Files</CardTitle>
+                            <CardTitle className="text-xl">1. Upload Files</CardTitle>
                             <CardDescription>Pilih satu atau lebih file Excel (.xlsx, .xls) untuk diperiksa.</CardDescription>
                         </div>
                         <Button onClick={handleClear} variant="destructive" size="sm" disabled={isChecking || filesData.length === 0}>
@@ -570,7 +570,7 @@ export function CekDuplikasi() {
                  {hasChecked && !isChecking && (
                     <Card>
                         <CardHeader>
-                            <CardTitle>2. Hasil Pengecekan</CardTitle>
+                            <CardTitle className="text-xl">2. Hasil Pengecekan</CardTitle>
                             <CardDescription>Berikut adalah ringkasan dari hasil pengecekan file yang Anda unggah.</CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -625,7 +625,7 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
     return (
         <Card>
             <CardHeader>
-                <CardTitle className={cn('flex items-center gap-2', titleColorClass)}>
+                <CardTitle className={cn('flex items-center gap-2 text-xl', titleColorClass)}>
                     <Icon />
                     {titleText}
                 </CardTitle>
@@ -680,3 +680,5 @@ function ResultTable({ title, icon: Icon, count, data, type }: { title: string, 
         </Card>
     );
 }
+
+    
