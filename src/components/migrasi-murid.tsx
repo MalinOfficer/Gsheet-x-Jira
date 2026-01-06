@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect } from "react";
@@ -755,10 +754,26 @@ export function MigrasiMurid() {
         }
     };
 
+    useEffect(() => {
+        const handleGlobalMouseUp = () => {
+            if (isSelecting.current) {
+                isSelecting.current = false;
+            }
+            if (isDraggingFill) {
+                handleMouseUp();
+            }
+        };
+
+        window.addEventListener('mouseup', handleGlobalMouseUp);
+        return () => {
+            window.removeEventListener('mouseup', handleGlobalMouseUp);
+        };
+    }, [isDraggingFill, handleMouseUp]);
+
+
     return (
         <div 
-            className="grid grid-rows-[auto_1fr_auto] h-full p-4 gap-4 bg-background" 
-            onMouseUp={handleMouseUp} 
+            className="flex flex-col h-screen p-4 gap-4 bg-background" 
             onPaste={handlePaste}
         >
             {/* Header */}
@@ -816,7 +831,7 @@ export function MigrasiMurid() {
             </div>
 
             {/* Table Area */}
-            <div className="relative overflow-auto" ref={tableContainerRef}>
+            <div className="flex-grow relative overflow-auto" ref={tableContainerRef}>
                  <div 
                     style={{ 
                         width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
@@ -893,6 +908,7 @@ export function MigrasiMurid() {
                                         return (
                                             <div
                                                 key={`${virtualRow.index}-${colIndex}`}
+                                                onMouseOver={(e: MouseEvent<HTMLDivElement>) => handleMouseOver(e as any, { row: virtualRow.index, col: colIndex })}
                                                 style={{ 
                                                     width: columnWidths[header],
                                                     left: header === "No" ? 0 : 'auto',
@@ -909,7 +925,6 @@ export function MigrasiMurid() {
                                                     onChange={(e) => handleCellChange(virtualRow.index, header, e.target.value)}
                                                     onKeyDown={(e) => handleKeyDown(e, { row: virtualRow.index, col: colIndex })}
                                                     onMouseDown={(e) => handleMouseDown(e, { row: virtualRow.index, col: colIndex })}
-                                                    onMouseOver={(e) => handleMouseOver(e, { row: virtualRow.index, col: colIndex })}
                                                     data-row={virtualRow.index}
                                                     data-col={colIndex}
                                                     suppressHydrationWarning
@@ -960,3 +975,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
