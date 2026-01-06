@@ -44,7 +44,7 @@ type CellSelection = {
 // Helper to create an empty row
 const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ ...acc, [header]: '' }), {});
 
-const INITIAL_ROWS = 20;
+const INITIAL_ROWS = 24;
 
 const monthMap: { [key: string]: string } = {
     // Indonesian
@@ -481,7 +481,7 @@ export function MigrasiMurid() {
         }
     };
 
-    const handleMouseOver = (e: MouseEvent<HTMLInputElement>, { row, col }: CellSelection) => {
+    const handleMouseOver = (e: MouseEvent<HTMLDivElement>, { row, col }: CellSelection) => {
         if (isSelecting.current) {
             e.preventDefault();
             if (tableHeaders[col] === "No") return;
@@ -773,11 +773,11 @@ export function MigrasiMurid() {
 
     return (
         <div 
-            className="flex flex-col h-screen p-4 gap-4 bg-background" 
+            className="flex flex-col h-full p-4 gap-4 bg-background" 
             onPaste={handlePaste}
         >
             {/* Header */}
-            <div className="flex-shrink-0">
+            <header className="flex-shrink-0">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                      <div className="flex items-center gap-4">
                         <Link href="/dashboard" passHref>
@@ -828,18 +828,18 @@ export function MigrasiMurid() {
                         </Button>
                     </div>
                 </div>
-            </div>
+            </header>
 
             {/* Table Area */}
-            <div className="flex-grow relative overflow-auto" ref={tableContainerRef}>
+            <main className="flex-grow relative overflow-auto" ref={tableContainerRef}>
                  <div 
                     style={{ 
                         width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
-                        height: `${totalHeight}px`,
+                        height: `${totalHeight + 36}px`,
                         position: 'relative',
                     }}
                 >
-                    <div className="sticky top-0 z-30 flex bg-secondary" style={{height: '36px'}}>
+                    <header className="sticky top-0 z-30 flex bg-secondary" style={{height: '36px'}}>
                         {tableHeaders.map((header) => (
                             <div
                                 key={header}
@@ -874,7 +874,7 @@ export function MigrasiMurid() {
                                 />
                             </div>
                         ))}
-                    </div>
+                    </header>
                     
                     <div style={{ height: totalHeight, position: 'relative' }}>
                         {virtualRows.map(virtualRow => {
@@ -888,6 +888,8 @@ export function MigrasiMurid() {
                                         height: `${virtualRow.size}px`,
                                         transform: `translateY(${virtualRow.start}px)`,
                                     }}
+                                    onMouseOver={(e: MouseEvent<HTMLDivElement>) => handleMouseOver(e as any, { row: virtualRow.index, col: 0 })}
+                                    onMouseUp={handleMouseUp}
                                 >
                                     {tableHeaders.map((header, colIndex) => {
                                         const isSelected = isCellSelected(virtualRow.index, colIndex);
@@ -908,7 +910,6 @@ export function MigrasiMurid() {
                                         return (
                                             <div
                                                 key={`${virtualRow.index}-${colIndex}`}
-                                                onMouseOver={(e: MouseEvent<HTMLDivElement>) => handleMouseOver(e as any, { row: virtualRow.index, col: colIndex })}
                                                 style={{ 
                                                     width: columnWidths[header],
                                                     left: header === "No" ? 0 : 'auto',
@@ -950,11 +951,11 @@ export function MigrasiMurid() {
                         })}
                     </div>
                 </div>
-            </div>
+            </main>
 
 
             {/* Footer */}
-            <div className="flex-shrink-0">
+            <footer className="flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <Input
                         type="number"
@@ -971,9 +972,7 @@ export function MigrasiMurid() {
                         Tambah Baris
                     </Button>
                 </div>
-            </div>
+            </footer>
         </div>
     );
 }
-
-    
