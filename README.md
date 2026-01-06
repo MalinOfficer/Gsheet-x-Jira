@@ -67,33 +67,6 @@ Aplikasi ini memerlukan beberapa kredensial yang harus disediakan sebagai *Envir
     *   Buka Google Sheet yang ingin Anda gunakan.
     *   Klik tombol **"Share"** dan berikan akses **"Editor"** ke alamat email tersebut.
 
-#### B. Kredensial Vercel KV / Upstash Redis (Untuk Caching)
-
-Aplikasi ini menggunakan Redis untuk *caching* agar data lebih cepat dimuat. Jika Anda men-deploy di Vercel, Anda dapat menggunakan Vercel KV yang terintegrasi.
-
-1.  **Buat Database KV di Vercel**:
-    *   Di dasbor proyek Vercel Anda, navigasikan ke tab **Storage**.
-    *   Pilih **KV (formerly Redis®)** dan klik **Create Database**.
-    *   Ikuti petunjuk untuk membuat dan menghubungkan database ke proyek Anda.
-
-2.  **Dapatkan Kredensial Redis**:
-    *   Setelah database terhubung, buka file `.env.local` yang ditampilkan oleh Vercel. Anda akan melihat variabel seperti ini:
-      ```
-      KV_REST_API_URL="https://..."
-      KV_REST_API_TOKEN="xy..."
-      ```
-
-3.  **Tambahkan ke Environment Variables Vercel**:
-    *   Kembali ke **Settings** -> **Environment Variables**.
-    *   Tambahkan variabel **pertama**:
-        *   **Name**: `KV_REST_API_URL`
-        *   **Value**: Salin nilai URL dari langkah sebelumnya.
-        *   Klik **Save**.
-    *   Tambahkan variabel **kedua**:
-        *   **Name**: `KV_REST_API_TOKEN`
-        *   **Value**: Salin nilai token dari langkah sebelumnya.
-        *   Klik **Save**.
-
 ### Langkah 3: Deploy di Vercel
 
 1.  **Impor Proyek ke Vercel**:
