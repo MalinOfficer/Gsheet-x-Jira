@@ -18,6 +18,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   DropdownMenu,
@@ -810,11 +811,11 @@ export function MigrasiMurid() {
                 </div>
             </div>
 
-            <div className="flex-grow overflow-y-scroll overflow-x-auto" ref={tableContainerRef}>
+            <div className="flex-grow overflow-auto" ref={tableContainerRef}>
                  <div 
                     style={{ 
                         width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
-                        height: `${totalHeight + 36}px`,
+                        height: `${totalHeight}px`,
                         position: 'relative',
                     }}
                 >
@@ -855,7 +856,7 @@ export function MigrasiMurid() {
                         ))}
                     </div>
                     
-                    <div style={{ paddingTop: '36px', height: totalHeight, position: 'relative' }}>
+                    <div style={{ height: totalHeight, position: 'relative' }}>
                         {virtualRows.map(virtualRow => {
                             const row = rows[virtualRow.index];
                             return (
