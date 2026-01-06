@@ -755,10 +755,14 @@ export function MigrasiMurid() {
         }
     };
 
-
     return (
-        <div className="h-full flex flex-col bg-background" onMouseUp={handleMouseUp} onPaste={handlePaste}>
-            <div className="flex-shrink-0 p-4 border-b">
+        <div 
+            className="grid grid-rows-[auto_1fr_auto] h-full p-4 gap-4 bg-background" 
+            onMouseUp={handleMouseUp} 
+            onPaste={handlePaste}
+        >
+            {/* Header */}
+            <div className="flex-shrink-0">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                      <div className="flex items-center gap-4">
                         <Link href="/dashboard" passHref>
@@ -811,7 +815,8 @@ export function MigrasiMurid() {
                 </div>
             </div>
 
-            <div className="flex-grow overflow-auto" ref={tableContainerRef}>
+            {/* Table Area */}
+            <div className="relative overflow-auto" ref={tableContainerRef}>
                  <div 
                     style={{ 
                         width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
@@ -933,7 +938,8 @@ export function MigrasiMurid() {
             </div>
 
 
-            <div className="flex-shrink-0 p-2 border-t">
+            {/* Footer */}
+            <div className="flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <Input
                         type="number"
