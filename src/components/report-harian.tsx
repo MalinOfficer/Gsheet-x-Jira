@@ -33,14 +33,13 @@ function InitialState({ error }: { error?: string }) {
   );
 };
 
-function DailyReportCard({ initialData }: { initialData: any[] | null }) {
+function DailyReportCard() {
     const { tableData: contextData } = useContext(TableDataContext);
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
     const [todayDate, setTodayDate] = useState('');
 
-    // Use context data if available (after import), otherwise use initial server-fetched data.
-    const finalData = contextData?.rows && contextData.rows.length > 0 ? contextData.rows : initialData;
+    const finalData = contextData?.rows;
 
     useEffect(() => {
         const today = new Date();
@@ -160,7 +159,20 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
     };
 
     if (!finalData || finalData.length === 0) {
-        return <InitialState />;
+        return (
+             <Card className="shadow-lg flex flex-col">
+                <CardHeader>
+                    <CardTitle>Daily Report</CardTitle>
+                    <CardDescription>This report is generated from the data you converted on the Import Flow page.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow flex items-center justify-center">
+                   <div className="text-center text-muted-foreground">
+                        <BarChart className="mx-auto h-12 w-12 mb-2" />
+                        <p>No data from Import Flow found.</p>
+                   </div>
+                </CardContent>
+            </Card>
+        );
     }
 
     return (
@@ -174,7 +186,7 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
                   </Button>
                 </div>
                 <CardDescription>
-                    This report is generated from the most recently available data (from import or cache).
+                    This report is generated from the data you converted on the Import Flow page.
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-grow">
@@ -183,7 +195,6 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
                     dangerouslySetInnerHTML={{ __html: reportTextForDisplay.replace(/\n/g, '<br />') }}
                 />
             </CardContent>
-            <CardFooter />
         </Card>
     );
 }
@@ -229,7 +240,7 @@ function L3CaseReportCard() {
                   </Button>
                 </div>
                 <CardDescription>
-                    This report is generated from the verified Google Sheet and shows 'L3' status
+                    This report is generated from the verified Google Sheet and shows 'L3' status.
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-grow">
@@ -251,10 +262,10 @@ interface ReportHarianProps {
   error?: string;
 }
 
-export function ReportHarian({ initialDashboardData, error }: ReportHarianProps) {
+export function ReportHarian({ error }: ReportHarianProps) {
   const router = useRouter();
 
-  if (error && !initialDashboardData) {
+  if (error) {
       return (
           <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
               <div className="max-w-7xl mx-auto space-y-6">
@@ -285,8 +296,8 @@ export function ReportHarian({ initialDashboardData, error }: ReportHarianProps)
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-          <DailyReportCard initialData={initialDashboardData} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <DailyReportCard />
           <L3CaseReportCard />
         </div>
       </div>
