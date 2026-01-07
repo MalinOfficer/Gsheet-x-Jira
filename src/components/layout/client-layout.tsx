@@ -131,14 +131,14 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     
     return (
         <div className={cn(
-            "grid h-screen w-full",
+            "grid w-full min-h-screen", // Remove h-screen, use min-h-screen
             isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[220px_1fr]",
             isProcessing && "pointer-events-none"
         )}>
             {/* --- Desktop Sidebar --- */}
             {!isMobile && (
                 <div className="hidden border-r bg-muted/40 md:flex flex-col">
-                    <div className="flex h-full max-h-screen flex-col gap-2">
+                    <div className="flex h-full max-h-screen flex-col gap-2 sticky top-0">
                         <div className="flex h-16 items-center border-b px-4 lg:px-6">
                             <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                                 <GanttChartSquare className="h-6 w-6" />
@@ -164,7 +164,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             {/* --- Main Content Area --- */}
             <div className="flex flex-col">
                  {/* --- Mobile/Main Header --- */}
-                <header className="flex h-16 items-center gap-4 border-b bg-background px-4 lg:px-6 flex-shrink-0">
+                <header className="flex h-16 items-center gap-4 border-b bg-background px-4 lg:px-6 flex-shrink-0 sticky top-0 z-40">
                     {/* Hamburger Menu for Mobile */}
                     {isMobile && (
                         <Sheet>
@@ -213,9 +213,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         </Link>
                     )}
                 </header>
-                <main className="flex-1 flex flex-col bg-muted/20">
+                <div className="bg-muted/20">
                     {children}
-                </main>
+                </div>
             </div>
         </div>
     );
