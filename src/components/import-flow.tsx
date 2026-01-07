@@ -754,7 +754,7 @@ export function ImportFlow() {
       </Card>
       
       {tableData && (
-        <>
+        <div className="flex flex-col gap-4 lg:gap-6">
           <Card className="shadow-lg" ref={destinationCardRef}>
             <CardHeader>
               <CardTitle className="text-xl">2. Set Destination and Export</CardTitle>
@@ -887,7 +887,7 @@ export function ImportFlow() {
               isCopied={isCopied}
               handleNavigateToReport={handleNavigateToReport}
           />
-        </>
+        </div>
       )}
     </div>
   );
