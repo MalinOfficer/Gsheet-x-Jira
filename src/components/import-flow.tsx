@@ -82,8 +82,6 @@ export function ImportFlow() {
 
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
   const csvFileInputRef = useRef<HTMLInputElement>(null);
-  const destinationCardRef = useRef<HTMLDivElement>(null);
-  const hasScrolledRef = useRef(false);
   const router = useRouter();
   const [isImporting, startImporting] = useTransition();
   const [isUpdating, startUpdating] = useTransition();
@@ -111,18 +109,6 @@ export function ImportFlow() {
         setJsonInput(savedJson);
     }
   }, []);
-
-  // Effect for auto-scrolling
-  useEffect(() => {
-    if (tableData && destinationCardRef.current && !hasScrolledRef.current) {
-        destinationCardRef.current.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start',
-        });
-        hasScrolledRef.current = true;
-    }
-  }, [tableData]);
-
 
   const handleAnalyzeSheet = useCallback(async () => {
     if (!sheetUrl) {
@@ -574,7 +560,6 @@ export function ImportFlow() {
         startConverting(() => {
             setJsonError(null);
             setTableData(null);
-            hasScrolledRef.current = false; // Reset scroll flag
 
             if (!input.trim()) {
                 setJsonError("Input cannot be empty.");
@@ -755,7 +740,7 @@ export function ImportFlow() {
       
       {tableData && (
         <div className="flex flex-col gap-4 lg:gap-6">
-          <Card className="shadow-lg" ref={destinationCardRef}>
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-xl">2. Set Destination and Export</CardTitle>
               <CardDescription>
@@ -1103,6 +1088,8 @@ function PreviewTable({
         </Card>
     );
 }
+
+    
 
     
 
