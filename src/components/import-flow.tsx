@@ -989,7 +989,7 @@ function PreviewTable({
                 </div>
             </CardHeader>
              <CardContent>
-                <div className="overflow-auto w-full h-[500px] border rounded-md">
+                <div className="overflow-x-auto w-full h-[500px] border rounded-md">
                     <table className="w-full" style={{ tableLayout: 'fixed', width: `${Object.values(columnWidths).reduce((a, b) => a + b, 64)}px` }}>
                         <thead className="sticky top-0 z-20 bg-muted">
                             <tr className="border-b transition-colors hover:bg-muted/50">
