@@ -131,7 +131,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     
     return (
         <div className={cn(
-            "grid w-full min-h-screen", // Remove h-screen, use min-h-screen
+            "grid w-full min-h-screen",
             isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[220px_1fr]",
             isProcessing && "pointer-events-none"
         )}>
