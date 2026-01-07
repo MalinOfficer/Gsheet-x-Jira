@@ -688,7 +688,7 @@ export function ImportFlow() {
   );
 
   return (
-    <div className="flex-1 overflow-auto p-4 lg:p-6 flex flex-col gap-4 lg:gap-6">
+    <div className="p-4 lg:p-6 flex flex-col gap-4 lg:gap-6">
       <Card className="shadow-lg flex-shrink-0">
         <CardHeader>
           <CardTitle className="text-xl">1. Convert JSON / CSV</CardTitle>
