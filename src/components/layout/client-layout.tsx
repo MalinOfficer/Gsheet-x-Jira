@@ -213,7 +213,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         </Link>
                     )}
                 </header>
-                <main className="flex-1 flex flex-col bg-muted/20 overflow-y-auto">
+                <main className="flex-1 flex flex-col bg-muted/20">
                     {children}
                 </main>
             </div>
