@@ -64,7 +64,7 @@ export function DbViewer({ initialData, source, error }: DbViewerProps) {
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-            <div className="max-w-full mx-auto space-y-6">
+            <div className="max-w-7xl mx-auto space-y-6">
                  <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">All Case Database</h1>
