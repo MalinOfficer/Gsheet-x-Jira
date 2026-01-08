@@ -11,7 +11,7 @@ import { TableDataContext } from '@/store/table-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { BarChart, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { BarChart, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid } from 'recharts';
 import type { ChartConfig } from "@/components/ui/chart"
 import { fetchL3ReportData } from '@/app/actions';
 
@@ -402,7 +402,7 @@ function L3CaseReportCard() {
         if (isGenerating) {
             return '<div class="flex items-center justify-center h-full text-muted-foreground"><svg class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>Generating...</span></div>';
         }
-        if (!l3ReportData) return "Click 'Generate L3 Report' to create the report.";
+        if (!l3ReportData) return "Click 'Generate Report' to create the report.";
         if (l3ReportData.error) return `Error: ${l3ReportData.error}`;
         if (!l3ReportData.report) return "No L3 cases found.";
 
@@ -431,9 +431,9 @@ function L3CaseReportCard() {
                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <CardTitle>L3 Case Report</CardTitle>
                    <div className="flex gap-2 w-full sm:w-auto">
-                        <Button onClick={handleGenerate} size="sm" variant="secondary" className="w-full sm:w-auto" disabled={isGenerating}>
+                        <Button onClick={handleGenerate} size="sm" className="w-full sm:w-auto" disabled={isGenerating}>
                             {isGenerating ? <RefreshCw className="text-muted-foreground animate-spin mr-2 h-4 w-4" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                            {isGenerating ? 'Generating...' : 'Generate L3 Report'}
+                            {isGenerating ? 'Generating...' : 'Generate Report'}
                         </Button>
                         <Button onClick={handleCopy} size="sm" variant="outline" className="w-full sm:w-auto" disabled={!l3ReportData?.report || isGenerating}>
                             {isCopied ? <Check className="text-green-500 mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
