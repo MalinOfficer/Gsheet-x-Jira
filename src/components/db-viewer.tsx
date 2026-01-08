@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, X, FilterX } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, X, FilterX, Filter } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -23,7 +23,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format, parse } from 'date-fns';
 import { DateRange } from "react-day-picker"
-import { MultiSelect } from "./ui/multi-select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
+import { Check } from 'lucide-react';
 
 
 interface DbViewerState {
@@ -72,10 +73,11 @@ export function DbViewer() {
 
      const filterOptions = useMemo(() => {
         if (!state.data) return {};
-        const options: Record<string, { value: string; label: string }[]> = {};
+        const options: Record<string, string[]> = {};
         FILTER_COLUMNS.forEach(col => {
             const uniqueValues = [...new Set(state.data?.map(row => row[col]).filter(Boolean))];
-            options[col] = uniqueValues.map(val => ({ value: val, label: val }));
+            uniqueValues.sort((a, b) => a.localeCompare(b));
+            options[col] = uniqueValues;
         });
         return options;
     }, [state.data]);
@@ -279,37 +281,23 @@ export function DbViewer() {
                 
                 <Card>
                      <CardHeader>
-                        <div className="flex flex-col gap-4">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <div className="relative">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        type="search"
-                                        placeholder="Search all data..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-8 sm:w-[250px]"
-                                    />
-                                </div>
-                                {areFiltersActive && (
-                                     <Button onClick={handleClearAllFilters} variant="ghost" size="sm">
-                                        <FilterX className="mr-2 h-4 w-4" />
-                                        Clear All Filters
-                                    </Button>
-                                )}
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Search all data..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-8 sm:w-[300px]"
+                                />
                             </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                                {FILTER_COLUMNS.map(col => (
-                                    <MultiSelect
-                                        key={col}
-                                        options={filterOptions[col] || []}
-                                        selected={columnFilters[col] || []}
-                                        onChange={(selected) => setColumnFilters(prev => ({...prev, [col]: selected}))}
-                                        placeholder={`Filter ${col}...`}
-                                        className="max-w-[200px]"
-                                    />
-                                ))}
-                            </div>
+                            {areFiltersActive && (
+                                    <Button onClick={handleClearAllFilters} variant="ghost" size="sm">
+                                    <FilterX className="mr-2 h-4 w-4" />
+                                    Clear All Filters
+                                </Button>
+                            )}
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -320,14 +308,12 @@ export function DbViewer() {
                                         {headers.map(header => {
                                             const lowerHeader = header.toLowerCase();
                                             const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
-                                            
-                                            if (header === 'DATE') {
-                                                return (
-                                                    <th 
-                                                        key={header} 
-                                                        className="h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-center"
-                                                        style={{ width: getColumnWidth(header), flexShrink: 0 }}
-                                                    >
+                                            const isFilterable = FILTER_COLUMNS.includes(header);
+                                            const isFilterActive = columnFilters[header]?.length > 0;
+
+                                            const renderHeaderContent = () => {
+                                                if (header === 'DATE') {
+                                                    return (
                                                         <Popover>
                                                             <PopoverTrigger asChild>
                                                                 <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
@@ -377,10 +363,67 @@ export function DbViewer() {
                                                                 </div>
                                                             </PopoverContent>
                                                         </Popover>
-                                                    </th>
-                                                );
-                                            }
+                                                    );
+                                                }
 
+                                                if (isFilterable) {
+                                                    return(
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
+                                                                     {header}
+                                                                     <Filter className={cn("ml-2 h-3 w-3", isFilterActive ? "text-primary" : "text-muted-foreground/50")} />
+                                                                </Button>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-[250px] p-0" align="start">
+                                                                <Command>
+                                                                    <CommandInput placeholder={`Filter ${header}...`} />
+                                                                    <CommandList>
+                                                                        <CommandEmpty>No results found.</CommandEmpty>
+                                                                        <CommandGroup>
+                                                                            {(filterOptions[header] || []).map(option => {
+                                                                                const isSelected = columnFilters[header]?.includes(option);
+                                                                                return (
+                                                                                     <CommandItem
+                                                                                        key={option}
+                                                                                        onSelect={() => {
+                                                                                             const currentFilters = columnFilters[header] || [];
+                                                                                             const newFilters = isSelected
+                                                                                                 ? currentFilters.filter(item => item !== option)
+                                                                                                 : [...currentFilters, option];
+                                                                                             setColumnFilters(prev => ({ ...prev, [header]: newFilters }));
+                                                                                        }}
+                                                                                    >
+                                                                                        <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
+                                                                                            <Check className={cn("h-4 w-4")} />
+                                                                                        </div>
+                                                                                        <span>{option}</span>
+                                                                                    </CommandItem>
+                                                                                );
+                                                                            })}
+                                                                        </CommandGroup>
+                                                                    </CommandList>
+                                                                    {isFilterActive && (
+                                                                         <div className="p-1 border-t">
+                                                                            <Button 
+                                                                                className="w-full justify-center" 
+                                                                                variant="ghost" 
+                                                                                size="sm" 
+                                                                                onClick={() => setColumnFilters(prev => ({...prev, [header]: []}))}
+                                                                            >
+                                                                                Clear filter
+                                                                            </Button>
+                                                                         </div>
+                                                                    )}
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    );
+                                                }
+
+                                                return <span className="truncate">{header}</span>;
+                                            }
+                                            
                                             return (
                                                 <th 
                                                     key={header} 
@@ -390,7 +433,7 @@ export function DbViewer() {
                                                     )}
                                                     style={{ width: getColumnWidth(header), flexShrink: 0 }}
                                                 >
-                                                    {header}
+                                                   {renderHeaderContent()}
                                                 </th>
                                             );
                                         })}
