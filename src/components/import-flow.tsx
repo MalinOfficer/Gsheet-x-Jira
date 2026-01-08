@@ -5,7 +5,7 @@ import { useState, useTransition, useEffect, useContext, useCallback, useRef, Mo
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart, FileCog, RefreshCw } from 'lucide-react';
+import { Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart, RefreshCw, AlertCircle } from 'lucide-react';
 import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction, fetchL3ReportData } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Textarea } from './ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
@@ -833,7 +832,7 @@ function PreviewTable({
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger>
-                                                <FileCog className="h-4 w-4 text-muted-foreground" />
+                                                <AlertCircle className="h-4 w-4 text-muted-foreground" />
                                             </TooltipTrigger>
                                             <TooltipContent>
                                                 <p>Go to Settings to change the target URL.</p>
