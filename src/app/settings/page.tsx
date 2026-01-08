@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useTransition } from 'react';
 import { useTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
 import {
@@ -12,7 +12,7 @@ import {
   CardTitle,
   CardFooter,
 } from '@/components/ui/card';
-import { CodeXml, Files, Link, Save } from 'lucide-react';
+import { CodeXml, Files, Link, Save, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TableDataContext } from '@/store/table-data-context';
 import { Switch } from '@/components/ui/switch';
@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { getSpreadsheetTitle } from '@/app/actions';
 
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 const LOCAL_STORAGE_KEY_DB_SHEET_URL = 'gsheetDashboardDbSheetUrl';
@@ -34,11 +35,26 @@ export default function SettingsPage() {
       setSheetUrl: setContextSheetUrl,
       dbSheetUrl: contextDbSheetUrl,
       setDbSheetUrl: setContextDbSheetUrl,
+      // Main URL states
+      verifiedUrl, setVerifiedUrl,
+      spreadsheetTitle, setSpreadsheetTitle,
+      // DB URL states
+      verifiedDbUrl, setVerifiedDbUrl,
+      dbSpreadsheetTitle, setDbSpreadsheetTitle,
   } = useContext(TableDataContext);
   
   const [isClient, setIsClient] = useState(false);
+  const [isSaving, startSaving] = useTransition();
+
+  // Local state for inputs
   const [sheetUrl, setSheetUrl] = useState('');
   const [dbSheetUrl, setDbSheetUrl] = useState('');
+  
+  // Local state for validation results to avoid context race conditions
+  const [mainSheetError, setMainSheetError] = useState<string | null>(null);
+  const [dbSheetError, setDbSheetError] = useState<string | null>(null);
+
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -48,7 +64,8 @@ export default function SettingsPage() {
   }, [contextSheetUrl, contextDbSheetUrl]);
 
   const handleSaveUrls = () => {
-    try {
+    startSaving(async () => {
+        // Save to localStorage and update context immediately for responsiveness
         localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
         setContextSheetUrl(sheetUrl);
         
@@ -57,15 +74,39 @@ export default function SettingsPage() {
 
         toast({
             title: "Settings Saved",
-            description: "Your Google Sheet URLs have been updated.",
+            description: "Your Google Sheet URLs have been updated. Now verifying...",
         });
-    } catch (error) {
-        toast({
-            variant: "destructive",
-            title: "Save Failed",
-            description: "Could not save URLs to local storage.",
-        });
-    }
+
+        // Clear previous validation results
+        setSpreadsheetTitle(null);
+        setDbSpreadsheetTitle(null);
+        setMainSheetError(null);
+        setDbSheetError(null);
+
+        // --- Validation Logic ---
+        const [mainResult, dbResult] = await Promise.all([
+            getSpreadsheetTitle(sheetUrl),
+            getSpreadsheetTitle(dbSheetUrl)
+        ]);
+
+        // Handle Main URL validation
+        if (mainResult.error) {
+            setMainSheetError(mainResult.error);
+            setVerifiedUrl('');
+        } else {
+            setSpreadsheetTitle(mainResult.title || null);
+            setVerifiedUrl(sheetUrl);
+        }
+
+        // Handle DB URL validation
+        if (dbResult.error) {
+            setDbSheetError(dbResult.error);
+            setVerifiedDbUrl('');
+        } else {
+            setDbSpreadsheetTitle(dbResult.title || null);
+            setVerifiedDbUrl(dbSheetUrl);
+        }
+    });
   };
 
   const featureToggles = [
@@ -87,6 +128,19 @@ export default function SettingsPage() {
     }
   ];
 
+  const ValidationResult = ({ isLoading, title, error, verifiedUrl, currentUrl }: { isLoading: boolean, title: string | null, error: string | null, verifiedUrl: string, currentUrl: string }) => {
+      if (isLoading) {
+          return <div className="flex items-center text-xs text-muted-foreground"><RefreshCw className="w-3 h-3 mr-1.5 animate-spin" /><span>Validating...</span></div>;
+      }
+      if (verifiedUrl === currentUrl && title) {
+          return <div className="flex items-center text-xs text-green-600 font-medium"><CheckCircle2 className="w-3 h-3 mr-1.5" /><span>{title}</span></div>;
+      }
+      if (error) {
+           return <div className="flex items-center text-xs text-destructive font-medium"><XCircle className="w-3 h-3 mr-1.5" /><span>{error}</span></div>;
+      }
+      return null;
+  }
+
   if (!isClient) {
       return (
           <div className="flex-1 overflow-auto p-4 sm:p-6 md:p-8">
@@ -105,40 +159,61 @@ export default function SettingsPage() {
             <CardHeader>
                 <CardTitle>URL Configuration</CardTitle>
                 <CardDescription>
-                    Atur URL Google Sheet default untuk berbagai fitur di aplikasi ini.
+                    Atur URL Google Sheet default untuk berbagai fitur di aplikasi ini. Klik "Save" untuk memvalidasi.
                 </CardDescription>
             </CardHeader>
-            <CardContent className='space-y-4'>
+            <CardContent className='space-y-6'>
                  <div className="grid gap-2">
                     <Label htmlFor="url-destination">URL Destination (Import & Update)</Label>
                     <div className='flex items-center gap-2'>
-                        <Link className="h-9 w-9 p-2 bg-muted rounded-md flex items-center justify-center" />
+                        <Link className="h-9 w-9 p-2 bg-muted rounded-md flex items-center justify-center shrink-0" />
                         <Input
-                        id="url-destination"
-                        type="url"
-                        placeholder="https://docs.google.com/spreadsheets/d/..."
-                        value={sheetUrl}
-                        onChange={(e) => setSheetUrl(e.target.value)}
+                          id="url-destination"
+                          type="url"
+                          placeholder="https://docs.google.com/spreadsheets/d/..."
+                          value={sheetUrl}
+                          onChange={(e) => setSheetUrl(e.target.value)}
+                          disabled={isSaving}
+                        />
+                    </div>
+                    <div className="mt-1 h-5 pl-11">
+                        <ValidationResult 
+                            isLoading={isSaving}
+                            title={spreadsheetTitle}
+                            error={mainSheetError}
+                            verifiedUrl={verifiedUrl}
+                            currentUrl={sheetUrl}
                         />
                     </div>
                  </div>
                  <div className="grid gap-2">
                     <Label htmlFor="url-gsheet-db">URL GSheet DB (Dashboard & DB Viewer)</Label>
                      <div className='flex items-center gap-2'>
-                        <Link className="h-9 w-9 p-2 bg-muted rounded-md flex items-center justify-center" />
+                        <Link className="h-9 w-9 p-2 bg-muted rounded-md flex items-center justify-center shrink-0" />
                         <Input
-                        id="url-gsheet-db"
-                        type="url"
-                        placeholder="https://docs.google.com/spreadsheets/d/..."
-                        value={dbSheetUrl}
-                        onChange={(e) => setDbSheetUrl(e.target.value)}
+                          id="url-gsheet-db"
+                          type="url"
+                          placeholder="https://docs.google.com/spreadsheets/d/..."
+                          value={dbSheetUrl}
+                          onChange={(e) => setDbSheetUrl(e.target.value)}
+                          disabled={isSaving}
+                        />
+                    </div>
+                     <div className="mt-1 h-5 pl-11">
+                        <ValidationResult 
+                            isLoading={isSaving}
+                            title={dbSpreadsheetTitle}
+                            error={dbSheetError}
+                            verifiedUrl={verifiedDbUrl}
+                            currentUrl={dbSheetUrl}
                         />
                     </div>
                  </div>
             </CardContent>
             <CardFooter>
-                 <Button onClick={handleSaveUrls}>
-                    <Save className="mr-2 h-4 w-4" /> Save URLs
+                 <Button onClick={handleSaveUrls} disabled={isSaving}>
+                    {isSaving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    {isSaving ? 'Saving & Validating...' : 'Save URLs'}
                 </Button>
             </CardFooter>
         </Card>

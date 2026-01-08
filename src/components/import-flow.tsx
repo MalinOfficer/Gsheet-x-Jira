@@ -60,7 +60,6 @@ export function ImportFlow() {
     isProcessing, setIsProcessing: setGlobalProcessing, 
     l3ReportData, setL3ReportData,
     sheetUrl, setSheetUrl,
-    dbSheetUrl, setDbSheetUrl,
     verifiedUrl, setVerifiedUrl,
     spreadsheetTitle, setSpreadsheetTitle
   } = useContext(TableDataContext);
@@ -726,7 +725,7 @@ export function ImportFlow() {
             <CardHeader>
               <CardTitle className="text-xl">2. Set Destination</CardTitle>
               <CardDescription>
-                Verifikasi URL Google Sheet Anda (diatur di halaman Settings) untuk mengaktifkan opsi ekspor dan pembaruan.
+                Gunakan URL yang telah diatur di halaman Settings atau ubah di sini untuk sesi ini saja.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -928,7 +927,7 @@ function PreviewTable({
                         </CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t sm:border-t-0 sm:pt-0">
-                        <AlertDialog>
+                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                             <Button size="sm" disabled={isProcessing || !isVerified}>
                                 {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : <><Upload className="mr-2 h-4 w-4" />Export to GSheet</>}

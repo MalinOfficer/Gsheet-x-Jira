@@ -32,6 +32,10 @@ interface TableDataContextType {
     setVerifiedUrl: (url: string) => void;
     spreadsheetTitle: string | null;
     setSpreadsheetTitle: (title: string | null) => void;
+    verifiedDbUrl: string;
+    setVerifiedDbUrl: (url: string) => void;
+    dbSpreadsheetTitle: string | null;
+    setDbSpreadsheetTitle: (title: string | null) => void;
 }
 
 export const TableDataContext = createContext<TableDataContextType>({
@@ -53,6 +57,10 @@ export const TableDataContext = createContext<TableDataContextType>({
     setVerifiedUrl: () => {},
     spreadsheetTitle: null,
     setSpreadsheetTitle: () => {},
+    verifiedDbUrl: '',
+    setVerifiedDbUrl: () => {},
+    dbSpreadsheetTitle: null,
+    setDbSpreadsheetTitle: () => {},
 });
 
 const LOCAL_STORAGE_KEY_CODE_VIEWER = 'isCodeViewerEnabled';
@@ -69,13 +77,15 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
     const [isCodeViewerEnabled, setIsCodeViewerEnabled] = useState<boolean>(false);
     const [areSecondaryToolsEnabled, setAreSecondaryToolsEnabled] = useState<boolean>(false);
     
-    // URL state
+    // Main URL state
     const [sheetUrl, setSheetUrl] = useState('');
-    const [dbSheetUrl, setDbSheetUrl] = useState('');
-
-    // Verification-related state
     const [verifiedUrl, setVerifiedUrl] = useState('');
     const [spreadsheetTitle, setSpreadsheetTitle] = useState<string | null>(null);
+
+    // DB URL state
+    const [dbSheetUrl, setDbSheetUrl] = useState('');
+    const [verifiedDbUrl, setVerifiedDbUrl] = useState('');
+    const [dbSpreadsheetTitle, setDbSpreadsheetTitle] = useState<string | null>(null);
 
     useEffect(() => {
         try {
@@ -138,6 +148,10 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
             setVerifiedUrl,
             spreadsheetTitle,
             setSpreadsheetTitle,
+            verifiedDbUrl,
+            setVerifiedDbUrl,
+            dbSpreadsheetTitle,
+            setDbSpreadsheetTitle,
         }}>
             {children}
         </TableDataContext.Provider>
