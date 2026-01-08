@@ -239,7 +239,7 @@ export default function SettingsPage() {
                         {isSaving ? 'Saving & Validating...' : 'Save URLs'}
                     </Button>
                  ) : (
-                    <Button onClick={handleEditClick} variant="outline">
+                    <Button onClick={handleEditClick} variant="destructive">
                         <Pencil className="mr-2 h-4 w-4" />
                         Change Urls
                     </Button>
