@@ -60,6 +60,7 @@ export function ImportFlow() {
     isProcessing, setIsProcessing: setGlobalProcessing, 
     l3ReportData, setL3ReportData,
     sheetUrl, setSheetUrl,
+    dbSheetUrl, setDbSheetUrl,
     verifiedUrl, setVerifiedUrl,
     spreadsheetTitle, setSpreadsheetTitle
   } = useContext(TableDataContext);
@@ -720,7 +721,7 @@ export function ImportFlow() {
       </Card>
       
       {tableData && (
-        <>
+        <div className="space-y-4 lg:space-y-6">
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-xl">2. Set Destination</CardTitle>
@@ -794,7 +795,7 @@ export function ImportFlow() {
               handleConfirmUpdate={handleConfirmUpdate}
               isUpdating={isUpdating}
           />
-        </>
+        </div>
       )}
     </div>
   );
@@ -1107,5 +1108,3 @@ function PreviewTable({
         </Card>
     );
 }
-
-    
