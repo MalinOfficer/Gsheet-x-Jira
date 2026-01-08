@@ -30,6 +30,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenu
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 import { Spinner } from './ui/spinner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 
 const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
@@ -825,13 +826,25 @@ function PreviewTable({
                         <CardDescription>
                             Pratinjau data, ubah jika perlu, lalu ekspor atau perbarui ke Google Sheet.
                             {isVerified && spreadsheetTitle && (
-                                <span className="block mt-1 text-xs text-green-600 font-medium">
-                                    Target: {spreadsheetTitle}
-                                </span>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="block text-xs text-green-600 font-medium">
+                                        Target: {spreadsheetTitle}
+                                    </span>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <FileCog className="h-4 w-4 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Go to Settings to change the target URL.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
                             )}
                         </CardDescription>
                     </div>
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+                     <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                          <AlertDialog>
                             <AlertDialogTrigger asChild>
                             <Button size="sm" disabled={isProcessing || !isVerified}>
