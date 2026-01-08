@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { useContext, useEffect, useState, useRef, useMemo, useTransition, useCallback } from "react";
+import { useEffect, useState, useRef, useMemo, useTransition, useCallback } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -180,12 +180,12 @@ export function DbViewer() {
     const headers = useMemo(() => state.data?.length ? Object.keys(state.data[0]) : [], [state.data]);
     
     const displayData = useMemo(() => {
-        // Show first 10 rows from cache instantly if available during initial load
-        if (state.loading && state.data && state.source === 'cache') {
-            return state.data.slice(0, 10);
+        // While loading, if we have no data, return an empty array to render skeletons
+        if (state.loading && !state.data) {
+            return [];
         }
         return filteredData;
-    }, [state.loading, state.data, state.source, filteredData]);
+    }, [state.loading, state.data, filteredData]);
     
     
     const rowVirtualizer = useVirtualizer({
@@ -232,19 +232,6 @@ export function DbViewer() {
     }, [searchTerm, dateRange, columnFilters]);
 
 
-    if (state.loading && !state.data) {
-        return (
-            <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-                 <div className="max-w-7xl mx-auto">
-                    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
-                        <RefreshCw className="w-16 h-16 text-muted-foreground mb-4 animate-spin" />
-                        <CardTitle>Loading "All Case" Data...</CardTitle>
-                    </Card>
-                </div>
-            </div>
-        )
-    }
-
     if (state.error) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -273,7 +260,7 @@ export function DbViewer() {
             return (
                 <Popover>
                     <PopoverTrigger asChild>
-                        <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
+                         <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
                              {header}
                              {dateRange && <CalendarIcon className="ml-2 h-4 w-4 text-primary" />}
                         </Button>
@@ -392,8 +379,8 @@ export function DbViewer() {
                         </p>
                     </div>
                      <div className="flex items-center gap-2">
-                         <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.isSyncing}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${state.isSyncing ? 'animate-spin' : ''}`} />
+                         <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.isSyncing || state.loading}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${state.isSyncing || state.loading ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
                         <Badge variant={state.source === 'cache' ? 'default' : 'secondary'} className="w-fit">
@@ -425,15 +412,22 @@ export function DbViewer() {
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                         {state.isSyncing && (
+                         {(state.isSyncing || isPending) && (
                              <div className="px-4 pb-2 space-y-1">
                                 <Progress value={100} className="h-1 animate-pulse" />
                                 <p className="text-xs text-muted-foreground">Syncing latest data from Google Sheets...</p>
                             </div>
                          )}
                         <div ref={tableContainerRef} className="overflow-auto h-[65vh] border-t rounded-b-md">
-                           {(!state.data || state.data.length === 0) ? (
+                           {state.loading ? (
                                 <div className="flex items-center justify-center h-full">
+                                    <div className="text-center text-muted-foreground">
+                                        <RefreshCw className="mx-auto h-12 w-12 animate-spin mb-2" />
+                                        <p>Loading Data...</p>
+                                    </div>
+                                </div>
+                            ) : (!state.data || state.data.length === 0) ? (
+                                 <div className="flex items-center justify-center h-full">
                                     <div className="text-center text-muted-foreground">
                                         <Database className="mx-auto h-12 w-12 mb-2" />
                                         <p>No data found.</p>
@@ -481,46 +475,23 @@ export function DbViewer() {
                                                >
                                                    {headers.map(header => (
                                                        <td key={header} className="p-4 align-middle truncate" style={{ width: getColumnWidth(header), flexShrink: 0 }}>
-                                                           {row ? row[header] : <Skeleton className="h-4 w-full" />}
+                                                            {row ? row[header] : <Skeleton className="h-4 w-full" />}
                                                        </td>
                                                    ))}
                                                </tr>
                                            );
                                        })}
-                                        {/* Skeleton loaders for initial loading */}
-                                        {state.loading && (
-                                            Array.from({ length: 10 }).map((_, i) => (
-                                                 <tr
-                                                    key={`skeleton-${i}`}
-                                                    style={{
-                                                        position: 'absolute',
-                                                        top: 0,
-                                                        left: 0,
-                                                        width: totalWidth,
-                                                        height: `49px`,
-                                                        transform: `translateY(${i * 49}px)`,
-                                                        display: 'flex',
-                                                    }}
-                                                    className="border-b"
-                                                >
-                                                     {headers.map(header => (
-                                                        <td key={`skeleton-cell-${header}-${i}`} className="p-4 align-middle" style={{ width: getColumnWidth(header), flexShrink: 0 }}>
-                                                            <Skeleton className="h-4 w-full" />
-                                                        </td>
-                                                    ))}
-                                                </tr>
-                                            ))
-                                        )}
                                    </tbody>
                               </table>
                            )}
                         </div>
                     </CardContent>
                     <CardFooter className="p-2 border-t text-xs text-muted-foreground">
-                        Showing {displayData.length} of {state.data?.length || 0} rows.
+                        {state.loading ? 'Loading...' : `Showing ${displayData.length} of ${state.data?.length || 0} rows.`}
                     </CardFooter>
                 </Card>
             </div>
         </div>
     );
 }
+
