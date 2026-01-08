@@ -50,7 +50,7 @@ const parseDate = (dateStr: string): Date | null => {
 
 const FILTER_COLUMNS = [
     'CLIENT NAME',
-    'STATUS',
+    'STATUS CASE',
     'KATEGORI',
     'MODULE',
     'DETAIL MODULE',
@@ -480,4 +480,3 @@ export function DbViewer() {
     );
 }
 
-    
