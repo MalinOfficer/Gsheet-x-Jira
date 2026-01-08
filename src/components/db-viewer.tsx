@@ -1,7 +1,7 @@
 
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, X } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -20,6 +20,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format, parse } from 'date-fns';
+import { DateRange } from "react-day-picker"
 
 
 interface DbViewerState {
@@ -28,6 +32,20 @@ interface DbViewerState {
     error?: string;
     loading: boolean;
 }
+
+// Helper to parse DD/MM/YYYY strings into Date objects
+const parseDate = (dateStr: string): Date | null => {
+    if (!dateStr || typeof dateStr !== 'string') return null;
+    try {
+        // Use date-fns for reliable parsing of DD/MM/YYYY format
+        const parsed = parse(dateStr, 'dd/MM/yyyy', new Date());
+        if (isNaN(parsed.getTime())) return null;
+        return parsed;
+    } catch (e) {
+        return null;
+    }
+};
+
 
 export function DbViewer() {
     const { dbSheetUrl } = useContext(TableDataContext);
@@ -40,6 +58,7 @@ export function DbViewer() {
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
 
     const fetchData = async (showToast = false) => {
@@ -72,16 +91,43 @@ export function DbViewer() {
 
     const filteredData = useMemo(() => {
         if (!state.data) return [];
-        if (!debouncedSearchTerm) return state.data;
+        
+        let dataToFilter = state.data;
+
+        // Apply date range filter first
+        if (dateRange?.from) {
+             dataToFilter = dataToFilter.filter(row => {
+                const dateValue = row['DATE']; // Assuming the column name is 'DATE'
+                if (!dateValue) return false;
+
+                const rowDate = parseDate(dateValue);
+                if (!rowDate) return false;
+
+                const fromDate = dateRange.from ? new Date(dateRange.from.setHours(0, 0, 0, 0)) : null;
+                const toDate = dateRange.to ? new Date(dateRange.to.setHours(23, 59, 59, 999)) : fromDate;
+
+                if (fromDate && toDate) {
+                    return rowDate >= fromDate && rowDate <= toDate;
+                }
+                if (fromDate) {
+                    return rowDate >= fromDate;
+                }
+                return true;
+            });
+        }
+
+
+        // Then apply search term filter
+        if (!debouncedSearchTerm) return dataToFilter;
 
         const lowercasedQuery = debouncedSearchTerm.toLowerCase();
 
-        return state.data.filter(row => {
+        return dataToFilter.filter(row => {
             return Object.values(row).some(value =>
                 String(value).toLowerCase().includes(lowercasedQuery)
             );
         });
-    }, [state.data, debouncedSearchTerm]);
+    }, [state.data, debouncedSearchTerm, dateRange]);
     
     const headers = filteredData.length > 0 ? Object.keys(filteredData[0]) : [];
     
@@ -206,6 +252,63 @@ export function DbViewer() {
                                         {headers.map(header => {
                                             const lowerHeader = header.toLowerCase();
                                             const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
+                                            
+                                            if (header === 'DATE') {
+                                                return (
+                                                    <th 
+                                                        key={header} 
+                                                        className="h-12 px-4 text-left font-medium text-muted-foreground flex items-center"
+                                                        style={{ width: getColumnWidth(header), flexShrink: 0 }}
+                                                    >
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    variant={"outline"}
+                                                                    className={cn(
+                                                                        "w-full justify-start text-left font-normal h-8",
+                                                                        !dateRange && "text-muted-foreground"
+                                                                    )}
+                                                                >
+                                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                                    {dateRange?.from ? (
+                                                                        dateRange.to ? (
+                                                                            <>
+                                                                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                                                                {format(dateRange.to, "LLL dd, y")}
+                                                                            </>
+                                                                        ) : (
+                                                                            format(dateRange.from, "LLL dd, y")
+                                                                        )
+                                                                    ) : (
+                                                                        <span>Filter by date</span>
+                                                                    )}
+                                                                </Button>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-auto p-0" align="start">
+                                                                <Calendar
+                                                                    initialFocus
+                                                                    mode="range"
+                                                                    defaultMonth={dateRange?.from}
+                                                                    selected={dateRange}
+                                                                    onSelect={setDateRange}
+                                                                    numberOfMonths={2}
+                                                                />
+                                                                <div className="p-2 border-t flex justify-end">
+                                                                    <Button
+                                                                        onClick={() => setDateRange(undefined)}
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        disabled={!dateRange}
+                                                                    >
+                                                                        Reset
+                                                                    </Button>
+                                                                </div>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </th>
+                                                );
+                                            }
+
                                             return (
                                                 <th 
                                                     key={header} 
@@ -258,5 +361,3 @@ export function DbViewer() {
         </div>
     );
 }
-
-    
