@@ -10,20 +10,13 @@ import {
     CardTitle,
     CardFooter
 } from "@/components/ui/card";
-import { 
-    Table, 
-    TableBody, 
-    TableCell, 
-    TableHead, 
-    TableHeader, 
-    TableRow 
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useRef } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 
 interface DbViewerState {
@@ -41,6 +34,8 @@ export function DbViewer() {
         loading: true,
     });
     const { toast } = useToast();
+    const tableContainerRef = useRef<HTMLDivElement>(null);
+
 
     const fetchData = async (showToast = false) => {
         if (!dbSheetUrl) {
@@ -69,6 +64,18 @@ export function DbViewer() {
     useEffect(() => {
         fetchData();
     }, [dbSheetUrl]);
+    
+    const headers = state.data ? Object.keys(state.data[0]) : [];
+    
+    const rowVirtualizer = useVirtualizer({
+        count: state.data?.length ?? 0,
+        getScrollElement: () => tableContainerRef.current,
+        estimateSize: () => 49, // h-12 (48px) + 1px border
+        overscan: 5,
+    });
+    
+    const virtualRows = rowVirtualizer.getVirtualItems();
+    const totalHeight = rowVirtualizer.getTotalSize();
 
     if (state.loading && !state.data) {
         return (
@@ -123,8 +130,6 @@ export function DbViewer() {
         );
     }
     
-    const headers = Object.keys(state.data[0]);
-
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
@@ -149,31 +154,47 @@ export function DbViewer() {
                 
                 <Card>
                     <CardContent className="p-0">
-                        <div className="overflow-x-auto h-[75vh]">
-                            <Table>
-                                <TableHeader className="sticky top-0 bg-muted z-10">
-                                    <TableRow>
+                        <div ref={tableContainerRef} className="overflow-auto h-[75vh] border rounded-md">
+                           <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
+                                <thead className="sticky top-0 bg-muted z-10">
+                                    <tr className="border-b transition-colors hover:bg-muted/50">
                                         {headers.map(header => (
-                                            <TableHead key={header}>{header}</TableHead>
+                                            <th key={header} className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap" style={{ width: 150 }}>
+                                                {header}
+                                            </th>
                                         ))}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {state.data.map((row, rowIndex) => (
-                                        <TableRow key={rowIndex}>
-                                            {headers.map(header => (
-                                                <TableCell key={`${rowIndex}-${header}`}>
-                                                    {row[header]}
-                                                </TableCell>
-                                            ))}
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </tr>
+                                </thead>
+                                <tbody style={{ height: `${totalHeight}px`, position: 'relative' }}>
+                                    {virtualRows.map((virtualRow) => {
+                                        const row = state.data![virtualRow.index];
+                                        return (
+                                            <tr 
+                                                key={virtualRow.key}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    width: '100%',
+                                                    height: `${virtualRow.size}px`,
+                                                    transform: `translateY(${virtualRow.start}px)`,
+                                                }}
+                                                className="border-b transition-colors hover:bg-muted/50"
+                                            >
+                                                {headers.map(header => (
+                                                    <td key={header} className="p-4 align-middle truncate" style={{ width: 150 }}>
+                                                        {row[header]}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                           </table>
                         </div>
                     </CardContent>
-                    <CardFooter className="p-2 border-t overflow-x-auto">
-                        <div className="text-xs text-muted-foreground">Scroll horizontally to see more columns.</div>
+                    <CardFooter className="p-2 border-t text-xs text-muted-foreground">
+                        Showing {virtualRows.length} of {state.data.length} rows.
                     </CardFooter>
                 </Card>
             </div>
