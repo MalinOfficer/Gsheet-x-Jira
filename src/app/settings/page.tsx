@@ -12,7 +12,7 @@ import {
   CardTitle,
   CardFooter,
 } from '@/components/ui/card';
-import { CodeXml, Files, Link, Save, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { CodeXml, Files, Link, Save, CheckCircle2, XCircle, RefreshCw, Pencil } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TableDataContext } from '@/store/table-data-context';
 import { Switch } from '@/components/ui/switch';
@@ -45,6 +45,7 @@ export default function SettingsPage() {
   
   const [isClient, setIsClient] = useState(false);
   const [isSaving, startSaving] = useTransition();
+  const [isEditing, setIsEditing] = useState(true);
 
   // Local state for inputs
   const [sheetUrl, setSheetUrl] = useState('');
@@ -61,7 +62,11 @@ export default function SettingsPage() {
     setIsClient(true);
     setSheetUrl(contextSheetUrl);
     setDbSheetUrl(contextDbSheetUrl);
-  }, [contextSheetUrl, contextDbSheetUrl]);
+    // If URLs are already verified, start in non-editing mode
+    if (contextSheetUrl === verifiedUrl && contextDbSheetUrl === verifiedDbUrl && verifiedUrl && verifiedDbUrl) {
+      setIsEditing(false);
+    }
+  }, [contextSheetUrl, contextDbSheetUrl, verifiedUrl, verifiedDbUrl]);
 
   const handleSaveUrls = () => {
     startSaving(async () => {
@@ -88,6 +93,9 @@ export default function SettingsPage() {
             getSpreadsheetTitle(sheetUrl),
             getSpreadsheetTitle(dbSheetUrl)
         ]);
+        
+        let isMainValid = false;
+        let isDbValid = false;
 
         // Handle Main URL validation
         if (mainResult.error) {
@@ -96,6 +104,7 @@ export default function SettingsPage() {
         } else {
             setSpreadsheetTitle(mainResult.title || null);
             setVerifiedUrl(sheetUrl);
+            isMainValid = true;
         }
 
         // Handle DB URL validation
@@ -105,9 +114,18 @@ export default function SettingsPage() {
         } else {
             setDbSpreadsheetTitle(dbResult.title || null);
             setVerifiedDbUrl(dbSheetUrl);
+            isDbValid = true;
+        }
+        
+        if (isMainValid && isDbValid) {
+            setIsEditing(false); // Exit editing mode on successful save & validation
         }
     });
   };
+  
+  const handleEditClick = () => {
+      setIsEditing(true);
+  }
 
   const featureToggles = [
     {
@@ -138,7 +156,7 @@ export default function SettingsPage() {
       if (error) {
            return <div className="flex items-center text-xs text-destructive font-medium"><XCircle className="w-3 h-3 mr-1.5" /><span>{error}</span></div>;
       }
-      return null;
+      return <div className="h-5"></div>; // Placeholder to prevent layout shift
   }
 
   if (!isClient) {
@@ -173,10 +191,12 @@ export default function SettingsPage() {
                           placeholder="https://docs.google.com/spreadsheets/d/..."
                           value={sheetUrl}
                           onChange={(e) => setSheetUrl(e.target.value)}
+                          readOnly={!isEditing}
                           disabled={isSaving}
+                          className={!isEditing ? 'bg-muted/50' : ''}
                         />
                     </div>
-                    <div className="mt-1 h-5 pl-11">
+                    <div className="mt-1 pl-11">
                         <ValidationResult 
                             isLoading={isSaving}
                             title={spreadsheetTitle}
@@ -196,10 +216,12 @@ export default function SettingsPage() {
                           placeholder="https://docs.google.com/spreadsheets/d/..."
                           value={dbSheetUrl}
                           onChange={(e) => setDbSheetUrl(e.target.value)}
+                          readOnly={!isEditing}
                           disabled={isSaving}
+                          className={!isEditing ? 'bg-muted/50' : ''}
                         />
                     </div>
-                     <div className="mt-1 h-5 pl-11">
+                     <div className="mt-1 pl-11">
                         <ValidationResult 
                             isLoading={isSaving}
                             title={dbSpreadsheetTitle}
@@ -211,10 +233,17 @@ export default function SettingsPage() {
                  </div>
             </CardContent>
             <CardFooter>
-                 <Button onClick={handleSaveUrls} disabled={isSaving}>
-                    {isSaving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    {isSaving ? 'Saving & Validating...' : 'Save URLs'}
-                </Button>
+                 {isEditing ? (
+                    <Button onClick={handleSaveUrls} disabled={isSaving}>
+                        {isSaving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        {isSaving ? 'Saving & Validating...' : 'Save URLs'}
+                    </Button>
+                 ) : (
+                    <Button onClick={handleEditClick} variant="outline">
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Change Urls
+                    </Button>
+                 )}
             </CardFooter>
         </Card>
 
@@ -258,3 +287,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
