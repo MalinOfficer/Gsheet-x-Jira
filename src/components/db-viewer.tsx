@@ -176,7 +176,7 @@ export function DbViewer() {
                         <div ref={tableContainerRef} className="overflow-auto h-[75vh] border rounded-md">
                            <table className="text-sm" style={{ tableLayout: 'fixed', width: totalWidth }}>
                                 <thead className="sticky top-0 bg-muted z-10">
-                                    <tr className="border-b transition-colors hover:bg-muted/50" style={{ display: 'flex', width: totalWidth }}>
+                                    <tr className="border-b transition-colors hover:bg-muted/50 flex items-center" style={{ width: totalWidth }}>
                                         {headers.map(header => (
                                             <th 
                                                 key={header} 
