@@ -742,9 +742,9 @@ export function ImportFlow() {
         <div className="flex flex-col gap-4 lg:gap-6">
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="text-xl">2. Set Destination and Export</CardTitle>
+              <CardTitle className="text-xl">2. Set Destination</CardTitle>
               <CardDescription>
-                Verifikasi URL Google Sheet Anda, lalu ekspor atau perbarui data.
+                Verifikasi URL Google Sheet Anda untuk mengaktifkan opsi ekspor dan pembaruan.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -789,76 +789,6 @@ export function ImportFlow() {
                     {analysisError && <div className="flex items-center text-xs text-destructive font-medium"><XCircle className="w-3 h-3 mr-1.5" /><span>{analysisError}</span></div>}
                   </div>
                 </div>
-              
-              <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                       <Button size="sm" disabled={isProcessing || !isVerified}>
-                         {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : <><Upload className="mr-2 h-4 w-4" />Export to GSheet</>}
-                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Konfirmasi Ekspor</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Apakah Anda yakin akan mengekspor {tableData.rows.length} baris ke sheet <span className="font-bold">{spreadsheetTitle || 'target'}</span>?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Batal</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleImport} disabled={isImporting}>
-                          {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : "Ya, Lanjutkan Ekspor"}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                  
-                  <AlertDialog open={isUpdateConfirmOpen} onOpenChange={setIsUpdateConfirmOpen}>
-                      <Button onClick={handleUpdatePreview} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950" disabled={isProcessing || !isVerified}>
-                          {isPreviewing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengecek...</> : <><DatabaseZap className="mr-2 h-4 w-4" />Update Status</>}
-                      </Button>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                         <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
-                         <div className="text-sm text-muted-foreground">
-                              {isPreviewing ? (
-                                  <div className="flex items-center justify-center p-8">
-                                      <RefreshCw className="mr-2 h-6 w-6 animate-spin" />
-                                      <span>Mencari perubahan...</span>
-                                  </div>
-                              ) : (
-                                  <>
-                                      <p className='mb-2'>Apakah Anda yakin ingin memperbarui {updatePreview.length} kasus di sheet target?</p>
-                                      <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
-                                          <p className="font-bold">Detail Perubahan:</p>
-                                          <ul className="list-disc pl-5">
-                                              {updatePreview.map((item, index) => (
-                                                <li key={index} className='text-foreground'>
-                                                  {item.title}:
-                                                  {item.oldStatus !== item.newStatus && <span> Status: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> {'→'} <strong>{item.newStatus}</strong></span>}
-                                                  {item.oldTicketOp !== item.newTicketOp && <span>, Ticket Op: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> {'→'} <strong>{item.newTicketOp}</strong></span>}
-                                                  {item.newStatus === 'Solved' && item.oldCheckout !== item.newCheckout && <span>, Check Out: <strong>{formatDateTime(item.newCheckout, 'jam')}</strong></span>}
-                                                </li>
-                                              ))}
-                                          </ul>
-                                      </div>
-                                  </>
-                              )}
-                          </div>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setUpdatePreview([])}>Batal</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmUpdate} disabled={isUpdating || isPreviewing || updatePreview.length === 0}>
-                          {isUpdating ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Memperbarui...</> : "Ya, Lanjutkan Update"}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-
-                  <Button onClick={handleUndo} size="sm" variant="destructive" disabled={!lastActionUndoData || isProcessing || !isVerified}>
-                      {isUndoing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Membatalkan...</> : <><Undo className="mr-2 h-4 w-4" />Undo Last Action</>}
-                  </Button>
-              </div>
             </CardContent>
           </Card>
 
@@ -871,6 +801,20 @@ export function ImportFlow() {
               handleCopyToClipboard={handleCopyToClipboard}
               isCopied={isCopied}
               handleNavigateToReport={handleNavigateToReport}
+              lastActionUndoData={lastActionUndoData}
+              handleImport={handleImport}
+              handleUpdatePreview={handleUpdatePreview}
+              handleUndo={handleUndo}
+              isVerified={isVerified}
+              isImporting={isImporting}
+              isPreviewing={isPreviewing}
+              isUndoing={isUndoing}
+              isUpdateConfirmOpen={isUpdateConfirmOpen}
+              setIsUpdateConfirmOpen={setIsUpdateConfirmOpen}
+              updatePreview={updatePreview}
+              setUpdatePreview={setUpdatePreview}
+              handleConfirmUpdate={handleConfirmUpdate}
+              isUpdating={isUpdating}
           />
         </div>
       )}
@@ -888,6 +832,20 @@ function PreviewTable({
     handleCopyToClipboard,
     isCopied,
     handleNavigateToReport,
+    lastActionUndoData,
+    handleImport,
+    handleUpdatePreview,
+    handleUndo,
+    isVerified,
+    isImporting,
+    isPreviewing,
+    isUndoing,
+    isUpdateConfirmOpen,
+    setIsUpdateConfirmOpen,
+    updatePreview,
+    setUpdatePreview,
+    handleConfirmUpdate,
+    isUpdating,
 } : {
     initialData: TableData;
     dateFormats: Record<string, DateFormat>;
@@ -897,6 +855,20 @@ function PreviewTable({
     handleCopyToClipboard: () => void;
     isCopied: boolean;
     handleNavigateToReport: () => void;
+    lastActionUndoData: LastActionUndoData;
+    handleImport: () => void;
+    handleUpdatePreview: () => void;
+    handleUndo: () => void;
+    isVerified: boolean;
+    isImporting: boolean;
+    isPreviewing: boolean;
+    isUndoing: boolean;
+    isUpdateConfirmOpen: boolean;
+    setIsUpdateConfirmOpen: (open: boolean) => void;
+    updatePreview: UpdatePreview[];
+    setUpdatePreview: (preview: UpdatePreview[]) => void;
+    handleConfirmUpdate: () => void;
+    isUpdating: boolean;
 }) {
     const { setTableData } = useContext(TableDataContext);
     const [localTableData, setLocalTableData] = useState<TableData>(initialData);
@@ -969,26 +941,95 @@ function PreviewTable({
     return (
          <Card className="shadow-lg mt-6">
             <CardHeader>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <CardTitle className="text-xl">3. Data Preview</CardTitle>
+                        <CardTitle className="text-xl">3. Data Preview & Actions</CardTitle>
                         <CardDescription>
-                            Ini adalah pratinjau data yang akan diekspor. Anda dapat mengubah status di sini sebelum mengekspor.
+                            Pratinjau data, ubah jika perlu, lalu ekspor atau perbarui ke Google Sheet.
                         </CardDescription>
                     </div>
-                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        <Button onClick={handleCopyToClipboard} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
-                            {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                            {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
-                        </Button>
-                         <Button onClick={handleNavigateToReport} size="sm" className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white" disabled={isProcessing || !localTableData}>
-                            <BarChart className="mr-2 h-4 w-4" />
-                            Daily Report
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t sm:border-t-0 sm:pt-0">
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                            <Button size="sm" disabled={isProcessing || !isVerified}>
+                                {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : <><Upload className="mr-2 h-4 w-4" />Export to GSheet</>}
+                            </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Konfirmasi Ekspor</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                Apakah Anda yakin akan mengekspor {localTableData.rows.length} baris ke sheet <span className="font-bold">{initialData.headers.length > 0 ? "target" : 'target'}</span>?
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Batal</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleImport} disabled={isImporting}>
+                                {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : "Ya, Lanjutkan Ekspor"}
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                        
+                        <AlertDialog open={isUpdateConfirmOpen} onOpenChange={setIsUpdateConfirmOpen}>
+                            <Button onClick={handleUpdatePreview} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950" disabled={isProcessing || !isVerified}>
+                                {isPreviewing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengecek...</> : <><DatabaseZap className="mr-2 h-4 w-4" />Update Status</>}
+                            </Button>
+                            <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
+                                <div className="text-sm text-muted-foreground">
+                                    {isPreviewing ? (
+                                        <div className="flex items-center justify-center p-8">
+                                            <RefreshCw className="mr-2 h-6 w-6 animate-spin" />
+                                            <span>Mencari perubahan...</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <p className='mb-2'>Apakah Anda yakin ingin memperbarui {updatePreview.length} kasus di sheet target?</p>
+                                            <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
+                                                <p className="font-bold">Detail Perubahan:</p>
+                                                <ul className="list-disc pl-5">
+                                                    {updatePreview.map((item, index) => (
+                                                        <li key={index} className='text-foreground'>
+                                                        {item.title}:
+                                                        {item.oldStatus !== item.newStatus && <span> Status: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> {'→'} <strong>{item.newStatus}</strong></span>}
+                                                        {item.oldTicketOp !== item.newTicketOp && <span>, Ticket Op: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> {'→'} <strong>{item.newTicketOp}</strong></span>}
+                                                        {item.newStatus === 'Solved' && item.oldCheckout !== item.newCheckout && <span>, Check Out: <strong>{formatDateTime(item.newCheckout, 'jam')}</strong></span>}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setUpdatePreview([])}>Batal</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleConfirmUpdate} disabled={isUpdating || isPreviewing || updatePreview.length === 0}>
+                                {isUpdating ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Memperbarui...</> : "Ya, Lanjutkan Update"}
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+
+                        <Button onClick={handleUndo} size="sm" variant="destructive" disabled={!lastActionUndoData || isProcessing || !isVerified}>
+                            {isUndoing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Membatalkan...</> : <><Undo className="mr-2 h-4 w-4" />Undo Last Action</>}
                         </Button>
                     </div>
                 </div>
             </CardHeader>
              <CardContent>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mb-4">
+                    <Button onClick={handleCopyToClipboard} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
+                        {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                        {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
+                    </Button>
+                    <Button onClick={handleNavigateToReport} size="sm" className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white" disabled={isProcessing || !localTableData}>
+                        <BarChart className="mr-2 h-4 w-4" />
+                        Daily Report
+                    </Button>
+                </div>
                 <div className="overflow-x-auto w-full h-[500px] border rounded-md">
                     <table className="w-full" style={{ tableLayout: 'fixed', width: `${Object.values(columnWidths).reduce((a, b) => a + b, 64)}px` }}>
                         <thead className="sticky top-0 z-20 bg-muted">
@@ -1088,9 +1129,3 @@ function PreviewTable({
         </Card>
     );
 }
-
-    
-
-    
-
-    
