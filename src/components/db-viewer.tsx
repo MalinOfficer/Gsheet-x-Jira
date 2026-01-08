@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { useEffect, useState, useRef, useMemo, useTransition, useCallback } from "react";
+import { useEffect, useState, useRef, useMemo, useTransition, useCallback, useContext } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -182,7 +182,7 @@ export function DbViewer() {
     const displayData = useMemo(() => {
         // While loading, if we have no data, return an empty array to render skeletons
         if (state.loading && !state.data) {
-            return [];
+            return Array.from({ length: 10 }, () => ({}))
         }
         return filteredData;
     }, [state.loading, state.data, filteredData]);
@@ -419,15 +419,8 @@ export function DbViewer() {
                             </div>
                          )}
                         <div ref={tableContainerRef} className="overflow-auto h-[65vh] border-t rounded-b-md">
-                           {state.loading ? (
+                           {(!state.data || state.data.length === 0) && !state.loading ? (
                                 <div className="flex items-center justify-center h-full">
-                                    <div className="text-center text-muted-foreground">
-                                        <RefreshCw className="mx-auto h-12 w-12 animate-spin mb-2" />
-                                        <p>Loading Data...</p>
-                                    </div>
-                                </div>
-                            ) : (!state.data || state.data.length === 0) ? (
-                                 <div className="flex items-center justify-center h-full">
                                     <div className="text-center text-muted-foreground">
                                         <Database className="mx-auto h-12 w-12 mb-2" />
                                         <p>No data found.</p>
@@ -495,3 +488,5 @@ export function DbViewer() {
     );
 }
 
+
+    
