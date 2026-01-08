@@ -162,7 +162,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             )}
             
             {/* --- Main Content Area --- */}
-            <div className="flex flex-col">
+            <div className="flex flex-col min-h-screen overflow-x-hidden">
                  {/* --- Mobile/Main Header --- */}
                 <header className="flex h-16 items-center gap-4 border-b bg-background px-4 lg:px-6 flex-shrink-0 sticky top-0 z-40">
                     {/* Hamburger Menu for Mobile */}
@@ -214,9 +214,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         </Link>
                     )}
                 </header>
-                <div className="bg-muted/20">
+                <main className="flex-1 flex flex-col w-full bg-muted/20">
                     {children}
-                </div>
+                </main>
             </div>
         </div>
     );
