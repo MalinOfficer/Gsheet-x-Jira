@@ -1,7 +1,7 @@
 
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -12,12 +12,14 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { useContext, useEffect, useState, useRef, useMemo } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from "@/lib/utils";
+import { useDebounce } from 'use-debounce';
 
 
 interface DbViewerState {
@@ -36,6 +38,8 @@ export function DbViewer() {
     });
     const { toast } = useToast();
     const tableContainerRef = useRef<HTMLDivElement>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
 
 
     const fetchData = async (showToast = false) => {
@@ -65,11 +69,24 @@ export function DbViewer() {
     useEffect(() => {
         fetchData();
     }, [dbSheetUrl]);
+
+    const filteredData = useMemo(() => {
+        if (!state.data) return [];
+        if (!debouncedSearchTerm) return state.data;
+
+        const lowercasedQuery = debouncedSearchTerm.toLowerCase();
+
+        return state.data.filter(row => {
+            return Object.values(row).some(value =>
+                String(value).toLowerCase().includes(lowercasedQuery)
+            );
+        });
+    }, [state.data, debouncedSearchTerm]);
     
-    const headers = state.data ? Object.keys(state.data[0]) : [];
+    const headers = filteredData.length > 0 ? Object.keys(filteredData[0]) : [];
     
     const rowVirtualizer = useVirtualizer({
-        count: state.data?.length ?? 0,
+        count: filteredData.length,
         getScrollElement: () => tableContainerRef.current,
         estimateSize: () => 49, // h-12 (48px) + 1px border
         overscan: 5,
@@ -89,7 +106,6 @@ export function DbViewer() {
         if (lowerHeader === 'no') {
             return 60;
         }
-        // Default width for other columns
         return 120;
     };
 
@@ -160,6 +176,16 @@ export function DbViewer() {
                         </p>
                     </div>
                      <div className="flex items-center gap-2">
+                         <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Search data..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-8 sm:w-[300px]"
+                            />
+                        </div>
                          <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.loading}>
                             <RefreshCw className={`mr-2 h-4 w-4 ${state.loading ? 'animate-spin' : ''}`} />
                             Refresh
@@ -176,15 +202,16 @@ export function DbViewer() {
                         <div ref={tableContainerRef} className="overflow-auto h-[75vh] border rounded-md">
                            <table className="text-sm" style={{ tableLayout: 'fixed', width: totalWidth }}>
                                 <thead className="sticky top-0 bg-muted z-10">
-                                    <tr style={{ width: totalWidth, display: 'flex', alignItems: 'center' }}>
+                                    <tr style={{ width: totalWidth, display: 'flex' }} className="items-center">
                                         {headers.map(header => {
                                             const lowerHeader = header.toLowerCase();
+                                            const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
                                             return (
                                                 <th 
                                                     key={header} 
                                                     className={cn(
                                                         "h-12 px-4 text-left font-medium text-muted-foreground flex items-center",
-                                                        lowerHeader.includes('first response') || lowerHeader.includes('status case 2') ? "whitespace-normal" : "whitespace-nowrap"
+                                                        isWrapHeader ? "whitespace-normal" : "whitespace-nowrap"
                                                     )}
                                                     style={{ width: getColumnWidth(header), flexShrink: 0 }}
                                                 >
@@ -196,7 +223,7 @@ export function DbViewer() {
                                 </thead>
                                 <tbody style={{ height: `${totalHeight}px`, position: 'relative' }}>
                                     {virtualRows.map((virtualRow) => {
-                                        const row = state.data![virtualRow.index];
+                                        const row = filteredData[virtualRow.index];
                                         return (
                                             <tr 
                                                 key={virtualRow.key}
@@ -224,10 +251,12 @@ export function DbViewer() {
                         </div>
                     </CardContent>
                     <CardFooter className="p-2 border-t text-xs text-muted-foreground">
-                        Showing {virtualRows.length > 0 ? virtualRows.length : state.data.length} of {state.data.length} rows.
+                        Showing {filteredData.length} of {state.data.length} rows.
                     </CardFooter>
                 </Card>
             </div>
         </div>
     );
 }
+
+    
