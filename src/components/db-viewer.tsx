@@ -53,7 +53,7 @@ const FILTER_COLUMNS = [
     'STATUS CASE',
     'KATEGORI',
     'MODULE',
-    'DETAIL MODULE',
+    'DETAIL MODUL',
     'STATUS CASE 2',
 ];
 
@@ -480,3 +480,4 @@ export function DbViewer() {
     );
 }
 
+    
