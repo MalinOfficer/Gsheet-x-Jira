@@ -181,7 +181,10 @@ export function DbViewer() {
         if (lowerHeader.includes('detail case') || lowerHeader.includes('penanganan case')) {
             return 350;
         }
-        if (lowerHeader.includes('client') || lowerHeader.includes('customer name') || lowerHeader.includes('ticket number')) {
+        if (lowerHeader.includes('detail modul')) {
+            return 250;
+        }
+        if (lowerHeader.includes('client') || lowerHeader.includes('customer name') || lowerHeader.includes('ticket number') || lowerHeader.includes('module')) {
             return 180;
         }
          if (lowerHeader.includes('status case 2')) {
@@ -422,7 +425,7 @@ export function DbViewer() {
                         <div ref={tableContainerRef} className="overflow-auto h-[65vh] border-t rounded-b-md">
                            <table className="text-sm" style={{ tableLayout: 'fixed', width: totalWidth }}>
                                 <thead className="sticky top-0 bg-muted z-10">
-                                    <tr style={{ width: totalWidth, display: 'flex' }} className="items-center">
+                                    <tr style={{ width: totalWidth, display: 'flex' }}>
                                         {headers.map(header => {
                                             const lowerHeader = header.toLowerCase();
                                             const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
@@ -479,5 +482,3 @@ export function DbViewer() {
         </div>
     );
 }
-
-    
