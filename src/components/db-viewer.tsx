@@ -1,7 +1,7 @@
 
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, X, FilterX, Filter } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { useContext, useEffect, useState, useRef, useMemo } from "react";
+import { useContext, useEffect, useState, useRef, useMemo, useTransition } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,8 @@ import { format, parse } from 'date-fns';
 import { DateRange } from "react-day-picker"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
 import { Check } from 'lucide-react';
+import { Skeleton } from "./ui/skeleton";
+import { Progress } from "./ui/progress";
 
 
 interface DbViewerState {
@@ -33,6 +35,7 @@ interface DbViewerState {
     source: 'cache' | 'sheet' | 'N/A';
     error?: string;
     loading: boolean;
+    isSyncing: boolean;
 }
 
 // Helper to parse DD/MM/YYYY strings into Date objects
@@ -65,6 +68,7 @@ export function DbViewer() {
         source: 'N/A',
         error: undefined,
         loading: true,
+        isSyncing: false,
     });
     const { toast } = useToast();
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +76,7 @@ export function DbViewer() {
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+    const [isPending, startTransition] = useTransition();
 
      const filterOptions = useMemo(() => {
         if (!state.data) return {};
@@ -84,34 +89,42 @@ export function DbViewer() {
         return options;
     }, [state.data]);
 
-
-    const fetchData = async (showToast = false) => {
+    const fetchData = useCallback(async (isRefresh = false) => {
         if (!dbSheetUrl) {
-            setState({ data: null, source: 'N/A', error: 'DB GSheet URL is not configured in Settings.', loading: false });
+            setState({ data: null, source: 'N/A', error: 'DB GSheet URL is not configured in Settings.', loading: false, isSyncing: false });
             return;
         }
 
-        setState(prevState => ({ ...prevState, loading: true }));
+        if (isRefresh) {
+            setState(prevState => ({ ...prevState, isSyncing: true }));
+        } else {
+            setState(prevState => ({ ...prevState, loading: true }));
+        }
+
         const result = await getAllCaseData(dbSheetUrl);
-        setState({
-            data: result.data || null,
-            source: result.source || 'N/A',
-            error: result.error,
-            loading: false,
+
+        startTransition(() => {
+            setState({
+                data: result.data || null,
+                source: result.source || 'N/A',
+                error: result.error,
+                loading: false,
+                isSyncing: false,
+            });
         });
 
-        if (showToast) {
+        if (isRefresh) {
             if (result.error) {
                  toast({ variant: 'destructive', title: "Refresh Failed", description: result.error });
             } else {
                  toast({ title: "Data Refreshed", description: `Data loaded from ${result.source}.` });
             }
         }
-    };
+    }, [dbSheetUrl, toast]);
     
     useEffect(() => {
-        fetchData();
-    }, [dbSheetUrl]);
+        fetchData(false);
+    }, [fetchData]);
 
     const filteredData = useMemo(() => {
         if (!state.data) return [];
@@ -164,10 +177,19 @@ export function DbViewer() {
         return dataToFilter;
     }, [state.data, debouncedSearchTerm, dateRange, columnFilters]);
     
-    const headers = filteredData.length > 0 ? Object.keys(filteredData[0]) : (state.data?.length ? Object.keys(state.data[0]) : []);
+    const headers = useMemo(() => state.data?.length ? Object.keys(state.data[0]) : [], [state.data]);
+    
+    const displayData = useMemo(() => {
+        // Show first 10 rows from cache instantly if available during initial load
+        if (state.loading && state.data && state.source === 'cache') {
+            return state.data.slice(0, 10);
+        }
+        return filteredData;
+    }, [state.loading, state.data, state.source, filteredData]);
+    
     
     const rowVirtualizer = useVirtualizer({
-        count: filteredData.length,
+        count: displayData.length,
         getScrollElement: () => tableContainerRef.current,
         estimateSize: () => 49, // h-12 (48px) + 1px border
         overscan: 5,
@@ -209,6 +231,7 @@ export function DbViewer() {
         return searchTerm || dateRange || Object.values(columnFilters).some(f => f.length > 0);
     }, [searchTerm, dateRange, columnFilters]);
 
+
     if (state.loading && !state.data) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -232,29 +255,9 @@ export function DbViewer() {
                         <CardDescription className="mt-2 mb-4 max-w-sm">
                             {state.error}
                         </CardDescription>
-                         <Button onClick={() => fetchData(true)} disabled={state.loading}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${state.loading ? 'animate-spin' : ''}`} />
+                         <Button onClick={() => fetchData(true)} disabled={state.isSyncing}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${state.isSyncing ? 'animate-spin' : ''}`} />
                             Try Again
-                        </Button>
-                    </Card>
-                </div>
-            </div>
-        );
-    }
-
-    if (!state.data || state.data.length === 0) {
-        return (
-             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-                <div className="max-w-7xl mx-auto">
-                    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
-                        <Database className="w-16 h-16 text-muted-foreground mb-4" />
-                        <CardTitle>No Data Found</CardTitle>
-                        <CardDescription className="mt-2 mb-4 max-w-sm">
-                            The "All Case" database is currently empty.
-                        </CardDescription>
-                         <Button onClick={() => fetchData(true)} disabled={state.loading}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${state.loading ? 'animate-spin' : ''}`} />
-                            Refresh Now
                         </Button>
                     </Card>
                 </div>
@@ -389,8 +392,8 @@ export function DbViewer() {
                         </p>
                     </div>
                      <div className="flex items-center gap-2">
-                         <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.loading}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${state.loading ? 'animate-spin' : ''}`} />
+                         <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.isSyncing}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${state.isSyncing ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
                         <Badge variant={state.source === 'cache' ? 'default' : 'secondary'} className="w-fit">
@@ -422,60 +425,99 @@ export function DbViewer() {
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
+                         {state.isSyncing && (
+                             <div className="px-4 pb-2 space-y-1">
+                                <Progress value={100} className="h-1 animate-pulse" />
+                                <p className="text-xs text-muted-foreground">Syncing latest data from Google Sheets...</p>
+                            </div>
+                         )}
                         <div ref={tableContainerRef} className="overflow-auto h-[65vh] border-t rounded-b-md">
-                           <table className="text-sm" style={{ tableLayout: 'fixed', width: totalWidth }}>
-                                <thead className="sticky top-0 bg-muted z-10">
-                                    <tr style={{ width: totalWidth, display: 'flex' }}>
-                                        {headers.map(header => {
-                                            const lowerHeader = header.toLowerCase();
-                                            const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
-                                            
-                                            return (
-                                                <th 
-                                                    key={header} 
-                                                    className={cn(
-                                                        "h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-center",
-                                                        isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
-                                                    )}
-                                                    style={{ width: getColumnWidth(header), flexShrink: 0 }}
+                           {(!state.data || state.data.length === 0) ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="text-center text-muted-foreground">
+                                        <Database className="mx-auto h-12 w-12 mb-2" />
+                                        <p>No data found.</p>
+                                    </div>
+                                </div>
+                            ) : (
+                               <table className="text-sm" style={{ tableLayout: 'fixed', width: totalWidth }}>
+                                   <thead className="sticky top-0 bg-muted z-10">
+                                       <tr style={{ width: totalWidth, display: 'flex' }}>
+                                           {headers.map(header => {
+                                               const lowerHeader = header.toLowerCase();
+                                               const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
+                                               
+                                               return (
+                                                   <th 
+                                                       key={header} 
+                                                       className={cn(
+                                                           "h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-center",
+                                                           isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
+                                                       )}
+                                                       style={{ width: getColumnWidth(header), flexShrink: 0 }}
+                                                   >
+                                                      {renderHeaderContent(header)}
+                                                   </th>
+                                               );
+                                           })}
+                                       </tr>
+                                   </thead>
+                                   <tbody style={{ height: `${totalHeight}px`, position: 'relative' }}>
+                                       {virtualRows.map((virtualRow) => {
+                                           const row = displayData[virtualRow.index];
+                                           return (
+                                               <tr 
+                                                   key={virtualRow.key}
+                                                   style={{
+                                                       position: 'absolute',
+                                                       top: 0,
+                                                       left: 0,
+                                                       width: totalWidth,
+                                                       height: `${virtualRow.size}px`,
+                                                       transform: `translateY(${virtualRow.start}px)`,
+                                                       display: 'flex',
+                                                   }}
+                                                   className="border-b transition-colors hover:bg-muted/50"
+                                               >
+                                                   {headers.map(header => (
+                                                       <td key={header} className="p-4 align-middle truncate" style={{ width: getColumnWidth(header), flexShrink: 0 }}>
+                                                           {row ? row[header] : <Skeleton className="h-4 w-full" />}
+                                                       </td>
+                                                   ))}
+                                               </tr>
+                                           );
+                                       })}
+                                        {/* Skeleton loaders for initial loading */}
+                                        {state.loading && (
+                                            Array.from({ length: 10 }).map((_, i) => (
+                                                 <tr
+                                                    key={`skeleton-${i}`}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: 0,
+                                                        left: 0,
+                                                        width: totalWidth,
+                                                        height: `49px`,
+                                                        transform: `translateY(${i * 49}px)`,
+                                                        display: 'flex',
+                                                    }}
+                                                    className="border-b"
                                                 >
-                                                   {renderHeaderContent(header)}
-                                                </th>
-                                            );
-                                        })}
-                                    </tr>
-                                </thead>
-                                <tbody style={{ height: `${totalHeight}px`, position: 'relative' }}>
-                                    {virtualRows.map((virtualRow) => {
-                                        const row = filteredData[virtualRow.index];
-                                        return (
-                                            <tr 
-                                                key={virtualRow.key}
-                                                style={{
-                                                    position: 'absolute',
-                                                    top: 0,
-                                                    left: 0,
-                                                    width: totalWidth,
-                                                    height: `${virtualRow.size}px`,
-                                                    transform: `translateY(${virtualRow.start}px)`,
-                                                    display: 'flex',
-                                                }}
-                                                className="border-b transition-colors hover:bg-muted/50"
-                                            >
-                                                {headers.map(header => (
-                                                    <td key={header} className="p-4 align-middle truncate" style={{ width: getColumnWidth(header), flexShrink: 0 }}>
-                                                        {row[header]}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                           </table>
+                                                     {headers.map(header => (
+                                                        <td key={`skeleton-cell-${header}-${i}`} className="p-4 align-middle" style={{ width: getColumnWidth(header), flexShrink: 0 }}>
+                                                            <Skeleton className="h-4 w-full" />
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            ))
+                                        )}
+                                   </tbody>
+                              </table>
+                           )}
                         </div>
                     </CardContent>
                     <CardFooter className="p-2 border-t text-xs text-muted-foreground">
-                        Showing {filteredData.length} of {state.data?.length || 0} rows.
+                        Showing {displayData.length} of {state.data?.length || 0} rows.
                     </CardFooter>
                 </Card>
             </div>
