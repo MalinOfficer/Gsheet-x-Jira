@@ -721,55 +721,6 @@ export function ImportFlow() {
       
       {tableData && (
         <div className="space-y-4 lg:space-y-6">
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">2. Set Destination</CardTitle>
-              <CardDescription>
-                Gunakan URL yang telah diatur di halaman Settings atau ubah di sini untuk sesi ini saja.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-               <div className="grid gap-2">
-                  <Label htmlFor="gsheet-url">Target Google Sheet URL</Label>
-                  <div className="flex flex-col sm:flex-row items-stretch gap-2">
-                    <Input
-                      id="gsheet-url"
-                      type="url"
-                      placeholder="https://docs.google.com/spreadsheets/d/..."
-                      value={sheetUrl}
-                      onChange={handleUrlChange}
-                      className="flex-grow"
-                      disabled={isProcessing}
-                    />
-                  </div>
-                   <div className='mt-2'>
-                      {isVerified ? (
-                          <Button size="sm" disabled className="bg-green-600 hover:bg-green-600 text-white">
-                              <CheckCircle2 className="w-4 h-4 mr-2" />
-                              Verified
-                          </Button>
-                      ) : (
-                          <Button
-                            onClick={handleAnalyzeSheet}
-                            variant={isVerified ? 'secondary' : 'default'}
-                            size="sm"
-                            className={!isVerified ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}
-                            disabled={isProcessing || !sheetUrl}
-                          >
-                              {isAnalyzing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
-                              {isAnalyzing ? 'Verifying...' : 'Verify'}
-                          </Button>
-                      )}
-                   </div>
-                  <div className="mt-1 h-5">
-                    {isAnalyzing && <div className="flex items-center text-xs text-muted-foreground"><RefreshCw className="w-3 h-3 mr-1.5 animate-spin" /><span>Analyzing...</span></div>}
-                    {spreadsheetTitle && <div className="flex items-center text-xs text-green-600 font-medium"><CheckCircle2 className="w-3 h-3 mr-1.5" /><span>{spreadsheetTitle}</span></div>}
-                    {analysisError && <div className="flex items-center text-xs text-destructive font-medium"><XCircle className="w-3 h-3 mr-1.5" /><span>{analysisError}</span></div>}
-                  </div>
-                </div>
-            </CardContent>
-          </Card>
-
           <PreviewTable
               initialData={tableData}
               dateFormats={dateFormats}
@@ -921,7 +872,7 @@ function PreviewTable({
             <CardHeader>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <CardTitle className="text-xl">3. Data Preview & Actions</CardTitle>
+                        <CardTitle className="text-xl">2. Data Preview &amp; Actions</CardTitle>
                         <CardDescription>
                             Pratinjau data, ubah jika perlu, lalu ekspor atau perbarui ke Google Sheet.
                         </CardDescription>
@@ -950,9 +901,11 @@ function PreviewTable({
                         </AlertDialog>
                         
                         <AlertDialog open={isUpdateConfirmOpen} onOpenChange={setIsUpdateConfirmOpen}>
-                            <Button onClick={handleUpdatePreview} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950" disabled={isProcessing || !isVerified}>
-                                {isPreviewing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengecek...</> : <><DatabaseZap className="mr-2 h-4 w-4" />Update Status</>}
-                            </Button>
+                            <AlertDialogTrigger asChild>
+                                <Button onClick={handleUpdatePreview} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950" disabled={isProcessing || !isVerified}>
+                                    {isPreviewing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengecek...</> : <><DatabaseZap className="mr-2 h-4 w-4" />Update Status</>}
+                                </Button>
+                            </AlertDialogTrigger>
                             <AlertDialogContent>
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
