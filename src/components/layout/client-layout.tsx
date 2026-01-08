@@ -75,9 +75,9 @@ function ProcessingIndicator() {
     if (!isProcessing) return null;
 
     return (
-        <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-primary">
+        <div className="flex items-center gap-2 text-primary">
             <RefreshCw className="h-4 w-4 animate-spin" />
-            <span className="text-sm font-medium">Processing...</span>
+            <span className="hidden sm:inline text-sm font-medium">Processing...</span>
         </div>
     );
 }
@@ -149,7 +149,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                             <NavLinks />
                         </div>
                         <div className="mt-auto p-4 space-y-2">
-                            <ProcessingIndicator />
+                            
                             <Link href="/settings">
                                 <Button variant="secondary" className="w-full">
                                     <Settings className="mr-2 h-4 w-4" />
@@ -185,7 +185,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                 </SheetHeader>
                                 <NavLinks />
                                 <div className="mt-auto">
-                                    <ProcessingIndicator />
+                                    
                                     <SheetClose asChild>
                                         <Link href="/settings">
                                             <Button variant="secondary" className="w-full">
@@ -202,7 +202,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     <div className="w-full flex-1">
                        <h1 className="font-semibold">{currentPageTitle}</h1>
                     </div>
-
+                    
+                    <ProcessingIndicator />
                     <ThemeSwitch />
                     
                     {isMobile && (
