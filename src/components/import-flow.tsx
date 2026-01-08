@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart, RefreshCw, AlertCircle } from 'lucide-react';
-import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction, fetchL3ReportData } from '@/app/actions';
+import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -509,13 +509,8 @@ export function ImportFlow() {
                 setJsonInput(input); // Store the raw input for reference
                 localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, input);
 
-                // Now, validate the sheet URL
                 if (sheetUrl) {
-                    const [titleResult, l3Result] = await Promise.all([
-                        getSpreadsheetTitle(sheetUrl),
-                        fetchL3ReportData(sheetUrl)
-                    ]);
-
+                    const titleResult = await getSpreadsheetTitle(sheetUrl);
                     if (titleResult.success) {
                         setSpreadsheetTitle(titleResult.title);
                         setVerifiedUrl(sheetUrl);
@@ -524,8 +519,6 @@ export function ImportFlow() {
                         setVerifiedUrl('');
                         toast({ variant: 'destructive', title: 'URL Verification Failed', description: titleResult.error });
                     }
-                    
-                    setL3ReportData(l3Result);
                 }
 
             } catch (e) {
@@ -848,13 +841,13 @@ function PreviewTable({
                         <CardDescription>
                             Pratinjau data, ubah jika perlu, lalu ekspor atau perbarui ke Google Sheet.
                              <div className="flex items-center gap-2 mt-1">
-                                {isVerified && spreadsheetTitle ? (
+                                {spreadsheetTitle ? (
                                     <span className="block text-xs font-medium text-green-600">
                                         Target: {spreadsheetTitle}
                                     </span>
                                 ) : (
                                     <span className="block text-xs font-medium text-destructive">
-                                        Target URL belum diatur di Settings.
+                                        Target URL belum diatur atau tidak valid.
                                     </span>
                                 )}
                                 <Popover>
@@ -952,97 +945,107 @@ function PreviewTable({
                         Daily Report
                     </Button>
                 </div>
-                <div className="overflow-x-auto w-full h-[500px] border rounded-md">
-                    <table className="w-full" style={{ tableLayout: 'fixed', width: `${Object.values(columnWidths).reduce((a, b) => a + b, 64)}px` }}>
-                        <thead className="sticky top-0 z-20 bg-muted">
-                            <tr className="border-b transition-colors hover:bg-muted/50">
-                                <th
-                                    className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r sticky left-0 bg-muted z-10"
-                                    style={{ width: '64px', minWidth: '64px' }}
-                                >
-                                    No
-                                </th>
-                                {localTableData.headers.map((header, index) => (
-                                    <th 
-                                      key={`header-${header}-${index}`}
-                                      className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r relative"
-                                      style={{ width: columnWidths[header] || 128, minWidth: columnWidths[header] || 128 }}
-                                    >
-                                        {(header === 'Created At' || header === 'Resolved At') ? (
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="p-0 h-auto text-sm font-medium text-muted-foreground hover:bg-transparent" disabled={isProcessing}>
-                                                        <span className="flex items-center justify-center gap-1 w-full">
-                                                            {header}
-                                                            <Pencil className="h-3 w-3" />
-                                                        </span>
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent>
-                                                    <DropdownMenuLabel>Date Format</DropdownMenuLabel>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuRadioGroup value={dateFormats[header] || 'report'} onValueChange={(value) => handleDateFormatChange(header, value)}>
-                                                        <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
-                                                        <DropdownMenuRadioItem value="jam">Time</DropdownMenuRadioItem>
-                                                        <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
-                                                    </DropdownMenuRadioGroup>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        ) : <span className="truncate block w-full">{header}</span>}
-                                        <div
-                                            onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
-                                            className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
-                                        />
-                                    </th>
-                                ))}
-                             </tr>
-                        </thead>
-                         <tbody>
-                            {localTableData.rows.map((row, rowIndex) => (
-                                <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                    <td
-                                        className="align-middle p-1 border-r text-sm text-muted-foreground text-center sticky left-0 bg-background z-10"
+                <div className="h-[500px] overflow-hidden">
+                    <div
+                        className="overflow-auto w-full h-full border rounded-md"
+                        style={{
+                            transform: 'scale(0.7)',
+                            transformOrigin: 'top left',
+                            width: '142.857%',
+                            height: '142.857%',
+                        }}
+                    >
+                        <table className="w-full" style={{ tableLayout: 'fixed', width: `${Object.values(columnWidths).reduce((a, b) => a + b, 64)}px` }}>
+                            <thead className="sticky top-0 z-20 bg-muted">
+                                <tr className="border-b transition-colors hover:bg-muted/50">
+                                    <th
+                                        className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r sticky left-0 bg-muted z-10"
                                         style={{ width: '64px', minWidth: '64px' }}
                                     >
-                                        {rowIndex + 1}
-                                    </td>
-                                    {localTableData.headers.map((header, headerIndex) => (
-                                        <td 
-                                            key={`cell-${header}-${headerIndex}-${rowIndex}`}
-                                            className="align-middle p-1 border-r"
-                                            style={{ width: columnWidths[header] || 128, minWidth: columnWidths[header] || 128 }}
+                                        No
+                                    </th>
+                                    {localTableData.headers.map((header, index) => (
+                                        <th 
+                                        key={`header-${header}-${index}`}
+                                        className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r relative"
+                                        style={{ width: columnWidths[header] || 128, minWidth: columnWidths[header] || 128 }}
                                         >
-                                           {header === 'Status' ? (
-                                                <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(rowIndex, header, newStatus)} disabled={isProcessing}>
-                                                    <SelectTrigger className="w-full h-8 text-xs">
-                                                        <SelectValue placeholder="Select status" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="L1">L1</SelectItem>
-                                                        <SelectItem value="L2">L2</SelectItem>
-                                                        <SelectItem value="L3">L3</SelectItem>
-                                                        <SelectItem value="Solved">Solved</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            ) : header === 'Ticket OP' ? (
-                                                <Input
-                                                    type="text"
-                                                    value={row[header] || ''}
-                                                    onChange={(e) => handleStatusChange(rowIndex, header, e.target.value)}
-                                                    className="w-full h-8 text-xs"
-                                                    disabled={isProcessing}
-                                                />
-                                            ) : (header === 'Created At' || header === 'Resolved At') ? (
-                                                <span className="truncate block px-2">{formatDateTime(row[header], dateFormats[header] || 'report')}</span>
-                                            ) : (
-                                                <span className="truncate block px-2">{String(row[header] || '')}</span>
-                                            )}
-                                        </td>
+                                            {(header === 'Created At' || header === 'Resolved At') ? (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" className="p-0 h-auto text-sm font-medium text-muted-foreground hover:bg-transparent" disabled={isProcessing}>
+                                                            <span className="flex items-center justify-center gap-1 w-full">
+                                                                {header}
+                                                                <Pencil className="h-3 w-3" />
+                                                            </span>
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent>
+                                                        <DropdownMenuLabel>Date Format</DropdownMenuLabel>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuRadioGroup value={dateFormats[header] || 'report'} onValueChange={(value) => handleDateFormatChange(header, value)}>
+                                                            <DropdownMenuRadioItem value="origin">Origin</DropdownMenuRadioItem>
+                                                            <DropdownMenuRadioItem value="jam">Time</DropdownMenuRadioItem>
+                                                            <DropdownMenuRadioItem value="report">Report</DropdownMenuRadioItem>
+                                                        </DropdownMenuRadioGroup>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            ) : <span className="truncate block w-full">{header}</span>}
+                                            <div
+                                                onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
+                                                className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
+                                            />
+                                        </th>
                                     ))}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {localTableData.rows.map((row, rowIndex) => (
+                                    <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                        <td
+                                            className="align-middle p-1 border-r text-sm text-muted-foreground text-center sticky left-0 bg-background z-10"
+                                            style={{ width: '64px', minWidth: '64px' }}
+                                        >
+                                            {rowIndex + 1}
+                                        </td>
+                                        {localTableData.headers.map((header, headerIndex) => (
+                                            <td 
+                                                key={`cell-${header}-${headerIndex}-${rowIndex}`}
+                                                className="align-middle p-1 border-r"
+                                                style={{ width: columnWidths[header] || 128, minWidth: columnWidths[header] || 128 }}
+                                            >
+                                            {header === 'Status' ? (
+                                                    <Select value={String(row[header] ?? '')} onValueChange={(newStatus) => handleStatusChange(rowIndex, header, newStatus)} disabled={isProcessing}>
+                                                        <SelectTrigger className="w-full h-8 text-xs">
+                                                            <SelectValue placeholder="Select status" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="L1">L1</SelectItem>
+                                                            <SelectItem value="L2">L2</SelectItem>
+                                                            <SelectItem value="L3">L3</SelectItem>
+                                                            <SelectItem value="Solved">Solved</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                ) : header === 'Ticket OP' ? (
+                                                    <Input
+                                                        type="text"
+                                                        value={row[header] || ''}
+                                                        onChange={(e) => handleStatusChange(rowIndex, header, e.target.value)}
+                                                        className="w-full h-8 text-xs"
+                                                        disabled={isProcessing}
+                                                    />
+                                                ) : (header === 'Created At' || header === 'Resolved At') ? (
+                                                    <span className="truncate block px-2">{formatDateTime(row[header], dateFormats[header] || 'report')}</span>
+                                                ) : (
+                                                    <span className="truncate block px-2">{String(row[header] || '')}</span>
+                                                )}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </CardContent>
             <CardFooter className="pt-4">
@@ -1051,5 +1054,3 @@ function PreviewTable({
         </Card>
     );
 }
-
-    
