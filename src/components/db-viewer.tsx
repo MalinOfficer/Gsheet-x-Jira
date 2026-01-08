@@ -176,19 +176,22 @@ export function DbViewer() {
                         <div ref={tableContainerRef} className="overflow-auto h-[75vh] border rounded-md">
                            <table className="text-sm" style={{ tableLayout: 'fixed', width: totalWidth }}>
                                 <thead className="sticky top-0 bg-muted z-10">
-                                    <tr className="border-b transition-colors hover:bg-muted/50 flex items-center" style={{ width: totalWidth }}>
-                                        {headers.map(header => (
-                                            <th 
-                                                key={header} 
-                                                className={cn(
-                                                    "h-12 px-4 text-left font-medium text-muted-foreground flex items-center",
-                                                    header.toLowerCase().includes('first response') ? "whitespace-normal" : "whitespace-nowrap"
-                                                )}
-                                                style={{ width: getColumnWidth(header), flexShrink: 0 }}
-                                            >
-                                                {header}
-                                            </th>
-                                        ))}
+                                    <tr style={{ width: totalWidth, display: 'flex', alignItems: 'center' }}>
+                                        {headers.map(header => {
+                                            const lowerHeader = header.toLowerCase();
+                                            return (
+                                                <th 
+                                                    key={header} 
+                                                    className={cn(
+                                                        "h-12 px-4 text-left font-medium text-muted-foreground flex items-center",
+                                                        lowerHeader.includes('first response') || lowerHeader.includes('status case 2') ? "whitespace-normal" : "whitespace-nowrap"
+                                                    )}
+                                                    style={{ width: getColumnWidth(header), flexShrink: 0 }}
+                                                >
+                                                    {header}
+                                                </th>
+                                            );
+                                        })}
                                     </tr>
                                 </thead>
                                 <tbody style={{ height: `${totalHeight}px`, position: 'relative' }}>
