@@ -1,7 +1,7 @@
 
 "use client";
 
-import { AlertTriangle, Database, Cloud } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -19,16 +19,70 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useContext, useEffect, useState } from "react";
+import { TableDataContext } from "@/store/table-data-context";
+import { getDashboardData } from "@/app/actions";
+import { Button } from "./ui/button";
+import { useToast } from "@/hooks/use-toast";
 
-interface DashboardProps {
-    initialData: any[] | null;
+interface DashboardState {
+    data: any[] | null;
     source: 'cache' | 'sheet' | 'N/A';
     error?: string;
+    loading: boolean;
 }
 
-export function Dashboard({ initialData, source, error }: DashboardProps) {
+export function Dashboard() {
+    const { dbSheetUrl } = useContext(TableDataContext);
+    const [state, setState] = useState<DashboardState>({
+        data: null,
+        source: 'N/A',
+        loading: true,
+    });
+    const { toast } = useToast();
 
-    if (error) {
+    const fetchData = async (showToast = false) => {
+        if (!dbSheetUrl) {
+            setState({ data: null, source: 'N/A', error: 'Dashboard GSheet URL is not configured in Settings.', loading: false });
+            return;
+        }
+
+        setState(prevState => ({ ...prevState, loading: true }));
+        const result = await getDashboardData(dbSheetUrl);
+        setState({
+            data: result.data || null,
+            source: result.source || 'N/A',
+            error: result.error,
+            loading: false,
+        });
+
+        if (showToast) {
+            if (result.error) {
+                 toast({ variant: 'destructive', title: "Refresh Failed", description: result.error });
+            } else {
+                 toast({ title: "Data Refreshed", description: `Data loaded from ${result.source}.` });
+            }
+        }
+    };
+    
+    useEffect(() => {
+        fetchData();
+    }, [dbSheetUrl]);
+
+    if (state.loading && !state.data) {
+        return (
+            <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+                 <div className="max-w-7xl mx-auto">
+                    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
+                        <RefreshCw className="w-16 h-16 text-muted-foreground mb-4 animate-spin" />
+                        <CardTitle>Loading Dashboard Data...</CardTitle>
+                    </Card>
+                </div>
+            </div>
+        )
+    }
+
+    if (state.error) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto">
@@ -36,15 +90,19 @@ export function Dashboard({ initialData, source, error }: DashboardProps) {
                         <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
                         <CardTitle>Failed to Load Dashboard Data</CardTitle>
                         <CardDescription className="mt-2 mb-4 max-w-sm">
-                            {error}
+                            {state.error}
                         </CardDescription>
+                         <Button onClick={() => fetchData(true)} disabled={state.loading}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${state.loading ? 'animate-spin' : ''}`} />
+                            Try Again
+                        </Button>
                     </Card>
                 </div>
             </div>
         );
     }
 
-    if (!initialData || initialData.length === 0) {
+    if (!state.data || state.data.length === 0) {
         return (
              <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto">
@@ -54,13 +112,17 @@ export function Dashboard({ initialData, source, error }: DashboardProps) {
                         <CardDescription className="mt-2 mb-4 max-w-sm">
                             The dashboard summary is currently empty. Data will appear here after an import or successful cache sync.
                         </CardDescription>
+                         <Button onClick={() => fetchData(true)} disabled={state.loading}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${state.loading ? 'animate-spin' : ''}`} />
+                            Refresh Now
+                        </Button>
                     </Card>
                 </div>
             </div>
         );
     }
     
-    const headers = Object.keys(initialData[0]);
+    const headers = Object.keys(state.data[0]);
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -72,10 +134,16 @@ export function Dashboard({ initialData, source, error }: DashboardProps) {
                           Menampilkan data ringkasan dari Google Sheet "Summary".
                         </p>
                     </div>
-                    <Badge variant={source === 'cache' ? 'default' : 'secondary'} className="w-fit">
-                        {source === 'cache' ? <Database className="mr-2 h-4 w-4"/> : <Cloud className="mr-2 h-4 w-4"/>}
-                        Data source: {source}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                         <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.loading}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${state.loading ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </Button>
+                        <Badge variant={state.source === 'cache' ? 'default' : 'secondary'} className="w-fit">
+                            {state.source === 'cache' ? <Database className="mr-2 h-4 w-4"/> : <Cloud className="mr-2 h-4 w-4"/>}
+                            Data source: {state.source}
+                        </Badge>
+                    </div>
                 </header>
                 
                 <Card>
@@ -90,7 +158,7 @@ export function Dashboard({ initialData, source, error }: DashboardProps) {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {initialData.map((row, rowIndex) => (
+                                    {state.data.map((row, rowIndex) => (
                                         <TableRow key={rowIndex}>
                                             {headers.map(header => (
                                                 <TableCell key={`${rowIndex}-${header}`}>

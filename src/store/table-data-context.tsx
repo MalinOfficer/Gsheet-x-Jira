@@ -26,6 +26,8 @@ interface TableDataContextType {
     toggleSecondaryTools: () => void;
     sheetUrl: string;
     setSheetUrl: (url: string) => void;
+    dbSheetUrl: string;
+    setDbSheetUrl: (url: string) => void;
     verifiedUrl: string;
     setVerifiedUrl: (url: string) => void;
     spreadsheetTitle: string | null;
@@ -45,6 +47,8 @@ export const TableDataContext = createContext<TableDataContextType>({
     toggleSecondaryTools: () => {},
     sheetUrl: '',
     setSheetUrl: () => {},
+    dbSheetUrl: '',
+    setDbSheetUrl: () => {},
     verifiedUrl: '',
     setVerifiedUrl: () => {},
     spreadsheetTitle: null,
@@ -53,6 +57,10 @@ export const TableDataContext = createContext<TableDataContextType>({
 
 const LOCAL_STORAGE_KEY_CODE_VIEWER = 'isCodeViewerEnabled';
 const LOCAL_STORAGE_KEY_SECONDARY_TOOLS = 'areSecondaryToolsEnabled';
+const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
+const LOCAL_STORAGE_KEY_DB_SHEET_URL = 'gsheetDashboardDbSheetUrl';
+const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1S9oSokUh8SyWlNObCLdwpn2r2iXA8Gy73OnxsZa728E/edit?gid=0#gid=0';
+
 
 export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [tableData, setTableData] = useState<TableData | null>(null);
@@ -61,8 +69,11 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
     const [isCodeViewerEnabled, setIsCodeViewerEnabled] = useState<boolean>(false);
     const [areSecondaryToolsEnabled, setAreSecondaryToolsEnabled] = useState<boolean>(false);
     
-    // Verification-related state
+    // URL state
     const [sheetUrl, setSheetUrl] = useState('');
+    const [dbSheetUrl, setDbSheetUrl] = useState('');
+
+    // Verification-related state
     const [verifiedUrl, setVerifiedUrl] = useState('');
     const [spreadsheetTitle, setSpreadsheetTitle] = useState<string | null>(null);
 
@@ -76,6 +87,12 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
             if (savedSecondaryTools) {
                 setAreSecondaryToolsEnabled(JSON.parse(savedSecondaryTools));
             }
+            const savedSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
+            setSheetUrl(savedSheetUrl || DEFAULT_SHEET_URL);
+            
+            const savedDbSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_DB_SHEET_URL);
+            setDbSheetUrl(savedDbSheetUrl || DEFAULT_SHEET_URL);
+
         } catch (error) {
             console.error("Failed to parse settings from localStorage", error);
         }
@@ -115,6 +132,8 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
             toggleSecondaryTools,
             sheetUrl,
             setSheetUrl,
+            dbSheetUrl,
+            setDbSheetUrl,
             verifiedUrl,
             setVerifiedUrl,
             spreadsheetTitle,

@@ -21,7 +21,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Textarea } from './ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -32,8 +31,6 @@ import { cn } from '@/lib/utils';
 import { Spinner } from './ui/spinner';
 
 
-const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
-const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1S9oSokUh8SyWlNObCLdwpn2r2iXA8Gy73OnxsZa728E/edit?gid=0#gid=0';
 const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
 const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,TICKET NUMBER,Ticket Category,Module,Detail Module,Created At,Title,Kolom kosong2,Resolved At,Ticket OP';
 const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
@@ -98,10 +95,6 @@ export function ImportFlow() {
 
 
   useEffect(() => {
-    const savedUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
-    if (!sheetUrl) { // Only set from localStorage if context is empty
-        setSheetUrl(savedUrl || DEFAULT_SHEET_URL);
-    }
     const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE);
     setTemplateInput(savedTemplate || DEFAULT_TEMPLATE);
     const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
@@ -207,8 +200,6 @@ export function ImportFlow() {
     if (!tableData || !sheetUrl) return;
     setIsUpdateConfirmOpen(false);
 
-    localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
-
     startUpdating(async () => {
       const result = await updateSheetStatus({ rows: tableData.rows }, sheetUrl);
       if (result.error) {
@@ -258,8 +249,6 @@ export function ImportFlow() {
         return;
     }
     
-    localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
-
     startImporting(async () => {
         if (!tableData) return;
         const result = await importToSheet(tableData, sheetUrl);
@@ -326,15 +315,6 @@ export function ImportFlow() {
         setLastActionUndoData(null);
       }
     });
-  };
-
-  const handleSaveUrlAsDefault = () => {
-    if (!sheetUrl) {
-        toast({ variant: "destructive", title: "Cannot Save", description: "Please enter a URL before saving it as default." });
-        return;
-    }
-    localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
-    toast({ title: "URL Saved", description: "Google Sheet URL has been saved as your default." });
   };
   
     const handleDateFormatChange = (header: string, format: string) => {
@@ -739,12 +719,12 @@ export function ImportFlow() {
       </Card>
       
       {tableData && (
-        <div className="flex flex-col gap-4 lg:gap-6">
+        <>
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-xl">2. Set Destination</CardTitle>
               <CardDescription>
-                Verifikasi URL Google Sheet Anda untuk mengaktifkan opsi ekspor dan pembaruan.
+                Verifikasi URL Google Sheet Anda (diatur di halaman Settings) untuk mengaktifkan opsi ekspor dan pembaruan.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -760,9 +740,6 @@ export function ImportFlow() {
                       className="flex-grow"
                       disabled={isProcessing}
                     />
-                     <Button onClick={handleSaveUrlAsDefault} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isProcessing}>
-                        <Save className="h-4 w-4 mr-2" /> Set as Default
-                    </Button>
                   </div>
                    <div className='mt-2'>
                       {isVerified ? (
@@ -816,7 +793,7 @@ export function ImportFlow() {
               handleConfirmUpdate={handleConfirmUpdate}
               isUpdating={isUpdating}
           />
-        </div>
+        </>
       )}
     </div>
   );
