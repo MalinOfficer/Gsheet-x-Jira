@@ -847,14 +847,14 @@ function PreviewTable({
                         <CardTitle className="text-xl">2. Data Preview &amp; Actions</CardTitle>
                         <CardDescription>
                             Pratinjau data, ubah jika perlu, lalu ekspor atau perbarui ke Google Sheet.
-                            <div className="flex items-center gap-2 mt-1">
+                             <div className="flex items-center gap-2 mt-1">
                                 {isVerified && spreadsheetTitle ? (
                                     <span className="block text-xs font-medium text-green-600">
                                         Target: {spreadsheetTitle}
                                     </span>
                                 ) : (
                                     <span className="block text-xs font-medium text-destructive">
-                                        URL Target belum diatur di Settings.
+                                        Target URL belum diatur di Settings.
                                     </span>
                                 )}
                                 <Popover>
@@ -1051,3 +1051,5 @@ function PreviewTable({
         </Card>
     );
 }
+
+    
