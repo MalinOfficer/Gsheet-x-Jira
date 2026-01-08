@@ -77,7 +77,16 @@ export function DbViewer() {
     const virtualRows = rowVirtualizer.getVirtualItems();
     const totalHeight = rowVirtualizer.getTotalSize();
 
-    const totalWidth = useMemo(() => headers.length * 150, [headers]);
+    const getColumnWidth = (header: string) => {
+        const lowerHeader = header.toLowerCase();
+        if (lowerHeader.includes('detail case') || lowerHeader.includes('penanganan case')) {
+            return 350; // Lebar lebih besar untuk kolom detail
+        }
+        return 150; // Lebar standar untuk kolom lain
+    };
+
+    const totalWidth = useMemo(() => headers.reduce((acc, header) => acc + getColumnWidth(header), 0), [headers]);
+
 
     if (state.loading && !state.data) {
         return (
@@ -159,9 +168,9 @@ export function DbViewer() {
                         <div ref={tableContainerRef} className="overflow-auto h-[75vh] border rounded-md">
                            <table className="text-sm" style={{ tableLayout: 'fixed', width: totalWidth }}>
                                 <thead className="sticky top-0 bg-muted z-10">
-                                    <tr className="border-b transition-colors hover:bg-muted/50">
+                                    <tr className="border-b transition-colors hover:bg-muted/50" style={{ display: 'flex', width: totalWidth }}>
                                         {headers.map(header => (
-                                            <th key={header} className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap" style={{ width: 150 }}>
+                                            <th key={header} className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap" style={{ width: getColumnWidth(header), flexShrink: 0 }}>
                                                 {header}
                                             </th>
                                         ))}
@@ -185,7 +194,7 @@ export function DbViewer() {
                                                 className="border-b transition-colors hover:bg-muted/50"
                                             >
                                                 {headers.map(header => (
-                                                    <td key={header} className="p-4 align-middle truncate" style={{ width: 150, flexShrink: 0 }}>
+                                                    <td key={header} className="p-4 align-middle truncate" style={{ width: getColumnWidth(header), flexShrink: 0 }}>
                                                         {row[header]}
                                                     </td>
                                                 ))}
