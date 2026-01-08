@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, X, FilterX, Filter } from "lucide-react";
@@ -50,7 +51,7 @@ const parseDate = (dateStr: string): Date | null => {
 const FILTER_COLUMNS = [
     'CLIENT NAME',
     'STATUS',
-    'TICKET CATEGORY',
+    'KATEGORI',
     'MODULE',
     'DETAIL MODULE',
     'STATUS CASE 2',
@@ -62,6 +63,7 @@ export function DbViewer() {
     const [state, setState] = useState<DbViewerState>({
         data: null,
         source: 'N/A',
+        error: undefined,
         loading: true,
     });
     const { toast } = useToast();
@@ -257,6 +259,122 @@ export function DbViewer() {
         );
     }
     
+    const renderHeaderContent = (header: string) => {
+        const isFilterable = FILTER_COLUMNS.includes(header);
+        const isFilterActive = columnFilters[header]?.length > 0;
+
+        if (header === 'DATE') {
+            return (
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
+                             {header}
+                             {dateRange && <CalendarIcon className="ml-2 h-4 w-4 text-primary" />}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                         <div className="p-2 border-b">
+                            <div
+                                className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !dateRange && "text-muted-foreground"
+                                )}
+                            >
+                                {dateRange?.from ? (
+                                    dateRange.to ? (
+                                        <>
+                                            {format(dateRange.from, "LLL dd, y")} -{" "}
+                                            {format(dateRange.to, "LLL dd, y")}
+                                        </>
+                                    ) : (
+                                        format(dateRange.from, "LLL dd, y")
+                                    )
+                                ) : (
+                                    <span>Pick a date range</span>
+                                )}
+                            </div>
+                         </div>
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={setDateRange}
+                            numberOfMonths={2}
+                        />
+                        <div className="p-2 border-t flex justify-end">
+                            <Button
+                                onClick={() => setDateRange(undefined)}
+                                variant="ghost"
+                                size="sm"
+                                disabled={!dateRange}
+                            >
+                                Reset
+                            </Button>
+                        </div>
+                    </PopoverContent>
+                </Popover>
+            );
+        }
+
+        if (isFilterable) {
+            return(
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
+                             {header}
+                             <Filter className={cn("ml-2 h-3 w-3", isFilterActive ? "text-primary" : "text-muted-foreground/50")} />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[250px] p-0" align="start">
+                        <Command>
+                            <CommandInput placeholder={`Filter ${header}...`} />
+                            <CommandList>
+                                <CommandEmpty>No results found.</CommandEmpty>
+                                <CommandGroup>
+                                    {(filterOptions[header] || []).map(option => {
+                                        const isSelected = columnFilters[header]?.includes(option);
+                                        return (
+                                             <CommandItem
+                                                key={option}
+                                                onSelect={() => {
+                                                     const currentFilters = columnFilters[header] || [];
+                                                     const newFilters = isSelected
+                                                         ? currentFilters.filter(item => item !== option)
+                                                         : [...currentFilters, option];
+                                                     setColumnFilters(prev => ({ ...prev, [header]: newFilters }));
+                                                }}
+                                            >
+                                                <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
+                                                    <Check className={cn("h-4 w-4")} />
+                                                </div>
+                                                <span>{option}</span>
+                                            </CommandItem>
+                                        );
+                                    })}
+                                </CommandGroup>
+                            </CommandList>
+                            {isFilterActive && (
+                                 <div className="p-1 border-t">
+                                    <Button 
+                                        className="w-full justify-center" 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        onClick={() => setColumnFilters(prev => ({...prev, [header]: []}))}
+                                    >
+                                        Clear filter
+                                    </Button>
+                                 </div>
+                            )}
+                        </Command>
+                    </PopoverContent>
+                </Popover>
+            );
+        }
+
+        return <span className="truncate">{header}</span>;
+    }
+
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-4">
@@ -308,121 +426,6 @@ export function DbViewer() {
                                         {headers.map(header => {
                                             const lowerHeader = header.toLowerCase();
                                             const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
-                                            const isFilterable = FILTER_COLUMNS.includes(header);
-                                            const isFilterActive = columnFilters[header]?.length > 0;
-
-                                            const renderHeaderContent = () => {
-                                                if (header === 'DATE') {
-                                                    return (
-                                                        <Popover>
-                                                            <PopoverTrigger asChild>
-                                                                <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
-                                                                     {header}
-                                                                     {dateRange && <CalendarIcon className="ml-2 h-4 w-4 text-primary" />}
-                                                                </Button>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent className="w-auto p-0" align="start">
-                                                                 <div className="p-2 border-b">
-                                                                    <div
-                                                                        className={cn(
-                                                                            "w-full justify-start text-left font-normal",
-                                                                            !dateRange && "text-muted-foreground"
-                                                                        )}
-                                                                    >
-                                                                        {dateRange?.from ? (
-                                                                            dateRange.to ? (
-                                                                                <>
-                                                                                    {format(dateRange.from, "LLL dd, y")} -{" "}
-                                                                                    {format(dateRange.to, "LLL dd, y")}
-                                                                                </>
-                                                                            ) : (
-                                                                                format(dateRange.from, "LLL dd, y")
-                                                                            )
-                                                                        ) : (
-                                                                            <span>Pick a date range</span>
-                                                                        )}
-                                                                    </div>
-                                                                 </div>
-                                                                <Calendar
-                                                                    initialFocus
-                                                                    mode="range"
-                                                                    defaultMonth={dateRange?.from}
-                                                                    selected={dateRange}
-                                                                    onSelect={setDateRange}
-                                                                    numberOfMonths={2}
-                                                                />
-                                                                <div className="p-2 border-t flex justify-end">
-                                                                    <Button
-                                                                        onClick={() => setDateRange(undefined)}
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        disabled={!dateRange}
-                                                                    >
-                                                                        Reset
-                                                                    </Button>
-                                                                </div>
-                                                            </PopoverContent>
-                                                        </Popover>
-                                                    );
-                                                }
-
-                                                if (isFilterable) {
-                                                    return(
-                                                        <Popover>
-                                                            <PopoverTrigger asChild>
-                                                                <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
-                                                                     {header}
-                                                                     <Filter className={cn("ml-2 h-3 w-3", isFilterActive ? "text-primary" : "text-muted-foreground/50")} />
-                                                                </Button>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent className="w-[250px] p-0" align="start">
-                                                                <Command>
-                                                                    <CommandInput placeholder={`Filter ${header}...`} />
-                                                                    <CommandList>
-                                                                        <CommandEmpty>No results found.</CommandEmpty>
-                                                                        <CommandGroup>
-                                                                            {(filterOptions[header] || []).map(option => {
-                                                                                const isSelected = columnFilters[header]?.includes(option);
-                                                                                return (
-                                                                                     <CommandItem
-                                                                                        key={option}
-                                                                                        onSelect={() => {
-                                                                                             const currentFilters = columnFilters[header] || [];
-                                                                                             const newFilters = isSelected
-                                                                                                 ? currentFilters.filter(item => item !== option)
-                                                                                                 : [...currentFilters, option];
-                                                                                             setColumnFilters(prev => ({ ...prev, [header]: newFilters }));
-                                                                                        }}
-                                                                                    >
-                                                                                        <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
-                                                                                            <Check className={cn("h-4 w-4")} />
-                                                                                        </div>
-                                                                                        <span>{option}</span>
-                                                                                    </CommandItem>
-                                                                                );
-                                                                            })}
-                                                                        </CommandGroup>
-                                                                    </CommandList>
-                                                                    {isFilterActive && (
-                                                                         <div className="p-1 border-t">
-                                                                            <Button 
-                                                                                className="w-full justify-center" 
-                                                                                variant="ghost" 
-                                                                                size="sm" 
-                                                                                onClick={() => setColumnFilters(prev => ({...prev, [header]: []}))}
-                                                                            >
-                                                                                Clear filter
-                                                                            </Button>
-                                                                         </div>
-                                                                    )}
-                                                                </Command>
-                                                            </PopoverContent>
-                                                        </Popover>
-                                                    );
-                                                }
-
-                                                return <span className="truncate">{header}</span>;
-                                            }
                                             
                                             return (
                                                 <th 
@@ -433,7 +436,7 @@ export function DbViewer() {
                                                     )}
                                                     style={{ width: getColumnWidth(header), flexShrink: 0 }}
                                                 >
-                                                   {renderHeaderContent()}
+                                                   {renderHeaderContent(header)}
                                                 </th>
                                             );
                                         })}
