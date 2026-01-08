@@ -1107,9 +1107,13 @@ export async function fetchL3ReportData(sheetUrl: string) {
         return { error: `Report Generation Failed: ${apiError}` };
     }
 }
+
+const isRedisConfigured = () => {
+    return !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
+}
     
 export async function getDashboardData(sheetUrl: string) {
-    if (process.env.KV_REST_API_URL) {
+    if (isRedisConfigured()) {
         try {
             const cachedData = await redis.get(CACHE_KEY);
             if (cachedData) {
@@ -1121,10 +1125,10 @@ export async function getDashboardData(sheetUrl: string) {
         }
     }
 
-    console.log('Cache miss. Fetching dashboard data from Google Sheets.');
+    console.log('Cache miss or Redis not configured. Fetching dashboard data from Google Sheets.');
     const result = await fetchDashboardDataFromSheet(sheetUrl, "Summary");
 
-    if (result.data) {
+    if (result.data && isRedisConfigured()) {
         // Asynchronously update cache but don't block the response
         syncCache(sheetUrl, result.data, CACHE_KEY).catch(err => {
              console.error("Async dashboard cache update failed:", err);
@@ -1149,7 +1153,7 @@ async function fetchDashboardDataFromSheet(sheetUrl: string, sheetName: 'Summary
 
     const tryFetch = async (name: string) => {
         // Sheet names with spaces or special characters need to be quoted.
-        const range = name.includes(' ') ? `'${name}'!A:Z` : `${name}!A:Z`;
+        const range = `'${name}'!A:Z`;
         try {
             const response = await sheets.spreadsheets.values.get({
                 spreadsheetId,
@@ -1206,7 +1210,7 @@ async function fetchDashboardDataFromSheet(sheetUrl: string, sheetName: 'Summary
 }
 
 async function syncCache(sheetUrl: string, data: any, cacheKey: string) {
-    if (!process.env.KV_REST_API_URL) {
+    if (!isRedisConfigured()) {
         console.log(`Skipping cache sync for ${cacheKey}: Redis is not configured.`);
         return { success: true, message: "Skipped: Redis not configured." };
     }
@@ -1234,7 +1238,7 @@ export async function syncDashboardCache(sheetUrl: string) {
 }
 
 export async function getAllCaseData(sheetUrl: string) {
-    if (process.env.KV_REST_API_URL) {
+    if (isRedisConfigured()) {
         try {
             const cachedData = await redis.get(CACHE_KEY_ALL_CASE);
             if (cachedData) {
@@ -1246,10 +1250,10 @@ export async function getAllCaseData(sheetUrl: string) {
         }
     }
 
-    console.log('Cache miss. Fetching All Case data from Google Sheets.');
+    console.log('Cache miss or Redis not configured. Fetching All Case data from Google Sheets.');
     const result = await fetchDashboardDataFromSheet(sheetUrl, "All Case");
 
-    if (result.data) {
+    if (result.data && isRedisConfigured()) {
         // Asynchronously update cache
         syncCache(sheetUrl, result.data, CACHE_KEY_ALL_CASE).catch(err => {
              console.error("Async All Case cache update failed:", err);
