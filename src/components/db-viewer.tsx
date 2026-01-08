@@ -80,9 +80,19 @@ export function DbViewer() {
     const getColumnWidth = (header: string) => {
         const lowerHeader = header.toLowerCase();
         if (lowerHeader.includes('detail case') || lowerHeader.includes('penanganan case')) {
-            return 350; // Lebar lebih besar untuk kolom detail
+            return 350;
         }
-        return 150; // Lebar standar untuk kolom lain
+        if (lowerHeader.includes('client') || lowerHeader.includes('customer name')) {
+            return 180;
+        }
+        if (lowerHeader.includes('ticket number')) {
+             return 180;
+        }
+        if (lowerHeader === 'no') {
+            return 60;
+        }
+        // Default width for other columns
+        return 120;
     };
 
     const totalWidth = useMemo(() => headers.reduce((acc, header) => acc + getColumnWidth(header), 0), [headers]);
