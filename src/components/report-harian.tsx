@@ -11,7 +11,7 @@ import { TableDataContext } from '@/store/table-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { BarChart, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, Bar } from 'recharts';
+import { Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart } from 'recharts';
 import type { ChartConfig } from "@/components/ui/chart"
 import { fetchL3ReportData } from '@/app/actions';
 
@@ -75,8 +75,8 @@ function DashboardChart() {
         const unsolvedCount = finalData.length - solvedCount;
 
         const solvedVsUnsolved = [
-            { name: 'Solved', value: solvedCount, fill: 'var(--color-solved)' },
-            { name: 'Unsolved', value: unsolvedCount, fill: 'var(--color-unsolved)' }
+            { name: 'Solved', value: solvedCount },
+            { name: 'Unsolved', value: unsolvedCount }
         ];
 
         return {
@@ -131,7 +131,7 @@ function DashboardChart() {
             <CardContent>
                 <div className="text-2xl font-bold">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</div>
                 <p className="text-xs text-muted-foreground">
-                   {(( (solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1)}% solved
+                   {totalCases > 0 ? (((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1) : 0}% solved
                 </p>
             </CardContent>
         </Card>
@@ -170,17 +170,17 @@ function DashboardChart() {
           </CardHeader>
           <CardContent>
               <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={solvedVsUnsolved} layout="vertical">
+                  <RechartsBarChart data={solvedVsUnsolved} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" />
                       <YAxis dataKey="name" type="category" width={80} />
                       <Tooltip cursor={{fill: 'hsl(var(--muted))'}}/>
                       <Bar dataKey="value" name="Total" background={{ fill: 'hsl(var(--muted))' }} radius={[4, 4, 0, 0]}>
                            {solvedVsUnsolved.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                              <Cell key={`cell-${index}`} fill={entry.name === 'Solved' ? chartConfig.solved.color : chartConfig.unsolved.color} />
                            ))}
                       </Bar>
-                  </BarChart>
+                  </RechartsBarChart>
               </ResponsiveContainer>
           </CardContent>
         </Card>
