@@ -257,34 +257,38 @@ export function DbViewer() {
                                                 return (
                                                     <th 
                                                         key={header} 
-                                                        className="h-12 px-4 text-left font-medium text-muted-foreground flex items-center"
+                                                        className="h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-center"
                                                         style={{ width: getColumnWidth(header), flexShrink: 0 }}
                                                     >
                                                         <Popover>
                                                             <PopoverTrigger asChild>
-                                                                <Button
-                                                                    variant={"outline"}
-                                                                    className={cn(
-                                                                        "w-full justify-start text-left font-normal h-8",
-                                                                        !dateRange && "text-muted-foreground"
-                                                                    )}
-                                                                >
-                                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                                    {dateRange?.from ? (
-                                                                        dateRange.to ? (
-                                                                            <>
-                                                                                {format(dateRange.from, "LLL dd, y")} -{" "}
-                                                                                {format(dateRange.to, "LLL dd, y")}
-                                                                            </>
-                                                                        ) : (
-                                                                            format(dateRange.from, "LLL dd, y")
-                                                                        )
-                                                                    ) : (
-                                                                        <span>Filter by date</span>
-                                                                    )}
+                                                                <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
+                                                                     {header}
+                                                                     {dateRange && <CalendarIcon className="ml-2 h-4 w-4 text-primary" />}
                                                                 </Button>
                                                             </PopoverTrigger>
                                                             <PopoverContent className="w-auto p-0" align="start">
+                                                                 <div className="p-2 border-b">
+                                                                    <div
+                                                                        className={cn(
+                                                                            "w-full justify-start text-left font-normal",
+                                                                            !dateRange && "text-muted-foreground"
+                                                                        )}
+                                                                    >
+                                                                        {dateRange?.from ? (
+                                                                            dateRange.to ? (
+                                                                                <>
+                                                                                    {format(dateRange.from, "LLL dd, y")} -{" "}
+                                                                                    {format(dateRange.to, "LLL dd, y")}
+                                                                                </>
+                                                                            ) : (
+                                                                                format(dateRange.from, "LLL dd, y")
+                                                                            )
+                                                                        ) : (
+                                                                            <span>Pick a date range</span>
+                                                                        )}
+                                                                    </div>
+                                                                 </div>
                                                                 <Calendar
                                                                     initialFocus
                                                                     mode="range"
@@ -313,8 +317,8 @@ export function DbViewer() {
                                                 <th 
                                                     key={header} 
                                                     className={cn(
-                                                        "h-12 px-4 text-left font-medium text-muted-foreground flex items-center",
-                                                        isWrapHeader ? "whitespace-normal" : "whitespace-nowrap"
+                                                        "h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-center",
+                                                        isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
                                                     )}
                                                     style={{ width: getColumnWidth(header), flexShrink: 0 }}
                                                 >
@@ -354,10 +358,12 @@ export function DbViewer() {
                         </div>
                     </CardContent>
                     <CardFooter className="p-2 border-t text-xs text-muted-foreground">
-                        Showing {filteredData.length} of {state.data.length} rows.
+                        Showing {filteredData.length} of {state.data?.length || 0} rows.
                     </CardFooter>
                 </Card>
             </div>
         </div>
     );
 }
+
+    
