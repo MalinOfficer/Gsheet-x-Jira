@@ -1,7 +1,6 @@
-
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, X } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, X, FilterX } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -24,6 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format, parse } from 'date-fns';
 import { DateRange } from "react-day-picker"
+import { MultiSelect } from "./ui/multi-select";
 
 
 interface DbViewerState {
@@ -46,6 +46,15 @@ const parseDate = (dateStr: string): Date | null => {
     }
 };
 
+const FILTER_COLUMNS = [
+    'CLIENT NAME',
+    'STATUS',
+    'TICKET CATEGORY',
+    'MODULE',
+    'DETAIL MODULE',
+    'STATUS CASE 2',
+];
+
 
 export function DbViewer() {
     const { dbSheetUrl } = useContext(TableDataContext);
@@ -59,6 +68,17 @@ export function DbViewer() {
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+
+     const filterOptions = useMemo(() => {
+        if (!state.data) return {};
+        const options: Record<string, { value: string; label: string }[]> = {};
+        FILTER_COLUMNS.forEach(col => {
+            const uniqueValues = [...new Set(state.data?.map(row => row[col]).filter(Boolean))];
+            options[col] = uniqueValues.map(val => ({ value: val, label: val }));
+        });
+        return options;
+    }, [state.data]);
 
 
     const fetchData = async (showToast = false) => {
@@ -94,10 +114,10 @@ export function DbViewer() {
         
         let dataToFilter = state.data;
 
-        // Apply date range filter first
+        // 1. Date range filter
         if (dateRange?.from) {
              dataToFilter = dataToFilter.filter(row => {
-                const dateValue = row['DATE']; // Assuming the column name is 'DATE'
+                const dateValue = row['DATE'];
                 if (!dateValue) return false;
 
                 const rowDate = parseDate(dateValue);
@@ -116,20 +136,31 @@ export function DbViewer() {
             });
         }
 
+        // 2. General search term filter
+        if (debouncedSearchTerm) {
+            const lowercasedQuery = debouncedSearchTerm.toLowerCase();
+            dataToFilter = dataToFilter.filter(row => {
+                return Object.values(row).some(value =>
+                    String(value).toLowerCase().includes(lowercasedQuery)
+                );
+            });
+        }
+        
+        // 3. Column-specific multi-select filters
+        const activeColumnFilters = Object.entries(columnFilters).filter(([, values]) => values.length > 0);
+        if (activeColumnFilters.length > 0) {
+            dataToFilter = dataToFilter.filter(row => {
+                return activeColumnFilters.every(([column, selectedValues]) => {
+                    const cellValue = row[column];
+                    return cellValue && selectedValues.includes(cellValue);
+                });
+            });
+        }
 
-        // Then apply search term filter
-        if (!debouncedSearchTerm) return dataToFilter;
-
-        const lowercasedQuery = debouncedSearchTerm.toLowerCase();
-
-        return dataToFilter.filter(row => {
-            return Object.values(row).some(value =>
-                String(value).toLowerCase().includes(lowercasedQuery)
-            );
-        });
-    }, [state.data, debouncedSearchTerm, dateRange]);
+        return dataToFilter;
+    }, [state.data, debouncedSearchTerm, dateRange, columnFilters]);
     
-    const headers = filteredData.length > 0 ? Object.keys(filteredData[0]) : [];
+    const headers = filteredData.length > 0 ? Object.keys(filteredData[0]) : (state.data?.length ? Object.keys(state.data[0]) : []);
     
     const rowVirtualizer = useVirtualizer({
         count: filteredData.length,
@@ -149,6 +180,9 @@ export function DbViewer() {
         if (lowerHeader.includes('client') || lowerHeader.includes('customer name') || lowerHeader.includes('ticket number')) {
             return 180;
         }
+         if (lowerHeader.includes('status case 2')) {
+            return 120;
+        }
         if (lowerHeader === 'no') {
             return 60;
         }
@@ -157,6 +191,16 @@ export function DbViewer() {
 
     const totalWidth = useMemo(() => headers.reduce((acc, header) => acc + getColumnWidth(header), 0), [headers]);
 
+    const handleClearAllFilters = () => {
+        setSearchTerm('');
+        setDateRange(undefined);
+        setColumnFilters({});
+        toast({ title: "Filters Cleared", description: "All search, date, and column filters have been reset." });
+    };
+
+    const areFiltersActive = useMemo(() => {
+        return searchTerm || dateRange || Object.values(columnFilters).some(f => f.length > 0);
+    }, [searchTerm, dateRange, columnFilters]);
 
     if (state.loading && !state.data) {
         return (
@@ -213,8 +257,8 @@ export function DbViewer() {
     
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-            <div className="max-w-7xl mx-auto space-y-6">
-                 <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="max-w-7xl mx-auto space-y-4">
+                 <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">All Case Database</h1>
                         <p className="text-sm text-muted-foreground mt-1">
@@ -222,16 +266,6 @@ export function DbViewer() {
                         </p>
                     </div>
                      <div className="flex items-center gap-2">
-                         <div className="relative">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="search"
-                                placeholder="Search data..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-8 sm:w-[300px]"
-                            />
-                        </div>
                          <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.loading}>
                             <RefreshCw className={`mr-2 h-4 w-4 ${state.loading ? 'animate-spin' : ''}`} />
                             Refresh
@@ -244,8 +278,42 @@ export function DbViewer() {
                 </header>
                 
                 <Card>
+                     <CardHeader>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="relative">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="search"
+                                        placeholder="Search all data..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="pl-8 sm:w-[250px]"
+                                    />
+                                </div>
+                                {areFiltersActive && (
+                                     <Button onClick={handleClearAllFilters} variant="ghost" size="sm">
+                                        <FilterX className="mr-2 h-4 w-4" />
+                                        Clear All Filters
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {FILTER_COLUMNS.map(col => (
+                                    <MultiSelect
+                                        key={col}
+                                        options={filterOptions[col] || []}
+                                        selected={columnFilters[col] || []}
+                                        onChange={(selected) => setColumnFilters(prev => ({...prev, [col]: selected}))}
+                                        placeholder={`Filter ${col}...`}
+                                        className="max-w-[200px]"
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    </CardHeader>
                     <CardContent className="p-0">
-                        <div ref={tableContainerRef} className="overflow-auto h-[75vh] border rounded-md">
+                        <div ref={tableContainerRef} className="overflow-auto h-[65vh] border-t rounded-b-md">
                            <table className="text-sm" style={{ tableLayout: 'fixed', width: totalWidth }}>
                                 <thead className="sticky top-0 bg-muted z-10">
                                     <tr style={{ width: totalWidth, display: 'flex' }} className="items-center">
@@ -365,5 +433,3 @@ export function DbViewer() {
         </div>
     );
 }
-
-    
