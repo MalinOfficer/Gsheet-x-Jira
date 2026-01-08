@@ -70,6 +70,7 @@ export function DbViewer() {
         loading: true,
         isSyncing: false,
     });
+    const [progress, setProgress] = useState(0);
     const { toast } = useToast();
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -97,6 +98,7 @@ export function DbViewer() {
 
         if (isRefresh) {
             setState(prevState => ({ ...prevState, isSyncing: true }));
+            setProgress(0);
         } else {
             setState(prevState => ({ ...prevState, loading: true }));
         }
@@ -111,6 +113,7 @@ export function DbViewer() {
                 loading: false,
                 isSyncing: false,
             });
+            setProgress(100);
         });
 
         if (isRefresh) {
@@ -125,6 +128,24 @@ export function DbViewer() {
     useEffect(() => {
         fetchData(false);
     }, [fetchData]);
+
+    useEffect(() => {
+        if (state.isSyncing) {
+            const timer = setInterval(() => {
+                setProgress(oldProgress => {
+                    if (oldProgress >= 95) {
+                        clearInterval(timer);
+                        return oldProgress;
+                    }
+                    return Math.min(oldProgress + 5, 95);
+                });
+            }, 200);
+
+            return () => {
+                clearInterval(timer);
+            };
+        }
+    }, [state.isSyncing]);
 
     const filteredData = useMemo(() => {
         if (!state.data) return [];
@@ -180,9 +201,8 @@ export function DbViewer() {
     const headers = useMemo(() => state.data?.length ? Object.keys(state.data[0]) : [], [state.data]);
     
     const displayData = useMemo(() => {
-        // While loading, if we have no data, return an empty array to render skeletons
         if (state.loading && !state.data) {
-            return Array.from({ length: 10 }, () => ({}))
+            return Array.from({ length: 10 }, () => ({}));
         }
         return filteredData;
     }, [state.loading, state.data, filteredData]);
@@ -380,7 +400,7 @@ export function DbViewer() {
                     </div>
                      <div className="flex items-center gap-2">
                          <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.isSyncing || state.loading}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${state.isSyncing || state.loading ? 'animate-spin' : ''}`} />
+                            <RefreshCw className={`mr-2 h-4 w-4 ${state.isSyncing ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
                         <Badge variant={state.source === 'cache' ? 'default' : 'secondary'} className="w-fit">
@@ -414,7 +434,10 @@ export function DbViewer() {
                     <CardContent className="p-0">
                          {(state.isSyncing || isPending) && (
                              <div className="px-4 pb-2 space-y-1">
-                                <Progress value={100} className="h-1 animate-pulse" />
+                                <div className='flex items-center gap-2'>
+                                    <Progress value={progress} className="w-full" />
+                                    <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{Math.round(progress)}%</span>
+                                </div>
                                 <p className="text-xs text-muted-foreground">Syncing latest data from Google Sheets...</p>
                             </div>
                          )}
@@ -487,6 +510,5 @@ export function DbViewer() {
         </div>
     );
 }
-
 
     
