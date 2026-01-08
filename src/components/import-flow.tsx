@@ -847,21 +847,25 @@ function PreviewTable({
                         <CardTitle className="text-xl">2. Data Preview &amp; Actions</CardTitle>
                         <CardDescription>
                             Pratinjau data, ubah jika perlu, lalu ekspor atau perbarui ke Google Sheet.
-                            {spreadsheetTitle && (
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className={cn("block text-xs font-medium", isVerified ? 'text-green-600' : 'text-destructive')}>
+                            <div className="flex items-center gap-2 mt-1">
+                                {isVerified && spreadsheetTitle ? (
+                                    <span className="block text-xs font-medium text-green-600">
                                         Target: {spreadsheetTitle}
                                     </span>
-                                    <Popover>
-                                        <PopoverTrigger>
-                                            <AlertCircle className="h-4 w-4 text-muted-foreground cursor-pointer" />
-                                        </PopoverTrigger>
-                                        <PopoverContent className="text-sm w-auto p-2">
-                                            Go to Settings to change the target URL.
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                            )}
+                                ) : (
+                                    <span className="block text-xs font-medium text-destructive">
+                                        URL Target belum diatur di Settings.
+                                    </span>
+                                )}
+                                <Popover>
+                                    <PopoverTrigger>
+                                        <AlertCircle className="h-4 w-4 text-muted-foreground cursor-pointer" />
+                                    </PopoverTrigger>
+                                    <PopoverContent className="text-sm w-auto p-2">
+                                        Go to Settings to change the target URL.
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
                         </CardDescription>
                     </div>
                      <div className="flex flex-col sm:flex-row flex-wrap gap-2">
