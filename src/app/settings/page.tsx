@@ -42,7 +42,8 @@ export default function SettingsPage() {
   
   const [isClient, setIsClient] = useState(false);
   const [isSaving, startSaving] = useTransition();
-  const [isEditing, setIsEditing] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isValidatingOnLoad, setIsValidatingOnLoad] = useState(true);
 
   // Local state for inputs
   const [sheetUrl, setSheetUrl] = useState('');
@@ -55,19 +56,55 @@ export default function SettingsPage() {
 
   const { toast } = useToast();
 
+  // Effect to initialize inputs from context and validate on load
   useEffect(() => {
     setIsClient(true);
-    // Always initialize inputs with the values from the context, which are loaded from localStorage
-    setSheetUrl(contextSheetUrl);
-    setDbSheetUrl(contextDbSheetUrl);
+    const mainUrl = contextSheetUrl;
+    const databaseUrl = contextDbSheetUrl;
+    
+    setSheetUrl(mainUrl);
+    setDbSheetUrl(databaseUrl);
 
-    // If both URLs from the context are already verified, start in non-editing mode.
-    // This happens on page load if the last saved state was a valid one.
-    if (contextSheetUrl && verifiedUrl === contextSheetUrl && 
-        contextDbSheetUrl && verifiedDbUrl === contextDbSheetUrl) {
-      setIsEditing(false);
-    }
-  }, [contextSheetUrl, contextDbSheetUrl, verifiedUrl, verifiedDbUrl]);
+    // Auto-validate URLs on initial load
+    const validateOnLoad = async () => {
+        setIsValidatingOnLoad(true);
+        const [mainResult, dbResult] = await Promise.all([
+            getSpreadsheetTitle(mainUrl),
+            getSpreadsheetTitle(databaseUrl)
+        ]);
+        
+        let isMainValid = false;
+        let isDbValid = false;
+
+        if (mainResult.error) {
+            setMainSheetError(mainResult.error);
+            setVerifiedUrl('');
+        } else {
+            setSpreadsheetTitle(mainResult.title || null);
+            setVerifiedUrl(mainUrl);
+            isMainValid = true;
+        }
+
+        if (dbResult.error) {
+            setDbSheetError(dbResult.error);
+            setVerifiedDbUrl('');
+        } else {
+            setDbSpreadsheetTitle(dbResult.title || null);
+            setVerifiedDbUrl(databaseUrl);
+            isDbValid = true;
+        }
+        
+        // If both URLs are valid on load, start in non-editing mode.
+        if(isMainValid && isDbValid) {
+            setIsEditing(false);
+        } else {
+            setIsEditing(true);
+        }
+        setIsValidatingOnLoad(false);
+    };
+
+    validateOnLoad();
+  }, []); // Runs only once on mount
 
   const handleSaveUrls = () => {
     startSaving(async () => {
@@ -190,13 +227,13 @@ export default function SettingsPage() {
                           value={sheetUrl}
                           onChange={(e) => setSheetUrl(e.target.value)}
                           readOnly={!isEditing}
-                          disabled={isSaving}
+                          disabled={isSaving || isValidatingOnLoad}
                           className={!isEditing ? 'bg-muted/50' : ''}
                         />
                     </div>
                     <div className="mt-1 pl-11">
                         <ValidationResult 
-                            isLoading={isSaving && sheetUrl !== verifiedUrl}
+                            isLoading={isSaving || isValidatingOnLoad}
                             title={spreadsheetTitle}
                             error={mainSheetError}
                             verifiedUrl={verifiedUrl}
@@ -215,13 +252,13 @@ export default function SettingsPage() {
                           value={dbSheetUrl}
                           onChange={(e) => setDbSheetUrl(e.target.value)}
                           readOnly={!isEditing}
-                          disabled={isSaving}
+                          disabled={isSaving || isValidatingOnLoad}
                           className={!isEditing ? 'bg-muted/50' : ''}
                         />
                     </div>
                      <div className="mt-1 pl-11">
                         <ValidationResult 
-                            isLoading={isSaving && dbSheetUrl !== verifiedDbUrl}
+                            isLoading={isSaving || isValidatingOnLoad}
                             title={dbSpreadsheetTitle}
                             error={dbSheetError}
                             verifiedUrl={verifiedDbUrl}
@@ -232,9 +269,9 @@ export default function SettingsPage() {
             </CardContent>
             <CardFooter>
                  {isEditing ? (
-                    <Button onClick={handleSaveUrls} disabled={isSaving}>
-                        {isSaving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        {isSaving ? 'Saving & Validating...' : 'Save URLs'}
+                    <Button onClick={handleSaveUrls} disabled={isSaving || isValidatingOnLoad}>
+                        {(isSaving || isValidatingOnLoad) ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        {(isSaving || isValidatingOnLoad) ? 'Validating...' : 'Save URLs'}
                     </Button>
                  ) : (
                     <Button onClick={handleEditClick} variant="destructive">
