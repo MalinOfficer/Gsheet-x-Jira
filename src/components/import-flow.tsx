@@ -825,7 +825,7 @@ function PreviewTable({
                         <CardDescription>
                             Pratinjau data, ubah jika perlu, lalu ekspor atau perbarui ke Google Sheet.
                             {isVerified && spreadsheetTitle && (
-                                <span className="block mt-1 text-xs text-primary font-medium">
+                                <span className="block mt-1 text-xs text-green-600 font-medium">
                                     Target: {spreadsheetTitle}
                                 </span>
                             )}
