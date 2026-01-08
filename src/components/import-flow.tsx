@@ -58,17 +58,15 @@ export function ImportFlow() {
   const { 
     tableData, setTableData, 
     isProcessing, setIsProcessing: setGlobalProcessing, 
-    l3ReportData, setL3ReportData,
-    sheetUrl, setSheetUrl,
-    verifiedUrl, setVerifiedUrl,
-    spreadsheetTitle, setSpreadsheetTitle
+    sheetUrl,
+    verifiedUrl,
+    spreadsheetTitle,
   } = useContext(TableDataContext);
   const { toast } = useToast();
 
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
   const [lastActionUndoData, setLastActionUndoData] = useState<LastActionUndoData | null>(null);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [jsonInput, setJsonInput] = useState('');
   const [templateInput, setTemplateInput] = useState(DEFAULT_TEMPLATE);
   const [jsonError, setJsonError] = useState<string | null>(null);
@@ -85,10 +83,9 @@ export function ImportFlow() {
   const [isUpdating, startUpdating] = useTransition();
   const [isPreviewing, startPreviewing] = useTransition();
   const [isUndoing, startUndoing] = useTransition();
-  const [isAnalyzing, startAnalyzing] = useTransition();
   const [isConverting, startConverting] = useTransition();
   
-  const isAnyProcessing = isImporting || isUpdating || isPreviewing || isUndoing || isAnalyzing || isConverting;
+  const isAnyProcessing = isImporting || isUpdating || isPreviewing || isUndoing || isConverting;
 
   useEffect(() => {
     setGlobalProcessing(isAnyProcessing);
@@ -103,57 +100,6 @@ export function ImportFlow() {
         setJsonInput(savedJson);
     }
   }, []);
-
-  const handleAnalyzeSheet = useCallback(async () => {
-    if (!sheetUrl) {
-        toast({ variant: 'destructive', title: 'URL is missing', description: 'Please enter a Google Sheet URL to verify.' });
-        return;
-    }
-    setSpreadsheetTitle(null);
-    setAnalysisError(null);
-    if (!l3ReportData) { // Avoid re-fetching if already present
-      setL3ReportData(null);
-    }
-    startAnalyzing(async () => {
-        const [titleResult, l3Result] = await Promise.all([
-            getSpreadsheetTitle(sheetUrl),
-            // Only fetch L3 data if it's not already in context
-            l3ReportData ? Promise.resolve({ success: true, report: l3ReportData.report }) : fetchL3ReportData(sheetUrl)
-        ]);
-
-        if (titleResult.error) {
-            setAnalysisError(titleResult.error);
-            setVerifiedUrl('');
-        } else if (titleResult.title) {
-            setSpreadsheetTitle(titleResult.title);
-            setVerifiedUrl(sheetUrl);
-            setAnalysisError(null);
-        }
-
-        if (l3Result.error) {
-            toast({
-                variant: 'destructive',
-                title: 'L3 Report Failed',
-                description: l3Result.error,
-            });
-            setL3ReportData({ error: l3Result.error });
-        } else if (l3Result.success) {
-            setL3ReportData({ report: l3Result.report });
-        }
-    });
-}, [sheetUrl, toast, setSpreadsheetTitle, setVerifiedUrl, setL3ReportData, l3ReportData]);
-
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newUrl = e.target.value;
-    setSheetUrl(newUrl);
-    setLastActionUndoData(null);
-    if (newUrl !== verifiedUrl) {
-      setSpreadsheetTitle(null);
-      setAnalysisError(null);
-      setVerifiedUrl('');
-      setL3ReportData(null); // Clear L3 report if URL changes
-    }
-  };
 
   const handleUpdatePreview = async () => {
     if (!tableData || !sheetUrl) {
@@ -735,6 +681,7 @@ export function ImportFlow() {
               handleUpdatePreview={handleUpdatePreview}
               handleUndo={handleUndo}
               isVerified={isVerified}
+              spreadsheetTitle={spreadsheetTitle}
               isImporting={isImporting}
               isPreviewing={isPreviewing}
               isUndoing={isUndoing}
@@ -766,6 +713,7 @@ function PreviewTable({
     handleUpdatePreview,
     handleUndo,
     isVerified,
+    spreadsheetTitle,
     isImporting,
     isPreviewing,
     isUndoing,
@@ -789,6 +737,7 @@ function PreviewTable({
     handleUpdatePreview: () => void;
     handleUndo: () => void;
     isVerified: boolean;
+    spreadsheetTitle: string | null;
     isImporting: boolean;
     isPreviewing: boolean;
     isUndoing: boolean;
@@ -875,9 +824,14 @@ function PreviewTable({
                         <CardTitle className="text-xl">2. Data Preview &amp; Actions</CardTitle>
                         <CardDescription>
                             Pratinjau data, ubah jika perlu, lalu ekspor atau perbarui ke Google Sheet.
+                            {isVerified && spreadsheetTitle && (
+                                <span className="block mt-1 text-xs text-primary font-medium">
+                                    Target: {spreadsheetTitle}
+                                </span>
+                            )}
                         </CardDescription>
                     </div>
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t sm:border-t-0 sm:pt-0">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                          <AlertDialog>
                             <AlertDialogTrigger asChild>
                             <Button size="sm" disabled={isProcessing || !isVerified}>
@@ -888,7 +842,7 @@ function PreviewTable({
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Konfirmasi Ekspor</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                Apakah Anda yakin akan mengekspor {localTableData.rows.length} baris ke sheet <span className="font-bold">{initialData.headers.length > 0 ? "target" : 'target'}</span>?
+                                Apakah Anda yakin akan mengekspor {localTableData.rows.length} baris ke sheet <span className="font-bold">{spreadsheetTitle || 'target'}</span>?
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -917,7 +871,7 @@ function PreviewTable({
                                         </div>
                                     ) : (
                                         <>
-                                            <p className='mb-2'>Apakah Anda yakin ingin memperbarui {updatePreview.length} kasus di sheet target?</p>
+                                            <p className='mb-2'>Apakah Anda yakin ingin memperbarui {updatePreview.length} kasus di sheet <span className="font-bold">{spreadsheetTitle || 'target'}</span>?</p>
                                             <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
                                                 <p className="font-bold">Detail Perubahan:</p>
                                                 <ul className="list-disc pl-5">
