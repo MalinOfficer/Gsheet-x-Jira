@@ -11,7 +11,7 @@ import { TableDataContext } from '@/store/table-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { BarChart, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { BarChart, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, Bar } from 'recharts';
 import type { ChartConfig } from "@/components/ui/chart"
 import { fetchL3ReportData } from '@/app/actions';
 
