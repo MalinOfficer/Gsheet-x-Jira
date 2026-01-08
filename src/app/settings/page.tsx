@@ -59,51 +59,25 @@ export default function SettingsPage() {
   // Effect to initialize inputs from context and validate on load
   useEffect(() => {
     setIsClient(true);
-    const mainUrl = contextSheetUrl;
-    const databaseUrl = contextDbSheetUrl;
+    setSheetUrl(contextSheetUrl);
+    setDbSheetUrl(contextDbSheetUrl);
+
+    // If URLs are already verified from a previous session (title exists), show them.
+    if (spreadsheetTitle && contextSheetUrl === verifiedUrl) {
+       setMainSheetError(null);
+    }
+     if (dbSpreadsheetTitle && contextDbSheetUrl === verifiedDbUrl) {
+       setDbSheetError(null);
+    }
     
-    setSheetUrl(mainUrl);
-    setDbSheetUrl(databaseUrl);
+    // If both titles are present, assume valid and don't start in edit mode.
+    if(spreadsheetTitle && dbSpreadsheetTitle) {
+      setIsEditing(false);
+    } else {
+      setIsEditing(true); // If any title is missing, start in edit mode.
+    }
+    setIsValidatingOnLoad(false);
 
-    // Auto-validate URLs on initial load
-    const validateOnLoad = async () => {
-        setIsValidatingOnLoad(true);
-        const [mainResult, dbResult] = await Promise.all([
-            getSpreadsheetTitle(mainUrl),
-            getSpreadsheetTitle(databaseUrl)
-        ]);
-        
-        let isMainValid = false;
-        let isDbValid = false;
-
-        if (mainResult.error) {
-            setMainSheetError(mainResult.error);
-            setVerifiedUrl('');
-        } else {
-            setSpreadsheetTitle(mainResult.title || null);
-            setVerifiedUrl(mainUrl);
-            isMainValid = true;
-        }
-
-        if (dbResult.error) {
-            setDbSheetError(dbResult.error);
-            setVerifiedDbUrl('');
-        } else {
-            setDbSpreadsheetTitle(dbResult.title || null);
-            setVerifiedDbUrl(databaseUrl);
-            isDbValid = true;
-        }
-        
-        // If both URLs are valid on load, start in non-editing mode.
-        if(isMainValid && isDbValid) {
-            setIsEditing(false);
-        } else {
-            setIsEditing(true);
-        }
-        setIsValidatingOnLoad(false);
-    };
-
-    validateOnLoad();
   }, []); // Runs only once on mount
 
   const handleSaveUrls = () => {
@@ -136,6 +110,7 @@ export default function SettingsPage() {
         if (mainResult.error) {
             setMainSheetError(mainResult.error);
             setVerifiedUrl('');
+            setSpreadsheetTitle(null);
         } else {
             setSpreadsheetTitle(mainResult.title || null);
             setVerifiedUrl(sheetUrl);
@@ -146,6 +121,7 @@ export default function SettingsPage() {
         if (dbResult.error) {
             setDbSheetError(dbResult.error);
             setVerifiedDbUrl('');
+            setDbSpreadsheetTitle(null);
         } else {
             setDbSpreadsheetTitle(dbResult.title || null);
             setVerifiedDbUrl(dbSheetUrl);
@@ -181,11 +157,11 @@ export default function SettingsPage() {
     }
   ];
 
-  const ValidationResult = ({ isLoading, title, error, verifiedUrl, currentUrl }: { isLoading: boolean, title: string | null, error: string | null, verifiedUrl: string, currentUrl: string }) => {
+  const ValidationResult = ({ isLoading, title, error }: { isLoading: boolean, title: string | null, error: string | null }) => {
       if (isLoading) {
           return <div className="flex items-center text-xs text-muted-foreground"><RefreshCw className="w-3 h-3 mr-1.5 animate-spin" /><span>Validating...</span></div>;
       }
-      if (verifiedUrl === currentUrl && title) {
+      if (title) {
           return <div className="flex items-center text-xs text-green-600 font-medium"><CheckCircle2 className="w-3 h-3 mr-1.5" /><span>{title}</span></div>;
       }
       if (error) {
@@ -236,8 +212,6 @@ export default function SettingsPage() {
                             isLoading={isSaving || isValidatingOnLoad}
                             title={spreadsheetTitle}
                             error={mainSheetError}
-                            verifiedUrl={verifiedUrl}
-                            currentUrl={sheetUrl}
                         />
                     </div>
                  </div>
@@ -261,8 +235,6 @@ export default function SettingsPage() {
                             isLoading={isSaving || isValidatingOnLoad}
                             title={dbSpreadsheetTitle}
                             error={dbSheetError}
-                            verifiedUrl={verifiedDbUrl}
-                            currentUrl={dbSheetUrl}
                         />
                     </div>
                  </div>

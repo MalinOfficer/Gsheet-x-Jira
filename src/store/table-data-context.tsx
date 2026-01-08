@@ -67,6 +67,8 @@ const LOCAL_STORAGE_KEY_CODE_VIEWER = 'isCodeViewerEnabled';
 const LOCAL_STORAGE_KEY_SECONDARY_TOOLS = 'areSecondaryToolsEnabled';
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 const LOCAL_STORAGE_KEY_DB_SHEET_URL = 'gsheetDashboardDbSheetUrl';
+const LOCAL_STORAGE_KEY_MAIN_TITLE = 'gsheetMainSheetTitle';
+const LOCAL_STORAGE_KEY_DB_TITLE = 'gsheetDbSheetTitle';
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1S9oSokUh8SyWlNObCLdwpn2r2iXA8Gy73OnxsZa728E/edit?gid=0#gid=0';
 
 
@@ -79,29 +81,35 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
     
     // Main URL state
     const [sheetUrl, setSheetUrlState] = useState('');
-    const [verifiedUrl, setVerifiedUrl] = useState('');
-    const [spreadsheetTitle, setSpreadsheetTitle] = useState<string | null>(null);
+    const [verifiedUrl, setVerifiedUrlState] = useState('');
+    const [spreadsheetTitle, setSpreadsheetTitleState] = useState<string | null>(null);
 
     // DB URL state
     const [dbSheetUrl, setDbSheetUrlState] = useState('');
-    const [verifiedDbUrl, setVerifiedDbUrl] = useState('');
-    const [dbSpreadsheetTitle, setDbSpreadsheetTitle] = useState<string | null>(null);
+    const [verifiedDbUrl, setVerifiedDbUrlState] = useState('');
+    const [dbSpreadsheetTitle, setDbSpreadsheetTitleState] = useState<string | null>(null);
 
     useEffect(() => {
         try {
             const savedCodeViewer = localStorage.getItem(LOCAL_STORAGE_KEY_CODE_VIEWER);
-            if (savedCodeViewer) {
-                setIsCodeViewerEnabled(JSON.parse(savedCodeViewer));
-            }
+            if (savedCodeViewer) setIsCodeViewerEnabled(JSON.parse(savedCodeViewer));
+
             const savedSecondaryTools = localStorage.getItem(LOCAL_STORAGE_KEY_SECONDARY_TOOLS);
-            if (savedSecondaryTools) {
-                setAreSecondaryToolsEnabled(JSON.parse(savedSecondaryTools));
-            }
+            if (savedSecondaryTools) setAreSecondaryToolsEnabled(JSON.parse(savedSecondaryTools));
+            
             const savedSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
             setSheetUrlState(savedSheetUrl || DEFAULT_SHEET_URL);
+            setVerifiedUrl(savedSheetUrl || DEFAULT_SHEET_URL);
             
             const savedDbSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_DB_SHEET_URL);
             setDbSheetUrlState(savedDbSheetUrl || DEFAULT_SHEET_URL);
+            setVerifiedDbUrl(savedDbSheetUrl || DEFAULT_SHEET_URL);
+
+            const savedMainTitle = localStorage.getItem(LOCAL_STORAGE_KEY_MAIN_TITLE);
+            if(savedMainTitle) setSpreadsheetTitleState(savedMainTitle);
+
+            const savedDbTitle = localStorage.getItem(LOCAL_STORAGE_KEY_DB_TITLE);
+            if(savedDbTitle) setDbSpreadsheetTitleState(savedDbTitle);
 
         } catch (error) {
             console.error("Failed to parse settings from localStorage", error);
@@ -133,6 +141,32 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
     const setDbSheetUrl = useCallback((url: string) => {
         localStorage.setItem(LOCAL_STORAGE_KEY_DB_SHEET_URL, url);
         setDbSheetUrlState(url);
+    }, []);
+
+    const setVerifiedUrl = useCallback((url: string) => {
+        setVerifiedUrlState(url);
+    }, []);
+
+    const setVerifiedDbUrl = useCallback((url: string) => {
+        setVerifiedDbUrlState(url);
+    }, []);
+    
+    const setSpreadsheetTitle = useCallback((title: string | null) => {
+        if(title) {
+            localStorage.setItem(LOCAL_STORAGE_KEY_MAIN_TITLE, title);
+        } else {
+            localStorage.removeItem(LOCAL_STORAGE_KEY_MAIN_TITLE);
+        }
+        setSpreadsheetTitleState(title);
+    }, []);
+    
+    const setDbSpreadsheetTitle = useCallback((title: string | null) => {
+        if(title) {
+            localStorage.setItem(LOCAL_STORAGE_KEY_DB_TITLE, title);
+        } else {
+            localStorage.removeItem(LOCAL_STORAGE_KEY_DB_TITLE);
+        }
+        setDbSpreadsheetTitleState(title);
     }, []);
 
 

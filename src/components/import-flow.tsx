@@ -59,8 +59,9 @@ export function ImportFlow() {
     tableData, setTableData, 
     isProcessing, setIsProcessing: setGlobalProcessing, 
     sheetUrl,
-    verifiedUrl,
-    spreadsheetTitle,
+    verifiedUrl, setVerifiedUrl,
+    spreadsheetTitle, setSpreadsheetTitle,
+    setL3ReportData,
   } = useContext(TableDataContext);
   const { toast } = useToast();
 
@@ -484,9 +485,12 @@ export function ImportFlow() {
     };
 
     const handleConvert = (input: string, format: 'json' | 'csv') => {
-        startConverting(() => {
+        startConverting(async () => {
             setJsonError(null);
             setTableData(null);
+            setSpreadsheetTitle(null);
+            setVerifiedUrl('');
+            setL3ReportData(null);
 
             if (!input.trim()) {
                 setJsonError("Input cannot be empty.");
@@ -504,6 +508,25 @@ export function ImportFlow() {
                 
                 setJsonInput(input); // Store the raw input for reference
                 localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, input);
+
+                // Now, validate the sheet URL
+                if (sheetUrl) {
+                    const [titleResult, l3Result] = await Promise.all([
+                        getSpreadsheetTitle(sheetUrl),
+                        fetchL3ReportData(sheetUrl)
+                    ]);
+
+                    if (titleResult.success) {
+                        setSpreadsheetTitle(titleResult.title);
+                        setVerifiedUrl(sheetUrl);
+                    } else {
+                        setSpreadsheetTitle(null);
+                        setVerifiedUrl('');
+                        toast({ variant: 'destructive', title: 'URL Verification Failed', description: titleResult.error });
+                    }
+                    
+                    setL3ReportData(l3Result);
+                }
 
             } catch (e) {
                 setJsonError(e instanceof Error ? `Invalid ${format.toUpperCase()} format: ${e.message}` : "An unknown error occurred during conversion.");
@@ -824,9 +847,9 @@ function PreviewTable({
                         <CardTitle className="text-xl">2. Data Preview &amp; Actions</CardTitle>
                         <CardDescription>
                             Pratinjau data, ubah jika perlu, lalu ekspor atau perbarui ke Google Sheet.
-                            {isVerified && spreadsheetTitle && (
+                            {spreadsheetTitle && (
                                 <div className="flex items-center gap-2 mt-1">
-                                    <span className="block text-xs text-green-600 font-medium">
+                                    <span className={cn("block text-xs font-medium", isVerified ? 'text-green-600' : 'text-destructive')}>
                                         Target: {spreadsheetTitle}
                                     </span>
                                     <Popover>

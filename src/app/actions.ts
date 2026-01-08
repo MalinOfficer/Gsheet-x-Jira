@@ -251,7 +251,7 @@ export async function getSpreadsheetTitle(sheetUrl: string) {
         return { error: "URL is empty. Please provide a Google Sheet URL." };
     }
 
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
@@ -372,7 +372,7 @@ export async function getUpdatePreview(
         return { error: 'No data provided to preview.' };
     }
 
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
@@ -449,7 +449,7 @@ export async function updateSheetStatus(
         return { error: 'No data provided to update.' };
     }
     
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
@@ -566,7 +566,7 @@ export async function importToSheet(
     data: { headers: string[], rows: Record<string, any>[] },
     sheetUrl: string
 ) {
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
@@ -770,7 +770,7 @@ export async function undoLastAction(
         return { error: 'No undo data available.' };
     }
 
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
@@ -976,7 +976,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
     if (!sheetUrl) {
         return { error: "URL is empty. Please provide a Google Sheet URL." };
     }
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
@@ -1138,7 +1138,7 @@ async function fetchDashboardDataFromSheet(sheetUrl: string, sheetName: 'Summary
      if (!sheetUrl) {
         return { error: "URL is empty. Please provide a Google Sheet URL." };
     }
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-T-_]+)/;
+    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
     const match = sheetUrl.match(sheetIdRegex);
     if (!match || !match[1]) {
         return { error: 'Invalid Google Sheets URL format.' };
@@ -1233,56 +1233,3 @@ export async function getAllCaseData(sheetUrl: string) {
     return { ...result, source: 'sheet' };
 }
     
-
-    
-
-
-
-
-
-
-    
-
-    
-
-    
-
-    
-
-
-  
-
-
-      
-
-
-
-    
-
-    
-
-    
-
-    
-
-
-
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-
-
-    
-
