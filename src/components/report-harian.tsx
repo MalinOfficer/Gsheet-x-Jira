@@ -4,13 +4,189 @@
 import { useState, useMemo, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { ArrowLeft, Copy, Check, BarChart, AlertTriangle } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Copy, Check, BarChart as BarChartIcon, AlertTriangle, User, AppWindow, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatDateTime } from '@/lib/date-utils';
-import { TableDataContext, L3ReportData } from '@/store/table-data-context';
+import { TableDataContext } from '@/store/table-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { BarChart, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import type { ChartConfig } from "@/components/ui/chart"
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+const chartConfig = {
+  solved: { label: "Solved", color: "hsl(var(--chart-2))" },
+  unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
+  L1: { label: "L1", color: "hsl(var(--chart-1))" },
+  L2: { label: "L2", color: "hsl(var(--chart-3))" },
+  L3: { label: "L3", color: "hsl(var(--chart-4))" },
+} satisfies ChartConfig
+
+function DashboardChart() {
+    const { tableData: contextData } = useContext(TableDataContext);
+    const finalData = contextData?.rows;
+
+    const dashboardStats = useMemo(() => {
+        if (!finalData || finalData.length === 0) {
+            return {
+                totalCases: 0,
+                clientTrend: 'N/A',
+                moduleTrend: 'N/A',
+                statusCounts: [],
+                solvedVsUnsolved: [],
+            };
+        }
+
+        const getMostFrequent = (field: string) => {
+            const frequency: Record<string, number> = {};
+            let maxCount = 0;
+            let mostFrequent = 'N/A';
+            const filteredData = finalData.filter(row => row[field]);
+            if (filteredData.length === 0) return 'N/A';
+
+            filteredData.forEach(row => {
+                const value = row[field];
+                if (value) {
+                    frequency[value] = (frequency[value] || 0) + 1;
+                }
+            });
+
+            Object.entries(frequency).forEach(([value, count]) => {
+                if (count > maxCount) {
+                    maxCount = count;
+                    mostFrequent = value;
+                }
+            });
+            return mostFrequent;
+        };
+
+        const statusFrequency: Record<string, number> = {};
+        finalData.forEach(row => {
+            const status = String(row.Status || 'N/A').toUpperCase();
+            statusFrequency[status] = (statusFrequency[status] || 0) + 1;
+        });
+
+        const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ name, value, fill: `var(--color-${name})`}));
+
+        const solvedCount = statusFrequency['SOLVED'] || 0;
+        const unsolvedCount = finalData.length - solvedCount;
+
+        const solvedVsUnsolved = [
+            { name: 'Solved', value: solvedCount, fill: 'var(--color-solved)' },
+            { name: 'Unsolved', value: unsolvedCount, fill: 'var(--color-unsolved)' }
+        ];
+
+        return {
+            totalCases: finalData.length,
+            clientTrend: getMostFrequent('Client Name'),
+            moduleTrend: getMostFrequent('Detail Module'),
+            statusCounts,
+            solvedVsUnsolved,
+        };
+    }, [finalData]);
+
+    if (!finalData || finalData.length === 0) {
+      return null;
+    }
+
+    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved } = dashboardStats;
+
+    return (
+      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Case</CardTitle>
+            <BarChartIcon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalCases}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Client Trend</CardTitle>
+            <User className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold truncate">{clientTrend}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Module Trend</CardTitle>
+            <AppWindow className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold truncate">{moduleTrend}</div>
+          </CardContent>
+        </Card>
+         <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Solved vs Unsolved</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                   {(( (solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1)}% solved
+                </p>
+            </CardContent>
+        </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Case Status Distribution</CardTitle>
+            <CardDescription>Persentase kasus berdasarkan status L1, L2, L3, dan Solved.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                    <Pie
+                        data={statusCounts}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        dataKey="value"
+                    >
+                        {statusCounts.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Solved vs Unsolved</CardTitle>
+            <CardDescription>Perbandingan jumlah kasus yang sudah selesai dan yang belum.</CardDescription>
+          </CardHeader>
+          <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={solvedVsUnsolved} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis dataKey="name" type="category" width={80} />
+                      <Tooltip cursor={{fill: 'hsl(var(--muted))'}}/>
+                      <Bar dataKey="value" name="Total" background={{ fill: 'hsl(var(--muted))' }} radius={[4, 4, 0, 0]}>
+                           {solvedVsUnsolved.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                           ))}
+                      </Bar>
+                  </BarChart>
+              </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+    );
+}
+
 
 function InitialState({ error }: { error?: string }) {
   const router = useRouter();
@@ -19,7 +195,7 @@ function InitialState({ error }: { error?: string }) {
         {error ? (
           <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
         ) : (
-          <BarChart className="w-16 h-16 text-muted-foreground mb-4" />
+          <BarChartIcon className="w-16 h-16 text-muted-foreground mb-4" />
         )}
         <CardTitle>{error ? "Failed to Load Data" : "No Report Data Found"}</CardTitle>
         <CardDescription className="mt-2 mb-4 max-w-sm">
@@ -167,7 +343,7 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
                 </CardHeader>
                 <CardContent className="flex-grow flex items-center justify-center">
                    <div className="text-center text-muted-foreground">
-                        <BarChart className="mx-auto h-12 w-12 mb-2" />
+                        <BarChartIcon className="mx-auto h-12 w-12 mb-2" />
                         <p>No data from Import Data found.</p>
                    </div>
                 </CardContent>
@@ -289,6 +465,8 @@ export function ReportHarian({ error }: ReportHarianProps) {
           </Button>
         </div>
 
+        <DashboardChart />
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <DailyReportCard />
           <L3CaseReportCard />
@@ -297,3 +475,5 @@ export function ReportHarian({ error }: ReportHarianProps) {
     </div>
   );
 }
+
+    
