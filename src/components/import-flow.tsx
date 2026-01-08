@@ -29,7 +29,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenu
 import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 import { Spinner } from './ui/spinner';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 
 
 const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
@@ -829,16 +829,14 @@ function PreviewTable({
                                     <span className="block text-xs text-green-600 font-medium">
                                         Target: {spreadsheetTitle}
                                     </span>
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Go to Settings to change the target URL.</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    <Popover>
+                                        <PopoverTrigger>
+                                            <AlertCircle className="h-4 w-4 text-muted-foreground cursor-pointer" />
+                                        </PopoverTrigger>
+                                        <PopoverContent className="text-sm w-auto p-2">
+                                            Go to Settings to change the target URL.
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                             )}
                         </CardDescription>
