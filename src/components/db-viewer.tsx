@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { useContext, useEffect, useState, useRef, useMemo, useTransition } from "react";
+import { useContext, useEffect, useState, useRef, useMemo, useTransition, useCallback } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
