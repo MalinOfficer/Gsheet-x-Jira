@@ -22,9 +22,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { getSpreadsheetTitle } from '@/app/actions';
 
-const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
-const LOCAL_STORAGE_KEY_DB_SHEET_URL = 'gsheetDashboardDbSheetUrl';
-
 export default function SettingsPage() {
   const { 
       isCodeViewerEnabled, 
@@ -60,10 +57,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setIsClient(true);
+    // Always initialize inputs with the values from the context, which are loaded from localStorage
     setSheetUrl(contextSheetUrl);
     setDbSheetUrl(contextDbSheetUrl);
-    // If URLs are already verified, start in non-editing mode
-    if (contextSheetUrl === verifiedUrl && contextDbSheetUrl === verifiedDbUrl && verifiedUrl && verifiedDbUrl) {
+
+    // If both URLs from the context are already verified, start in non-editing mode.
+    // This happens on page load if the last saved state was a valid one.
+    if (contextSheetUrl && verifiedUrl === contextSheetUrl && 
+        contextDbSheetUrl && verifiedDbUrl === contextDbSheetUrl) {
       setIsEditing(false);
     }
   }, [contextSheetUrl, contextDbSheetUrl, verifiedUrl, verifiedDbUrl]);
@@ -71,10 +72,7 @@ export default function SettingsPage() {
   const handleSaveUrls = () => {
     startSaving(async () => {
         // Save to localStorage and update context immediately for responsiveness
-        localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, sheetUrl);
         setContextSheetUrl(sheetUrl);
-        
-        localStorage.setItem(LOCAL_STORAGE_KEY_DB_SHEET_URL, dbSheetUrl);
         setContextDbSheetUrl(dbSheetUrl);
 
         toast({
@@ -198,7 +196,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="mt-1 pl-11">
                         <ValidationResult 
-                            isLoading={isSaving}
+                            isLoading={isSaving && sheetUrl !== verifiedUrl}
                             title={spreadsheetTitle}
                             error={mainSheetError}
                             verifiedUrl={verifiedUrl}
@@ -223,7 +221,7 @@ export default function SettingsPage() {
                     </div>
                      <div className="mt-1 pl-11">
                         <ValidationResult 
-                            isLoading={isSaving}
+                            isLoading={isSaving && dbSheetUrl !== verifiedDbUrl}
                             title={dbSpreadsheetTitle}
                             error={dbSheetError}
                             verifiedUrl={verifiedDbUrl}
@@ -287,5 +285,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    

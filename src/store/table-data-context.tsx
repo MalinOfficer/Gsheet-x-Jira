@@ -78,12 +78,12 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
     const [areSecondaryToolsEnabled, setAreSecondaryToolsEnabled] = useState<boolean>(false);
     
     // Main URL state
-    const [sheetUrl, setSheetUrl] = useState('');
+    const [sheetUrl, setSheetUrlState] = useState('');
     const [verifiedUrl, setVerifiedUrl] = useState('');
     const [spreadsheetTitle, setSpreadsheetTitle] = useState<string | null>(null);
 
     // DB URL state
-    const [dbSheetUrl, setDbSheetUrl] = useState('');
+    const [dbSheetUrl, setDbSheetUrlState] = useState('');
     const [verifiedDbUrl, setVerifiedDbUrl] = useState('');
     const [dbSpreadsheetTitle, setDbSpreadsheetTitle] = useState<string | null>(null);
 
@@ -98,10 +98,10 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
                 setAreSecondaryToolsEnabled(JSON.parse(savedSecondaryTools));
             }
             const savedSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
-            setSheetUrl(savedSheetUrl || DEFAULT_SHEET_URL);
+            setSheetUrlState(savedSheetUrl || DEFAULT_SHEET_URL);
             
             const savedDbSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_DB_SHEET_URL);
-            setDbSheetUrl(savedDbSheetUrl || DEFAULT_SHEET_URL);
+            setDbSheetUrlState(savedDbSheetUrl || DEFAULT_SHEET_URL);
 
         } catch (error) {
             console.error("Failed to parse settings from localStorage", error);
@@ -124,6 +124,17 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
             });
         }, [setter, key]);
     };
+    
+    const setSheetUrl = useCallback((url: string) => {
+        localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, url);
+        setSheetUrlState(url);
+    }, []);
+    
+    const setDbSheetUrl = useCallback((url: string) => {
+        localStorage.setItem(LOCAL_STORAGE_KEY_DB_SHEET_URL, url);
+        setDbSheetUrlState(url);
+    }, []);
+
 
     const toggleCodeViewer = createToggle(setIsCodeViewerEnabled, LOCAL_STORAGE_KEY_CODE_VIEWER);
     const toggleSecondaryTools = createToggle(setAreSecondaryToolsEnabled, LOCAL_STORAGE_KEY_SECONDARY_TOOLS);
@@ -157,4 +168,3 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
         </TableDataContext.Provider>
     );
 };
-    
