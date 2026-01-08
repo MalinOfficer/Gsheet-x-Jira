@@ -131,7 +131,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     
     return (
         <div className={cn(
-            "grid w-full min-h-screen",
+            "grid w-full",
             isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[220px_1fr]",
             isProcessing && "pointer-events-none"
         )}>
@@ -162,9 +162,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             )}
             
             {/* --- Main Content Area --- */}
-            <div className="flex flex-col min-h-screen overflow-x-hidden">
+            <div className="flex flex-col h-screen overflow-hidden">
                  {/* --- Mobile/Main Header --- */}
-                <header className="flex h-16 items-center gap-4 border-b bg-background px-4 lg:px-6 flex-shrink-0 sticky top-0 z-40">
+                <header className="flex h-16 items-center gap-4 border-b bg-background px-4 lg:px-6 flex-shrink-0 z-40">
                     {/* Hamburger Menu for Mobile */}
                     {isMobile && (
                         <Sheet>
@@ -214,7 +214,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         </Link>
                     )}
                 </header>
-                <main className="flex-1 flex flex-col w-full bg-muted/20">
+                <main className="flex-1 flex flex-col bg-muted/20 overflow-y-auto">
                     {children}
                 </main>
             </div>
