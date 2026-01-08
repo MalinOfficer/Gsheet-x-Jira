@@ -1135,7 +1135,7 @@ export async function getDashboardData(sheetUrl: string) {
 }
 
 async function fetchDashboardDataFromSheet(sheetUrl: string, sheetName: 'Summary' | 'All Case') {
-     if (!sheetUrl) {
+    if (!sheetUrl) {
         return { error: "URL is empty. Please provide a Google Sheet URL." };
     }
     const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
@@ -1145,37 +1145,63 @@ async function fetchDashboardDataFromSheet(sheetUrl: string, sheetName: 'Summary
     }
     const spreadsheetId = match[1];
 
-    try {
-        const sheets = getGoogleSheetsClient();
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: `${sheetName}!A:Z`,
-        });
+    const sheets = getGoogleSheetsClient();
 
-        const rows = response.data.values;
-        if (!rows || rows.length === 0) {
-            return { error: `No data found in the ${sheetName} sheet.` };
-        }
-
-        const headers = rows.shift();
-        if (!headers) {
-             return { error: `No headers found in the ${sheetName} sheet.` };
-        }
-
-        const jsonData = rows.map(row => {
-            const rowData: Record<string, string> = {};
-            headers.forEach((header, index) => {
-                rowData[header] = row[index] || '';
+    const tryFetch = async (name: string) => {
+        // Sheet names with spaces or special characters need to be quoted.
+        const range = name.includes(' ') ? `'${name}'!A:Z` : `${name}!A:Z`;
+        try {
+            const response = await sheets.spreadsheets.values.get({
+                spreadsheetId,
+                range,
             });
-            return rowData;
-        });
 
-        return { data: jsonData };
+            const rows = response.data.values;
+            if (!rows || rows.length === 0) {
+                return { error: `No data found in the ${name} sheet.` };
+            }
+            const headers = rows.shift();
+            if (!headers) {
+                return { error: `No headers found in the ${name} sheet.` };
+            }
+            const jsonData = rows.map(row => {
+                const rowData: Record<string, string> = {};
+                headers.forEach((header, index) => {
+                    rowData[header] = row[index] || '';
+                });
+                return rowData;
+            });
+            return { data: jsonData };
+        } catch (error: any) {
+            // Check if it's a "range not found" error, which is expected if the sheet name is wrong.
+            if (error.message && error.message.includes('Unable to parse range')) {
+                return { error: `Sheet '${name}' not found.`, isSheetNotFoundError: true };
+            }
+            throw error; // Re-throw other errors
+        }
+    };
+    
+    if (sheetName === 'All Case') {
+        const primaryName = 'All Case';
+        const fallbackName = 'CASES';
 
-    } catch (error: any) {
-        console.error(`Failed to fetch ${sheetName} data from sheet:`, error.message);
-        const apiError = error.errors?.[0]?.message || `An unknown error occurred while fetching ${sheetName} data.`;
-        return { error: `Fetch Failed: ${apiError}` };
+        let result = await tryFetch(primaryName);
+
+        // If the first attempt fails because the sheet is not found, try the fallback.
+        if (result.error && (result as any).isSheetNotFoundError) {
+            console.log(`Sheet '${primaryName}' not found, trying '${fallbackName}'.`);
+            result = await tryFetch(fallbackName);
+        }
+
+        // If even the fallback fails with a sheet not found error, return a cleaner message.
+        if (result.error && (result as any).isSheetNotFoundError) {
+             return { error: `Could not find sheet '${primaryName}' or '${fallbackName}'.` };
+        }
+        
+        return result;
+
+    } else { // For 'Summary' or other direct names
+        return await tryFetch(sheetName);
     }
 }
 
