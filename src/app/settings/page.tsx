@@ -43,7 +43,7 @@ export default function SettingsPage() {
   const [isClient, setIsClient] = useState(false);
   const [isSaving, startSaving] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
-  const [isValidatingOnLoad, setIsValidatingOnLoad] = useState(true);
+  const [isValidating, setIsValidating] = useState(false);
 
   // Local state for inputs
   const [sheetUrl, setSheetUrl] = useState('');
@@ -76,12 +76,12 @@ export default function SettingsPage() {
     } else {
       setIsEditing(true); // If any title is missing, start in edit mode.
     }
-    setIsValidatingOnLoad(false);
 
   }, []); // Runs only once on mount
 
   const handleSaveUrls = () => {
     startSaving(async () => {
+        setIsValidating(true);
         // Save to localStorage and update context immediately for responsiveness
         setContextSheetUrl(sheetUrl);
         setContextDbSheetUrl(dbSheetUrl);
@@ -131,6 +131,7 @@ export default function SettingsPage() {
         if (isMainValid && isDbValid) {
             setIsEditing(false); // Exit editing mode on successful save & validation
         }
+        setIsValidating(false);
     });
   };
   
@@ -203,13 +204,13 @@ export default function SettingsPage() {
                           value={sheetUrl}
                           onChange={(e) => setSheetUrl(e.target.value)}
                           readOnly={!isEditing}
-                          disabled={isSaving || isValidatingOnLoad}
+                          disabled={isSaving || isValidating}
                           className={!isEditing ? 'bg-muted/50' : ''}
                         />
                     </div>
                     <div className="mt-1 pl-11">
                         <ValidationResult 
-                            isLoading={isSaving || isValidatingOnLoad}
+                            isLoading={isValidating}
                             title={spreadsheetTitle}
                             error={mainSheetError}
                         />
@@ -226,13 +227,13 @@ export default function SettingsPage() {
                           value={dbSheetUrl}
                           onChange={(e) => setDbSheetUrl(e.target.value)}
                           readOnly={!isEditing}
-                          disabled={isSaving || isValidatingOnLoad}
+                          disabled={isSaving || isValidating}
                           className={!isEditing ? 'bg-muted/50' : ''}
                         />
                     </div>
                      <div className="mt-1 pl-11">
                         <ValidationResult 
-                            isLoading={isSaving || isValidatingOnLoad}
+                            isLoading={isValidating}
                             title={dbSpreadsheetTitle}
                             error={dbSheetError}
                         />
@@ -241,9 +242,9 @@ export default function SettingsPage() {
             </CardContent>
             <CardFooter>
                  {isEditing ? (
-                    <Button onClick={handleSaveUrls} disabled={isSaving || isValidatingOnLoad}>
-                        {(isSaving || isValidatingOnLoad) ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        {(isSaving || isValidatingOnLoad) ? 'Validating...' : 'Save URLs'}
+                    <Button onClick={handleSaveUrls} disabled={isSaving || isValidating}>
+                        {(isSaving || isValidating) ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        {(isSaving || isValidating) ? 'Validating...' : 'Save URLs'}
                     </Button>
                  ) : (
                     <Button onClick={handleEditClick} variant="destructive">

@@ -98,12 +98,17 @@ export const TableDataContextProvider: React.FC<{ children: ReactNode }> = ({ ch
             if (savedSecondaryTools) setAreSecondaryToolsEnabled(JSON.parse(savedSecondaryTools));
             
             const savedSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
-            setSheetUrlState(savedSheetUrl || DEFAULT_SHEET_URL);
-            setVerifiedUrl(savedSheetUrl || DEFAULT_SHEET_URL);
-            
             const savedDbSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_DB_SHEET_URL);
-            setDbSheetUrlState(savedDbSheetUrl || DEFAULT_SHEET_URL);
-            setVerifiedDbUrl(savedDbSheetUrl || DEFAULT_SHEET_URL);
+
+            // Use default only if localStorage item is null (doesn't exist)
+            const initialSheetUrl = savedSheetUrl === null ? DEFAULT_SHEET_URL : savedSheetUrl;
+            const initialDbSheetUrl = savedDbSheetUrl === null ? DEFAULT_SHEET_URL : savedDbSheetUrl;
+
+            setSheetUrlState(initialSheetUrl);
+            setVerifiedUrl(initialSheetUrl);
+            
+            setDbSheetUrlState(initialDbSheetUrl);
+            setVerifiedDbUrl(initialDbSheetUrl);
 
             const savedMainTitle = localStorage.getItem(LOCAL_STORAGE_KEY_MAIN_TITLE);
             if(savedMainTitle) setSpreadsheetTitleState(savedMainTitle);
