@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useContext } from 'react';
+import { useState, useMemo, useEffect, useContext, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Copy, Check, BarChart as BarChartIcon, AlertTriangle, User, AppWindow, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, Copy, Check, BarChart as BarChartIcon, AlertTriangle, User, AppWindow, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { formatDateTime } from '@/lib/date-utils';
 import { TableDataContext } from '@/store/table-data-context';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { BarChart, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import type { ChartConfig } from "@/components/ui/chart"
+import { fetchL3ReportData } from '@/app/actions';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -376,23 +377,42 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
 }
 
 function L3CaseReportCard() {
-    const { l3ReportData } = useContext(TableDataContext);
+    const { l3ReportData, setL3ReportData, sheetUrl } = useContext(TableDataContext);
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
+    const [isGenerating, startGenerating] = useTransition();
+
+    const handleGenerate = () => {
+        startGenerating(async () => {
+            if (!sheetUrl) {
+                toast({ variant: 'destructive', title: "URL Not Set", description: "Google Sheet URL is not configured in Settings." });
+                return;
+            }
+            const result = await fetchL3ReportData(sheetUrl);
+            setL3ReportData(result);
+            if (result.error) {
+                toast({ variant: 'destructive', title: "Generation Failed", description: result.error });
+            } else {
+                toast({ title: "L3 Report Generated", description: "The report has been updated with the latest data." });
+            }
+        });
+    };
 
     const reportTextForDisplay = useMemo(() => {
-        if (!l3ReportData) return "Go to the Import Data page and click 'Verify' to generate this report.";
+        if (isGenerating) {
+            return '<div class="flex items-center justify-center h-full text-muted-foreground"><svg class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>Generating...</span></div>';
+        }
+        if (!l3ReportData) return "Click 'Generate L3 Report' to create the report.";
         if (l3ReportData.error) return `Error: ${l3ReportData.error}`;
         if (!l3ReportData.report) return "No L3 cases found.";
 
         return l3ReportData.report.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
-    }, [l3ReportData]);
+    }, [l3ReportData, isGenerating]);
 
     const reportTextForCopy = useMemo(() => {
         if (!l3ReportData?.report) return '';
         return l3ReportData.report;
     }, [l3ReportData]);
-
 
     const handleCopy = () => {
         if (!reportTextForCopy) return;
@@ -410,10 +430,16 @@ function L3CaseReportCard() {
             <CardHeader>
                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <CardTitle>L3 Case Report</CardTitle>
-                  <Button onClick={handleCopy} size="sm" variant="outline" className="w-full sm:w-auto" disabled={!l3ReportData?.report}>
-                      {isCopied ? <Check className="text-green-500 mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
-                      {isCopied ? 'Copied!' : 'Copy Report'}
-                  </Button>
+                   <div className="flex gap-2 w-full sm:w-auto">
+                        <Button onClick={handleGenerate} size="sm" variant="secondary" className="w-full sm:w-auto" disabled={isGenerating}>
+                            {isGenerating ? <RefreshCw className="text-muted-foreground animate-spin mr-2 h-4 w-4" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                            {isGenerating ? 'Generating...' : 'Generate L3 Report'}
+                        </Button>
+                        <Button onClick={handleCopy} size="sm" variant="outline" className="w-full sm:w-auto" disabled={!l3ReportData?.report || isGenerating}>
+                            {isCopied ? <Check className="text-green-500 mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+                            {isCopied ? 'Copied!' : 'Copy'}
+                        </Button>
+                  </div>
                 </div>
                 <CardDescription>
                     This report is generated from the verified Google Sheet and shows 'L3' status.
@@ -424,7 +450,7 @@ function L3CaseReportCard() {
                     className={cn(
                         "h-96 text-xs font-mono bg-muted/20 rounded-md border p-3 overflow-auto whitespace-pre-wrap",
                         l3ReportData?.error && "text-destructive",
-                        !l3ReportData && "text-muted-foreground"
+                        !l3ReportData && !isGenerating && "text-muted-foreground flex items-center justify-center"
                     )}
                     dangerouslySetInnerHTML={{ __html: reportTextForDisplay.replace(/\n/g, '<br />') }}
                 />
@@ -475,5 +501,3 @@ export function ReportHarian({ error }: ReportHarianProps) {
     </div>
   );
 }
-
-    
