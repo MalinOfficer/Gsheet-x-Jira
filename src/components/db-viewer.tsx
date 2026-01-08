@@ -181,7 +181,7 @@ export function DbViewer() {
                                             <th 
                                                 key={header} 
                                                 className={cn(
-                                                    "h-12 px-4 text-left align-middle font-medium text-muted-foreground",
+                                                    "h-12 px-4 text-left font-medium text-muted-foreground flex items-center",
                                                     header.toLowerCase().includes('first response') ? "whitespace-normal" : "whitespace-nowrap"
                                                 )}
                                                 style={{ width: getColumnWidth(header), flexShrink: 0 }}
