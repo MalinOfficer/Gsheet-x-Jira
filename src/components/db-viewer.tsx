@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
-import { useContext, useEffect, useState, useRef } from "react";
+import { useContext, useEffect, useState, useRef, useMemo } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -76,6 +76,8 @@ export function DbViewer() {
     
     const virtualRows = rowVirtualizer.getVirtualItems();
     const totalHeight = rowVirtualizer.getTotalSize();
+
+    const totalWidth = useMemo(() => headers.length * 150, [headers]);
 
     if (state.loading && !state.data) {
         return (
@@ -155,7 +157,7 @@ export function DbViewer() {
                 <Card>
                     <CardContent className="p-0">
                         <div ref={tableContainerRef} className="overflow-auto h-[75vh] border rounded-md">
-                           <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
+                           <table className="text-sm" style={{ tableLayout: 'fixed', width: totalWidth }}>
                                 <thead className="sticky top-0 bg-muted z-10">
                                     <tr className="border-b transition-colors hover:bg-muted/50">
                                         {headers.map(header => (
@@ -175,14 +177,15 @@ export function DbViewer() {
                                                     position: 'absolute',
                                                     top: 0,
                                                     left: 0,
-                                                    width: '100%',
+                                                    width: totalWidth,
                                                     height: `${virtualRow.size}px`,
                                                     transform: `translateY(${virtualRow.start}px)`,
+                                                    display: 'flex',
                                                 }}
                                                 className="border-b transition-colors hover:bg-muted/50"
                                             >
                                                 {headers.map(header => (
-                                                    <td key={header} className="p-4 align-middle truncate" style={{ width: 150 }}>
+                                                    <td key={header} className="p-4 align-middle truncate" style={{ width: 150, flexShrink: 0 }}>
                                                         {row[header]}
                                                     </td>
                                                 ))}
@@ -194,7 +197,7 @@ export function DbViewer() {
                         </div>
                     </CardContent>
                     <CardFooter className="p-2 border-t text-xs text-muted-foreground">
-                        Showing {virtualRows.length} of {state.data.length} rows.
+                        Showing {virtualRows.length > 0 ? virtualRows.length : state.data.length} of {state.data.length} rows.
                     </CardFooter>
                 </Card>
             </div>
