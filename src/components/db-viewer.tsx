@@ -17,6 +17,7 @@ import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { cn } from "@/lib/utils";
 
 
 interface DbViewerState {
@@ -82,11 +83,8 @@ export function DbViewer() {
         if (lowerHeader.includes('detail case') || lowerHeader.includes('penanganan case')) {
             return 350;
         }
-        if (lowerHeader.includes('client') || lowerHeader.includes('customer name')) {
+        if (lowerHeader.includes('client') || lowerHeader.includes('customer name') || lowerHeader.includes('ticket number')) {
             return 180;
-        }
-        if (lowerHeader.includes('ticket number')) {
-             return 180;
         }
         if (lowerHeader === 'no') {
             return 60;
@@ -180,7 +178,14 @@ export function DbViewer() {
                                 <thead className="sticky top-0 bg-muted z-10">
                                     <tr className="border-b transition-colors hover:bg-muted/50" style={{ display: 'flex', width: totalWidth }}>
                                         {headers.map(header => (
-                                            <th key={header} className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap" style={{ width: getColumnWidth(header), flexShrink: 0 }}>
+                                            <th 
+                                                key={header} 
+                                                className={cn(
+                                                    "h-12 px-4 text-left align-middle font-medium text-muted-foreground",
+                                                    header.toLowerCase().includes('first response') ? "whitespace-normal" : "whitespace-nowrap"
+                                                )}
+                                                style={{ width: getColumnWidth(header), flexShrink: 0 }}
+                                            >
                                                 {header}
                                             </th>
                                         ))}
