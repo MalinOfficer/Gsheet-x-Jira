@@ -23,16 +23,7 @@ export function KnowledgeBase() {
 
     const handleSearch = () => {
         if (!searchTerm.trim()) return;
-        setIsLoading(true);
-        // Simulate an API call for search results
-        setTimeout(() => {
-            // In a real implementation, you would fetch results from your AI engine here.
-            setResults([]); // Resetting to show the placeholder message
-            setIsLoading(false);
-        }, 1000);
-    };
 
-    const handleRunEngine = () => {
         if (!knowledgeBaseUrl) {
             toast({
                 variant: 'destructive',
@@ -44,26 +35,42 @@ export function KnowledgeBase() {
 
         startProcessing(async () => {
             toast({
-                title: 'Knowledge Base Engine Started',
-                description: 'Processing data in the background. This may take a few moments.',
+                title: 'Building Knowledge Base...',
+                description: 'Processing data before searching. This may take a moment.',
             });
 
-            const result = await runKnowledgeBaseEngine(knowledgeBaseUrl);
+            const buildResult = await runKnowledgeBaseEngine(knowledgeBaseUrl);
 
-            if (result.success) {
+            if (buildResult.success) {
                 toast({
                     title: 'Processing Complete',
-                    description: result.message,
+                    description: 'Knowledge Base is ready. Now searching for your query...',
                 });
+                
+                // --- FUTURE SEARCH LOGIC ---
+                // Here you would take the `buildResult.data` and the `searchTerm` 
+                // to perform the actual search against the vectorized data.
+                // For now, we simulate the search part.
+                setIsLoading(true);
+                setTimeout(() => {
+                    setResults([]); // Resetting to show the placeholder message for now
+                    setIsLoading(false);
+                     toast({
+                        title: 'Search Completed',
+                        description: `(Simulation) Finished searching for: "${searchTerm}"`,
+                    });
+                }, 1000);
+                
             } else {
                 toast({
                     variant: 'destructive',
                     title: 'Processing Failed',
-                    description: result.error,
+                    description: buildResult.error,
                 });
             }
         });
     };
+
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -74,17 +81,9 @@ export function KnowledgeBase() {
                             Knowledge Base
                         </h1>
                         <p className="text-muted-foreground mt-2">
-                            Search for articles, guides, and solutions, or build the AI knowledge index.
+                            Search for articles, guides, and solutions. The knowledge base will be built on-the-fly.
                         </p>
                     </div>
-                     <Button onClick={handleRunEngine} disabled={isProcessing}>
-                        {isProcessing ? (
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <FileCog className="mr-2 h-4 w-4" />
-                        )}
-                        {isProcessing ? 'Processing...' : 'Build Knowledge Base'}
-                    </Button>
                 </header>
 
                 <div className="flex w-full items-center space-x-2">
@@ -97,10 +96,12 @@ export function KnowledgeBase() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                             className="pl-10 h-12 text-base"
+                            disabled={isProcessing}
                         />
                     </div>
-                    <Button type="submit" onClick={handleSearch} disabled={isLoading} className="h-12">
-                        {isLoading ? "Searching..." : "Search"}
+                    <Button type="submit" onClick={handleSearch} disabled={isProcessing || isLoading} className="h-12">
+                        {isProcessing ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                        {isProcessing ? "Building..." : (isLoading ? "Searching..." : "Search")}
                     </Button>
                 </div>
 
