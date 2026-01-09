@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useContext, useTransition, useMemo } from 'react';
+import { useState, useContext, useTransition, useMemo, useEffect, useCallback } from 'react';
 import { BookOpen, Search, RefreshCw, Layers, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from '@/components/ui/input';
@@ -37,35 +37,38 @@ export function KnowledgeBase() {
     const [searchTerm, setSearchTerm] = useState('');
     const [isProcessing, startProcessing] = useTransition();
     const [pipelineResult, setPipelineResult] = useState<PipelineResult>(null);
+    const [displayedResults, setDisplayedResults] = useState<Chunk[] | null>(null);
 
-    const handleSearch = () => {
-        if (!searchTerm.trim()) return;
-
-        if (!knowledgeBaseUrl) {
-            toast({
-                variant: 'destructive',
-                title: 'URL Not Configured',
-                description: 'Please set the Knowledge Base URL in the Settings page first.',
-            });
+    const handleRunEngine = useCallback(() => {
+        // Prevent running if already running or if URL is not set
+        if (isProcessing || !knowledgeBaseUrl) {
+            if (!knowledgeBaseUrl) {
+                toast({
+                    variant: 'destructive',
+                    title: 'URL Not Configured',
+                    description: 'Please set the Knowledge Base URL in the Settings page first.',
+                });
+            }
             return;
         }
-
+        
         startProcessing(async () => {
             setPipelineResult(null); // Clear previous results
+            setDisplayedResults(null);
+            
             toast({
                 title: 'Building Knowledge Base...',
-                description: 'Processing data before searching. This may take a moment.',
+                description: 'Processing data in the background. You can start typing your query.',
             });
 
             const buildResult = await runKnowledgeBaseEngine(knowledgeBaseUrl);
 
             if (buildResult.success && buildResult.data) {
                 toast({
-                    title: 'Processing Complete',
-                    description: `Knowledge Base is ready with ${buildResult.data.total_chunks} chunks.`,
+                    title: 'Knowledge Base Ready',
+                    description: `Processing complete with ${buildResult.data.total_chunks} chunks.`,
                 });
                 setPipelineResult(buildResult.data);
-                
             } else {
                 toast({
                     variant: 'destructive',
@@ -75,18 +78,39 @@ export function KnowledgeBase() {
                 setPipelineResult(null);
             }
         });
+    }, [knowledgeBaseUrl, isProcessing, toast]);
+
+    const handleSearchTrigger = () => {
+        if (!pipelineResult) {
+            toast({
+                variant: 'destructive',
+                title: 'Knowledge Base Not Ready',
+                description: isProcessing ? 'Please wait for the engine to finish processing.' : 'Please type something to start the engine.',
+            });
+            return;
+        }
+
+        if (!searchTerm.trim()) {
+            setDisplayedResults(pipelineResult.chunks); // Show all if search is empty
+        } else {
+            const lowercasedTerm = searchTerm.toLowerCase();
+            const filtered = pipelineResult.chunks.filter(chunk => 
+                chunk.page_content.toLowerCase().includes(lowercasedTerm)
+            );
+            setDisplayedResults(filtered);
+        }
     };
     
-    const filteredResults = useMemo(() => {
-        if (!pipelineResult || !searchTerm) {
-            return pipelineResult?.chunks || [];
-        }
-        const lowercasedTerm = searchTerm.toLowerCase();
-        return pipelineResult.chunks.filter(chunk => 
-            chunk.page_content.toLowerCase().includes(lowercasedTerm)
-        );
-    }, [pipelineResult, searchTerm]);
+    // Proactively run engine when user starts typing for the first time
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newSearchTerm = e.target.value;
+        setSearchTerm(newSearchTerm);
 
+        // If engine hasn't run yet and user starts typing, trigger it in the background.
+        if (!pipelineResult && !isProcessing && newSearchTerm.length > 0) {
+            handleRunEngine();
+        }
+    };
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -97,7 +121,7 @@ export function KnowledgeBase() {
                             Knowledge Base
                         </h1>
                         <p className="text-muted-foreground mt-2">
-                            Search for articles, guides, and solutions. The knowledge base will be built on-the-fly.
+                           Engine will start when you type. Search for articles, guides, and solutions.
                         </p>
                     </div>
                 </header>
@@ -109,36 +133,38 @@ export function KnowledgeBase() {
                             type="search"
                             placeholder="Ask a question or search for a topic..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            onChange={handleInputChange}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearchTrigger()}
                             className="pl-10 h-12 text-base"
-                            disabled={isProcessing}
+                            disabled={isProcessing && !pipelineResult}
                         />
                     </div>
-                    <Button type="submit" onClick={handleSearch} disabled={isProcessing} className="h-12">
+                    <Button type="submit" onClick={handleSearchTrigger} disabled={isProcessing && !pipelineResult} className="h-12">
                         {isProcessing ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                         {isProcessing ? "Building..." : "Search"}
                     </Button>
                 </div>
 
                 <div className="mt-8">
-                    {isProcessing ? (
+                    {isProcessing && !pipelineResult ? (
                         <div className="space-y-4">
                            <Skeleton className="h-24 w-full" />
                            <Skeleton className="h-24 w-full" />
                            <Skeleton className="h-24 w-full" />
                         </div>
-                    ) : pipelineResult ? (
+                    ) : displayedResults !== null ? (
                          <Card>
                             <CardHeader>
-                                <CardTitle>Search Results ({filteredResults.length} / {pipelineResult.total_chunks})</CardTitle>
-                                <CardDescription>Showing processed data chunks. Results are filtered by your search term.</CardDescription>
+                                <CardTitle>Search Results ({displayedResults.length})</CardTitle>
+                                <CardDescription>
+                                    {searchTerm.trim() ? `Showing results for "${searchTerm}"` : "Showing all processed chunks."}
+                                </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                {filteredResults.length > 0 ? (
+                                {displayedResults.length > 0 ? (
                                     <ScrollArea className="h-[60vh] pr-4">
                                         <div className="space-y-4">
-                                            {filteredResults.map((chunk, index) => (
+                                            {displayedResults.map((chunk, index) => (
                                                 <Card key={chunk.metadata.chunk_id || index} className="bg-muted/50">
                                                     <CardHeader className='pb-2'>
                                                         <CardTitle className="text-base flex items-center gap-2">
@@ -171,7 +197,10 @@ export function KnowledgeBase() {
                             <BookOpen className="w-16 h-16 text-muted-foreground mb-4" />
                             <CardTitle>Ready to Search</CardTitle>
                             <CardDescription className="mt-2 mb-4 max-w-sm">
-                                Enter a query and click "Search" to build the knowledge base and find answers.
+                                {isProcessing 
+                                    ? "Engine is warming up in the background..." 
+                                    : "Enter a query and click \"Search\" to find answers."
+                                }
                             </CardDescription>
                         </Card>
                     )}
