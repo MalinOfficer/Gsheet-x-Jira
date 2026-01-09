@@ -19,7 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/
 const primaryNavItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/", label: "Import Data", icon: ListTree },
-    { href: "/db", label: "data ALL Case", icon: Database },
+    { href: "/db", label: "Data ALL Case", icon: Database },
     { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
     { href: "/report-harian", label: "Daily Report", icon: BarChart },
     { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
