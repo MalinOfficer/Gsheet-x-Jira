@@ -1,25 +1,42 @@
 
 "use client";
 
-import { useState, useContext, useTransition } from 'react';
-import { BookOpen, Search, FileCog, RefreshCw } from "lucide-react";
+import { useState, useContext, useTransition, useMemo } from 'react';
+import { BookOpen, Search, RefreshCw, Layers, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { runKnowledgeBaseEngine } from '@/app/actions';
 import { TableDataContext } from '@/store/table-data-context';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { ScrollArea } from './ui/scroll-area';
+import { Badge } from './ui/badge';
+import { Skeleton } from './ui/skeleton';
 
-// Component for the Knowledge Base page with search functionality
+type Chunk = {
+    page_content: string;
+    metadata: {
+        source: string;
+        headers: string[];
+        chunk_id: string;
+        processing_timestamp: string;
+    };
+};
+
+type PipelineResult = {
+    processedAt: string;
+    source_url: string;
+    total_chunks: number;
+    chunks: Chunk[];
+} | null;
+
+
 export function KnowledgeBase() {
     const { knowledgeBaseUrl } = useContext(TableDataContext);
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
     const [isProcessing, startProcessing] = useTransition();
-    // Placeholder for search results
-    const [results, setResults] = useState<any[]>([]);
+    const [pipelineResult, setPipelineResult] = useState<PipelineResult>(null);
 
     const handleSearch = () => {
         if (!searchTerm.trim()) return;
@@ -34,6 +51,7 @@ export function KnowledgeBase() {
         }
 
         startProcessing(async () => {
+            setPipelineResult(null); // Clear previous results
             toast({
                 title: 'Building Knowledge Base...',
                 description: 'Processing data before searching. This may take a moment.',
@@ -41,25 +59,12 @@ export function KnowledgeBase() {
 
             const buildResult = await runKnowledgeBaseEngine(knowledgeBaseUrl);
 
-            if (buildResult.success) {
+            if (buildResult.success && buildResult.data) {
                 toast({
                     title: 'Processing Complete',
-                    description: 'Knowledge Base is ready. Now searching for your query...',
+                    description: `Knowledge Base is ready with ${buildResult.data.total_chunks} chunks.`,
                 });
-                
-                // --- FUTURE SEARCH LOGIC ---
-                // Here you would take the `buildResult.data` and the `searchTerm` 
-                // to perform the actual search against the vectorized data.
-                // For now, we simulate the search part.
-                setIsLoading(true);
-                setTimeout(() => {
-                    setResults([]); // Resetting to show the placeholder message for now
-                    setIsLoading(false);
-                     toast({
-                        title: 'Search Completed',
-                        description: `(Simulation) Finished searching for: "${searchTerm}"`,
-                    });
-                }, 1000);
+                setPipelineResult(buildResult.data);
                 
             } else {
                 toast({
@@ -67,9 +72,20 @@ export function KnowledgeBase() {
                     title: 'Processing Failed',
                     description: buildResult.error,
                 });
+                setPipelineResult(null);
             }
         });
     };
+    
+    const filteredResults = useMemo(() => {
+        if (!pipelineResult || !searchTerm) {
+            return pipelineResult?.chunks || [];
+        }
+        const lowercasedTerm = searchTerm.toLowerCase();
+        return pipelineResult.chunks.filter(chunk => 
+            chunk.page_content.toLowerCase().includes(lowercasedTerm)
+        );
+    }, [pipelineResult, searchTerm]);
 
 
     return (
@@ -99,21 +115,66 @@ export function KnowledgeBase() {
                             disabled={isProcessing}
                         />
                     </div>
-                    <Button type="submit" onClick={handleSearch} disabled={isProcessing || isLoading} className="h-12">
+                    <Button type="submit" onClick={handleSearch} disabled={isProcessing} className="h-12">
                         {isProcessing ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-                        {isProcessing ? "Building..." : (isLoading ? "Searching..." : "Search")}
+                        {isProcessing ? "Building..." : "Search"}
                     </Button>
                 </div>
 
                 <div className="mt-8">
-                    {/* This is where search results would be displayed */}
-                    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[300px] bg-card">
-                        <BookOpen className="w-16 h-16 text-muted-foreground mb-4" />
-                        <CardTitle>Search Results</CardTitle>
-                        <CardDescription className="mt-2 mb-4 max-w-sm">
-                            The AI search engine is under construction. Search results will appear here once the engine is connected.
-                        </CardDescription>
-                    </Card>
+                    {isProcessing ? (
+                        <div className="space-y-4">
+                           <Skeleton className="h-24 w-full" />
+                           <Skeleton className="h-24 w-full" />
+                           <Skeleton className="h-24 w-full" />
+                        </div>
+                    ) : pipelineResult ? (
+                         <Card>
+                            <CardHeader>
+                                <CardTitle>Search Results ({filteredResults.length} / {pipelineResult.total_chunks})</CardTitle>
+                                <CardDescription>Showing processed data chunks. Results are filtered by your search term.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {filteredResults.length > 0 ? (
+                                    <ScrollArea className="h-[60vh] pr-4">
+                                        <div className="space-y-4">
+                                            {filteredResults.map((chunk, index) => (
+                                                <Card key={chunk.metadata.chunk_id || index} className="bg-muted/50">
+                                                    <CardHeader className='pb-2'>
+                                                        <CardTitle className="text-base flex items-center gap-2">
+                                                            <Layers className="h-4 w-4 text-primary" />
+                                                            Source: {chunk.metadata.source}
+                                                        </CardTitle>
+                                                    </CardHeader>
+                                                    <CardContent>
+                                                        <p className="text-sm text-foreground/80 mb-3">{chunk.page_content}</p>
+                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                            <FileText className="h-3 w-3" />
+                                                            <span>Chunk ID: {chunk.metadata.chunk_id}</span>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center text-center p-8 min-h-[300px]">
+                                        <Search className="w-16 h-16 text-muted-foreground mb-4" />
+                                        <h3 className="font-semibold text-lg">No Results Found</h3>
+                                        <p className="text-muted-foreground mt-1">Your search for "{searchTerm}" did not match any content.</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[300px] bg-card">
+                            <BookOpen className="w-16 h-16 text-muted-foreground mb-4" />
+                            <CardTitle>Ready to Search</CardTitle>
+                            <CardDescription className="mt-2 mb-4 max-w-sm">
+                                Enter a query and click "Search" to build the knowledge base and find answers.
+                            </CardDescription>
+                        </Card>
+                    )}
                 </div>
             </div>
         </div>
