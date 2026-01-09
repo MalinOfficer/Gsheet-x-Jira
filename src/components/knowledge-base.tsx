@@ -56,7 +56,7 @@ export function KnowledgeBase() {
             
             toast({
                 title: 'Building Knowledge Base in background...',
-                description: 'Processing data. You can start typing your query.',
+                description: 'Processing data from the source. You can start typing your query.',
             });
 
             const buildResult = await runKnowledgeBaseEngine(knowledgeBaseUrl);
@@ -64,7 +64,7 @@ export function KnowledgeBase() {
             if (buildResult.success && buildResult.data) {
                 toast({
                     title: 'Knowledge Base Ready',
-                    description: `Processing complete with ${buildResult.data.total_chunks} chunks. You can now search.`,
+                    description: `Processing complete. The knowledge base is now ready to be searched.`,
                 });
                 setPipelineResult(buildResult.data);
             } else {
@@ -119,7 +119,7 @@ export function KnowledgeBase() {
                             Knowledge Base
                         </h1>
                         <p className="text-muted-foreground mt-2">
-                           Engine will start when you type. Search for articles, guides, and solutions.
+                           The engine starts automatically when you type. Search for articles, guides, and solutions.
                         </p>
                     </div>
                 </header>
@@ -155,7 +155,7 @@ export function KnowledgeBase() {
                             <CardHeader>
                                 <CardTitle>Search Results ({displayedResults.length})</CardTitle>
                                 <CardDescription>
-                                    {searchTerm.trim() ? `Showing results for "${searchTerm}"` : "Showing all processed chunks."}
+                                    {searchTerm.trim() ? `Showing results for "${searchTerm}"` : "Showing all processed documents."}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -174,7 +174,7 @@ export function KnowledgeBase() {
                                                         <p className="text-sm text-foreground/80 mb-3">{chunk.page_content}</p>
                                                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                             <FileText className="h-3 w-3" />
-                                                            <span>Chunk ID: {chunk.metadata.chunk_id}</span>
+                                                            <span>Reference ID: {chunk.metadata.chunk_id}</span>
                                                         </div>
                                                     </CardContent>
                                                 </Card>

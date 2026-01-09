@@ -1366,7 +1366,7 @@ export async function runKnowledgeBaseEngine(knowledgeBaseUrl: string) {
         // For now, we will return the final payload. In a real scenario,
         // you would send this to Supabase Vector DB.
         console.log("KNOWLEDGE BASE ENGINE PIPELINE FINISHED SUCCESSFULLY.");
-        return { success: true, message: `Successfully processed knowledge base. ${finalPayload.total_chunks} chunks are ready for deployment.`, data: finalPayload };
+        return { success: true, message: `Successfully processed knowledge base. ${finalPayload.total_chunks} documents are ready for search.`, data: finalPayload };
 
     } catch (error: any) {
         console.error("Knowledge Base Engine pipeline failed:", error);
