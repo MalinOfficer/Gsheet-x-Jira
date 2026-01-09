@@ -1,16 +1,23 @@
 
 "use client";
 
-import { useState } from 'react';
-import { BookOpen, Search } from "lucide-react";
+import { useState, useContext, useTransition } from 'react';
+import { BookOpen, Search, FileCog, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { runKnowledgeBaseEngine } from '@/app/actions';
+import { TableDataContext } from '@/store/table-data-context';
+import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 // Component for the Knowledge Base page with search functionality
 export function KnowledgeBase() {
+    const { knowledgeBaseUrl } = useContext(TableDataContext);
+    const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isProcessing, startProcessing] = useTransition();
     // Placeholder for search results
     const [results, setResults] = useState<any[]>([]);
 
@@ -25,16 +32,59 @@ export function KnowledgeBase() {
         }, 1000);
     };
 
+    const handleRunEngine = () => {
+        if (!knowledgeBaseUrl) {
+            toast({
+                variant: 'destructive',
+                title: 'URL Not Configured',
+                description: 'Please set the Knowledge Base URL in the Settings page first.',
+            });
+            return;
+        }
+
+        startProcessing(async () => {
+            toast({
+                title: 'Knowledge Base Engine Started',
+                description: 'Processing data in the background. This may take a few moments.',
+            });
+
+            const result = await runKnowledgeBaseEngine(knowledgeBaseUrl);
+
+            if (result.success) {
+                toast({
+                    title: 'Processing Complete',
+                    description: result.message,
+                });
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Processing Failed',
+                    description: result.error,
+                });
+            }
+        });
+    };
+
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-4xl mx-auto space-y-8">
-                <header className="text-center">
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">
-                        Knowledge Base
-                    </h1>
-                    <p className="text-muted-foreground mt-2">
-                        Search for articles, guides, and solutions.
-                    </p>
+                <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="text-center sm:text-left">
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">
+                            Knowledge Base
+                        </h1>
+                        <p className="text-muted-foreground mt-2">
+                            Search for articles, guides, and solutions, or build the AI knowledge index.
+                        </p>
+                    </div>
+                     <Button onClick={handleRunEngine} disabled={isProcessing}>
+                        {isProcessing ? (
+                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <FileCog className="mr-2 h-4 w-4" />
+                        )}
+                        {isProcessing ? 'Processing...' : 'Build Knowledge Base'}
+                    </Button>
                 </header>
 
                 <div className="flex w-full items-center space-x-2">

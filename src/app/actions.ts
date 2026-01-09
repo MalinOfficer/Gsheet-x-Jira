@@ -36,6 +36,7 @@ const projectFilesForAction = [
   "src/app/migrasi-produk/page.tsx",
   "src/app/dashboard/page.tsx",
   "src/app/db/page.tsx",
+  "src/app/knowledge-base/page.tsx",
 
   // Komponen Utama (logika untuk setiap halaman)
   "src/components/import-flow.tsx",
@@ -47,6 +48,7 @@ const projectFilesForAction = [
   "src/components/migrasi-produk.tsx",
   "src/components/dashboard.tsx",
   "src/components/db-viewer.tsx",
+  "src/components/knowledge-base.tsx",
 
 
   // Aksi & Logika Server
@@ -205,76 +207,73 @@ export async function fetchSheetData(url: string) {
     return getSheetData(url);
 }
 
-const getGoogleSheetsClient = () => {
+const getGoogleApiClients = () => {
     let credentials;
-    // Vercel/Production environment: Read from environment variable
     if (process.env.GCP_CREDENTIALS) {
         try {
             credentials = JSON.parse(process.env.GCP_CREDENTIALS);
         } catch (error) {
-            console.error('Error parsing GCP_CREDENTIALS from environment variable:', error);
-            throw new Error('Could not parse Google Cloud credentials from environment variable.');
+            console.error('Error parsing GCP_CREDENTIALS:', error);
+            throw new Error('Could not parse Google Cloud credentials.');
         }
-    } 
-    // Local development environment: Read from file
-    else {
+    } else {
         try {
             const filePath = path.join(process.cwd(), 'src', 'lib', 'gcp-credentials.json');
             const fileContent = fs.readFileSync(filePath, 'utf-8');
             credentials = JSON.parse(fileContent);
         } catch (error) {
             console.error('Error reading or parsing credentials file:', error);
-            throw new Error('Could not load Google Cloud credentials. Make sure src/lib/gcp-credentials.json exists for local development.');
+            throw new Error('Could not load Google Cloud credentials.');
         }
     }
     
-    const clientEmail = credentials.client_email;
-    const privateKey = credentials.private_key;
-
-    if (!clientEmail || !privateKey) {
-        throw new Error('Google Cloud credentials are not configured correctly.');
-    }
-
     const auth = new google.auth.GoogleAuth({
         credentials: {
-            client_email: clientEmail,
-            private_key: privateKey.replace(/\\n/g, '\n'),
+            client_email: credentials.client_email,
+            private_key: credentials.private_key.replace(/\\n/g, '\n'),
         },
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        scopes: [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive.readonly' 
+        ],
     });
 
-    return google.sheets({ version: 'v4', auth });
+    const sheets = google.sheets({ version: 'v4', auth });
+    const drive = google.drive({ version: 'v3', auth });
+
+    return { sheets, drive };
 }
 
-export async function getSpreadsheetTitle(sheetUrl: string) {
-    if (!sheetUrl) {
-        return { error: "URL is empty. Please provide a Google Sheet URL." };
+export async function getGoogleDriveFileTitle(fileUrl: string) {
+    if (!fileUrl) {
+        return { error: "URL is empty. Please provide a Google Drive URL." };
     }
 
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
-    const match = sheetUrl.match(sheetIdRegex);
+    const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|folders\/)([a-zA-Z0-9-_]+)/;
+    const match = fileUrl.match(idRegex);
+
     if (!match || !match[1]) {
-        return { error: 'Invalid Google Sheets URL format.' };
+        return { error: 'Invalid Google Drive URL format.' };
     }
-    const spreadsheetId = match[1];
+    const fileId = match[1];
 
     try {
-        const sheets = getGoogleSheetsClient();
-        const response = await sheets.spreadsheets.get({
-            spreadsheetId,
-            fields: 'properties.title',
+        const { drive } = getGoogleApiClients();
+        const response = await drive.files.get({
+            fileId: fileId,
+            fields: 'name',
         });
 
-        const title = response.data.properties?.title;
+        const title = response.data.name;
 
         if (!title) {
-            return { error: "Could not retrieve the spreadsheet title." };
+            return { error: "Could not retrieve the file/folder title." };
         }
 
         return { success: true, title };
     } catch (error: any) {
-        console.error('Failed to get spreadsheet title:', error.message);
-        const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred while analyzing the sheet.';
+        console.error('Failed to get Google Drive file title:', error.message);
+        const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred while analyzing the URL.';
         return { error: `Analysis Failed: ${apiError}` };
     }
 }
@@ -381,7 +380,7 @@ export async function getUpdatePreview(
     const sheetName = 'All Case';
 
     try {
-        const sheets = getGoogleSheetsClient();
+        const { sheets } = getGoogleApiClients();
         const rowMap = await getSheetRowMap(sheets, spreadsheetId, sheetName);
         
         const changesToPreview: { 
@@ -458,7 +457,7 @@ export async function updateSheetStatus(
     const sheetName = 'All Case';
 
     try {
-        const sheets = getGoogleSheetsClient();
+        const { sheets } = getGoogleApiClients();
         const rowMap = await getSheetRowMap(sheets, spreadsheetId, sheetName);
 
         const updateRequests = [];
@@ -575,7 +574,7 @@ export async function importToSheet(
     const sheetName = 'All Case';
 
     try {
-        const sheets = getGoogleSheetsClient();
+        const { sheets } = getGoogleApiClients();
 
         // 1. Get sheet properties for sheetId and rowCount
         const sheetProperties = await getSheetProperties(sheets, spreadsheetId, sheetName);
@@ -779,7 +778,7 @@ export async function undoLastAction(
     const sheetName = 'All Case';
 
     try {
-        const sheets = getGoogleSheetsClient();
+        const { sheets } = getGoogleApiClients();
 
         if (undoData.operationType === 'IMPORT') {
             if (typeof undoData.sheetId !== 'number') {
@@ -970,8 +969,6 @@ export async function mergeFilesOnServer(
     };
 }
 
-
-// New function to fetch and format L3 report data
 export async function fetchL3ReportData(sheetUrl: string) {
     if (!sheetUrl) {
         return { error: "URL is empty. Please provide a Google Sheet URL." };
@@ -982,84 +979,85 @@ export async function fetchL3ReportData(sheetUrl: string) {
         return { error: 'Invalid Google Sheets URL format.' };
     }
     const spreadsheetId = match[1];
-    const sheetName = 'All Case';
 
     try {
-        const sheets = getGoogleSheetsClient();
-        
-        // 1. First pass: Get only the STATUS column (G) from the second row downwards
-        const statusResponse = await sheets.spreadsheets.values.get({
+        const { sheets } = getGoogleApiClients();
+
+        // More efficient: request multiple specific columns in one batchGet call
+        const ranges = [
+            'All Case!B:B', // DATE
+            'All Case!E:E', // CLIENT NAME
+            'All Case!G:G', // STATUS CASE
+            'All Case!J:J', // MODULE
+            'All Case!M:M', // DETAIL CASE
+            'All Case!T:T', // TICKET OP
+            'All Case!W:W', // URL Jira
+        ];
+
+        const response = await sheets.spreadsheets.values.batchGet({
             spreadsheetId,
-            range: `${sheetName}!G2:G`,
+            ranges,
         });
 
-        const statusRows = statusResponse.data.values;
-        if (!statusRows || statusRows.length === 0) {
-            return { error: 'No data found in the status column.' };
+        const valueRanges = response.data.valueRanges;
+        if (!valueRanges || valueRanges.length === 0) {
+            return { error: 'No data found in the specified columns.' };
         }
 
-        const l3RowNumbers: number[] = [];
-        statusRows.forEach((row, index) => {
-            // Check if the first cell of the row is 'L3'
-            if (row[0] === 'L3') {
-                // Add 2 to the index because our range starts from G2 and indices are 0-based
-                l3RowNumbers.push(index + 2);
-            }
-        });
-
-        if (l3RowNumbers.length === 0) {
-            return { success: true, report: `*Update cases yang belum solved L3 on hold*\n\nTotal : 0` };
-        }
+        const [
+            dateValues, clientValues, statusValues, 
+            moduleValues, titleValues, ticketOpValues, jiraValues
+        ] = valueRanges.map(vr => vr.values || []);
         
-        // 2. Second pass: Get the full data only for the identified L3 rows
-        const l3DataRanges = l3RowNumbers.map(rowNum => `${sheetName}!B${rowNum}:W${rowNum}`);
-        const fullDataResponse = await sheets.spreadsheets.values.batchGet({
-            spreadsheetId,
-            ranges: l3DataRanges,
-        });
+        const numRows = statusValues.length;
+        const l3CasesWithDuration = [];
+        const today = new Date();
 
-        const l3Rows = fullDataResponse.data.valueRanges?.map(vr => vr.values?.[0] || []) || [];
-
-        const l3CasesWithDuration = l3Rows.map(row => {
-            const today = new Date();
-            // Indexes are now relative to the range B:W (0 to 21)
-            const dateStr = row[0]; // B
-            let duration = -1;
-            if (dateStr) {
-                const parts = dateStr.split('/');
-                if (parts.length === 3) {
-                    const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`); // DD/MM/YYYY
-                    if (!isNaN(caseDate.getTime())) {
-                         const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                         const caseDateAtMidnight = new Date(caseDate.getFullYear(), caseDate.getMonth(), today.getDate());
-                         const diffTime = Math.abs(todayAtMidnight.getTime() - caseDateAtMidnight.getTime());
-                         duration = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        for (let i = 1; i < numRows; i++) { // Start from 1 to skip header
+            const status = statusValues[i]?.[0];
+            if (status === 'L3') {
+                const dateStr = dateValues[i]?.[0];
+                let duration = -1;
+                if (dateStr) {
+                    const parts = dateStr.split('/');
+                    if (parts.length === 3) {
+                        const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`); // DD/MM/YYYY
+                        if (!isNaN(caseDate.getTime())) {
+                            const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                            const caseDateAtMidnight = new Date(caseDate.getFullYear(), caseDate.getMonth(), caseDate.getDate());
+                            const diffTime = Math.abs(todayAtMidnight.getTime() - caseDateAtMidnight.getTime());
+                            duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        }
                     }
                 }
+
+                const clientName = clientValues[i]?.[0] || '';
+                const moduleValue = moduleValues[i]?.[0] || '';
+                const title = titleValues[i]?.[0] || '';
+                const ticketOp = ticketOpValues[i]?.[0] || '';
+                const jiraUrl = jiraValues[i]?.[0] || '';
+                
+                let category = 'Akademik';
+                if (['Payment', 'Pintro Pay'].includes(moduleValue)) category = 'Payment';
+                else if (moduleValue === 'Aplikasi/Mobile') category = 'Aplikasi/Mobile';
+                else if (moduleValue === 'Akses Portal') category = 'Akses Portal';
+                
+                const fullTitle = [clientName, title, ticketOp, jiraUrl].filter(Boolean).join(' ');
+
+                l3CasesWithDuration.push({ category, title: fullTitle, duration, date: dateStr });
             }
+        }
 
-            const clientName = row[3] || '';  // E
-            const moduleValue = row[8] || ''; // J
-            const title = row[11] || '';      // M
-            const ticketOp = row[18] || '';    // T
-            const jiraUrl = row[21] || '';    // W
-
-            let category = 'Akademik';
-            if (['Payment', 'Pintro Pay'].includes(moduleValue)) category = 'Payment';
-            else if (moduleValue === 'Aplikasi/Mobile') category = 'Aplikasi/Mobile';
-            else if (moduleValue === 'Akses Portal') category = 'Akses Portal';
-            
-            const fullTitle = [clientName, title, ticketOp, jiraUrl].filter(Boolean).join(' ');
-
-            return { category, title: fullTitle, duration, date: dateStr };
-        });
+        if (l3CasesWithDuration.length === 0) {
+            return { success: true, report: `*Update cases yang belum solved L3 on hold*\n\nTotal : 0` };
+        }
 
         const groupedCases: Record<string, typeof l3CasesWithDuration> = {};
         l3CasesWithDuration.forEach(caseItem => {
             if (!groupedCases[caseItem.category]) groupedCases[caseItem.category] = [];
             groupedCases[caseItem.category].push(caseItem);
         });
-
+        
         const minDate = l3CasesWithDuration.reduce((min, item) => {
             if (!item.date) return min;
             const parts = item.date.split('/');
@@ -1083,9 +1081,9 @@ export async function fetchL3ReportData(sheetUrl: string) {
             const year = date.getFullYear();
             return `${day}/${month}/${year}`;
         }
-
+        
         let reportText = `*Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})*\n\n`;
-        reportText += `Total : ${l3Rows.length}\n`;
+        reportText += `Total : ${l3CasesWithDuration.length}\n`;
         
         const categoryCounts = Object.entries(groupedCases).map(([category, cases]) => `${category} > L3 : ${cases.length}`).join('\n');
         reportText += `${categoryCounts}\n\n`;
@@ -1107,6 +1105,7 @@ export async function fetchL3ReportData(sheetUrl: string) {
         return { error: `Report Generation Failed: ${apiError}` };
     }
 }
+
 
 const isRedisConfigured = () => {
     return !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -1149,7 +1148,7 @@ async function fetchDashboardDataFromSheet(sheetUrl: string, sheetName: 'Summary
     }
     const spreadsheetId = match[1];
 
-    const sheets = getGoogleSheetsClient();
+    const { sheets } = getGoogleApiClients();
 
     const tryFetch = async (name: string) => {
         // Sheet names with spaces or special characters need to be quoted.
@@ -1261,6 +1260,118 @@ export async function getAllCaseData(sheetUrl: string) {
     }
 
     return { ...result, source: 'sheet' };
+}
+
+// ---- AI KNOWLEDGE BASE ENGINE ----
+
+async function fetchRawKnowledgeData(sheetUrl: string) {
+    const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|folders\/)([a-zA-Z0-9-_]+)/;
+    const match = sheetUrl.match(idRegex);
+    if (!match || !match[1]) {
+        throw new Error("Invalid Google Drive URL format for Knowledge Base.");
+    }
+    const spreadsheetId = match[1];
+
+    try {
+        const { sheets } = getGoogleApiClients();
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'A:Z', // Ambil semua data dari sheet pertama
+        });
+
+        const rows = response.data.values;
+        if (!rows || rows.length === 0) {
+            throw new Error("Knowledge Base sheet is empty.");
+        }
+        return rows;
+    } catch (error: any) {
+        console.error("Error fetching from KB sheet:", error.message);
+        throw new Error(`Failed to fetch data from Knowledge Base sheet. ${error.message}`);
+    }
+}
+
+export async function runKnowledgeBaseEngine(knowledgeBaseUrl: string) {
+    try {
+        // Step 1: Data Validation & Cleaning
+        console.log("KB Engine - Step 1: Fetching and validating data...");
+        const rawData = await fetchRawKnowledgeData(knowledgeBaseUrl);
+        const headers = rawData.shift() || [];
+        if (headers.length === 0) {
+            return { success: false, error: "Knowledge Base sheet is missing a header row." };
+        }
+        // Data cleaning: filter out empty rows
+        const cleanedData = rawData.filter(row => row.some(cell => cell.trim() !== ''));
+        console.log(`KB Engine - Step 1: Completed. Found ${cleanedData.length} valid rows.`);
+
+        // Step 2: Content Structuring & Chunking
+        console.log("KB Engine - Step 2: Structuring content into chunks...");
+        const chunkSize = 500; // Ukuran chunk dalam karakter
+        const overlap = 100;   // Tumpang tindih antar chunk
+        const chunks: { content: string, metadata: Record<string, any> }[] = [];
+        
+        cleanedData.forEach((row, rowIndex) => {
+            const contentString = row.join('. '); // Gabungkan semua sel dalam satu baris
+            if (contentString.length < chunkSize) {
+                chunks.push({
+                    content: contentString,
+                    metadata: { source: `Row ${rowIndex + 2}`, headers },
+                });
+            } else {
+                for (let i = 0; i < contentString.length; i += (chunkSize - overlap)) {
+                    const chunkContent = contentString.substring(i, i + chunkSize);
+                    chunks.push({
+                        content: chunkContent,
+                        metadata: { source: `Row ${rowIndex + 2}, Part ${Math.floor(i / (chunkSize - overlap)) + 1}`, headers },
+                    });
+                }
+            }
+        });
+        console.log(`KB Engine - Step 2: Completed. Created ${chunks.length} chunks.`);
+
+        // Step 3: Semantic Enhancement & Metadata Enrichment
+        console.log("KB Engine - Step 3: Enhancing chunks with metadata...");
+        const enhancedChunks = chunks.map((chunk, index) => {
+            return {
+                ...chunk,
+                metadata: {
+                    ...chunk.metadata,
+                    chunk_id: `chunk_${index}`,
+                    processing_timestamp: new Date().toISOString(),
+                }
+            };
+        });
+        console.log("KB Engine - Step 3: Completed.");
+
+        // Step 4: Quality Assurance & Validation
+        console.log("KB Engine - Step 4: Performing quality assurance...");
+        const validatedChunks = enhancedChunks.filter(chunk => chunk.content.trim().length > 10);
+        const discardedCount = enhancedChunks.length - validatedChunks.length;
+        console.log(`KB Engine - Step 4: Completed. Discarded ${discardedCount} low-quality chunks.`);
+
+        // Step 5: Final Preparation & Deployment Ready
+        console.log("KB Engine - Step 5: Preparing final data for deployment...");
+        const finalPayload = {
+            processedAt: new Date().toISOString(),
+            source_url: knowledgeBaseUrl,
+            total_chunks: validatedChunks.length,
+            chunks: validatedChunks.map(chunk => ({
+                page_content: chunk.content,
+                metadata: chunk.metadata,
+                // Di sini Anda akan membuat vektor/embedding, tapi untuk sekarang kita siapkan strukturnya
+                // embedding: await createEmbedding(chunk.content), 
+            }))
+        };
+        console.log("KB Engine - Step 5: Completed. Payload is ready.");
+
+        // For now, we will return the final payload. In a real scenario,
+        // you would send this to Supabase Vector DB.
+        console.log("KNOWLEDGE BASE ENGINE PIPELINE FINISHED SUCCESSFULLY.");
+        return { success: true, message: `Successfully processed knowledge base. ${finalPayload.total_chunks} chunks are ready for deployment.`, data: finalPayload };
+
+    } catch (error: any) {
+        console.error("Knowledge Base Engine pipeline failed:", error);
+        return { success: false, error: error.message };
+    }
 }
     
 
