@@ -6,6 +6,7 @@ import { google } from 'googleapis';
 import fs from 'fs';
 import path from 'path';
 import { redis } from '@/lib/redis';
+import { knowledgeBaseFlow } from '@/ai/flows/knowledge-base-flow';
 
 const CACHE_KEY = 'dashboard_data_cache';
 const CACHE_KEY_ALL_CASE = 'all_case_data_cache';
@@ -71,6 +72,7 @@ const projectFilesForAction = [
   // File terkait AI
   "src/ai/genkit.ts",
   "src/ai/dev.ts",
+  "src/ai/flows/knowledge-base-flow.ts",
 
   // Komponen UI (ShadCN)
   "src/components/ui/accordion.tsx",
@@ -1264,7 +1266,7 @@ export async function getAllCaseData(sheetUrl: string) {
 
 // ---- AI KNOWLEDGE BASE ENGINE ----
 
-async function fetchRawKnowledgeData(sheetUrl: string) {
+async function fetchRawKnowledgeData(sheetUrl: string): Promise<string[][]> {
     const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|folders\/)([a-zA-Z0-9-_]+)/;
     const match = sheetUrl.match(idRegex);
     if (!match || !match[1]) {
@@ -1283,14 +1285,17 @@ async function fetchRawKnowledgeData(sheetUrl: string) {
         if (!rows || rows.length === 0) {
             throw new Error("Knowledge Base sheet is empty.");
         }
-        return rows;
+        return rows as string[][];
     } catch (error: any) {
         console.error("Error fetching from KB sheet:", error.message);
         throw new Error(`Failed to fetch data from Knowledge Base sheet. ${error.message}`);
     }
 }
 
-export async function runKnowledgeBaseEngine(knowledgeBaseUrl: string) {
+export async function runKnowledgeBaseEngine(
+    knowledgeBaseUrl: string,
+    query: string
+) {
     try {
         // Step 1: Data Validation & Cleaning
         console.log("KB Engine - Step 1: Fetching and validating data...");
@@ -1299,74 +1304,23 @@ export async function runKnowledgeBaseEngine(knowledgeBaseUrl: string) {
         if (headers.length === 0) {
             return { success: false, error: "Knowledge Base sheet is missing a header row." };
         }
-        // Data cleaning: filter out empty rows
-        const cleanedData = rawData.filter(row => row.some(cell => cell.trim() !== ''));
+        const cleanedData = rawData.filter(row => row.some(cell => typeof cell === 'string' && cell.trim() !== ''));
         console.log(`KB Engine - Step 1: Completed. Found ${cleanedData.length} valid rows.`);
 
         // Step 2: Content Structuring & Chunking
         console.log("KB Engine - Step 2: Structuring content into chunks...");
-        const chunkSize = 500; // Ukuran chunk dalam karakter
-        const overlap = 100;   // Tumpang tindih antar chunk
-        const chunks: { content: string, metadata: Record<string, any> }[] = [];
-        
-        cleanedData.forEach((row, rowIndex) => {
-            const contentString = row.join('. '); // Gabungkan semua sel dalam satu baris
-            if (contentString.length < chunkSize) {
-                chunks.push({
-                    content: contentString,
-                    metadata: { source: `Row ${rowIndex + 2}`, headers },
-                });
-            } else {
-                for (let i = 0; i < contentString.length; i += (chunkSize - overlap)) {
-                    const chunkContent = contentString.substring(i, i + chunkSize);
-                    chunks.push({
-                        content: chunkContent,
-                        metadata: { source: `Row ${rowIndex + 2}, Part ${Math.floor(i / (chunkSize - overlap)) + 1}`, headers },
-                    });
-                }
-            }
-        });
-        console.log(`KB Engine - Step 2: Completed. Created ${chunks.length} chunks.`);
+        // Combine all rows into a single string for the context. This is a simple approach.
+        // For very large datasets, a more sophisticated chunking and retrieval strategy would be needed.
+        const context = cleanedData.map(row => headers.map((h, i) => `${h}: ${row[i] || 'N/A'}`).join(', ')).join('\n');
+        console.log("KB Engine - Step 2: Completed. Context is ready.");
 
-        // Step 3: Semantic Enhancement & Metadata Enrichment
-        console.log("KB Engine - Step 3: Enhancing chunks with metadata...");
-        const enhancedChunks = chunks.map((chunk, index) => {
-            return {
-                ...chunk,
-                metadata: {
-                    ...chunk.metadata,
-                    chunk_id: `chunk_${index}`,
-                    processing_timestamp: new Date().toISOString(),
-                }
-            };
-        });
-        console.log("KB Engine - Step 3: Completed.");
+        // Step 3-5 are now handled by the Genkit Flow
+        console.log("KB Engine - Step 3: Passing to AI for analysis...");
+        const response = await knowledgeBaseFlow({ query, context });
+        console.log("KB Engine - Step 4: AI analysis complete.");
 
-        // Step 4: Quality Assurance & Validation
-        console.log("KB Engine - Step 4: Performing quality assurance...");
-        const validatedChunks = enhancedChunks.filter(chunk => chunk.content.trim().length > 10);
-        const discardedCount = enhancedChunks.length - validatedChunks.length;
-        console.log(`KB Engine - Step 4: Completed. Discarded ${discardedCount} low-quality chunks.`);
-
-        // Step 5: Final Preparation & Deployment Ready
-        console.log("KB Engine - Step 5: Preparing final data for deployment...");
-        const finalPayload = {
-            processedAt: new Date().toISOString(),
-            source_url: knowledgeBaseUrl,
-            total_chunks: validatedChunks.length,
-            chunks: validatedChunks.map(chunk => ({
-                page_content: chunk.content,
-                metadata: chunk.metadata,
-                // Di sini Anda akan membuat vektor/embedding, tapi untuk sekarang kita siapkan strukturnya
-                // embedding: await createEmbedding(chunk.content), 
-            }))
-        };
-        console.log("KB Engine - Step 5: Completed. Payload is ready.");
-
-        // For now, we will return the final payload. In a real scenario,
-        // you would send this to Supabase Vector DB.
         console.log("KNOWLEDGE BASE ENGINE PIPELINE FINISHED SUCCESSFULLY.");
-        return { success: true, message: `Successfully processed knowledge base. ${finalPayload.total_chunks} documents are ready for search.`, data: finalPayload };
+        return { success: true, message: "Successfully generated an answer.", data: { answer: response.answer } };
 
     } catch (error: any) {
         console.error("Knowledge Base Engine pipeline failed:", error);
