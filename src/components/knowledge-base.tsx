@@ -53,12 +53,10 @@ export function KnowledgeBase() {
         }
         
         startProcessing(async () => {
-            setPipelineResult(null); // Clear previous results
-            setDisplayedResults(null);
             
             toast({
-                title: 'Building Knowledge Base...',
-                description: 'Processing data in the background. You can start typing your query.',
+                title: 'Building Knowledge Base in background...',
+                description: 'Processing data. You can start typing your query.',
             });
 
             const buildResult = await runKnowledgeBaseEngine(knowledgeBaseUrl);
@@ -66,7 +64,7 @@ export function KnowledgeBase() {
             if (buildResult.success && buildResult.data) {
                 toast({
                     title: 'Knowledge Base Ready',
-                    description: `Processing complete with ${buildResult.data.total_chunks} chunks.`,
+                    description: `Processing complete with ${buildResult.data.total_chunks} chunks. You can now search.`,
                 });
                 setPipelineResult(buildResult.data);
             } else {
@@ -140,8 +138,8 @@ export function KnowledgeBase() {
                         />
                     </div>
                     <Button type="submit" onClick={handleSearchTrigger} disabled={isProcessing && !pipelineResult} className="h-12">
-                        {isProcessing ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-                        {isProcessing ? "Building..." : "Search"}
+                        {isProcessing && !pipelineResult ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                        {isProcessing && !pipelineResult ? "Building..." : "Search"}
                     </Button>
                 </div>
 
