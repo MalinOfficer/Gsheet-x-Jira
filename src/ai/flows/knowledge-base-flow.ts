@@ -33,12 +33,11 @@ async function machonAI(input: KnowledgeBaseInput): Promise<KnowledgeBaseOutput>
   const { query, context } = input;
 
   // Simple keyword extraction from the query.
-  // This is a basic approach; a real implementation would use more advanced NLP.
   const keywords = query
     .toLowerCase()
     .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special characters
     .split(/\s+/)
-    .filter(word => word.length > 2 && !['berapa', 'apa', 'yang', 'dan', 'atau', 'the', 'is', 'a'].includes(word)); // Filter out common stop words
+    .filter(word => word.length > 2 && !['cek', 'berapa', 'apa', 'yang', 'dan', 'atau', 'the', 'is', 'a'].includes(word)); // Filter out common stop words
 
   if (keywords.length === 0) {
     return {
@@ -46,35 +45,40 @@ async function machonAI(input: KnowledgeBaseInput): Promise<KnowledgeBaseOutput>
     };
   }
 
-  // Count occurrences of each keyword in the context.
-  const lowerCaseContext = context.toLowerCase();
-  let totalMatches = 0;
-  
-  const matchesPerKeyword: Record<string, number> = {};
+  // Split context into individual cases (lines)
+  const allCases = context.split('\n').filter(line => line.trim() !== '');
+  const lowerCaseKeywords = keywords.map(k => k.toLowerCase());
 
-  keywords.forEach(keyword => {
-    const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
-    const matches = (lowerCaseContext.match(regex) || []).length;
-    if (matches > 0) {
-        totalMatches += matches;
-        matchesPerKeyword[keyword] = matches;
-    }
+  const matchingCases = allCases.filter(caseText => {
+      const lowerCaseText = caseText.toLowerCase();
+      // Check if the case text includes ALL keywords from the query
+      return lowerCaseKeywords.every(keyword => lowerCaseText.includes(keyword));
   });
 
-
   // Generate a response based on the findings.
-  if (totalMatches === 0) {
+  if (matchingCases.length === 0) {
     return {
-      answer: `Maaf, saya tidak dapat menemukan informasi yang cocok dengan kata kunci "${keywords.join(", ")}" di dalam data yang tersedia.`
+      answer: `Maaf, saya tidak dapat menemukan kasus yang cocok dengan kriteria "${keywords.join(", ")}" di dalam data yang tersedia.`
     };
   }
   
-  let answer = `Berdasarkan analisis data, saya menemukan ${totalMatches} kemunculan yang relevan dengan pertanyaan Anda.\n\nBerikut adalah rinciannya:\n`;
-  for (const [keyword, count] of Object.entries(matchesPerKeyword)) {
-      answer += `- Kata kunci "${keyword}" ditemukan sebanyak ${count} kali.\n`;
+  // Try to find a "Title" or "Detail Case" to make the summary more readable
+  const getCaseTitle = (caseText: string) => {
+    const titleMatch = caseText.match(/Title: (.*?)(,|$)/i) || caseText.match(/Detail Case: (.*?)(,|$)/i);
+    if (titleMatch && titleMatch[1]) {
+        return titleMatch[1].trim();
+    }
+    // Fallback to the first 50 characters
+    return caseText.length > 50 ? caseText.substring(0, 50) + '...' : caseText;
   }
+
+  let answer = `Berdasarkan analisis data, saya menemukan **${matchingCases.length} kasus** yang relevan dengan pertanyaan Anda tentang *"${keywords.join(", ")}"*.\n\nBerikut adalah rinciannya:\n`;
   
-  answer += "\nIni adalah analisis sederhana berdasarkan pencocokan kata. Untuk analisis yang lebih mendalam, sistem ini dapat dikembangkan lebih lanjut.";
+  matchingCases.forEach((caseText, index) => {
+      answer += `${index + 1}. ${getCaseTitle(caseText)}\n`;
+  });
+  
+  answer += "\nIni adalah analisis sederhana berdasarkan pencocokan kata kunci dalam setiap kasus.";
 
   return { answer };
 }
