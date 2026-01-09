@@ -32,12 +32,17 @@ export default function SettingsPage() {
       setSheetUrl: setContextSheetUrl,
       dbSheetUrl: contextDbSheetUrl,
       setDbSheetUrl: setContextDbSheetUrl,
+      knowledgeBaseUrl: contextKnowledgeBaseUrl,
+      setKnowledgeBaseUrl: setContextKnowledgeBaseUrl,
       // Main URL states
       verifiedUrl, setVerifiedUrl,
       spreadsheetTitle, setSpreadsheetTitle,
       // DB URL states
       verifiedDbUrl, setVerifiedDbUrl,
       dbSpreadsheetTitle, setDbSpreadsheetTitle,
+      // KB URL states
+      verifiedKbUrl, setVerifiedKbUrl,
+      kbSpreadsheetTitle, setKbSpreadsheetTitle,
   } = useContext(TableDataContext);
   
   const [isClient, setIsClient] = useState(false);
@@ -48,10 +53,12 @@ export default function SettingsPage() {
   // Local state for inputs
   const [sheetUrl, setSheetUrl] = useState('');
   const [dbSheetUrl, setDbSheetUrl] = useState('');
+  const [knowledgeBaseUrl, setKnowledgeBaseUrl] = useState('');
   
   // Local state for validation results to avoid context race conditions
   const [mainSheetError, setMainSheetError] = useState<string | null>(null);
   const [dbSheetError, setDbSheetError] = useState<string | null>(null);
+  const [kbSheetError, setKbSheetError] = useState<string | null>(null);
 
 
   const { toast } = useToast();
@@ -61,6 +68,7 @@ export default function SettingsPage() {
     setIsClient(true);
     setSheetUrl(contextSheetUrl);
     setDbSheetUrl(contextDbSheetUrl);
+    setKnowledgeBaseUrl(contextKnowledgeBaseUrl);
 
     // If URLs are already verified from a previous session (title exists), show them.
     if (spreadsheetTitle && contextSheetUrl === verifiedUrl) {
@@ -69,9 +77,12 @@ export default function SettingsPage() {
      if (dbSpreadsheetTitle && contextDbSheetUrl === verifiedDbUrl) {
        setDbSheetError(null);
     }
+    if (kbSpreadsheetTitle && contextKnowledgeBaseUrl === verifiedKbUrl) {
+       setKbSheetError(null);
+    }
     
-    // If both titles are present, assume valid and don't start in edit mode.
-    if(spreadsheetTitle && dbSpreadsheetTitle) {
+    // If all titles are present, assume valid and don't start in edit mode.
+    if(spreadsheetTitle && dbSpreadsheetTitle && kbSpreadsheetTitle) {
       setIsEditing(false);
     } else {
       setIsEditing(true); // If any title is missing, start in edit mode.
@@ -85,6 +96,7 @@ export default function SettingsPage() {
         // Save to localStorage and update context immediately for responsiveness
         setContextSheetUrl(sheetUrl);
         setContextDbSheetUrl(dbSheetUrl);
+        setContextKnowledgeBaseUrl(knowledgeBaseUrl);
 
         toast({
             title: "Settings Saved",
@@ -94,17 +106,21 @@ export default function SettingsPage() {
         // Clear previous validation results
         setSpreadsheetTitle(null);
         setDbSpreadsheetTitle(null);
+        setKbSpreadsheetTitle(null);
         setMainSheetError(null);
         setDbSheetError(null);
+        setKbSheetError(null);
 
         // --- Validation Logic ---
-        const [mainResult, dbResult] = await Promise.all([
+        const [mainResult, dbResult, kbResult] = await Promise.all([
             getSpreadsheetTitle(sheetUrl),
-            getSpreadsheetTitle(dbSheetUrl)
+            getSpreadsheetTitle(dbSheetUrl),
+            getSpreadsheetTitle(knowledgeBaseUrl)
         ]);
         
         let isMainValid = false;
         let isDbValid = false;
+        let isKbValid = false;
 
         // Handle Main URL validation
         if (mainResult.error) {
@@ -128,7 +144,18 @@ export default function SettingsPage() {
             isDbValid = true;
         }
         
-        if (isMainValid && isDbValid) {
+        // Handle KB URL validation
+        if (kbResult.error) {
+            setKbSheetError(kbResult.error);
+            setVerifiedKbUrl('');
+            setKbSpreadsheetTitle(null);
+        } else {
+            setKbSpreadsheetTitle(kbResult.title || null);
+            setVerifiedKbUrl(knowledgeBaseUrl);
+            isKbValid = true;
+        }
+        
+        if (isMainValid && isDbValid && isKbValid) {
             setIsEditing(false); // Exit editing mode on successful save & validation
         }
         setIsValidating(false);
@@ -236,6 +263,29 @@ export default function SettingsPage() {
                             isLoading={isValidating}
                             title={dbSpreadsheetTitle}
                             error={dbSheetError}
+                        />
+                    </div>
+                 </div>
+                 <div className="grid gap-2">
+                    <Label htmlFor="url-knowledge-base">URL Knowledge Base</Label>
+                     <div className='flex items-center gap-2'>
+                        <Link className="h-9 w-9 p-2 bg-muted rounded-md flex items-center justify-center shrink-0" />
+                        <Input
+                          id="url-knowledge-base"
+                          type="url"
+                          placeholder="https://docs.google.com/spreadsheets/d/..."
+                          value={knowledgeBaseUrl}
+                          onChange={(e) => setKnowledgeBaseUrl(e.target.value)}
+                          readOnly={!isEditing}
+                          disabled={isSaving || isValidating}
+                          className={!isEditing ? 'bg-muted/50' : ''}
+                        />
+                    </div>
+                     <div className="mt-1 pl-11">
+                        <ValidationResult 
+                            isLoading={isValidating}
+                            title={kbSpreadsheetTitle}
+                            error={kbSheetError}
                         />
                     </div>
                  </div>
