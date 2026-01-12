@@ -8,7 +8,6 @@ import path from 'path';
 import { redis } from '@/lib/redis';
 import { knowledgeBaseFlow } from '@/ai/flows/knowledge-base-flow';
 
-const CACHE_KEY = 'dashboard_data_cache';
 const CACHE_KEY_ALL_CASE = 'all_case_data_cache';
 
 
@@ -1113,33 +1112,7 @@ const isRedisConfigured = () => {
     return !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
 }
     
-export async function getDashboardData(sheetUrl: string) {
-    if (isRedisConfigured()) {
-        try {
-            const cachedData = await redis.get(CACHE_KEY);
-            if (cachedData) {
-                console.log('Cache hit for dashboard data.');
-                return { data: JSON.parse(cachedData as string), source: 'cache' };
-            }
-        } catch (error) {
-            console.warn('Could not read from Redis cache. Falling back to Google Sheets.', error);
-        }
-    }
-
-    console.log('Cache miss or Redis not configured. Fetching dashboard data from Google Sheets.');
-    const result = await fetchDashboardDataFromSheet(sheetUrl, "Summary");
-
-    if (result.data && isRedisConfigured()) {
-        // Asynchronously update cache but don't block the response
-        syncCache(sheetUrl, result.data, CACHE_KEY).catch(err => {
-             console.error("Async dashboard cache update failed:", err);
-        });
-    }
-
-    return { ...result, source: 'sheet' };
-}
-
-async function fetchDashboardDataFromSheet(sheetUrl: string, sheetName: 'Summary' | 'All Case') {
+async function fetchDashboardDataFromSheet(sheetUrl: string, sheetName: 'All Case') {
     if (!sheetUrl) {
         return { error: "URL is empty. Please provide a Google Sheet URL." };
     }
@@ -1230,21 +1203,16 @@ async function syncCache(sheetUrl: string, data: any, cacheKey: string) {
 }
 
 export async function syncDashboardCache(sheetUrl: string) {
-    const summaryResult = await fetchDashboardDataFromSheet(sheetUrl, "Summary");
     const allCaseResult = await fetchDashboardDataFromSheet(sheetUrl, "All Case");
     
-    const summarySync = summaryResult.data 
-        ? syncCache(sheetUrl, summaryResult.data, CACHE_KEY) 
-        : Promise.resolve({ success: false, error: summaryResult.error });
-        
     const allCaseSync = allCaseResult.data 
         ? syncCache(sheetUrl, allCaseResult.data, CACHE_KEY_ALL_CASE)
         : Promise.resolve({ success: false, error: allCaseResult.error });
 
-    const [summarySyncResult, allCaseSyncResult] = await Promise.all([summarySync, allCaseSync]);
+    const [allCaseSyncResult] = await Promise.all([allCaseSync]);
 
-    if (!summarySyncResult.success || !allCaseSyncResult.success) {
-        const error = summarySyncResult.error || allCaseSyncResult.error || "Unknown sync error";
+    if (!allCaseSyncResult.success) {
+        const error = allCaseSyncResult.error || "Unknown sync error";
         console.warn(`Cache sync failed: ${error}`);
         return { success: false, error };
     }
@@ -1348,4 +1316,5 @@ export async function runKnowledgeBaseEngine(
     
 
     
+
 

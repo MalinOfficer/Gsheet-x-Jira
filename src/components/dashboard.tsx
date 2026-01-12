@@ -13,7 +13,7 @@ import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart } from 'recharts';
 import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { getDashboardData, syncDashboardCache } from "@/app/actions";
+import { getAllCaseData, syncDashboardCache } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -50,7 +50,7 @@ export function Dashboard() {
                 return;
             }
             setState(prevState => ({ ...prevState, loading: true }));
-            const result = await getDashboardData(dbSheetUrl);
+            const result = await getAllCaseData(dbSheetUrl);
             setState({
                 data: result.data || null,
                 error: result.error,
@@ -72,7 +72,7 @@ export function Dashboard() {
             } else {
                 toast({ title: "Cache Refreshed", description: "Dashboard data has been synced with Google Sheets." });
                 // Re-fetch data to show the latest
-                const dataResult = await getDashboardData(dbSheetUrl);
+                const dataResult = await getAllCaseData(dbSheetUrl);
                  setState({
                     data: dataResult.data || null,
                     error: dataResult.error,
