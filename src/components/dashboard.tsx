@@ -90,36 +90,6 @@ export function Dashboard() {
         })
     }
 
-    const areaChartData = useMemo(() => {
-        if (!state.data) return [];
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const monthlyData: Record<string, { "2024": number; "2025": number; "2026": number }> = {};
-
-        months.forEach(month => {
-            monthlyData[month] = { "2024": 0, "2025": 0, "2026": 0 };
-        });
-
-        state.data.forEach(row => {
-            const dateStr = row['DATE'];
-            if (dateStr && typeof dateStr === 'string') {
-                const parts = dateStr.split('/');
-                if (parts.length === 3) {
-                    const monthIndex = parseInt(parts[1], 10) - 1;
-                    const year = parts[2];
-                    if (monthIndex >= 0 && monthIndex < 12 && ['2024', '2025', '2026'].includes(year)) {
-                        const monthName = months[monthIndex];
-                        monthlyData[monthName][year as "2024" | "2025" | "2026"] += 1;
-                    }
-                }
-            }
-        });
-
-        return months.map(month => ({
-            month,
-            ...monthlyData[month]
-        }));
-    }, [state.data]);
-
     const dashboardStats = useMemo(() => {
         const data = state.data;
         if (!data || data.length === 0) {
@@ -129,6 +99,7 @@ export function Dashboard() {
                 topModules: [],
                 statusCounts: [],
                 solvedVsUnsolved: [],
+                monthlyData: [],
             };
         }
 
@@ -171,12 +142,40 @@ export function Dashboard() {
             { name: 'Unsolved', value: unsolvedCount }
         ];
 
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const monthlyAggregation: Record<string, { "2024": number; "2025": number; "2026": number }> = {};
+        months.forEach(month => {
+            monthlyAggregation[month] = { "2024": 0, "2025": 0, "2026": 0 };
+        });
+
+        data.forEach(row => {
+            const dateStr = row['DATE'];
+            if (dateStr && typeof dateStr === 'string') {
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    const monthIndex = parseInt(parts[1], 10) - 1;
+                    const year = parts[2];
+                    if (monthIndex >= 0 && monthIndex < 12 && ['2024', '2025', '2026'].includes(year)) {
+                        const monthName = months[monthIndex];
+                        monthlyAggregation[monthName][year as "2024" | "2025" | "2026"] += 1;
+                    }
+                }
+            }
+        });
+
+        const monthlyData = months.map(month => ({
+            month,
+            ...monthlyAggregation[month]
+        }));
+
+
         return {
             totalCases: data.length,
             topClients,
             topModules,
             statusCounts,
             solvedVsUnsolved,
+            monthlyData,
         };
     }, [state.data]);
     
@@ -238,7 +237,7 @@ export function Dashboard() {
         );
     }
     
-    const { totalCases, topClients, topModules, statusCounts, solvedVsUnsolved } = dashboardStats;
+    const { totalCases, topClients, topModules, statusCounts, solvedVsUnsolved, monthlyData } = dashboardStats;
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -282,7 +281,7 @@ export function Dashboard() {
                                         cursor={false}
                                         content={<ChartTooltipContent hideLabel indicator="dot" />}
                                     />
-                                    <Bar dataKey="value" name="clients" barSize={20}>
+                                    <Bar dataKey="value" name="clients" radius={[4, 4, 0, 0]} barSize={20}>
                                         {topClients.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={`var(--color-chart-${(index % 5) + 1})`} />
                                         ))}
@@ -308,7 +307,7 @@ export function Dashboard() {
                                     cursor={false}
                                     content={<ChartTooltipContent hideLabel indicator="dot" />}
                                 />
-                                <Bar dataKey="value" name="modules" barSize={20}>
+                                <Bar dataKey="value" name="modules" radius={[4, 4, 0, 0]} barSize={20}>
                                      {topModules.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={`var(--color-chart-${(index % 5) + 1})`} />
                                      ))}
@@ -340,7 +339,7 @@ export function Dashboard() {
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={chartConfig} className="h-[350px] w-full">
-                            <AreaChart data={areaChartData} margin={{ left: -20, right: 20, top: 10, bottom: 10 }}>
+                            <AreaChart data={monthlyData} margin={{ left: -20, right: 20, top: 10, bottom: 10 }}>
                                 <defs>
                                     <linearGradient id="fill2026" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="var(--color-2026)" stopOpacity={0.8} />
