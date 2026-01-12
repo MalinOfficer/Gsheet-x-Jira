@@ -294,8 +294,8 @@ export function Dashboard() {
                 {/* Main Content */}
                  <Card>
                     <CardHeader>
-                        <CardTitle>Total Revenue of This Year</CardTitle>
-                        <CardDescription>Comparison of sales performance over the last three years.</CardDescription>
+                        <CardTitle>Total Case of This Year</CardTitle>
+                        <CardDescription>Comparison of total cases over the last three years.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={chartConfig} className="h-[350px] w-full">
