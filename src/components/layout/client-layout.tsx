@@ -67,9 +67,9 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                                     href={item.href}
                                     className={cn(
                                         "flex items-center gap-3 rounded-lg px-4 py-2.5 text-muted-foreground transition-all",
-                                        "font-medium text-sm",
+                                        "text-sm font-medium",
                                         pathname === item.href 
-                                            ? "bg-blue-100 dark:bg-blue-900/30 text-primary font-semibold" 
+                                            ? "bg-blue-100 dark:bg-blue-900/20 text-primary font-semibold" 
                                             : "hover:bg-muted/50 hover:text-foreground"
                                     )}
                                 >
@@ -154,7 +154,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             {/* --- Desktop Sidebar --- */}
             {!isMobile && (
                 <div className="hidden border-r bg-card md:flex flex-col h-screen sticky top-0">
-                    <div className="flex h-20 items-center border-b px-6 flex-shrink-0">
+                    <div className="flex h-16 items-center border-b px-6 flex-shrink-0">
                         <Link href="/" className="flex items-center gap-2.5 font-semibold text-primary">
                             <GanttChartSquare className="h-6 w-6" strokeWidth={1.5} />
                             <span className="text-lg">Gsheet Case</span>
@@ -170,9 +170,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                             href="/settings"
                             className={cn(
                                 "flex items-center gap-3 rounded-lg px-4 py-2.5 text-muted-foreground transition-all",
-                                "font-medium text-sm",
+                                "text-sm font-medium",
                                 pathname === "/settings" 
-                                    ? "bg-blue-100 dark:bg-blue-900/30 text-primary font-semibold" 
+                                    ? "bg-blue-100 dark:bg-blue-900/20 text-primary font-semibold" 
                                     : "hover:bg-muted/50 hover:text-foreground"
                             )}
                         >
@@ -197,7 +197,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                 </Button>
                             </SheetTrigger>
                             <SheetContent side="left" className="flex flex-col p-0">
-                                <SheetHeader className="h-20 flex items-center border-b px-6">
+                                <SheetHeader className="h-16 flex items-center border-b px-6">
                                     <SheetTitle asChild>
                                         <Link href="/" className="flex items-center gap-2.5 font-semibold text-primary">
                                             <GanttChartSquare className="h-6 w-6" strokeWidth={1.5} />
@@ -214,9 +214,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                             href="/settings"
                                             className={cn(
                                                 "flex items-center gap-3 rounded-lg px-4 py-2.5 text-muted-foreground transition-all",
-                                                "font-medium text-sm",
+                                                "text-sm font-medium",
                                                 pathname === "/settings" 
-                                                    ? "bg-blue-100 dark:bg-blue-900/30 text-primary font-semibold" 
+                                                    ? "bg-blue-100 dark:bg-blue-900/20 text-primary font-semibold" 
                                                     : "hover:bg-muted/50 hover:text-foreground"
                                             )}
                                         >
