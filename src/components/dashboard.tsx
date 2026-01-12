@@ -1,17 +1,22 @@
 
 "use client";
 
-import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp } from "lucide-react";
+import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw } from "lucide-react";
 import { 
     Card, 
     CardContent, 
     CardHeader, 
-    CardTitle 
+    CardTitle,
+    CardDescription
 } from "@/components/ui/card";
-import { useContext, useMemo } from "react";
+import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart } from 'recharts';
-import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { getDashboardData, syncDashboardCache } from "@/app/actions";
+import { Skeleton } from "./ui/skeleton";
+import { Button } from "./ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const chartConfig = {
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
@@ -26,11 +31,59 @@ const chartConfig = {
   'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
 } satisfies ChartConfig
 
+interface DashboardState {
+    data: any[] | null;
+    error?: string;
+    loading: boolean;
+}
+
 export function Dashboard() {
-    const { tableData } = useContext(TableDataContext);
+    const { dbSheetUrl } = useContext(TableDataContext);
+    const [state, setState] = useState<DashboardState>({ data: null, error: undefined, loading: true });
+    const [isRefreshing, startRefresh] = useTransition();
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const loadData = async () => {
+            if (!dbSheetUrl) {
+                setState({ data: null, error: 'DB GSheet URL is not configured in Settings.', loading: false });
+                return;
+            }
+            setState(prevState => ({ ...prevState, loading: true }));
+            const result = await getDashboardData(dbSheetUrl);
+            setState({
+                data: result.data || null,
+                error: result.error,
+                loading: false
+            });
+        };
+        loadData();
+    }, [dbSheetUrl]);
     
+    const handleRefresh = () => {
+        startRefresh(async () => {
+            if (!dbSheetUrl) {
+                toast({ variant: 'destructive', title: "URL Not Set", description: "Google Sheet URL is not configured in Settings." });
+                return;
+            }
+            const result = await syncDashboardCache(dbSheetUrl);
+             if (result.error) {
+                toast({ variant: 'destructive', title: "Refresh Failed", description: result.error });
+            } else {
+                toast({ title: "Cache Refreshed", description: "Dashboard data has been synced with Google Sheets." });
+                // Re-fetch data to show the latest
+                const dataResult = await getDashboardData(dbSheetUrl);
+                 setState({
+                    data: dataResult.data || null,
+                    error: dataResult.error,
+                    loading: false
+                });
+            }
+        })
+    }
+
     const dashboardStats = useMemo(() => {
-        const data = tableData?.rows;
+        const data = state.data;
         if (!data || data.length === 0) {
             return {
                 totalCases: 0,
@@ -87,16 +140,59 @@ export function Dashboard() {
             statusCounts,
             solvedVsUnsolved,
         };
-    }, [tableData]);
+    }, [state.data]);
+    
+    if (state.loading) {
+         return (
+             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+                <div className="max-w-7xl mx-auto space-y-6">
+                    <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+                        <Skeleton className="h-[109px]" />
+                        <Skeleton className="h-[109px]" />
+                        <Skeleton className="h-[109px]" />
+                        <Skeleton className="h-[109px]" />
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                        <Skeleton className="h-[300px] col-span-1 lg:col-span-4" />
+                        <Skeleton className="h-[300px] col-span-1 lg:col-span-3" />
+                    </div>
+                </div>
+            </div>
+         )
+    }
 
-    if (!tableData?.rows || tableData.rows.length === 0) {
+    if (state.error) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto">
                     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
                         <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
-                        <CardTitle>No Data Loaded</CardTitle>
-                        <p className="mt-2 text-muted-foreground">Please import data first to see the dashboard.</p>
+                        <CardTitle>Failed to Load Dashboard Data</CardTitle>
+                        <CardDescription className="mt-2 mb-4 max-w-sm">
+                            {state.error}
+                        </CardDescription>
+                         <Button onClick={handleRefresh} disabled={isRefreshing}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Try Again
+                        </Button>
+                    </Card>
+                </div>
+            </div>
+        );
+    }
+    
+    if (!state.data || state.data.length === 0) {
+        return (
+            <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+                <div className="max-w-7xl mx-auto">
+                    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
+                        <AlertTriangle className="w-16 h-16 text-muted-foreground mb-4" />
+                        <CardTitle>No Data Found</CardTitle>
+                        <p className="mt-2 text-muted-foreground">The configured Google Sheet might be empty.</p>
+                         <Button onClick={handleRefresh} disabled={isRefreshing} className="mt-4">
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </Button>
                     </Card>
                 </div>
             </div>
@@ -108,6 +204,12 @@ export function Dashboard() {
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
+                 <div className="flex justify-end">
+                    <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" variant="outline">
+                        <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        Refresh Data
+                    </Button>
+                </div>
                 <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -223,5 +325,3 @@ export function Dashboard() {
         </div>
     );
 }
-
-    
