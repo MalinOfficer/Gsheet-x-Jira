@@ -255,21 +255,21 @@ export function Dashboard() {
 
                 {/* Header Report */}
                 <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">Total Cases</CardTitle>
-                      <BarChartIcon className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{totalCases}</div>
-                    </CardContent>
-                  </Card>
-                   <Card className="col-span-1 md:col-span-2">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">Total Cases</CardTitle>
+                        <BarChartIcon className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                        <div className="text-2xl font-bold">{totalCases}</div>
+                        </CardContent>
+                    </Card>
+                    <Card className="col-span-1 md:col-span-2">
                         <CardHeader>
                             <CardTitle className="text-sm font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[60px] flex items-end">
-                             <ChartContainer config={chartConfig} className="h-full w-full">
+                            <ChartContainer config={chartConfig} className="h-full w-full">
                                 <RechartsBarChart
                                     accessibilityLayer
                                     data={topClients}
@@ -287,35 +287,35 @@ export function Dashboard() {
                                         ))}
                                     </Bar>
                                 </RechartsBarChart>
-                              </ChartContainer>
+                            </ChartContainer>
                         </CardContent>
                     </Card>
-                  <Card className="col-span-1">
-                    <CardHeader>
-                        <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
-                    </CardHeader>
-                    <CardContent className="h-[60px] flex items-end">
-                        <ChartContainer config={chartConfig} className="h-full w-full">
-                            <RechartsBarChart
-                                accessibilityLayer
-                                data={topModules}
-                                margin={{ left: -20, right: 0, top: 0, bottom: 0 }}
-                            >
-                                <XAxis dataKey="name" type="category" tick={false} axisLine={false} />
-                                <YAxis type="number" hide />
-                                <ChartTooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent hideLabel indicator="dot" />}
-                                />
-                                <Bar dataKey="value" name="modules" radius={[4, 4, 0, 0]} barSize={20}>
-                                     {topModules.map((entry, index) => (
+                    <Card className="col-span-1">
+                        <CardHeader>
+                            <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
+                        </CardHeader>
+                        <CardContent className="h-[60px] flex items-end">
+                            <ChartContainer config={chartConfig} className="h-full w-full">
+                                <RechartsBarChart
+                                    accessibilityLayer
+                                    data={topModules}
+                                    margin={{ left: -20, right: 0, top: 0, bottom: 0 }}
+                                >
+                                    <XAxis dataKey="name" type="category" tick={false} axisLine={false} />
+                                    <YAxis type="number" hide />
+                                    <ChartTooltip
+                                        cursor={false}
+                                        content={<ChartTooltipContent hideLabel indicator="dot" />}
+                                    />
+                                    <Bar dataKey="value" name="modules" radius={[4, 4, 0, 0]} barSize={20}>
+                                        {topModules.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={`var(--color-chart-${(index % 5) + 1})`} />
-                                     ))}
-                                </Bar>
-                            </RechartsBarChart>
-                        </ChartContainer>
-                    </CardContent>
-                  </Card>
+                                        ))}
+                                    </Bar>
+                                </RechartsBarChart>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
                 </div>
                 
                 {/* Main Content */}
