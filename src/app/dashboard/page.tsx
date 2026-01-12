@@ -1,3 +1,4 @@
+
 import { Dashboard } from "@/components/dashboard";
 
 export default function DashboardPage() {
@@ -7,3 +8,5 @@ export default function DashboardPage() {
         </main>
     );
 }
+
+    
