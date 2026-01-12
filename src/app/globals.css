@@ -17,7 +17,7 @@
     --secondary: 240 5% 96%; /* Slate 100 */
     --secondary-foreground: 240 6% 10%;
     --muted: 240 5% 96%; /* Slate 100 */
-    --muted-foreground: 240 5% 41%; /* Slate 500 */
+    --muted-foreground: 215 14% 65%; /* #94a3b8 */
     --accent: 240 5% 96%;
     --accent-foreground: 240 6% 10%;
     --destructive: 0 84.2% 60.2%;
@@ -45,7 +45,7 @@
     --secondary: 240 5% 15%;
     --secondary-foreground: 0 0% 98%;
     --muted: 240 5% 15%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted-foreground: 240 5% 40%;
     --accent: 240 5% 15%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;

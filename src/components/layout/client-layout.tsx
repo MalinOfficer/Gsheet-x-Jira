@@ -58,7 +58,7 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
 
                 return (
                     <div key={category} className="py-2">
-                        <h2 className="mb-2 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                        <h2 className="mb-2 px-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                             {category}
                         </h2>
                         {visibleItems.map((item) => (
