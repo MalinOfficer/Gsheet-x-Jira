@@ -12,12 +12,14 @@ import {
 } from "@/components/ui/card";
 import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { TableDataContext } from "@/store/table-data-context";
-import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar } from 'recharts';
+import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, Bar as RechartsBar, BarChart as RechartsBarChart } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getAllCaseData } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 const chartConfig = {
   "2026": { label: "2026", color: "hsl(var(--chart-1))" },
@@ -46,6 +48,8 @@ export function Dashboard() {
     const [state, setState] = useState<DashboardState>({ data: null, error: undefined, loading: true });
     const [isRefreshing, startRefresh] = useTransition();
     const { toast } = useToast();
+    const [selectedYear, setSelectedYear] = useState<'all' | '2024' | '2025' | '2026'>('all');
+
 
     useEffect(() => {
         const loadData = async () => {
@@ -293,9 +297,22 @@ export function Dashboard() {
                 
                 {/* Main Content */}
                  <Card>
-                    <CardHeader>
-                        <CardTitle>Total Case of This Year</CardTitle>
-                        <CardDescription>Comparison of total cases over the last three years.</CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Total Case of This Year</CardTitle>
+                            <CardDescription>Comparison of total cases over the last three years.</CardDescription>
+                        </div>
+                        <Select value={selectedYear} onValueChange={(value) => setSelectedYear(value as 'all' | '2024' | '2025' | '2026')}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Select a year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Years</SelectItem>
+                                <SelectItem value="2024">2024</SelectItem>
+                                <SelectItem value="2025">2025</SelectItem>
+                                <SelectItem value="2026">2026</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={chartConfig} className="h-[350px] w-full">
@@ -332,30 +349,30 @@ export function Dashboard() {
                                     content={<ChartTooltipContent indicator="dot" />}
                                 />
                                 <Legend />
-                                <Area
+                                {(selectedYear === 'all' || selectedYear === '2026') && <Area
                                     dataKey="2026"
                                     type="monotone"
                                     fill="url(#fill2026)"
                                     stroke="var(--color-2026)"
                                     stackId="a"
                                     strokeWidth={2}
-                                />
-                                 <Area
+                                />}
+                                 {(selectedYear === 'all' || selectedYear === '2025') && <Area
                                     dataKey="2025"
                                     type="monotone"
                                     fill="url(#fill2025)"
                                     stroke="var(--color-2025)"
                                     stackId="b"
                                     strokeWidth={2}
-                                />
-                                 <Area
+                                />}
+                                 {(selectedYear === 'all' || selectedYear === '2024') && <Area
                                     dataKey="2024"
                                     type="monotone"
                                     fill="url(#fill2024)"
                                     stroke="var(--color-2024)"
                                     stackId="c"
                                     strokeWidth={2}
-                                />
+                                />}
                             </AreaChart>
                         </ChartContainer>
                     </CardContent>
@@ -421,11 +438,11 @@ export function Dashboard() {
                                 <XAxis type="number" dataKey="value" hide />
                                 <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} />
                                 <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                <Bar dataKey="value" radius={5}>
+                                <RechartsBar dataKey="value" radius={5}>
                                      {solvedVsUnsolved.map((entry) => (
                                         <Cell key={entry.name} fill={chartConfig[entry.name.toLowerCase() as keyof typeof chartConfig]?.color} />
                                      ))}
-                                </Bar>
+                                </RechartsBar>
                             </RechartsBarChart>
                         </ChartContainer>
                       </CardContent>
