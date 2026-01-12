@@ -60,7 +60,7 @@ function NavLinks() {
                     href={item.href}
                     className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                        pathname === item.href && "bg-muted text-primary"
+                        pathname === item.href && "bg-primary text-primary-foreground hover:text-primary-foreground"
                     )}
                 >
                     <item.icon className="h-4 w-4" />
@@ -139,7 +139,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         )}>
             {/* --- Desktop Sidebar --- */}
             {!isMobile && (
-                <div className="hidden border-r bg-muted/40 md:flex flex-col">
+                <div className="hidden border-r bg-card md:flex flex-col">
                     <div className="flex h-full max-h-screen flex-col gap-2 sticky top-0">
                         <div className="flex h-16 items-center border-b px-4 lg:px-6">
                             <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
