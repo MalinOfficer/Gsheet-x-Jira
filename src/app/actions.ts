@@ -1230,12 +1230,26 @@ async function syncCache(sheetUrl: string, data: any, cacheKey: string) {
 }
 
 export async function syncDashboardCache(sheetUrl: string) {
-    const result = await fetchDashboardDataFromSheet(sheetUrl, "Summary");
-    if (result.error) {
-        console.warn(`Dashboard cache sync failed: ${result.error}`);
-        return { success: false, error: result.error };
+    const summaryResult = await fetchDashboardDataFromSheet(sheetUrl, "Summary");
+    const allCaseResult = await fetchDashboardDataFromSheet(sheetUrl, "All Case");
+    
+    const summarySync = summaryResult.data 
+        ? syncCache(sheetUrl, summaryResult.data, CACHE_KEY) 
+        : Promise.resolve({ success: false, error: summaryResult.error });
+        
+    const allCaseSync = allCaseResult.data 
+        ? syncCache(sheetUrl, allCaseResult.data, CACHE_KEY_ALL_CASE)
+        : Promise.resolve({ success: false, error: allCaseResult.error });
+
+    const [summarySyncResult, allCaseSyncResult] = await Promise.all([summarySync, allCaseSync]);
+
+    if (!summarySyncResult.success || !allCaseSyncResult.success) {
+        const error = summarySyncResult.error || allCaseSyncResult.error || "Unknown sync error";
+        console.warn(`Cache sync failed: ${error}`);
+        return { success: false, error };
     }
-    return syncCache(sheetUrl, result.data, CACHE_KEY);
+
+    return { success: true, message: "All caches synchronized." };
 }
 
 export async function getAllCaseData(sheetUrl: string) {
@@ -1256,7 +1270,7 @@ export async function getAllCaseData(sheetUrl: string) {
 
     if (result.data && isRedisConfigured()) {
         // Asynchronously update cache
-        redis.set(CACHE_KEY_ALL_CASE, JSON.stringify(result.data)).catch(err => {
+        syncCache(sheetUrl, result.data, CACHE_KEY_ALL_CASE).catch(err => {
              console.error("Async All Case cache update failed:", err);
         });
     }
