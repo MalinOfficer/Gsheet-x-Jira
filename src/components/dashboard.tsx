@@ -269,29 +269,25 @@ export function Dashboard() {
                         <CardHeader>
                             <CardTitle className="text-sm font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="flex justify-center h-[60px]">
-                             <ChartContainer config={chartConfig} className="w-full h-full max-h-[60px]">
-                                <PieChart accessibilityLayer>
-                                  <ChartTooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent hideLabel />}
-                                  />
-                                  <Pie
+                        <CardContent className="h-[60px] flex items-end">
+                             <ChartContainer config={chartConfig} className="h-full w-full">
+                                <RechartsBarChart
+                                    accessibilityLayer
                                     data={topClients}
-                                    dataKey="value"
-                                    nameKey="name"
-                                    innerRadius={20}
-                                    outerRadius={30}
-                                    strokeWidth={2}
-                                  >
-                                    {topClients.map((entry, index) => (
-                                      <Cell
-                                        key={`cell-${index}`}
-                                        fill={`var(--color-chart-${(index % 5) + 1})`}
-                                      />
-                                    ))}
-                                  </Pie>
-                                </PieChart>
+                                    margin={{ left: -20, right: 0, top: 0, bottom: 0 }}
+                                >
+                                    <XAxis dataKey="name" type="category" tick={false} axisLine={false} />
+                                    <YAxis type="number" hide />
+                                    <ChartTooltip
+                                        cursor={false}
+                                        content={<ChartTooltipContent hideLabel indicator="dot" />}
+                                    />
+                                    <Bar dataKey="value" name="clients" barSize={20}>
+                                        {topClients.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={`var(--color-chart-${(index % 5) + 1})`} />
+                                        ))}
+                                    </Bar>
+                                </RechartsBarChart>
                               </ChartContainer>
                         </CardContent>
                     </Card>
