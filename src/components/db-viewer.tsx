@@ -317,7 +317,7 @@ export function DbViewer() {
             return (
                 <Popover>
                     <PopoverTrigger asChild>
-                         <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
+                         <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground data-[state=open]:bg-accent/20">
                              {header}
                              <Filter className={cn("ml-2 h-3 w-3", dateRange ? "text-primary" : "text-muted-foreground/50")} />
                         </Button>
@@ -487,10 +487,9 @@ export function DbViewer() {
                                     </div>
                                 </div>
                             ) : (
-                               <div style={{ height: `${totalHeight}px`, position: 'relative' }}>
+                               <div style={{ height: `${totalHeight + 48}px`, width: `${totalWidth}px`, position: 'relative' }}>
                                    <div
                                        className="sticky top-0 z-10 flex"
-                                       style={{ width: totalWidth }}
                                    >
                                        {headers.map(header => {
                                            const lowerHeader = header.toLowerCase();
@@ -516,18 +515,7 @@ export function DbViewer() {
                                    </div>
                                    {virtualRows.map((virtualRow) => {
                                        const row = displayData[virtualRow.index];
-                                       let currentOffset = 0;
-                                       const cells = headers.map(header => {
-                                           const width = columnWidths[header] || 120;
-                                           const cell = (
-                                                <div key={header} className="p-4 align-middle truncate" style={{ width, position: 'absolute', left: currentOffset, borderRight: '1px solid hsl(var(--border))' }}>
-                                                    {row ? row[header] : <Skeleton className="h-4 w-full" />}
-                                                </div>
-                                           );
-                                           currentOffset += width;
-                                           return cell;
-                                       });
-
+                                       
                                        return (
                                            <div
                                                key={virtualRow.key}
@@ -535,13 +523,21 @@ export function DbViewer() {
                                                    position: 'absolute',
                                                    top: 0,
                                                    left: 0,
-                                                   width: totalWidth,
+                                                   width: '100%',
                                                    height: `${virtualRow.size}px`,
                                                    transform: `translateY(${virtualRow.start + 48}px)`,
                                                }}
-                                               className="border-b transition-colors hover:bg-muted/50"
+                                               className="flex border-b transition-colors hover:bg-muted/50"
                                            >
-                                             {cells}
+                                             {headers.map(header => (
+                                                <div 
+                                                    key={header} 
+                                                    className="p-4 align-middle truncate" 
+                                                    style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
+                                                >
+                                                    {row ? row[header] : <Skeleton className="h-4 w-full" />}
+                                                </div>
+                                             ))}
                                            </div>
                                        );
                                    })}
