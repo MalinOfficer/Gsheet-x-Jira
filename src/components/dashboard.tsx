@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { TableDataContext } from "@/store/table-data-context";
-import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar as RechartsBar, Tooltip, Legend } from 'recharts';
+import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, RechartsBarChart, RechartsBar, Tooltip, Legend } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getAllCaseData } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
@@ -36,6 +36,7 @@ const chartConfig = {
   'OPEN': { label: 'Open', color: 'hsl(var(--chart-1))' },
   'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
   'modules': { label: "Modules", color: "hsl(var(--chart-1))" },
+  'clients': { label: "Clients", color: "hsl(var(--chart-2))" },
 } satisfies ChartConfig
 
 interface DashboardState {
@@ -124,44 +125,31 @@ export function Dashboard() {
         if (!data || data.length === 0) {
             return {
                 totalCases: 0,
-                clientTrend: 'N/A',
+                topClients: [],
                 topModules: [],
                 statusCounts: [],
                 solvedVsUnsolved: [],
             };
         }
 
-        const getMostFrequent = (field: string) => {
+        const createFrequencyMap = (field: string) => {
             const frequency: Record<string, number> = {};
-            let maxCount = 0;
-            let mostFrequent = 'N/A';
-            const filteredData = data.filter(row => row[field]);
-            if (filteredData.length === 0) return 'N/A';
-
-            filteredData.forEach(row => {
+            data.forEach(row => {
                 const value = row[field];
                 if (value) {
                     frequency[value] = (frequency[value] || 0) + 1;
                 }
             });
-
-            Object.entries(frequency).forEach(([value, count]) => {
-                if (count > maxCount) {
-                    maxCount = count;
-                    mostFrequent = value;
-                }
-            });
-            return mostFrequent;
+            return frequency;
         };
+        
+        const clientFrequency = createFrequencyMap('CLIENT NAME');
+        const topClients = Object.entries(clientFrequency)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 5)
+            .map(([name, value]) => ({ name, value }));
 
-        const moduleFrequency: Record<string, number> = {};
-        data.forEach(row => {
-            const module = row['DETAIL MODUL'];
-            if (module) {
-                moduleFrequency[module] = (moduleFrequency[module] || 0) + 1;
-            }
-        });
-
+        const moduleFrequency = createFrequencyMap('DETAIL MODUL');
         const topModules = Object.entries(moduleFrequency)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5)
@@ -185,7 +173,7 @@ export function Dashboard() {
 
         return {
             totalCases: data.length,
-            clientTrend: getMostFrequent('CLIENT NAME'),
+            topClients,
             topModules,
             statusCounts,
             solvedVsUnsolved,
@@ -250,7 +238,7 @@ export function Dashboard() {
         );
     }
     
-    const { totalCases, clientTrend, topModules, statusCounts, solvedVsUnsolved } = dashboardStats;
+    const { totalCases, topClients, topModules, statusCounts, solvedVsUnsolved } = dashboardStats;
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -277,16 +265,37 @@ export function Dashboard() {
                       <div className="text-2xl font-bold">{totalCases}</div>
                     </CardContent>
                   </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">Top Client</CardTitle>
-                      <User className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold truncate">{clientTrend}</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="col-span-1 md:col-span-2">
+                   <Card className="col-span-1 md:col-span-2">
+                        <CardHeader>
+                            <CardTitle className="text-sm font-medium">Top 5 Clients</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex justify-center h-[60px]">
+                             <ChartContainer config={chartConfig} className="w-full h-full max-h-[60px]">
+                                <PieChart accessibilityLayer>
+                                  <ChartTooltip
+                                    cursor={false}
+                                    content={<ChartTooltipContent hideLabel />}
+                                  />
+                                  <Pie
+                                    data={topClients}
+                                    dataKey="value"
+                                    nameKey="name"
+                                    innerRadius={20}
+                                    outerRadius={30}
+                                    strokeWidth={2}
+                                  >
+                                    {topClients.map((entry, index) => (
+                                      <Cell
+                                        key={`cell-${index}`}
+                                        fill={`var(--color-chart-${(index % 5) + 1})`}
+                                      />
+                                    ))}
+                                  </Pie>
+                                </PieChart>
+                              </ChartContainer>
+                        </CardContent>
+                    </Card>
+                  <Card className="col-span-1">
                     <CardHeader>
                         <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
                     </CardHeader>
@@ -303,7 +312,7 @@ export function Dashboard() {
                                     cursor={false}
                                     content={<ChartTooltipContent hideLabel indicator="dot" />}
                                 />
-                                <RechartsBar dataKey="value" name="modules" radius={4} barSize={20}>
+                                <RechartsBar dataKey="value" name="modules" barSize={20}>
                                      {topModules.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={`var(--color-chart-${(index % 5) + 1})`} />
                                      ))}
