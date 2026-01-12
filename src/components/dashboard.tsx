@@ -303,9 +303,9 @@ export function Dashboard() {
                                     cursor={false}
                                     content={<ChartTooltipContent hideLabel indicator="dot" />}
                                 />
-                                <RechartsBar dataKey="value" name="modules" radius={4} barSize={12}>
-                                     {topModules.map((_, index) => (
-                                        <Cell key={`cell-${index}`} fill={chartConfig[`chart-${(index % 5) + 1}` as keyof typeof chartConfig]?.color || 'hsl(var(--muted))'} />
+                                <RechartsBar dataKey="value" name="modules" radius={4} barSize={20}>
+                                     {topModules.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={`var(--color-chart-${(index % 5) + 1})`} />
                                      ))}
                                 </RechartsBar>
                             </RechartsBarChart>
