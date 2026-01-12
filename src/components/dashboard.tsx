@@ -290,34 +290,20 @@ export function Dashboard() {
                     <CardHeader>
                         <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
                     </CardHeader>
-                    <CardContent className="h-[60px]">
-                        <ChartContainer config={chartConfig}>
+                    <CardContent className="h-[60px] flex items-end">
+                        <ChartContainer config={chartConfig} className="h-full w-full">
                             <RechartsBarChart
                                 accessibilityLayer
                                 data={topModules}
-                                layout="vertical"
-                                margin={{ left: -10, right: 10, top: -20, bottom: -10 }}
+                                margin={{ left: -20, right: 0, top: 0, bottom: 0 }}
                             >
-                                <XAxis type="number" hide />
-                                <YAxis
-                                    dataKey="name"
-                                    type="category"
-                                    tickLine={false}
-                                    tick={false}
-                                    axisLine={false}
-                                    width={110}
-                                />
+                                <XAxis dataKey="name" type="category" tick={false} axisLine={false} />
+                                <YAxis type="number" hide />
                                 <ChartTooltip
                                     cursor={false}
-                                    content={<ChartTooltipContent hideLabel />}
+                                    content={<ChartTooltipContent hideLabel indicator="dot" />}
                                 />
-                                <RechartsBar
-                                    dataKey="value"
-                                    name="modules"
-                                    layout="vertical"
-                                    radius={5}
-                                    barSize={12}
-                                >
+                                <RechartsBar dataKey="value" name="modules" radius={4} barSize={12}>
                                      {topModules.map((_, index) => (
                                         <Cell key={`cell-${index}`} fill={chartConfig[`chart-${(index % 5) + 1}` as keyof typeof chartConfig]?.color || 'hsl(var(--muted))'} />
                                      ))}
