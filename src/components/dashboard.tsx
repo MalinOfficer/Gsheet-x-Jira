@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { TableDataContext } from "@/store/table-data-context";
-import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, RechartsBarChart, RechartsBar, Tooltip, Legend } from 'recharts';
+import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar, Tooltip, Legend } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getAllCaseData } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
@@ -312,11 +312,11 @@ export function Dashboard() {
                                     cursor={false}
                                     content={<ChartTooltipContent hideLabel indicator="dot" />}
                                 />
-                                <RechartsBar dataKey="value" name="modules" barSize={20}>
+                                <Bar dataKey="value" name="modules" barSize={20}>
                                      {topModules.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={`var(--color-chart-${(index % 5) + 1})`} />
                                      ))}
-                                </RechartsBar>
+                                </Bar>
                             </RechartsBarChart>
                         </ChartContainer>
                     </CardContent>
@@ -465,12 +465,12 @@ export function Dashboard() {
                                 <CartesianGrid horizontal={false} />
                                 <XAxis type="number" dataKey="value" hide />
                                 <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} />
-                                <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                <RechartsBar dataKey="value" radius={5}>
+                                <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                <Bar dataKey="value" radius={5}>
                                      {solvedVsUnsolved.map((entry) => (
                                         <Cell key={entry.name} fill={chartConfig[entry.name.toLowerCase() as keyof typeof chartConfig]?.color} />
                                      ))}
-                                </RechartsBar>
+                                </Bar>
                             </RechartsBarChart>
                         </ChartContainer>
                       </CardContent>
