@@ -247,33 +247,33 @@ const getGoogleApiClients = () => {
 
 export async function getSpreadsheetTitle(fileUrl: string) {
     if (!fileUrl) {
-        return { error: "URL is empty. Please provide a Google Drive URL." };
+        return { error: "URL is empty. Please provide a Google Sheet URL." };
     }
 
-    const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|folders\/)([a-zA-Z0-9-_]+)/;
+    const idRegex = /(?:spreadsheets\/d\/)([a-zA-Z0-9-_]+)/;
     const match = fileUrl.match(idRegex);
 
     if (!match || !match[1]) {
-        return { error: 'Invalid Google Drive URL format.' };
+        return { error: 'Invalid Google Sheet URL format.' };
     }
-    const fileId = match[1];
+    const spreadsheetId = match[1];
 
     try {
-        const { drive } = getGoogleApiClients();
-        const response = await drive.files.get({
-            fileId: fileId,
-            fields: 'name',
+        const { sheets } = getGoogleApiClients();
+        const response = await sheets.spreadsheets.get({
+            spreadsheetId: spreadsheetId,
+            fields: 'properties.title',
         });
 
-        const title = response.data.name;
+        const title = response.data.properties?.title;
 
         if (!title) {
-            return { error: "Could not retrieve the file/folder title." };
+            return { error: "Could not retrieve the spreadsheet title." };
         }
 
         return { success: true, title };
     } catch (error: any) {
-        console.error('Failed to get Google Drive file title:', error.message);
+        console.error('Failed to get Google Sheet title:', error.message);
         const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred while analyzing the URL.';
         return { error: `Analysis Failed: ${apiError}` };
     }
@@ -1321,3 +1321,5 @@ export async function runKnowledgeBaseEngine(
 
 
     
+
+      
