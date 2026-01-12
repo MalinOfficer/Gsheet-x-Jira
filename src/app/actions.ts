@@ -1244,7 +1244,7 @@ export async function getAllCaseData(sheetUrl: string) {
             const cachedData = await redis.get(CACHE_KEY_ALL_CASE);
             if (cachedData) {
                 console.log('Cache hit for All Case data.');
-                return { data: cachedData as any[], source: 'cache' };
+                return { data: JSON.parse(cachedData as string), source: 'cache' };
             }
         } catch (error) {
             console.warn('Could not read All Case from Redis cache. Falling back to Google Sheets.', error);
@@ -1256,7 +1256,7 @@ export async function getAllCaseData(sheetUrl: string) {
 
     if (result.data && isRedisConfigured()) {
         // Asynchronously update cache
-        redis.set(CACHE_KEY_ALL_CASE, result.data).catch(err => {
+        redis.set(CACHE_KEY_ALL_CASE, JSON.stringify(result.data)).catch(err => {
              console.error("Async All Case cache update failed:", err);
         });
     }
