@@ -57,8 +57,8 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                 if (visibleItems.length === 0) return null;
 
                 return (
-                    <div key={category}>
-                        <h2 className="mb-2 px-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    <div key={category} className="space-y-1">
+                        <h2 className="mb-2 mt-4 px-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                             {category}
                         </h2>
                         {visibleItems.map((item) => (
@@ -66,10 +66,10 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                                 <Link
                                     href={item.href}
                                     className={cn(
-                                        "flex items-center gap-3 rounded-lg px-4 py-2 text-muted-foreground transition-all",
+                                        "flex items-center gap-3 rounded-lg px-4 py-2.5 text-muted-foreground transition-all",
                                         "font-medium text-sm",
                                         pathname === item.href 
-                                            ? "bg-primary/10 text-primary font-semibold" 
+                                            ? "bg-blue-100 dark:bg-blue-900/20 text-primary font-semibold" 
                                             : "hover:bg-muted/50 hover:text-foreground"
                                     )}
                                 >
@@ -168,10 +168,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                             <Link
                                 href="/settings"
                                 className={cn(
-                                    "flex items-center gap-3 rounded-lg px-4 py-2 text-muted-foreground transition-all",
+                                    "flex items-center gap-3 rounded-lg px-4 py-2.5 text-muted-foreground transition-all",
                                     "font-medium text-sm",
                                      pathname === "/settings" 
-                                        ? "bg-primary/10 text-primary font-semibold" 
+                                        ? "bg-blue-100 dark:bg-blue-900/20 text-primary font-semibold" 
                                         : "hover:bg-muted/50 hover:text-foreground"
                                 )}
                             >
