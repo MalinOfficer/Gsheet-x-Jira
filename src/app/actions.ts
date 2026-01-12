@@ -245,7 +245,7 @@ const getGoogleApiClients = () => {
     return { sheets, drive };
 }
 
-export async function getGoogleDriveFileTitle(fileUrl: string) {
+export async function getSpreadsheetTitle(fileUrl: string) {
     if (!fileUrl) {
         return { error: "URL is empty. Please provide a Google Drive URL." };
     }
@@ -1318,3 +1318,6 @@ export async function runKnowledgeBaseEngine(
     
 
 
+
+
+    
