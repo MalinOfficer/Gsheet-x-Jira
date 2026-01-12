@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { TableDataContext } from "@/store/table-data-context";
-import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar as RechartsBar } from 'recharts';
+import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar as RechartsBar, Tooltip, Legend } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getAllCaseData } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
@@ -406,7 +406,7 @@ export function Dashboard() {
                     <CardContent>
                         <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
                             <PieChart>
-                                <Tooltip
+                                <ChartTooltip
                                   cursor={false}
                                   content={<ChartTooltipContent hideLabel />}
                                 />
@@ -456,7 +456,7 @@ export function Dashboard() {
                                 <CartesianGrid horizontal={false} />
                                 <XAxis type="number" dataKey="value" hide />
                                 <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} />
-                                <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
                                 <RechartsBar dataKey="value" radius={5}>
                                      {solvedVsUnsolved.map((entry) => (
                                         <Cell key={entry.name} fill={chartConfig[entry.name.toLowerCase() as keyof typeof chartConfig]?.color} />
