@@ -11,8 +11,8 @@ import {
 } from "@/components/ui/card";
 import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { TableDataContext } from "@/store/table-data-context";
-import { Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart } from 'recharts';
-import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getAllCaseData } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
 import { Button } from "./ui/button";
@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 const chartConfig = {
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
   unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
+  revenue: { label: "Revenue", color: "hsl(var(--chart-2))"},
   L1: { label: "L1", color: "hsl(var(--chart-1))" },
   L2: { label: "L2", color: "hsl(var(--chart-3))" },
   L3: { label: "L3", color: "hsl(var(--chart-4))" },
@@ -36,6 +37,26 @@ interface DashboardState {
     error?: string;
     loading: boolean;
 }
+
+const areaChartData = [
+  { month: "Jan 22", revenue: 186 }, { month: "Feb 22", revenue: 140 },
+  { month: "Mar 22", revenue: 205 }, { month: "Apr 22", revenue: 180 },
+  { month: "May 22", revenue: 230 }, { month: "Jun 22", revenue: 170 },
+  { month: "Jul 22", revenue: 190 }, { month: "Aug 22", revenue: 220 },
+  { month: "Sep 22", revenue: 250 }, { month: "Oct 22", revenue: 210 },
+  { month: "Nov 22", revenue: 240 }, { month: "Dec 22", revenue: 270 },
+  { month: "Jan 23", revenue: 280 }, { month: "Feb 23", revenue: 250 },
+  { month: "Mar 23", revenue: 310 }, { month: "Apr 23", revenue: 280 },
+  { month: "May 23", revenue: 320 }, { month: "Jun 23", revenue: 290 },
+  { month: "Jul 23", revenue: 330 }, { month: "Aug 23", revenue: 350 },
+  { month: "Sep 23", revenue: 380 }, { month: "Oct 23", revenue: 340 },
+  { month: "Nov 23", revenue: 370 }, { month: "Dec 23", revenue: 400 },
+  { month: "Jan 24", revenue: 410 }, { month: "Feb 24", revenue: 380 },
+  { month: "Mar 24", revenue: 420 }, { month: "Apr 24", revenue: 390 },
+  { month: "May 24", revenue: 430 }, { month: "Jun 24", revenue: 410 },
+  { month: "Jul 24", revenue: 450 },
+];
+
 
 export function Dashboard() {
     const { dbSheetUrl } = useContext(TableDataContext);
@@ -150,6 +171,7 @@ export function Dashboard() {
                         <Skeleton className="h-[125px]" />
                         <Skeleton className="h-[125px]" />
                     </div>
+                     <Skeleton className="h-[350px] w-full" />
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                         <Skeleton className="h-[300px] col-span-1 lg:col-span-4" />
                         <Skeleton className="h-[300px] col-span-1 lg:col-span-3" />
@@ -202,12 +224,18 @@ export function Dashboard() {
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
-                 <div className="flex justify-end">
+                 <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-bold">Dashboard</h1>
+                        <p className="text-muted-foreground">Sales performance overview</p>
+                    </div>
                     <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" variant="outline">
                         <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                         Refresh Data
                     </Button>
                 </div>
+
+                {/* Header Report */}
                 <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -250,6 +278,65 @@ export function Dashboard() {
                   </Card>
                 </div>
                 
+                {/* Main Content */}
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Total Revenue of This Year</CardTitle>
+                        <CardDescription>Online and offline Revenue Of Sales Performance</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={chartConfig} className="h-[350px] w-full">
+                            <AreaChart data={areaChartData} margin={{ left: -20, right: 20, top: 10, bottom: 10 }}>
+                                <defs>
+                                    <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
+                                    <stop
+                                        offset="5%"
+                                        stopColor="var(--color-revenue)"
+                                        stopOpacity={0.8}
+                                    />
+                                    <stop
+                                        offset="95%"
+                                        stopColor="var(--color-revenue)"
+                                        stopOpacity={0.1}
+                                    />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid vertical={false} />
+                                <XAxis
+                                    dataKey="month"
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickMargin={8}
+                                    tickFormatter={(value) => value.slice(0, 3)}
+                                />
+                                <YAxis
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickMargin={8}
+                                    tickFormatter={(value) => `${value}`}
+                                />
+                                <ChartTooltip
+                                    cursor={false}
+                                    content={
+                                    <ChartTooltipContent
+                                        indicator="dot"
+                                        labelFormatter={(label) => `Month: ${label}`}
+                                    />
+                                    }
+                                />
+                                <Area
+                                    dataKey="revenue"
+                                    type="monotone"
+                                    fill="url(#fillRevenue)"
+                                    stroke="var(--color-revenue)"
+                                    strokeWidth={2}
+                                />
+                            </AreaChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                {/* Footer Content */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                   <Card className="col-span-1 lg:col-span-4">
                     <CardHeader>
