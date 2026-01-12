@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { TableDataContext } from "@/store/table-data-context";
-import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, Bar as RechartsBar, BarChart as RechartsBarChart } from 'recharts';
+import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar as RechartsBar } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getAllCaseData } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
@@ -35,6 +35,7 @@ const chartConfig = {
   'ON HOLD': { label: 'On Hold', color: 'hsl(var(--chart-5))' },
   'OPEN': { label: 'Open', color: 'hsl(var(--chart-1))' },
   'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
+  'modules': { label: "Modules", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig
 
 interface DashboardState {
@@ -124,7 +125,7 @@ export function Dashboard() {
             return {
                 totalCases: 0,
                 clientTrend: 'N/A',
-                moduleTrend: 'N/A',
+                topModules: [],
                 statusCounts: [],
                 solvedVsUnsolved: [],
             };
@@ -153,6 +154,19 @@ export function Dashboard() {
             return mostFrequent;
         };
 
+        const moduleFrequency: Record<string, number> = {};
+        data.forEach(row => {
+            const module = row['DETAIL MODUL'];
+            if (module) {
+                moduleFrequency[module] = (moduleFrequency[module] || 0) + 1;
+            }
+        });
+
+        const topModules = Object.entries(moduleFrequency)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 5)
+            .map(([name, value]) => ({ name, value }));
+
         const statusFrequency: Record<string, number> = {};
         data.forEach(row => {
             const status = String(row['STATUS CASE'] || 'N/A').toUpperCase();
@@ -172,7 +186,7 @@ export function Dashboard() {
         return {
             totalCases: data.length,
             clientTrend: getMostFrequent('CLIENT NAME'),
-            moduleTrend: getMostFrequent('DETAIL MODUL'),
+            topModules,
             statusCounts,
             solvedVsUnsolved,
         };
@@ -236,7 +250,7 @@ export function Dashboard() {
         );
     }
     
-    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved } = dashboardStats;
+    const { totalCases, clientTrend, topModules, statusCounts, solvedVsUnsolved } = dashboardStats;
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -272,26 +286,45 @@ export function Dashboard() {
                       <div className="text-2xl font-bold truncate">{clientTrend}</div>
                     </CardContent>
                   </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">Top Module</CardTitle>
-                      <AppWindow className="h-4 w-4 text-muted-foreground" />
+                  <Card className="col-span-1 md:col-span-2">
+                    <CardHeader>
+                        <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold truncate">{moduleTrend}</div>
+                    <CardContent className="h-[60px]">
+                        <ChartContainer config={chartConfig}>
+                            <RechartsBarChart
+                                accessibilityLayer
+                                data={topModules}
+                                layout="vertical"
+                                margin={{ left: -10, right: 10, top: -20, bottom: -10 }}
+                            >
+                                <XAxis type="number" hide />
+                                <YAxis
+                                    dataKey="name"
+                                    type="category"
+                                    tickLine={false}
+                                    tick={false}
+                                    axisLine={false}
+                                    width={110}
+                                />
+                                <ChartTooltip
+                                    cursor={false}
+                                    content={<ChartTooltipContent hideLabel />}
+                                />
+                                <RechartsBar
+                                    dataKey="value"
+                                    name="modules"
+                                    layout="vertical"
+                                    radius={5}
+                                    barSize={12}
+                                >
+                                     {topModules.map((_, index) => (
+                                        <Cell key={`cell-${index}`} fill={chartConfig[`chart-${(index % 5) + 1}` as keyof typeof chartConfig]?.color || 'hsl(var(--muted))'} />
+                                     ))}
+                                </RechartsBar>
+                            </RechartsBarChart>
+                        </ChartContainer>
                     </CardContent>
-                  </Card>
-                   <Card>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                          <CardTitle className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">Solved vs Unsolved</CardTitle>
-                          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                      </CardHeader>
-                      <CardContent>
-                          <div className="text-2xl font-bold">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</div>
-                          <p className="text-xs text-muted-foreground">
-                             {totalCases > 0 ? `${(((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1)}% solved` : "No data"}
-                          </p>
-                      </CardContent>
                   </Card>
                 </div>
                 
