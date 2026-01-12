@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { TableDataContext } from "@/store/table-data-context";
-import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart } from 'recharts';
+import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getAllCaseData } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
