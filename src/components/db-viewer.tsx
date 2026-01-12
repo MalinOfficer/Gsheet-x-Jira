@@ -450,54 +450,54 @@ export function DbViewer() {
                                     </div>
                                 </div>
                             ) : (
-                               <table className="text-sm" style={{ tableLayout: 'fixed', width: totalWidth }}>
-                                   <thead className="sticky top-0 bg-muted z-10">
-                                       <tr style={{ width: totalWidth, display: 'flex' }}>
-                                           {headers.map(header => {
-                                               const lowerHeader = header.toLowerCase();
-                                               const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
-                                               
-                                               return (
-                                                   <th 
-                                                       key={header} 
-                                                       className={cn(
-                                                           "h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-center",
-                                                           isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
-                                                       )}
-                                                       style={{ width: getColumnWidth(header), flexShrink: 0 }}
-                                                   >
-                                                      {renderHeaderContent(header)}
-                                                   </th>
-                                               );
-                                           })}
-                                       </tr>
-                                   </thead>
-                                   <tbody style={{ height: `${totalHeight}px`, position: 'relative' }}>
-                                       {virtualRows.map((virtualRow) => {
-                                           const row = displayData[virtualRow.index];
+                               <div style={{ height: `${totalHeight}px`, position: 'relative' }}>
+                                   <div
+                                       className="sticky top-0 z-10"
+                                       style={{ width: totalWidth, display: 'flex' }}
+                                   >
+                                       {headers.map(header => {
+                                           const lowerHeader = header.toLowerCase();
+                                           const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
+                                           
                                            return (
-                                               <tr 
-                                                   key={virtualRow.key}
-                                                   style={{
-                                                       position: 'absolute',
-                                                       top: 0,
-                                                       left: 0,
-                                                       width: totalWidth,
-                                                       height: `${virtualRow.size}px`,
-                                                       display: 'flex',
-                                                   }}
-                                                   className="border-b transition-colors hover:bg-muted/50"
+                                               <div
+                                                   key={header}
+                                                   className={cn(
+                                                       "h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-center bg-muted",
+                                                       isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
+                                                   )}
+                                                   style={{ width: getColumnWidth(header), flexShrink: 0, borderBottom: '1px solid hsl(var(--border))', borderRight: '1px solid hsl(var(--border))' }}
                                                >
-                                                   {headers.map(header => (
-                                                       <td key={header} className="p-4 align-middle truncate" style={{ width: getColumnWidth(header), flexShrink: 0 }}>
-                                                            {row ? row[header] : <Skeleton className="h-4 w-full" />}
-                                                       </td>
-                                                   ))}
-                                               </tr>
+                                                  {renderHeaderContent(header)}
+                                               </div>
                                            );
                                        })}
-                                   </tbody>
-                              </table>
+                                   </div>
+                                   {virtualRows.map((virtualRow) => {
+                                       const row = displayData[virtualRow.index];
+                                       return (
+                                           <div
+                                               key={virtualRow.key}
+                                               style={{
+                                                   position: 'absolute',
+                                                   top: 0,
+                                                   left: 0,
+                                                   width: totalWidth,
+                                                   height: `${virtualRow.size}px`,
+                                                   transform: `translateY(${virtualRow.start + 48}px)`,
+                                                   display: 'flex'
+                                               }}
+                                               className="border-b transition-colors hover:bg-muted/50"
+                                           >
+                                               {headers.map(header => (
+                                                   <div key={header} className="p-4 align-middle truncate" style={{ width: getColumnWidth(header), flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}>
+                                                        {row ? row[header] : <Skeleton className="h-4 w-full" />}
+                                                   </div>
+                                               ))}
+                                           </div>
+                                       );
+                                   })}
+                               </div>
                            )}
                         </div>
                     </CardContent>
@@ -509,5 +509,3 @@ export function DbViewer() {
         </div>
     );
 }
-
-    
