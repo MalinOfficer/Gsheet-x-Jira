@@ -71,7 +71,7 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                                         pathname === item.href && "bg-primary/10 text-primary font-semibold"
                                     )}
                                 >
-                                    <item.icon className="h-5 w-5" />
+                                    <item.icon className="h-5 w-5" strokeWidth={1.5} />
                                     {item.label}
                                 </Link>
                             </Wrapper>
@@ -155,7 +155,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     <div className="flex h-full max-h-screen flex-col gap-2 sticky top-0">
                         <div className="flex h-20 items-center border-b px-6">
                             <Link href="/" className="flex items-center gap-2.5 font-semibold text-primary">
-                                <GanttChartSquare className="h-6 w-6" />
+                                <GanttChartSquare className="h-6 w-6" strokeWidth={1.5} />
                                 <span className="text-lg">Gsheet Case</span>
                             </Link>
                         </div>
@@ -171,7 +171,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                      pathname === "/settings" && "bg-primary/10 text-primary font-semibold"
                                 )}
                             >
-                                <Settings className="h-5 w-5" />
+                                <Settings className="h-5 w-5" strokeWidth={1.5} />
                                 Settings
                             </Link>
                         </div>
@@ -196,7 +196,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                 <SheetHeader className="h-20 flex items-center border-b px-6">
                                     <SheetTitle asChild>
                                         <Link href="/" className="flex items-center gap-2.5 font-semibold text-primary">
-                                            <GanttChartSquare className="h-6 w-6" />
+                                            <GanttChartSquare className="h-6 w-6" strokeWidth={1.5} />
                                             <span className="text-lg">Gsheet Case</span>
                                         </Link>
                                     </SheetTitle>
@@ -208,7 +208,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                     <SheetClose asChild>
                                         <Link href="/settings">
                                             <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
-                                                <Settings className="mr-3 h-5 w-5" />
+                                                <Settings className="mr-3 h-5 w-5" strokeWidth={1.5} />
                                                 Settings
                                             </Button>
                                         </Link>
