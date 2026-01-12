@@ -1,7 +1,7 @@
 
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, BarChart as BarChartIcon, User, AppWindow, TrendingUp } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -9,21 +9,27 @@ import {
     CardHeader, 
     CardTitle 
 } from "@/components/ui/card";
-import { 
-    Table, 
-    TableBody, 
-    TableCell, 
-    TableHead, 
-    TableHeader, 
-    TableRow 
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useMemo } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { getDashboardData } from "@/app/actions";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart } from 'recharts';
+import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+
+const chartConfig = {
+  solved: { label: "Solved", color: "hsl(var(--chart-2))" },
+  unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
+  L1: { label: "L1", color: "hsl(var(--chart-1))" },
+  L2: { label: "L2", color: "hsl(var(--chart-3))" },
+  L3: { label: "L3", color: "hsl(var(--chart-4))" },
+  // Add other potential statuses here for consistent coloring
+  'N/A': { label: 'N/A', color: 'hsl(var(--muted-foreground))' },
+  'PENDING': { label: 'Pending', color: 'hsl(var(--chart-5))' },
+  'ON HOLD': { label: 'On Hold', color: 'hsl(var(--chart-5))' },
+  'OPEN': { label: 'Open', color: 'hsl(var(--chart-1))' },
+  'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
+} satisfies ChartConfig
 
 interface DashboardState {
     data: any[] | null;
@@ -68,8 +74,68 @@ export function Dashboard() {
     useEffect(() => {
         fetchData();
     }, [dbSheetUrl]);
+    
+    const dashboardStats = useMemo(() => {
+        const data = state.data;
+        if (!data || data.length === 0) {
+            return {
+                totalCases: 0,
+                clientTrend: 'N/A',
+                moduleTrend: 'N/A',
+                statusCounts: [],
+                solvedVsUnsolved: [],
+            };
+        }
 
-    if (state.loading && !state.data) {
+        const getMostFrequent = (field: string) => {
+            const frequency: Record<string, number> = {};
+            let maxCount = 0;
+            let mostFrequent = 'N/A';
+            const filteredData = data.filter(row => row[field]);
+            if (filteredData.length === 0) return 'N/A';
+
+            filteredData.forEach(row => {
+                const value = row[field];
+                if (value) {
+                    frequency[value] = (frequency[value] || 0) + 1;
+                }
+            });
+
+            Object.entries(frequency).forEach(([value, count]) => {
+                if (count > maxCount) {
+                    maxCount = count;
+                    mostFrequent = value;
+                }
+            });
+            return mostFrequent;
+        };
+
+        const statusFrequency: Record<string, number> = {};
+        data.forEach(row => {
+            const status = String(row['STATUS CASE'] || 'N/A').toUpperCase();
+            statusFrequency[status] = (statusFrequency[status] || 0) + 1;
+        });
+        
+        const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ name, value, fill: `var(--color-${name})`}));
+
+        const solvedCount = statusFrequency['SOLVED'] || 0;
+        const unsolvedCount = data.length - solvedCount;
+
+        const solvedVsUnsolved = [
+            { name: 'Solved', value: solvedCount },
+            { name: 'Unsolved', value: unsolvedCount }
+        ];
+
+        return {
+            totalCases: data.length,
+            clientTrend: getMostFrequent('CLIENT NAME'),
+            moduleTrend: getMostFrequent('DETAIL MODUL'),
+            statusCounts,
+            solvedVsUnsolved,
+        };
+    }, [state.data]);
+
+    if (state.loading) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                  <div className="max-w-7xl mx-auto">
@@ -101,77 +167,138 @@ export function Dashboard() {
             </div>
         );
     }
-
-    if (!state.data || state.data.length === 0) {
-        return (
-             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-                <div className="max-w-7xl mx-auto">
-                    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
-                        <Database className="w-16 h-16 text-muted-foreground mb-4" />
-                        <CardTitle>No Data Found</CardTitle>
-                        <CardDescription className="mt-2 mb-4 max-w-sm">
-                            The dashboard summary is currently empty. Data will appear here after an import or successful cache sync.
-                        </CardDescription>
-                         <Button onClick={() => fetchData(true)} disabled={state.loading}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${state.loading ? 'animate-spin' : ''}`} />
-                            Refresh Now
-                        </Button>
-                    </Card>
-                </div>
-            </div>
-        );
-    }
     
-    const headers = Object.keys(state.data[0]);
+    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved } = dashboardStats;
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
                  <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Dashboard Summary</h1>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">Dashboard</h1>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Menampilkan data ringkasan dari Google Sheet "Summary".
+                          Ringkasan analitik dari data kasus Anda.
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                         <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.loading}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${state.loading ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </Button>
-                        <Badge variant={state.source === 'cache' ? 'default' : 'secondary'} className="w-fit">
-                            {state.source === 'cache' ? <Database className="mr-2 h-4 w-4"/> : <Cloud className="mr-2 h-4 w-4"/>}
-                            Data source: {state.source}
-                        </Badge>
-                    </div>
+                     <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.loading}>
+                        <RefreshCw className={`mr-2 h-4 w-4 ${state.loading ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </Button>
                 </header>
                 
-                <Card>
-                    <CardContent className="p-0">
-                        <ScrollArea className="h-[75vh]">
-                            <Table>
-                                <TableHeader className="sticky top-0 bg-muted z-10">
-                                    <TableRow>
-                                        {headers.map(header => (
-                                            <TableHead key={header}>{header}</TableHead>
-                                        ))}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {state.data.map((row, rowIndex) => (
-                                        <TableRow key={rowIndex}>
-                                            {headers.map(header => (
-                                                <TableCell key={`${rowIndex}-${header}`}>
-                                                    {row[header]}
-                                                </TableCell>
-                                            ))}
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
+                <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
+                      <BarChartIcon className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{totalCases}</div>
                     </CardContent>
-                </Card>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Top Client</CardTitle>
+                      <User className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold truncate">{clientTrend}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Top Module</CardTitle>
+                      <AppWindow className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold truncate">{moduleTrend}</div>
+                    </CardContent>
+                  </Card>
+                   <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Solved vs Unsolved</CardTitle>
+                          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                          <div className="text-2xl font-bold">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</div>
+                          <p className="text-xs text-muted-foreground">
+                             {totalCases > 0 ? `${(((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1)}% solved` : "No data"}
+                          </p>
+                      </CardContent>
+                  </Card>
+                </div>
+                
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                  <Card className="col-span-1 lg:col-span-4">
+                    <CardHeader>
+                      <CardTitle>Case Status Distribution</CardTitle>
+                      <CardDescription>Persentase kasus berdasarkan status.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+                            <PieChart>
+                                <Tooltip
+                                  cursor={false}
+                                  content={<ChartTooltipContent hideLabel />}
+                                />
+                                <Pie
+                                    data={statusCounts}
+                                    dataKey="value"
+                                    nameKey="name"
+                                    innerRadius={50}
+                                    strokeWidth={5}
+                                >
+                                  {statusCounts.map((entry) => (
+                                    <Cell
+                                      key={entry.name}
+                                      fill={chartConfig[entry.name as keyof typeof chartConfig]?.color || 'hsl(var(--muted))'}
+                                      className="focus:outline-none"
+                                    />
+                                  ))}
+                                </Pie>
+                                <Legend content={({ payload }) => {
+                                    return (
+                                        <ul className="flex flex-wrap gap-x-4 gap-y-2 justify-center text-xs">
+                                        {payload?.map((entry) => (
+                                            <li key={`item-${entry.value}`} className="flex items-center gap-1.5">
+                                            <span className="h-2 w-2 rounded-full" style={{backgroundColor: entry.color}} />
+                                            <span>{entry.value}</span>
+                                            </li>
+                                        ))}
+                                        </ul>
+                                    )
+                                    }}
+                                />
+                            </PieChart>
+                        </ChartContainer>
+                    </CardContent>
+                  </Card>
+                  <Card className="col-span-1 lg:col-span-3">
+                     <CardHeader>
+                        <CardTitle>Solved vs Unsolved</CardTitle>
+                        <CardDescription>Perbandingan jumlah kasus yang sudah selesai dan yang belum.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                            <RechartsBarChart
+                                data={solvedVsUnsolved}
+                                layout="vertical"
+                                margin={{ left: 10 }}
+                            >
+                                <CartesianGrid horizontal={false} />
+                                <XAxis type="number" dataKey="value" hide />
+                                <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} />
+                                <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                <Bar dataKey="value" radius={5}>
+                                     {solvedVsUnsolved.map((entry) => (
+                                        <Cell key={entry.name} fill={chartConfig[entry.name.toLowerCase() as keyof typeof chartConfig]?.color} />
+                                     ))}
+                                </Bar>
+                            </RechartsBarChart>
+                        </ChartContainer>
+                      </CardContent>
+                  </Card>
+                </div>
             </div>
         </div>
     );
