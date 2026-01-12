@@ -19,9 +19,11 @@ import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 
 const chartConfig = {
+  "2024": { label: "2024", color: "hsl(var(--chart-1))" },
+  "2023": { label: "2023", color: "hsl(var(--chart-2))" },
+  "2022": { label: "2022", color: "hsl(var(--chart-3))" },
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
   unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
-  revenue: { label: "Revenue", color: "hsl(var(--primary))"},
   L1: { label: "L1", color: "hsl(var(--chart-1))" },
   L2: { label: "L2", color: "hsl(var(--chart-3))" },
   L3: { label: "L3", color: "hsl(var(--chart-4))" },
@@ -39,22 +41,18 @@ interface DashboardState {
 }
 
 const areaChartData = [
-  { month: "Jan 22", revenue: 186 }, { month: "Feb 22", revenue: 140 },
-  { month: "Mar 22", revenue: 205 }, { month: "Apr 22", revenue: 180 },
-  { month: "May 22", revenue: 230 }, { month: "Jun 22", revenue: 170 },
-  { month: "Jul 22", revenue: 190 }, { month: "Aug 22", revenue: 220 },
-  { month: "Sep 22", revenue: 250 }, { month: "Oct 22", revenue: 210 },
-  { month: "Nov 22", revenue: 240 }, { month: "Dec 22", revenue: 270 },
-  { month: "Jan 23", revenue: 280 }, { month: "Feb 23", revenue: 250 },
-  { month: "Mar 23", revenue: 310 }, { month: "Apr 23", revenue: 280 },
-  { month: "May 23", revenue: 320 }, { month: "Jun 23", revenue: 290 },
-  { month: "Jul 23", revenue: 330 }, { month: "Aug 23", revenue: 350 },
-  { month: "Sep 23", revenue: 380 }, { month: "Oct 23", revenue: 340 },
-  { month: "Nov 23", revenue: 370 }, { month: "Dec 23", revenue: 400 },
-  { month: "Jan 24", revenue: 410 }, { month: "Feb 24", revenue: 380 },
-  { month: "Mar 24", revenue: 420 }, { month: "Apr 24", revenue: 390 },
-  { month: "May 24", revenue: 430 }, { month: "Jun 24", revenue: 410 },
-  { month: "Jul 24", revenue: 450 },
+  { month: "Jan", "2022": 186, "2023": 280, "2024": 410 },
+  { month: "Feb", "2022": 140, "2023": 250, "2024": 380 },
+  { month: "Mar", "2022": 205, "2023": 310, "2024": 420 },
+  { month: "Apr", "2022": 180, "2023": 280, "2024": 390 },
+  { month: "May", "2022": 230, "2023": 320, "2024": 430 },
+  { month: "Jun", "2022": 170, "2023": 290, "2024": 410 },
+  { month: "Jul", "2022": 190, "2023": 330, "2024": 450 },
+  { month: "Aug", "2022": 220, "2023": 350, "2024": null },
+  { month: "Sep", "2022": 250, "2023": 380, "2024": null },
+  { month: "Oct", "2022": 210, "2023": 340, "2024": null },
+  { month: "Nov", "2022": 240, "2023": 370, "2024": null },
+  { month: "Dec", "2022": 270, "2023": 400, "2024": null },
 ];
 
 
@@ -282,23 +280,23 @@ export function Dashboard() {
                  <Card>
                     <CardHeader>
                         <CardTitle>Total Revenue of This Year</CardTitle>
-                        <CardDescription>Online and offline Revenue Of Sales Performance</CardDescription>
+                        <CardDescription>Comparison of sales performance over the last three years.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={chartConfig} className="h-[350px] w-full">
                             <AreaChart data={areaChartData} margin={{ left: -20, right: 20, top: 10, bottom: 10 }}>
                                 <defs>
-                                    <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-                                    <stop
-                                        offset="5%"
-                                        stopColor="var(--color-revenue)"
-                                        stopOpacity={0.8}
-                                    />
-                                    <stop
-                                        offset="95%"
-                                        stopColor="var(--color-revenue)"
-                                        stopOpacity={0.1}
-                                    />
+                                    <linearGradient id="fill2024" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="var(--color-2024)" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="var(--color-2024)" stopOpacity={0.1} />
+                                    </linearGradient>
+                                    <linearGradient id="fill2023" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="var(--color-2023)" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="var(--color-2023)" stopOpacity={0.1} />
+                                    </linearGradient>
+                                    <linearGradient id="fill2022" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="var(--color-2022)" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="var(--color-2022)" stopOpacity={0.1} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid vertical={false} />
@@ -307,7 +305,6 @@ export function Dashboard() {
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    tickFormatter={(value) => value.slice(0, 3)}
                                 />
                                 <YAxis
                                     tickLine={false}
@@ -317,18 +314,32 @@ export function Dashboard() {
                                 />
                                 <ChartTooltip
                                     cursor={false}
-                                    content={
-                                    <ChartTooltipContent
-                                        indicator="dot"
-                                        labelFormatter={(label) => `Month: ${label}`}
-                                    />
-                                    }
+                                    content={<ChartTooltipContent indicator="dot" />}
                                 />
+                                <Legend />
                                 <Area
-                                    dataKey="revenue"
+                                    dataKey="2024"
                                     type="monotone"
-                                    fill="url(#fillRevenue)"
-                                    stroke="var(--color-revenue)"
+                                    fill="url(#fill2024)"
+                                    stroke="var(--color-2024)"
+                                    stackId="a"
+                                    strokeWidth={2}
+                                    connectNulls
+                                />
+                                 <Area
+                                    dataKey="2023"
+                                    type="monotone"
+                                    fill="url(#fill2023)"
+                                    stroke="var(--color-2023)"
+                                    stackId="a"
+                                    strokeWidth={2}
+                                />
+                                 <Area
+                                    dataKey="2022"
+                                    type="monotone"
+                                    fill="url(#fill2022)"
+                                    stroke="var(--color-2022)"
+                                    stackId="a"
                                     strokeWidth={2}
                                 />
                             </AreaChart>
