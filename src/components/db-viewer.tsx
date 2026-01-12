@@ -319,7 +319,7 @@ export function DbViewer() {
                     <PopoverTrigger asChild>
                          <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
                              {header}
-                             {dateRange && <CalendarIcon className="ml-2 h-4 w-4 text-primary" />}
+                             <Filter className={cn("ml-2 h-3 w-3", dateRange ? "text-primary" : "text-muted-foreground/50")} />
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -557,4 +557,3 @@ export function DbViewer() {
         </div>
     );
 }
-
