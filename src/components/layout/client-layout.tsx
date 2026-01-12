@@ -162,12 +162,17 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         <div className="flex-1 overflow-y-auto py-4">
                             <NavLinks />
                         </div>
-                        <div className="mt-auto p-4 space-y-2 border-t">
-                            <Link href="/settings">
-                                <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
-                                    <Settings className="mr-3 h-5 w-5" />
-                                    Settings
-                                </Button>
+                         <div className="mt-auto border-t p-4">
+                            <Link
+                                href="/settings"
+                                className={cn(
+                                    "flex items-center gap-3 rounded-lg px-4 py-3 text-muted-foreground transition-all hover:bg-muted/50 hover:text-foreground",
+                                    "font-medium text-base",
+                                     pathname === "/settings" && "bg-blue-100/50 text-primary font-semibold"
+                                )}
+                            >
+                                <Settings className="h-5 w-5" />
+                                Settings
                             </Link>
                         </div>
                     </div>
