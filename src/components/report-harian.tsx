@@ -95,8 +95,8 @@ function DashboardChart() {
     const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved } = dashboardStats;
 
     return (
-      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4 mb-6">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-10 mb-6">
+        <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Case</CardTitle>
             <BarChartIcon className="h-4 w-4 text-muted-foreground" />
@@ -105,7 +105,7 @@ function DashboardChart() {
             <div className="text-2xl font-bold">{totalCases}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="lg:col-span-3">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Client Trend</CardTitle>
             <User className="h-4 w-4 text-muted-foreground" />
@@ -114,7 +114,7 @@ function DashboardChart() {
             <div className="text-2xl font-bold truncate">{clientTrend}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="lg:col-span-3">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Module Trend</CardTitle>
             <AppWindow className="h-4 w-4 text-muted-foreground" />
@@ -123,7 +123,7 @@ function DashboardChart() {
             <div className="text-2xl font-bold truncate">{moduleTrend}</div>
           </CardContent>
         </Card>
-         <Card>
+         <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Solved vs Unsolved</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -135,7 +135,7 @@ function DashboardChart() {
                 </p>
             </CardContent>
         </Card>
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-5">
           <CardHeader>
             <CardTitle>Case Status Distribution</CardTitle>
             <CardDescription>Persentase kasus berdasarkan status L1, L2, L3, dan Solved.</CardDescription>
@@ -163,7 +163,7 @@ function DashboardChart() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-5">
           <CardHeader>
             <CardTitle>Solved vs Unsolved</CardTitle>
             <CardDescription>Perbandingan jumlah kasus yang sudah selesai dan yang belum.</CardDescription>
