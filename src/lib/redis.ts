@@ -1,16 +1,21 @@
 import { Redis } from '@upstash/redis'
 
-// Menggunakan variabel lingkungan standar untuk Upstash, bukan Vercel KV.
-// Hal ini memungkinkan koneksi langsung ke database Upstash Anda.
-if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+// Logika ini memeriksa variabel lingkungan untuk Vercel KV dan Upstash standar.
+// Ini memastikan koneksi berhasil di berbagai lingkungan hosting.
+const redisUrl = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
+const redisToken = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
+
+if (!redisUrl || !redisToken) {
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('Upstash Redis environment variables are not set.');
+    throw new Error('Redis environment variables are not set.');
   }
   // Peringatan ini akan muncul saat development jika variabel tidak diatur.
-  console.warn('Upstash Redis environment variables (UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN) are not set. Caching will be disabled.');
+  console.warn('Redis environment variables are not set. Caching will be disabled.');
 }
 
-// Gunakan fromEnv() untuk menginisialisasi dari environment variables secara otomatis
-export const redis = Redis.fromEnv();
-
-    
+// Inisialisasi Redis dengan variabel yang ditemukan atau biarkan kosong jika tidak ada,
+// yang akan menyebabkan error jika 'caching' benar-benar dicoba tanpa konfigurasi.
+export const redis = new Redis({
+  url: redisUrl || '',
+  token: redisToken || '',
+});
