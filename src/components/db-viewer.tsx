@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { useEffect, useState, useRef, useMemo, useTransition, useCallback, useContext, MouseEvent } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -77,7 +77,6 @@ export function DbViewer() {
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
-    const [isPending, startTransition] = useTransition();
 
     const headers = useMemo(() => state.data?.length ? Object.keys(state.data[0]) : [], [state.data]);
 
@@ -157,7 +156,7 @@ export function DbViewer() {
         }
 
         if (isRefresh) {
-            setState(prevState => ({ ...prevState, isSyncing: true }));
+            setState(prevState => ({ ...prevState, isSyncing: true, loading: true }));
             setProgress(0);
         } else {
             setState(prevState => ({ ...prevState, loading: true }));
@@ -165,18 +164,16 @@ export function DbViewer() {
 
         const result = await getAllCaseData(dbSheetUrl);
 
-        startTransition(() => {
-            setState({
-                data: result.data || null,
-                source: result.source || 'N/A',
-                error: result.error,
-                loading: false,
-                isSyncing: false,
-            });
-            setProgress(100);
+        setState({
+            data: result.data || null,
+            source: result.source || 'N/A',
+            error: result.error,
+            loading: false,
+            isSyncing: false,
         });
 
         if (isRefresh) {
+            setProgress(100);
             if (result.error) {
                  toast({ variant: 'destructive', title: "Refresh Failed", description: result.error });
             } else {
@@ -437,7 +434,7 @@ export function DbViewer() {
                     </div>
                      <div className="flex items-center gap-2">
                          <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.isSyncing || state.loading}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${state.isSyncing ? 'animate-spin' : ''}`} />
+                            <RefreshCw className={`mr-2 h-4 w-4 ${state.isSyncing || state.loading ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
                         <Badge variant={state.source === 'cache' ? 'default' : 'secondary'} className="w-fit">
@@ -469,7 +466,7 @@ export function DbViewer() {
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                         {(state.isSyncing || isPending) && (
+                         {(state.isSyncing || state.loading) && !state.data && (
                              <div className="px-4 pb-2 space-y-1">
                                 <div className='flex items-center gap-2'>
                                     <Progress value={progress} className="w-full" />
