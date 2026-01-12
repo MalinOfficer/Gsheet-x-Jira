@@ -6,23 +6,23 @@
 
 @layer base {
   :root {
-    --background: 240 10% 97%; /* Light Gray */
-    --foreground: 240 6% 10%; /* Almost Black (Slate 900) */
+    --background: 240 10% 100%; /* #ffffff */
+    --foreground: 240 10% 3.9%; /* #0f172a - Almost black */
     --card: 0 0% 100%; /* White */
-    --card-foreground: 240 6% 10%;
+    --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 6% 10%;
-    --primary: 221 83% 53%; /* Blue 600 */
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 221 83% 53%; /* Blue-600 */
     --primary-foreground: 0 0% 98%;
-    --secondary: 240 5% 96%; /* Slate 100 */
+    --secondary: 240 5% 96%; /* Slate-100 / #f1f5f9 */
     --secondary-foreground: 240 6% 10%;
-    --muted: 240 5% 96%; /* Slate 100 */
-    --muted-foreground: 215 14% 65%; /* #94a3b8 */
+    --muted: 240 5% 96%; /* Slate-100 */
+    --muted-foreground: 220 9% 46%; /* Slate-500 / #64748b */
     --accent: 240 5% 96%;
     --accent-foreground: 240 6% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 6% 90%; /* Slate 200 */
+    --border: 240 6% 94%; /* Slate-100 / #f1f5f9 */
     --input: 240 6% 90%;
     --ring: 221 83% 53%;
     --chart-1: 221 83% 53%;
@@ -45,7 +45,7 @@
     --secondary: 240 5% 15%;
     --secondary-foreground: 0 0% 98%;
     --muted: 240 5% 15%;
-    --muted-foreground: 240 5% 40%;
+    --muted-foreground: 220 9% 46%; /* #64748b in dark mode is brighter */
     --accent: 240 5% 15%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
