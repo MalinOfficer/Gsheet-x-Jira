@@ -67,8 +67,8 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                                     href={item.href}
                                     className={cn(
                                         "flex items-center gap-3 rounded-lg px-4 py-3 text-muted-foreground transition-all hover:bg-muted/50 hover:text-foreground",
-                                        "font-medium text-base",
-                                        pathname === item.href && "bg-blue-100/50 text-primary font-semibold"
+                                        "font-medium text-sm",
+                                        pathname === item.href && "bg-primary/10 text-primary font-semibold"
                                     )}
                                 >
                                     <item.icon className="h-5 w-5" />
@@ -167,8 +167,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                 href="/settings"
                                 className={cn(
                                     "flex items-center gap-3 rounded-lg px-4 py-3 text-muted-foreground transition-all hover:bg-muted/50 hover:text-foreground",
-                                    "font-medium text-base",
-                                     pathname === "/settings" && "bg-blue-100/50 text-primary font-semibold"
+                                    "font-medium text-sm",
+                                     pathname === "/settings" && "bg-primary/10 text-primary font-semibold"
                                 )}
                             >
                                 <Settings className="h-5 w-5" />
