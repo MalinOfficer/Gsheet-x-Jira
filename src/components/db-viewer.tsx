@@ -484,7 +484,6 @@ export function DbViewer() {
                                                        left: 0,
                                                        width: totalWidth,
                                                        height: `${virtualRow.size}px`,
-                                                       transform: `translateY(${virtualRow.start}px)`,
                                                        display: 'flex',
                                                    }}
                                                    className="border-b transition-colors hover:bg-muted/50"

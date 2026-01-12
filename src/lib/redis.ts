@@ -10,8 +10,7 @@ if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN
   console.warn('Upstash Redis environment variables (UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN) are not set. Caching will be disabled.');
 }
 
-export const redis = new Redis({
-  // Menggunakan kredensial Upstash yang benar.
-  url: process.env.UPSTASH_REDIS_REST_URL || '',
-  token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
-});
+// Gunakan fromEnv() untuk menginisialisasi dari environment variables secara otomatis
+export const redis = Redis.fromEnv();
+
+    
