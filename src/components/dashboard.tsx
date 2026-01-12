@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 const chartConfig = {
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
   unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
-  revenue: { label: "Revenue", color: "hsl(var(--chart-2))"},
+  revenue: { label: "Revenue", color: "hsl(var(--primary))"},
   L1: { label: "L1", color: "hsl(var(--chart-1))" },
   L2: { label: "L2", color: "hsl(var(--chart-3))" },
   L3: { label: "L3", color: "hsl(var(--chart-4))" },
