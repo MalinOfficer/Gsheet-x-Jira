@@ -3,40 +3,41 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, BarChart, GanttChartSquare, Settings, ListTree, GitBranch, Files, Combine, CodeXml, FileCog, PackageSearch, RefreshCw, LayoutDashboard, Database, BookOpen } from "lucide-react";
+import { Menu, Settings, GanttChartSquare, LayoutDashboard, ListTree, BarChart, BookOpen, Database, GitBranch, Files, Combine, PackageSearch, CodeXml, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useContext, useEffect, useState } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import React from "react";
 import { ThemeSwitch } from "../ui/theme-switch";
-import { Spinner } from "../ui/spinner";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+
+const navItems = {
+    overview: [
+        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/", label: "Import Data", icon: ListTree },
+        { href: "/db", label: "Data ALL Case", icon: Database },
+    ],
+    reports: [
+        { href: "/report-harian", label: "Daily Report", icon: BarChart },
+        { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
+    ],
+    tools: [
+        { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
+        { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files, featureFlag: 'areSecondaryToolsEnabled' },
+        { href: "/data-weaver", label: "Edit NIS", icon: Combine, featureFlag: 'areSecondaryToolsEnabled' },
+        { href: "/migrasi-produk", label: "Migrasi Produk", icon: PackageSearch, featureFlag: 'areSecondaryToolsEnabled' },
+    ],
+    advanced: [
+        { href: "/code-viewer", label: "Code Viewer", icon: CodeXml, featureFlag: 'isCodeViewerEnabled' },
+    ]
+};
+
+type NavCategory = keyof typeof navItems;
 
 
-const primaryNavItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/", label: "Import Data", icon: ListTree },
-    { href: "/report-harian", label: "Daily Report", icon: BarChart },
-    { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
-    { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
-    { href: "/db", label: "Data ALL Case", icon: Database },
-];
-
-const secondaryNavItems = [
-    { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files, featureFlag: 'areSecondaryToolsEnabled' },
-    { href: "/data-weaver", label: "Edit NIS", icon: Combine, featureFlag: 'areSecondaryToolsEnabled' },
-    { href: "/migrasi-produk", label: "Migrasi Produk", icon: PackageSearch, featureFlag: 'areSecondaryToolsEnabled' },
-];
-
-const advancedNavItems = [
-    { href: "/code-viewer", label: "Code Viewer", icon: CodeXml, featureFlag: 'isCodeViewerEnabled' },
-]
-
-
-function NavLinks() {
+function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
     const pathname = usePathname();
     const { isCodeViewerEnabled, areSecondaryToolsEnabled } = useContext(TableDataContext);
     
@@ -45,28 +46,39 @@ function NavLinks() {
         if (item.featureFlag === 'isCodeViewerEnabled') return isCodeViewerEnabled;
         if (item.featureFlag === 'areSecondaryToolsEnabled') return areSecondaryToolsEnabled;
         return true;
-    }
-
-    const visibleSecondaryItems = secondaryNavItems.filter(isVisible);
-    const visibleAdvancedItems = advancedNavItems.filter(isVisible);
-
-    const allVisibleItems = [...primaryNavItems, ...visibleSecondaryItems, ...visibleAdvancedItems];
+    };
+    
+    const Wrapper = isMobile ? SheetClose : 'div';
 
     return (
-        <nav className="grid items-start gap-1 px-2 text-sm font-medium">
-            {allVisibleItems.map((item) => (
-                <Link
-                    key={item.label}
-                    href={item.href}
-                    className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                        pathname === item.href && "bg-primary text-primary-foreground hover:text-primary-foreground"
-                    )}
-                >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                </Link>
-            ))}
+        <nav className="grid items-start gap-1 text-sm font-medium">
+            {(Object.keys(navItems) as NavCategory[]).map(category => {
+                const visibleItems = navItems[category].filter(isVisible);
+                if (visibleItems.length === 0) return null;
+
+                return (
+                    <div key={category} className="py-2">
+                        <h2 className="mb-2 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                            {category}
+                        </h2>
+                        {visibleItems.map((item) => (
+                            <Wrapper key={item.label} asChild>
+                                <Link
+                                    href={item.href}
+                                    className={cn(
+                                        "flex items-center gap-3 rounded-lg px-4 py-3 text-muted-foreground transition-all hover:bg-muted/50 hover:text-foreground",
+                                        "font-medium text-base",
+                                        pathname === item.href && "bg-blue-100/50 text-primary font-semibold"
+                                    )}
+                                >
+                                    <item.icon className="h-5 w-5" />
+                                    {item.label}
+                                </Link>
+                            </Wrapper>
+                        ))}
+                    </div>
+                );
+            })}
         </nav>
     );
 }
@@ -134,27 +146,26 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className={cn(
             "grid w-full",
-            isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[220px_1fr]",
+            isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[260px_1fr]",
             isProcessing && "pointer-events-none"
         )}>
             {/* --- Desktop Sidebar --- */}
             {!isMobile && (
                 <div className="hidden border-r bg-card md:flex flex-col">
                     <div className="flex h-full max-h-screen flex-col gap-2 sticky top-0">
-                        <div className="flex h-16 items-center border-b px-4 lg:px-6">
-                            <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
+                        <div className="flex h-20 items-center border-b px-6">
+                            <Link href="/" className="flex items-center gap-2.5 font-semibold text-primary">
                                 <GanttChartSquare className="h-6 w-6" />
-                                <span className="">Gsheet Case</span>
+                                <span className="text-lg">Gsheet Case</span>
                             </Link>
                         </div>
-                        <div className="flex-1 overflow-y-auto">
+                        <div className="flex-1 overflow-y-auto py-4">
                             <NavLinks />
                         </div>
-                        <div className="mt-auto p-4 space-y-2">
-                            
+                        <div className="mt-auto p-4 space-y-2 border-t">
                             <Link href="/settings">
-                                <Button variant="secondary" className="w-full">
-                                    <Settings className="mr-2 h-4 w-4" />
+                                <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
+                                    <Settings className="mr-3 h-5 w-5" />
                                     Settings
                                 </Button>
                             </Link>
@@ -176,22 +187,23 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                     <span className="sr-only">Open navigation menu</span>
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent side="left" className="flex flex-col">
-                                <SheetHeader className="mb-4">
+                            <SheetContent side="left" className="flex flex-col p-0">
+                                <SheetHeader className="h-20 flex items-center border-b px-6">
                                     <SheetTitle asChild>
-                                        <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
+                                        <Link href="/" className="flex items-center gap-2.5 font-semibold text-primary">
                                             <GanttChartSquare className="h-6 w-6" />
-                                            <span>Gsheet Case</span>
+                                            <span className="text-lg">Gsheet Case</span>
                                         </Link>
                                     </SheetTitle>
                                 </SheetHeader>
-                                <NavLinks />
-                                <div className="mt-auto">
-                                    
+                                <div className="flex-1 overflow-y-auto py-4">
+                                  <NavLinks isMobile={true}/>
+                                </div>
+                                <div className="mt-auto p-4 space-y-2 border-t">
                                     <SheetClose asChild>
                                         <Link href="/settings">
-                                            <Button variant="secondary" className="w-full">
-                                                <Settings className="mr-2 h-4 w-4" />
+                                            <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
+                                                <Settings className="mr-3 h-5 w-5" />
                                                 Settings
                                             </Button>
                                         </Link>
