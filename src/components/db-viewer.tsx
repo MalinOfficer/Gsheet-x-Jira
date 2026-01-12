@@ -485,12 +485,17 @@ export function DbViewer() {
                                 />
                             </div>
                             <div className="w-full sm:w-auto">
-                                <Select value={yearFilter} onValueChange={setYearFilter}>
+                                <Select 
+                                    value={yearFilter} 
+                                    onValueChange={(value) => {
+                                        setYearFilter(value === 'all' ? '' : value);
+                                    }}
+                                >
                                     <SelectTrigger className="w-full sm:w-[180px]">
                                         <SelectValue placeholder="Filter by year..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All Years</SelectItem>
+                                        <SelectItem value="all">All Years</SelectItem>
                                         {yearOptions.map(year => (
                                             <SelectItem key={year} value={year}>{year}</SelectItem>
                                         ))}
