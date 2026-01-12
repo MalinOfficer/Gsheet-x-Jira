@@ -484,7 +484,7 @@ export function DbViewer() {
                                     </div>
                                 </div>
                             ) : (
-                               <div style={{ height: `${totalHeight + 48}px`, width: `${totalWidth}px`, position: 'relative' }}>
+                               <div style={{ height: `${totalHeight}px`, width: `${totalWidth}px`, position: 'relative' }}>
                                    <div
                                        className="sticky top-0 z-10 flex"
                                    >
@@ -496,7 +496,7 @@ export function DbViewer() {
                                                <div
                                                    key={header}
                                                    className={cn(
-                                                       "h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-center bg-muted relative",
+                                                       "h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-start bg-muted relative",
                                                        isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
                                                    )}
                                                    style={{ width: columnWidths[header], flexShrink: 0, borderBottom: '1px solid hsl(var(--border))', borderRight: '1px solid hsl(var(--border))' }}

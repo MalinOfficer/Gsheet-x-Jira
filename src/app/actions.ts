@@ -1269,10 +1269,11 @@ export async function getAllCaseData(sheetUrl: string) {
     const result = await fetchDashboardDataFromSheet(sheetUrl, "All Case");
 
     if (result.data && isRedisConfigured()) {
-        // Asynchronously update cache
-        syncCache(sheetUrl, result.data, CACHE_KEY_ALL_CASE).catch(err => {
-             console.error("Async All Case cache update failed:", err);
-        });
+        const syncResult = await syncCache(sheetUrl, result.data, CACHE_KEY_ALL_CASE);
+        if (syncResult.success) {
+            console.log("All Case data synced to cache after fetching from sheet.");
+            return { ...result, source: 'cache' }; // Now we can say it's from cache
+        }
     }
 
     return { ...result, source: 'sheet' };
@@ -1347,3 +1348,4 @@ export async function runKnowledgeBaseEngine(
     
 
     
+
