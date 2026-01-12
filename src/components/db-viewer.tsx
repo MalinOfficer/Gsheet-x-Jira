@@ -28,6 +28,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check } from 'lucide-react';
 import { Skeleton } from "./ui/skeleton";
 import { Progress } from "./ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 
 interface DbViewerState {
@@ -77,6 +78,7 @@ export function DbViewer() {
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+    const [yearFilter, setYearFilter] = useState<string>('');
 
     const headers = useMemo(() => state.data?.length ? Object.keys(state.data[0]) : [], [state.data]);
 
@@ -148,6 +150,22 @@ export function DbViewer() {
         });
         return options;
     }, [state.data]);
+
+    const yearOptions = useMemo(() => {
+        if (!state.data) return [];
+        const years = new Set<string>();
+        state.data.forEach(row => {
+            const dateValue = row['DATE'];
+            if (dateValue && typeof dateValue === 'string') {
+                const year = dateValue.split('/')[2];
+                if (year && /^\d{4}$/.test(year)) {
+                    years.add(year);
+                }
+            }
+        });
+        return Array.from(years).sort((a, b) => b.localeCompare(a));
+    }, [state.data]);
+
 
     const fetchData = useCallback(async (isRefresh = false) => {
         if (!dbSheetUrl) {
@@ -252,8 +270,16 @@ export function DbViewer() {
             });
         }
 
+        // 4. Year filter
+        if (yearFilter) {
+            dataToFilter = dataToFilter.filter(row => {
+                const dateValue = row['DATE'];
+                return dateValue && typeof dateValue === 'string' && dateValue.endsWith(`/${yearFilter}`);
+            });
+        }
+
         return dataToFilter;
-    }, [state.data, debouncedSearchTerm, dateRange, columnFilters]);
+    }, [state.data, debouncedSearchTerm, dateRange, columnFilters, yearFilter]);
     
     
     const displayData = useMemo(() => {
@@ -278,12 +304,13 @@ export function DbViewer() {
         setSearchTerm('');
         setDateRange(undefined);
         setColumnFilters({});
+        setYearFilter('');
         toast({ title: "Filters Cleared", description: "All search, date, and column filters have been reset." });
     };
 
     const areFiltersActive = useMemo(() => {
-        return searchTerm || dateRange || Object.values(columnFilters).some(f => f.length > 0);
-    }, [searchTerm, dateRange, columnFilters]);
+        return searchTerm || dateRange || yearFilter || Object.values(columnFilters).some(f => f.length > 0);
+    }, [searchTerm, dateRange, yearFilter, columnFilters]);
 
 
     if (state.error) {
@@ -457,11 +484,24 @@ export function DbViewer() {
                                     className="pl-8 sm:w-[300px]"
                                 />
                             </div>
+                            <div className="w-full sm:w-auto">
+                                <Select value={yearFilter} onValueChange={setYearFilter}>
+                                    <SelectTrigger className="w-full sm:w-[180px]">
+                                        <SelectValue placeholder="Filter by year..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">All Years</SelectItem>
+                                        {yearOptions.map(year => (
+                                            <SelectItem key={year} value={year}>{year}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             {areFiltersActive && (
-                                    <Button onClick={handleClearAllFilters} variant="ghost" size="sm">
-                                    <FilterX className="mr-2 h-4 w-4" />
-                                    Clear All Filters
-                                </Button>
+                                <Button onClick={handleClearAllFilters} variant="ghost" size="sm">
+                                <FilterX className="mr-2 h-4 w-4" />
+                                Clear All Filters
+                            </Button>
                             )}
                         </div>
                     </CardHeader>
