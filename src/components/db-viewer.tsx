@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { useEffect, useState, useRef, useMemo, useTransition, useCallback, useContext } from "react";
+import { useEffect, useState, useRef, useMemo, useTransition, useCallback, useContext, MouseEvent } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -78,6 +78,66 @@ export function DbViewer() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
     const [isPending, startTransition] = useTransition();
+
+    const headers = useMemo(() => state.data?.length ? Object.keys(state.data[0]) : [], [state.data]);
+
+    const initialColumnWidths = useCallback(() => {
+        const widths: Record<string, number> = {};
+        headers.forEach(header => {
+            const lowerHeader = header.toLowerCase();
+            if (lowerHeader.includes('detail case') || lowerHeader.includes('penanganan case')) widths[header] = 350;
+            else if (lowerHeader.includes('detail modul')) widths[header] = 250;
+            else if (lowerHeader.includes('client') || lowerHeader.includes('customer name') || lowerHeader.includes('ticket number') || lowerHeader.includes('module')) widths[header] = 180;
+            else if (lowerHeader.includes('status case 2')) widths[header] = 120;
+            else if (lowerHeader === 'no') widths[header] = 60;
+            else widths[header] = 120;
+        });
+        return widths;
+    }, [headers]);
+
+    const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+
+    useEffect(() => {
+        if (headers.length > 0) {
+            setColumnWidths(initialColumnWidths());
+        }
+    }, [headers, initialColumnWidths]);
+
+
+    const isResizing = useRef<string | null>(null);
+    const startX = useRef(0);
+    const startWidth = useRef(0);
+    
+    const handleResizeMouseDown = useCallback((header: string, e: MouseEvent) => {
+        isResizing.current = header;
+        startX.current = e.clientX;
+        startWidth.current = columnWidths[header];
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        const handleMouseMove = (event: globalThis.MouseEvent) => {
+            if (!isResizing.current) return;
+            const currentWidth = startWidth.current + event.clientX - startX.current;
+            setColumnWidths(prev => ({
+                ...prev,
+                [isResizing.current as string]: Math.max(50, currentWidth) // Minimum width 50px
+            }));
+        };
+
+        const handleMouseUp = () => {
+            isResizing.current = null;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    }, [columnWidths]);
+
+    const totalWidth = useMemo(() => Object.values(columnWidths).reduce((acc, width) => acc + width, 0), [columnWidths]);
+
 
      const filterOptions = useMemo(() => {
         if (!state.data) return {};
@@ -198,7 +258,6 @@ export function DbViewer() {
         return dataToFilter;
     }, [state.data, debouncedSearchTerm, dateRange, columnFilters]);
     
-    const headers = useMemo(() => state.data?.length ? Object.keys(state.data[0]) : [], [state.data]);
     
     const displayData = useMemo(() => {
         if (state.loading && !state.data) {
@@ -217,28 +276,6 @@ export function DbViewer() {
     
     const virtualRows = rowVirtualizer.getVirtualItems();
     const totalHeight = rowVirtualizer.getTotalSize();
-
-    const getColumnWidth = (header: string) => {
-        const lowerHeader = header.toLowerCase();
-        if (lowerHeader.includes('detail case') || lowerHeader.includes('penanganan case')) {
-            return 350;
-        }
-        if (lowerHeader.includes('detail modul')) {
-            return 250;
-        }
-        if (lowerHeader.includes('client') || lowerHeader.includes('customer name') || lowerHeader.includes('ticket number') || lowerHeader.includes('module')) {
-            return 180;
-        }
-         if (lowerHeader.includes('status case 2')) {
-            return 120;
-        }
-        if (lowerHeader === 'no') {
-            return 60;
-        }
-        return 120;
-    };
-
-    const totalWidth = useMemo(() => headers.reduce((acc, header) => acc + getColumnWidth(header), 0), [headers]);
 
     const handleClearAllFilters = () => {
         setSearchTerm('');
@@ -452,8 +489,8 @@ export function DbViewer() {
                             ) : (
                                <div style={{ height: `${totalHeight}px`, position: 'relative' }}>
                                    <div
-                                       className="sticky top-0 z-10"
-                                       style={{ width: totalWidth, display: 'flex' }}
+                                       className="sticky top-0 z-10 flex"
+                                       style={{ width: totalWidth }}
                                    >
                                        {headers.map(header => {
                                            const lowerHeader = header.toLowerCase();
@@ -463,18 +500,34 @@ export function DbViewer() {
                                                <div
                                                    key={header}
                                                    className={cn(
-                                                       "h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-center bg-muted",
+                                                       "h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-center bg-muted relative",
                                                        isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
                                                    )}
-                                                   style={{ width: getColumnWidth(header), flexShrink: 0, borderBottom: '1px solid hsl(var(--border))', borderRight: '1px solid hsl(var(--border))' }}
+                                                   style={{ width: columnWidths[header], flexShrink: 0, borderBottom: '1px solid hsl(var(--border))', borderRight: '1px solid hsl(var(--border))' }}
                                                >
                                                   {renderHeaderContent(header)}
+                                                  <div
+                                                    onMouseDown={(e) => handleResizeMouseDown(header, e)}
+                                                    className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-20"
+                                                  />
                                                </div>
                                            );
                                        })}
                                    </div>
                                    {virtualRows.map((virtualRow) => {
                                        const row = displayData[virtualRow.index];
+                                       let currentOffset = 0;
+                                       const cells = headers.map(header => {
+                                           const width = columnWidths[header] || 120;
+                                           const cell = (
+                                                <div key={header} className="p-4 align-middle truncate" style={{ width, position: 'absolute', left: currentOffset, borderRight: '1px solid hsl(var(--border))' }}>
+                                                    {row ? row[header] : <Skeleton className="h-4 w-full" />}
+                                                </div>
+                                           );
+                                           currentOffset += width;
+                                           return cell;
+                                       });
+
                                        return (
                                            <div
                                                key={virtualRow.key}
@@ -485,15 +538,10 @@ export function DbViewer() {
                                                    width: totalWidth,
                                                    height: `${virtualRow.size}px`,
                                                    transform: `translateY(${virtualRow.start + 48}px)`,
-                                                   display: 'flex'
                                                }}
                                                className="border-b transition-colors hover:bg-muted/50"
                                            >
-                                               {headers.map(header => (
-                                                   <div key={header} className="p-4 align-middle truncate" style={{ width: getColumnWidth(header), flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}>
-                                                        {row ? row[header] : <Skeleton className="h-4 w-full" />}
-                                                   </div>
-                                               ))}
+                                             {cells}
                                            </div>
                                        );
                                    })}
@@ -509,3 +557,4 @@ export function DbViewer() {
         </div>
     );
 }
+
