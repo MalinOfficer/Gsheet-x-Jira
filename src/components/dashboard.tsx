@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw } from "lucide-react";
@@ -39,22 +40,6 @@ interface DashboardState {
     error?: string;
     loading: boolean;
 }
-
-const areaChartData = [
-  { month: "Jan", "2024": 186, "2025": 80, "2026": 200 },
-  { month: "Feb", "2024": 305, "2025": 200, "2026": 150 },
-  { month: "Mar", "2024": 237, "2025": 120, "2026": 280 },
-  { month: "Apr", "2024": 73, "2025": 190, "2026": 120 },
-  { month: "May", "2024": 209, "2025": 130, "2026": 210 },
-  { month: "Jun", "2024": 214, "2025": 140, "2026": 300 },
-  { month: "Jul", "2024": 280, "2025": 160, "2026": 320 },
-  { month: "Aug", "2024": 250, "2025": 180, "2026": 350 },
-  { month: "Sep", "2024": 290, "2025": 210, "2026": 380 },
-  { month: "Oct", "2024": 240, "2025": 230, "2026": 340 },
-  { month: "Nov", "2024": 260, "2025": 250, "2026": 370 },
-  { month: "Dec", "2024": 300, "2025": 280, "2026": 400 },
-];
-
 
 export function Dashboard() {
     const { dbSheetUrl } = useContext(TableDataContext);
@@ -98,6 +83,36 @@ export function Dashboard() {
             }
         })
     }
+
+    const areaChartData = useMemo(() => {
+        if (!state.data) return [];
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const monthlyData: Record<string, { "2024": number; "2025": number; "2026": number }> = {};
+
+        months.forEach(month => {
+            monthlyData[month] = { "2024": 0, "2025": 0, "2026": 0 };
+        });
+
+        state.data.forEach(row => {
+            const dateStr = row['DATE'];
+            if (dateStr && typeof dateStr === 'string') {
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    const monthIndex = parseInt(parts[1], 10) - 1;
+                    const year = parts[2];
+                    if (monthIndex >= 0 && monthIndex < 12 && ['2024', '2025', '2026'].includes(year)) {
+                        const monthName = months[monthIndex];
+                        monthlyData[monthName][year as "2024" | "2025" | "2026"] += 1;
+                    }
+                }
+            }
+        });
+
+        return months.map(month => ({
+            month,
+            ...monthlyData[month]
+        }));
+    }, [state.data]);
 
     const dashboardStats = useMemo(() => {
         const data = state.data;
