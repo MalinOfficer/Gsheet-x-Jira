@@ -13,7 +13,7 @@ import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart } from 'recharts';
 import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { getAllCaseData, syncDashboardCache } from "@/app/actions";
+import { getAllCaseData } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -66,16 +66,14 @@ export function Dashboard() {
                 toast({ variant: 'destructive', title: "URL Not Set", description: "Google Sheet URL is not configured in Settings." });
                 return;
             }
-            const result = await syncDashboardCache(dbSheetUrl);
+            const result = await getAllCaseData(dbSheetUrl);
              if (result.error) {
                 toast({ variant: 'destructive', title: "Refresh Failed", description: result.error });
             } else {
                 toast({ title: "Cache Refreshed", description: "Dashboard data has been synced with Google Sheets." });
-                // Re-fetch data to show the latest
-                const dataResult = await getAllCaseData(dbSheetUrl);
-                 setState({
-                    data: dataResult.data || null,
-                    error: dataResult.error,
+                setState({
+                    data: result.data || null,
+                    error: result.error,
                     loading: false
                 });
             }
@@ -147,10 +145,10 @@ export function Dashboard() {
              <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-                        <Skeleton className="h-[109px]" />
-                        <Skeleton className="h-[109px]" />
-                        <Skeleton className="h-[109px]" />
-                        <Skeleton className="h-[109px]" />
+                        <Skeleton className="h-[125px]" />
+                        <Skeleton className="h-[125px]" />
+                        <Skeleton className="h-[125px]" />
+                        <Skeleton className="h-[125px]" />
                     </div>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                         <Skeleton className="h-[300px] col-span-1 lg:col-span-4" />
@@ -213,7 +211,7 @@ export function Dashboard() {
                 <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
+                      <CardTitle className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">Total Cases</CardTitle>
                       <BarChartIcon className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -222,7 +220,7 @@ export function Dashboard() {
                   </Card>
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Top Client</CardTitle>
+                      <CardTitle className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">Top Client</CardTitle>
                       <User className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -231,7 +229,7 @@ export function Dashboard() {
                   </Card>
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Top Module</CardTitle>
+                      <CardTitle className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">Top Module</CardTitle>
                       <AppWindow className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -240,7 +238,7 @@ export function Dashboard() {
                   </Card>
                    <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                          <CardTitle className="text-sm font-medium">Solved vs Unsolved</CardTitle>
+                          <CardTitle className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">Solved vs Unsolved</CardTitle>
                           <TrendingUp className="h-4 w-4 text-muted-foreground" />
                       </CardHeader>
                       <CardContent>
