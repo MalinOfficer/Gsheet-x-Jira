@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect, useContext, useTransition } from 'react';
@@ -15,7 +16,7 @@ import { Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, 
 import type { ChartConfig } from "@/components/ui/chart"
 import { fetchL3ReportData } from '@/app/actions';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#a4de6c', '#d0ed57', '#ffc658'];
 
 const chartConfig = {
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
@@ -71,7 +72,13 @@ function DashboardChart() {
             statusFrequency[status] = (statusFrequency[status] || 0) + 1;
         });
 
-        const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ name, value, fill: `var(--color-${name})`}));
+        const total = finalData.length;
+        const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ 
+            name, 
+            value,
+            percentage: total > 0 ? (value / total * 100).toFixed(0) : 0,
+        }));
+
 
         const solvedCount = statusFrequency['SOLVED'] || 0;
         const unsolvedCount = finalData.length - solvedCount;
@@ -122,14 +129,14 @@ function DashboardChart() {
         <Card className="lg:col-span-3 p-6 flex flex-col justify-between items-start">
             <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
             <div className='w-full mt-2'>
-                <p className="font-bold text-wrap"><span className="text-xl">{clientTrend}</span></p>
+                <p className="font-bold text-wrap"><span>{clientTrend}</span></p>
                 <MiniBarChart data={topClientsData} color="hsl(var(--chart-1))" />
             </div>
         </Card>
         <Card className="lg:col-span-3 p-6 flex flex-col justify-between items-start">
             <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Module Trend</p>
             <div className='w-full mt-2'>
-                <p className="font-bold text-wrap"><span className="text-xl">{moduleTrend}</span></p>
+                <p className="font-bold text-wrap"><span>{moduleTrend}</span></p>
                 <MiniBarChart data={topModulesData} color="hsl(var(--chart-2))" />
             </div>
         </Card>
@@ -139,30 +146,44 @@ function DashboardChart() {
             <p className="text-xs text-muted-foreground mt-1">{solvedPercentage.toFixed(1)}% Solved</p>
         </Card>
         <Card className="lg:col-span-5 p-6">
-          <CardHeader className='p-0'>
-            <CardTitle className='text-base'>Status Case</CardTitle>
-          </CardHeader>
-          <CardContent className='p-0 mt-4'>
-            <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                    <Pie
-                        data={statusCounts}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        dataKey="value"
-                    >
+            <CardHeader className="p-0">
+                <CardTitle className="text-base">Status Case</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 mt-4">
+                <div className="w-full h-[250px] flex items-center">
+                    <ResponsiveContainer width="40%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={statusCounts}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={false}
+                                innerRadius={60}
+                                outerRadius={80}
+                                paddingAngle={5}
+                                dataKey="value"
+                            >
+                                {statusCounts.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip />
+                        </PieChart>
+                    </ResponsiveContainer>
+                    <div className="w-3/5 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         {statusCounts.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            <div key={`legend-${index}`} className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                                    <span className="text-muted-foreground">{entry.name}</span>
+                                </div>
+                                <span className="font-bold ml-4">{entry.percentage}%</span>
+                            </div>
                         ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
+                    </div>
+                </div>
+            </CardContent>
         </Card>
 
         <Card className="lg:col-span-5 p-6">
@@ -507,5 +528,3 @@ export function ReportHarian({ error }: ReportHarianProps) {
     </div>
   );
 }
-
-    
