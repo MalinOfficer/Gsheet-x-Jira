@@ -145,7 +145,7 @@ function DashboardChart() {
         </Card>
         <Card className="lg:col-span-5">
           <CardHeader>
-            <CardTitle>Case Status Distribution</CardTitle>
+            <CardTitle>Status Case</CardTitle>
             <CardDescription>Persentase kasus berdasarkan status L1, L2, L3, dan Solved.</CardDescription>
           </CardHeader>
           <CardContent>
