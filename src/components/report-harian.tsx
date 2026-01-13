@@ -144,10 +144,10 @@ function DashboardChart() {
                                 </linearGradient>
                             </defs>
                             <Tooltip
+                                formatter={(value, name, props) => [value, props.payload.name]}
                                 contentStyle={{ fontSize: '12px', padding: '4px 8px' }}
                                 wrapperClassName="!border-none !shadow-lg !rounded-lg"
                                 cursor={false}
-                                formatter={(value, name, props) => [value, props.payload.name]}
                             />
                             <Area type="monotone" dataKey="value" name="cases" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#colorClient)" />
                         </AreaChart>
@@ -164,12 +164,12 @@ function DashboardChart() {
                                     <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0.2}/>
                                 </linearGradient>
                             </defs>
-                             <Tooltip
+                            <Tooltip
                                 content={({ active, payload }) => {
                                   if (active && payload && payload.length) {
                                     return (
                                       <div className="bg-background border rounded-lg shadow-lg p-2 text-xs">
-                                        <p className="font-bold">{`${payload[0].payload.name} : ${payload[0].value}`}</p>
+                                        <p className="font-bold text-foreground">{`${payload[0].payload.name} : ${payload[0].value}`}</p>
                                       </div>
                                     );
                                   }
@@ -187,7 +187,7 @@ function DashboardChart() {
                     <div className="flex items-baseline gap-2">
                         <p className="text-3xl font-bold mt-2">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-green-600 font-medium">
                         {totalCases > 0 ? (((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1) : 0}% Solved
                     </p>
                 </Card>
