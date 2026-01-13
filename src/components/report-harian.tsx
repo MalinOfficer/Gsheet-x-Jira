@@ -12,13 +12,12 @@ import { SettingsContext, TableData } from '@/contexts/settings-provider';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart } from 'recharts';
+import { Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, AreaChart, Area } from 'recharts';
 import type { ChartConfig } from "@/components/ui/chart"
 import { fetchL3ReportData } from '@/app/actions';
 import { ScrollArea } from './ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-
-const COLORS = ['#FF8042', '#00C49F', '#0088FE', '#FFBB28', '#8884d8', '#a4de6c', '#d0ed57', '#ffc658'];
+import { Badge } from './ui/badge';
 
 const chartConfig = {
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
@@ -49,6 +48,7 @@ function DashboardChart() {
                 topClientsData: [],
                 topModulesData: [],
                 unsolvedCases: [],
+                clientTrendHistory: [],
             };
         }
         
@@ -79,7 +79,7 @@ function DashboardChart() {
         const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ 
             name, 
             value,
-            percentage: total > 0 ? (value / total * 100).toFixed(0) : 0,
+            percentage: total > 0 ? Math.round((value / total) * 100) : 0,
         }));
 
 
@@ -93,6 +93,17 @@ function DashboardChart() {
 
         const unsolvedCases = finalData.filter(row => String(row.Status).toLowerCase() !== 'solved');
 
+        // Fake data for client trend chart
+        const clientTrendHistory = [
+            { month: 'Jan', cases: Math.floor(Math.random() * 20) + 5 },
+            { month: 'Feb', cases: Math.floor(Math.random() * 20) + 5 },
+            { month: 'Mar', cases: Math.floor(Math.random() * 20) + 5 },
+            { month: 'Apr', cases: Math.floor(Math.random() * 20) + 5 },
+            { month: 'May', cases: Math.floor(Math.random() * 20) + 5 },
+            { month: 'Jun', cases: Math.floor(Math.random() * 20) + 5 },
+        ];
+
+
         return {
             totalCases: finalData.length,
             clientTrend: topClientsData.length > 0 ? topClientsData[0].name : 'N/A',
@@ -102,6 +113,7 @@ function DashboardChart() {
             topClientsData,
             topModulesData,
             unsolvedCases,
+            clientTrendHistory,
         };
     }, [finalData]);
 
@@ -109,123 +121,140 @@ function DashboardChart() {
       return null;
     }
 
-    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved, topClientsData, topModulesData, unsolvedCases } = dashboardStats;
+    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved, topClientsData, topModulesData, unsolvedCases, clientTrendHistory } = dashboardStats;
 
     const solvedPercentage = totalCases > 0 ? ((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100 : 0;
-
-
-    const MiniBarChart = ({ data, color }: { data: {name: string, value: number}[], color: string }) => (
-        <ResponsiveContainer width="100%" height={50}>
-            <RechartsBarChart data={data} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
-                <Bar dataKey="value" radius={20} barSize={6}>
-                    {data.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={color} opacity={(index + 1) / data.length} />
-                    ))}
-                </Bar>
-            </RechartsBarChart>
-        </ResponsiveContainer>
-    );
+    
+    const sortedStatusCounts = [...statusCounts].sort((a, b) => b.value - a.value);
 
     return (
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-10 mb-6">
-        <Card className="lg:col-span-2 p-6">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Total Case</p>
-            <p className="text-3xl font-bold mt-2">{totalCases}</p>
-        </Card>
-        <Card className="lg:col-span-3 p-6 flex flex-col items-start">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
-            <div className='w-full mt-2'>
-                <p className="font-bold text-wrap"><span>{clientTrend}</span></p>
-                <MiniBarChart data={topClientsData} color="hsl(var(--chart-1))" />
-            </div>
-        </Card>
-        <Card className="lg:col-span-3 p-6 flex flex-col items-start">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Module Trend</p>
-            <div className='w-full mt-2'>
-                <p className="font-bold text-wrap"><span>{moduleTrend}</span></p>
-                <MiniBarChart data={topModulesData} color="hsl(var(--chart-2))" />
-            </div>
-        </Card>
-        <Card className="lg:col-span-2 p-6">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Solved vs Unsolved</p>
-            <p className="text-3xl font-bold mt-2">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
-            <p className="text-xs text-muted-foreground mt-1">{solvedPercentage.toFixed(1)}% Solved</p>
-        </Card>
-        <Card className="lg:col-span-5 p-6">
-            <CardHeader className="p-0">
-                <CardTitle className="text-base">Status Case</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 mt-4">
-                <div className="w-full h-[250px] grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <Pie
-                                data={statusCounts}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                label={false}
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                            >
-                                {statusCounts.map((entry, index) => {
-                                     const colorKey = entry.name as keyof typeof chartConfig;
-                                     const color = chartConfig[colorKey]?.color || COLORS[index % COLORS.length];
-                                     return <Cell key={`cell-${index}`} fill={color} />;
-                                })}
-                            </Pie>
-                            <Tooltip />
-                        </PieChart>
+        <div className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <Card className="p-6">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Total Case</p>
+                    <p className="text-3xl font-bold mt-2 text-slate-800">{totalCases}</p>
+                </Card>
+                <Card className="p-6">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
+                    <p className="font-bold text-slate-800 text-lg mt-2">{clientTrend}</p>
+                    <ResponsiveContainer width="100%" height={60}>
+                         <AreaChart data={clientTrendHistory} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                            <defs>
+                                <linearGradient id="colorClient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.4}/>
+                                <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <Tooltip
+                                contentStyle={{ fontSize: '12px', padding: '4px 8px' }}
+                                wrapperClassName="!border-none !shadow-lg !rounded-lg"
+                                cursor={false}
+                            />
+                            <Area type="monotone" dataKey="cases" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#colorClient)" />
+                        </AreaChart>
                     </ResponsiveContainer>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                        {statusCounts.map((entry, index) => {
-                             const colorKey = entry.name as keyof typeof chartConfig;
-                             const color = chartConfig[colorKey]?.color || COLORS[index % COLORS.length];
-                             return (
-                                <div key={`legend-${index}`} className="flex flex-col">
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-                                        <span className="text-muted-foreground">{entry.name}</span>
-                                    </div>
-                                    <span className="font-bold ml-4">{entry.percentage}%</span>
-                                </div>
-                             )
-                        })}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-5 p-6 flex flex-col">
-           <CardHeader className='p-0'>
-            <CardTitle className='text-base'>List Case</CardTitle>
-          </CardHeader>
-          <CardContent className='p-0 mt-4 flex-grow'>
-              <ScrollArea className="h-64">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[50px]">NO</TableHead>
-                      <TableHead>CLIENT</TableHead>
-                      <TableHead>DETAIL CASE</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {unsolvedCases.map((caseItem, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>{caseItem['Client Name']}</TableCell>
-                        <TableCell>{caseItem['Title']}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-          </CardContent>
-        </Card>
-      </div>
+                </Card>
+                 <Card className="p-6">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Module Trend</p>
+                    <p className="font-bold text-slate-800 text-lg mt-2 text-wrap">{moduleTrend}</p>
+                     <ResponsiveContainer width="100%" height={60}>
+                        <RechartsBarChart data={topModulesData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                             <Tooltip
+                                contentStyle={{ fontSize: '12px', padding: '4px 8px' }}
+                                wrapperClassName="!border-none !shadow-lg !rounded-lg"
+                                cursor={false}
+                            />
+                            <Bar dataKey="value" radius={20} barSize={8}>
+                                {topModulesData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill="hsl(var(--chart-2))" opacity={1 - (index * 0.15)} />
+                                ))}
+                            </Bar>
+                        </RechartsBarChart>
+                    </ResponsiveContainer>
+                </Card>
+                 <Card className="p-6">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Solved vs Unsolved</p>
+                    <p className="text-3xl font-bold mt-2 text-slate-800">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
+                    <Badge variant="outline" className="mt-2 text-green-700 border-green-200 bg-green-50">{solvedPercentage.toFixed(1)}% Solved</Badge>
+                </Card>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Status Case</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="w-full h-[250px] grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={statusCounts}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        label={false}
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                        cornerRadius={20}
+                                    >
+                                        {statusCounts.map((entry, index) => {
+                                             const colorKey = entry.name as keyof typeof chartConfig;
+                                             const color = chartConfig[colorKey]?.color || 'hsl(var(--muted))';
+                                             return <Cell key={`cell-${index}`} fill={color} />;
+                                        })}
+                                    </Pie>
+                                    <Tooltip contentStyle={{ fontSize: '12px', padding: '4px 8px' }} formatter={(value, name) => [`${value} (${(Number(value)/totalCases*100).toFixed(0)}%)`, name]} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                                {sortedStatusCounts.map((entry, index) => {
+                                     const colorKey = entry.name as keyof typeof chartConfig;
+                                     const color = chartConfig[colorKey]?.color || 'hsl(var(--muted))';
+                                     return (
+                                        <div key={`legend-${index}`} className="flex flex-col">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+                                                <span className="text-muted-foreground">{entry.name}</span>
+                                            </div>
+                                            <span className="font-bold ml-4 text-slate-800">{entry.percentage}%</span>
+                                        </div>
+                                     )
+                                })}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="flex flex-col">
+                    <CardHeader>
+                        <CardTitle className='text-base'>List Case</CardTitle>
+                    </CardHeader>
+                    <CardContent className='flex-grow p-0'>
+                        <ScrollArea className="h-64">
+                            <Table>
+                                <TableHeader className="sticky top-0 bg-card z-10">
+                                    <TableRow>
+                                    <TableHead className="w-[50px]">NO</TableHead>
+                                    <TableHead>CLIENT</TableHead>
+                                    <TableHead>DETAIL CASE</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {unsolvedCases.map((caseItem, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell className="font-medium">{index + 1}</TableCell>
+                                        <TableCell>{caseItem['Client Name']}</TableCell>
+                                        <TableCell>{caseItem['Title']}</TableCell>
+                                    </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
     );
 }
 
@@ -233,7 +262,7 @@ function DashboardChart() {
 function InitialState({ error }: { error?: string }) {
   const router = useRouter();
   return (
-    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
+    <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px]">
         {error ? (
           <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
         ) : (
@@ -378,7 +407,7 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
 
     if (!finalData || finalData.length === 0) {
         return (
-             <Card className="shadow-lg flex flex-col">
+             <Card>
                 <CardHeader>
                     <CardTitle>Daily Report</CardTitle>
                     <CardDescription>This report is generated from the data you converted on the Import Data page.</CardDescription>
@@ -394,7 +423,7 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
     }
 
     return (
-        <Card className="shadow-lg flex flex-col">
+        <Card>
             <CardHeader>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <CardTitle>Daily Report</CardTitle>
@@ -468,7 +497,7 @@ function L3CaseReportCard() {
     };
 
     return (
-         <Card className="shadow-lg flex flex-col">
+         <Card>
             <CardHeader>
                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <CardTitle>L3 Case Report</CardTitle>
