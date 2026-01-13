@@ -269,25 +269,35 @@ export function Dashboard() {
                             <CardTitle className="text-sm font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[60px] flex items-end">
-                            <ChartContainer config={chartConfig} className="h-full w-full">
+                            <ResponsiveContainer width="100%" height="100%">
                                 <RechartsBarChart
                                     accessibilityLayer
                                     data={topClients}
-                                    margin={{ left: -20, right: 0, top: 0, bottom: 0 }}
+                                    margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
                                 >
+                                    <defs>
+                                        <linearGradient id="fillClient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop
+                                            offset="5%"
+                                            stopColor="var(--color-chart-2)"
+                                            stopOpacity={0.8}
+                                            />
+                                            <stop
+                                            offset="95%"
+                                            stopColor="var(--color-chart-2)"
+                                            stopOpacity={0.1}
+                                            />
+                                        </linearGradient>
+                                    </defs>
                                     <XAxis dataKey="name" type="category" tick={false} axisLine={false} />
                                     <YAxis type="number" hide />
                                     <ChartTooltip
                                         cursor={false}
-                                        content={<ChartTooltipContent hideLabel indicator="dot" />}
+                                        content={<ChartTooltipContent indicator="dot" nameKey="name" />}
                                     />
-                                    <Bar dataKey="value" name="clients" radius={[4, 4, 0, 0]} barSize={20}>
-                                        {topClients.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={`var(--color-chart-${(index % 5) + 1})`} />
-                                        ))}
-                                    </Bar>
+                                    <Bar dataKey="value" name="clients" radius={[4, 4, 0, 0]} fill="url(#fillClient)" />
                                 </RechartsBarChart>
-                            </ChartContainer>
+                            </ResponsiveContainer>
                         </CardContent>
                     </Card>
                     <Card className="col-span-1">
@@ -295,25 +305,25 @@ export function Dashboard() {
                             <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[60px] flex items-end">
-                            <ChartContainer config={chartConfig} className="h-full w-full">
+                             <ResponsiveContainer width="100%" height="100%">
                                 <RechartsBarChart
                                     accessibilityLayer
                                     data={topModules}
-                                    margin={{ left: -20, right: 0, top: 0, bottom: 0 }}
+                                    margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
                                 >
                                     <XAxis dataKey="name" type="category" tick={false} axisLine={false} />
                                     <YAxis type="number" hide />
                                     <ChartTooltip
                                         cursor={false}
-                                        content={<ChartTooltipContent hideLabel indicator="dot" />}
+                                        content={<ChartTooltipContent indicator="dot" nameKey="name"/>}
                                     />
-                                    <Bar dataKey="value" name="modules" radius={[4, 4, 0, 0]} barSize={20}>
+                                    <Bar dataKey="value" name="modules" radius={[4, 4, 0, 0]}>
                                         {topModules.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={`var(--color-chart-${(index % 5) + 1})`} />
                                         ))}
                                     </Bar>
                                 </RechartsBarChart>
-                            </ChartContainer>
+                            </ResponsiveContainer>
                         </CardContent>
                     </Card>
                 </div>
