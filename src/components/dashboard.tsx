@@ -316,11 +316,7 @@ export function Dashboard() {
                                         cursor={false}
                                         content={<ChartTooltipContent indicator="dot" nameKey="name"/>}
                                     />
-                                    <Bar dataKey="value" name="modules" radius={[4, 4, 0, 0]}>
-                                        {topModules.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={`var(--color-chart-${(index % 5) + 1})`} />
-                                        ))}
-                                    </Bar>
+                                    <Bar dataKey="value" name="modules" radius={[4, 4, 0, 0]} fill="var(--color-chart-1)" />
                                 </RechartsBarChart>
                             </ChartContainer>
                         </CardContent>
