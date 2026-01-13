@@ -121,7 +121,7 @@ function DashboardChart() {
       return null;
     }
 
-    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved, topClientsData, topModulesData, unsolvedCases, clientTrendHistory } = dashboardStats;
+    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved, topClientsData, topModulesData, unsolvedCases } = dashboardStats;
     
     const sortedStatusCounts = [...statusCounts].sort((a, b) => b.value - a.value);
 
@@ -149,7 +149,7 @@ function DashboardChart() {
                                 wrapperClassName="!border-none !shadow-lg !rounded-lg"
                                 cursor={false}
                             />
-                            <Area type="monotone" dataKey="value" name="cases" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#colorClient)" />
+                            <Area type="monotone" dataKey="value" name="name" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#colorClient)" />
                         </AreaChart>
                     </ResponsiveContainer>
                 </Card>
@@ -197,7 +197,7 @@ function DashboardChart() {
                     <CardHeader>
                         <CardTitle className="text-base">Status Case</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="shadow-inner bg-muted/30 p-4 rounded-lg">
                         <div className="w-full h-[250px] grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
@@ -243,7 +243,7 @@ function DashboardChart() {
                     <CardHeader>
                         <CardTitle className='text-base'>List Case</CardTitle>
                     </CardHeader>
-                    <CardContent className='flex-grow p-0'>
+                    <CardContent className='flex-grow p-0 shadow-inner bg-muted/30 rounded-b-lg'>
                         <ScrollArea className="h-64">
                             <Table>
                                 <TableHeader className="sticky top-0 bg-green-100 dark:bg-green-900/20 z-10">
@@ -589,3 +589,4 @@ export function ReportHarian({ error }: ReportHarianProps) {
     </div>
   );
 }
+

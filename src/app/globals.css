@@ -75,7 +75,7 @@
 /* Add custom shadow utility */
 @layer utilities {
   .shadow-soft-large {
-    box-shadow: 0 10px 40px -5px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 10px 40px -5px rgba(0, 0, 0, 0.07);
   }
 }
 
