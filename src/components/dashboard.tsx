@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
-import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar, Tooltip, Legend } from 'recharts';
+import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar, Tooltip, Legend, LabelList } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getAllCaseData } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
@@ -34,8 +34,9 @@ const chartConfig = {
   'ON HOLD': { label: 'On Hold', color: 'hsl(var(--chart-5))' },
   'OPEN': { label: 'Open', color: 'hsl(var(--chart-1))' },
   'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
-  'modules': { label: "Modules", color: "hsl(var(--chart-1))" },
-  'clients': { label: "Clients", color: "hsl(var(--chart-2))" },
+  modules: { label: "Modules", color: "hsl(var(--chart-1))" },
+  clients: { label: "Clients", color: "hsl(var(--chart-2))" },
+  "Top 5 Clients": { label: "Clients", color: "hsl(var(--chart-2))" },
 } satisfies ChartConfig
 
 interface DashboardState {
@@ -102,7 +103,6 @@ export function Dashboard() {
             };
         }
         
-        // Find the actual header for a given field, trying a few common variations.
         const findHeader = (possibleNames: string[]): string | undefined => {
              if (!data[0]) return undefined;
              const actualHeaders = Object.keys(data[0]);
@@ -137,7 +137,7 @@ export function Dashboard() {
         const topModules = Object.entries(moduleFrequency)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5)
-            .map(([name, value]) => ({ name, value }));
+            .map(([name, value], index) => ({ name, value, fill: `var(--chart-${index + 1})` }));
 
         const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
         const statusFrequency: Record<string, number> = {};
@@ -202,11 +202,9 @@ export function Dashboard() {
          return (
              <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto space-y-6">
-                    <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-                        <Skeleton className="h-[125px]" />
-                        <Skeleton className="h-[125px]" />
-                        <Skeleton className="h-[125px]" />
-                        <Skeleton className="h-[125px]" />
+                    <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-2">
+                        <Skeleton className="h-[250px]" />
+                        <Skeleton className="h-[250px]" />
                     </div>
                      <Skeleton className="h-[350px] w-full" />
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -273,34 +271,38 @@ export function Dashboard() {
                 </div>
 
                 {/* Header Report */}
-                <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">Total Cases</CardTitle>
-                        <BarChartIcon className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                        <div className="text-2xl font-bold">{totalCases}</div>
-                        </CardContent>
-                    </Card>
+                 <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-2">
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-sm font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[60px] flex items-end">
-                            <ChartContainer config={chartConfig} className="w-full h-full">
+                        <CardContent className="h-[200px]">
+                            <ChartContainer config={chartConfig}>
                                 <RechartsBarChart
                                     accessibilityLayer
                                     data={topClients}
-                                    margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                                    layout="vertical"
+                                    margin={{ left: 10, top: 10, right: 30, bottom: 10 }}
                                 >
-                                    <XAxis dataKey="name" type="category" tick={false} axisLine={false} />
-                                    <YAxis type="number" hide />
-                                    <ChartTooltip
-                                        cursor={false}
-                                        content={<ChartTooltipContent indicator="dot" />}
+                                    <CartesianGrid horizontal={false} />
+                                    <YAxis
+                                        dataKey="name"
+                                        type="category"
+                                        tickLine={false}
+                                        tickMargin={10}
+                                        axisLine={false}
+                                        className="text-xs"
+                                        interval={0}
+                                        width={80}
                                     />
-                                    <Bar dataKey="value" name="clients" radius={[4, 4, 0, 0]} fill="var(--color-chart-2)" />
+                                    <XAxis dataKey="value" type="number" hide />
+                                    <ChartTooltip
+                                        cursor={{ fill: 'hsl(var(--muted))' }}
+                                        content={<ChartTooltipContent />}
+                                    />
+                                    <Bar dataKey="value" name="Top 5 Clients" layout="vertical" radius={5} fill="var(--color-clients)" barSize={20}>
+                                        <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
+                                    </Bar>
                                 </RechartsBarChart>
                             </ChartContainer>
                         </CardContent>
@@ -309,21 +311,33 @@ export function Dashboard() {
                         <CardHeader>
                             <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[60px] flex items-end">
-                             <ChartContainer config={chartConfig} className="w-full h-full">
-                                <RechartsBarChart
-                                    accessibilityLayer
-                                    data={topModules}
-                                    margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
-                                >
-                                    <XAxis dataKey="name" type="category" tick={false} axisLine={false} />
-                                    <YAxis type="number" hide />
+                        <CardContent className="h-[200px]">
+                            <ChartContainer config={chartConfig}>
+                                <PieChart>
                                     <ChartTooltip
-                                        cursor={false}
-                                        content={<ChartTooltipContent indicator="dot" nameKey="name"/>}
+                                      content={<ChartTooltipContent nameKey="name" hideLabel />}
                                     />
-                                    <Bar dataKey="value" name="modules" radius={[4, 4, 0, 0]} fill="var(--color-chart-1)" />
-                                </RechartsBarChart>
+                                    <Pie data={topModules} dataKey="value" nameKey="name" innerRadius={50} strokeWidth={2}>
+                                        {topModules.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                        ))}
+                                    </Pie>
+                                    <Legend
+                                        content={({ payload }) => (
+                                            <div className="flex flex-col gap-1 text-xs">
+                                            {payload?.map((entry) => (
+                                                <div key={`item-${entry.value}`} className="flex items-center gap-2">
+                                                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                                                    <span className="text-muted-foreground">{entry.value}</span>
+                                                </div>
+                                            ))}
+                                            </div>
+                                        )}
+                                        verticalAlign="middle"
+                                        align="right"
+                                        layout="vertical"
+                                    />
+                                </PieChart>
                             </ChartContainer>
                         </CardContent>
                     </Card>
