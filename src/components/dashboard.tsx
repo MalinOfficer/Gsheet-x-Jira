@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw } from "lucide-react";
@@ -100,8 +101,20 @@ export function Dashboard() {
                 monthlyData: [],
             };
         }
+        
+        // Find the actual header for a given field, trying a few common variations.
+        const findHeader = (possibleNames: string[]): string | undefined => {
+             if (!data[0]) return undefined;
+             const actualHeaders = Object.keys(data[0]);
+             for (const name of possibleNames) {
+                 const found = actualHeaders.find(header => header.toLowerCase() === name.toLowerCase());
+                 if (found) return found;
+             }
+             return undefined;
+        };
 
-        const createFrequencyMap = (field: string) => {
+        const createFrequencyMap = (field: string | undefined) => {
+            if (!field) return {};
             const frequency: Record<string, number> = {};
             data.forEach(row => {
                 const value = row[field];
@@ -112,23 +125,28 @@ export function Dashboard() {
             return frequency;
         };
         
-        const clientFrequency = createFrequencyMap('CLIENT NAME');
+        const clientHeader = findHeader(['CLIENT NAME', 'Client Name', 'Client']);
+        const clientFrequency = createFrequencyMap(clientHeader);
         const topClients = Object.entries(clientFrequency)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5)
             .map(([name, value]) => ({ name, value }));
 
-        const moduleFrequency = createFrequencyMap('DETAIL MODUL');
+        const moduleHeader = findHeader(['DETAIL MODUL', 'Detail Module', 'Module']);
+        const moduleFrequency = createFrequencyMap(moduleHeader);
         const topModules = Object.entries(moduleFrequency)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5)
             .map(([name, value]) => ({ name, value }));
 
+        const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
         const statusFrequency: Record<string, number> = {};
-        data.forEach(row => {
-            const status = String(row['STATUS CASE'] || 'N/A').toUpperCase();
-            statusFrequency[status] = (statusFrequency[status] || 0) + 1;
-        });
+        if (statusHeader) {
+            data.forEach(row => {
+                const status = String(row[statusHeader] || 'N/A').toUpperCase();
+                statusFrequency[status] = (statusFrequency[status] || 0) + 1;
+            });
+        }
         
         const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ name, value, fill: `var(--color-${name})`}));
 
@@ -146,20 +164,23 @@ export function Dashboard() {
             monthlyAggregation[month] = { "2024": 0, "2025": 0, "2026": 0 };
         });
 
-        data.forEach(row => {
-            const dateStr = row['DATE'];
-            if (dateStr && typeof dateStr === 'string') {
-                const parts = dateStr.split('/');
-                if (parts.length === 3) {
-                    const monthIndex = parseInt(parts[1], 10) - 1;
-                    const year = parts[2];
-                    if (monthIndex >= 0 && monthIndex < 12 && ['2024', '2025', '2026'].includes(year)) {
-                        const monthName = months[monthIndex];
-                        monthlyAggregation[monthName][year as "2024" | "2025" | "2026"] += 1;
+        const dateHeader = findHeader(['DATE', 'Date']);
+        if (dateHeader) {
+            data.forEach(row => {
+                const dateStr = row[dateHeader];
+                if (dateStr && typeof dateStr === 'string') {
+                    const parts = dateStr.split('/');
+                    if (parts.length === 3) {
+                        const monthIndex = parseInt(parts[1], 10) - 1;
+                        const year = parts[2];
+                        if (monthIndex >= 0 && monthIndex < 12 && ['2024', '2025', '2026'].includes(year)) {
+                            const monthName = months[monthIndex];
+                            monthlyAggregation[monthName][year as "2024" | "2025" | "2026"] += 1;
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
 
         const monthlyData = months.map(month => ({
             month,
@@ -262,7 +283,7 @@ export function Dashboard() {
                         <div className="text-2xl font-bold">{totalCases}</div>
                         </CardContent>
                     </Card>
-                    <Card className="col-span-1 md:col-span-2">
+                    <Card>
                         <CardHeader>
                             <CardTitle className="text-sm font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
@@ -284,7 +305,7 @@ export function Dashboard() {
                             </ChartContainer>
                         </CardContent>
                     </Card>
-                    <Card className="col-span-1">
+                    <Card>
                         <CardHeader>
                             <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
@@ -465,3 +486,5 @@ export function Dashboard() {
         </div>
     );
 }
+
+    
