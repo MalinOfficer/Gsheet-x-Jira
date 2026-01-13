@@ -119,7 +119,7 @@ function DashboardChart() {
             <User className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold truncate">{clientTrend}</div>
+            <div className="text-xl font-bold text-wrap">{clientTrend}</div>
           </CardContent>
         </Card>
         <Card className="lg:col-span-3">
@@ -128,7 +128,7 @@ function DashboardChart() {
             <AppWindow className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold truncate">{moduleTrend}</div>
+            <div className="text-xl font-bold text-wrap">{moduleTrend}</div>
           </CardContent>
         </Card>
          <Card className="lg:col-span-2">
