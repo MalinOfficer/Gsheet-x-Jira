@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Copy, Check, BarChart as BarChartIcon, AlertTriangle, User, AppWindow, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { formatDateTime } from '@/lib/date-utils';
-import { TableDataContext } from '@/store/table-data-context';
+import { SettingsContext, TableData } from '@/contexts/settings-provider';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -25,8 +25,16 @@ const chartConfig = {
   L3: { label: "L3", color: "hsl(var(--chart-4))" },
 } satisfies ChartConfig
 
+// State for this page is now managed locally
+type ReportData = {
+    report?: string;
+    error?: string;
+} | null;
+
 function DashboardChart() {
-    const { tableData: contextData } = useContext(TableDataContext);
+    // This component now needs to get its data from a prop or a more specific context.
+    // For now, let's assume we pass it down. This can be further optimized.
+    const { tableData: contextData } = useContext(SettingsContext); // Using new context just for this part.
     const finalData = contextData?.rows;
 
     const dashboardStats = useMemo(() => {
@@ -200,7 +208,7 @@ function InitialState({ error }: { error?: string }) {
         )}
         <CardTitle>{error ? "Failed to Load Data" : "No Report Data Found"}</CardTitle>
         <CardDescription className="mt-2 mb-4 max-w-sm">
-            {error ? error : "To view reports, please go to the Import Data page, convert your JSON data, and verify your Google Sheet URL."}
+            {error ? error : "To view reports, please go to the Import Data page and convert your data."}
         </CardDescription>
         <Button onClick={() => router.push('/')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -211,12 +219,12 @@ function InitialState({ error }: { error?: string }) {
 };
 
 function DailyReportCard() {
-    const { tableData: contextData } = useContext(TableDataContext);
+    const { tableData } = useContext(SettingsContext); // Changed to SettingsContext
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
     const [todayDate, setTodayDate] = useState('');
 
-    const finalData = contextData?.rows;
+    const finalData = tableData?.rows;
 
     useEffect(() => {
         const today = new Date();
@@ -377,7 +385,8 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
 }
 
 function L3CaseReportCard() {
-    const { l3ReportData, setL3ReportData, sheetUrl } = useContext(TableDataContext);
+    const { sheetUrl } = useContext(SettingsContext); // Changed to SettingsContext
+    const [l3ReportData, setL3ReportData] = useState<ReportData>(null); // State is now local
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
     const [isGenerating, startGenerating] = useTransition();
@@ -460,12 +469,16 @@ function L3CaseReportCard() {
 }
 
 interface ReportHarianProps {
-  initialDashboardData: any[] | null;
+  initialDashboardData: any[] | null; // This prop is no longer used but kept for page compatibility
   error?: string;
 }
 
 export function ReportHarian({ error }: ReportHarianProps) {
   const router = useRouter();
+  const { tableData } = useContext(SettingsContext); // Changed to SettingsContext
+
+  // Check if data exists in the context from the import flow
+  const hasData = tableData && tableData.rows.length > 0;
 
   if (error) {
       return (
@@ -491,8 +504,8 @@ export function ReportHarian({ error }: ReportHarianProps) {
           </Button>
         </div>
 
-        <DashboardChart />
-
+        {hasData ? <DashboardChart /> : <InitialState />}
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <DailyReportCard />
           <L3CaseReportCard />

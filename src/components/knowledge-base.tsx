@@ -7,12 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { runKnowledgeBaseEngine } from '@/app/actions';
-import { TableDataContext } from '@/store/table-data-context';
+import { SettingsContext } from '@/contexts/settings-provider';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
 
 export function KnowledgeBase() {
-    const { knowledgeBaseUrl } = useContext(TableDataContext);
+    const { knowledgeBaseUrl } = useContext(SettingsContext);
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearching, startSearch] = useTransition();

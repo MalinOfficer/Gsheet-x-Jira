@@ -10,7 +10,7 @@ import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
-import { TableDataContext, type TableData, type L3ReportData } from '@/store/table-data-context';
+import { SettingsContext, type TableData } from '@/contexts/settings-provider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import {
   AlertDialog,
@@ -57,12 +57,11 @@ declare const XLSX: any;
 export function ImportFlow() {
   const { 
     tableData, setTableData, 
-    isProcessing, setIsProcessing: setGlobalProcessing, 
+    isProcessing, setIsProcessing,
     sheetUrl,
     verifiedUrl, setVerifiedUrl,
     spreadsheetTitle, setSpreadsheetTitle,
-    setL3ReportData,
-  } = useContext(TableDataContext);
+  } = useContext(SettingsContext);
   const { toast } = useToast();
 
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
@@ -89,8 +88,8 @@ export function ImportFlow() {
   const isAnyProcessing = isImporting || isUpdating || isPreviewing || isUndoing || isConverting;
 
   useEffect(() => {
-    setGlobalProcessing(isAnyProcessing);
-  }, [isAnyProcessing, setGlobalProcessing]);
+    setIsProcessing(isAnyProcessing);
+  }, [isAnyProcessing, setIsProcessing]);
 
 
   useEffect(() => {
@@ -490,7 +489,6 @@ export function ImportFlow() {
             setTableData(null);
             setSpreadsheetTitle(null);
             setVerifiedUrl('');
-            setL3ReportData(null);
 
             if (!input.trim()) {
                 setJsonError("Input cannot be empty.");
@@ -764,7 +762,7 @@ function PreviewTable({
     handleConfirmUpdate: () => void;
     isUpdating: boolean;
 }) {
-    const { setTableData } = useContext(TableDataContext);
+    const { setTableData } = useContext(SettingsContext);
     const [localTableData, setLocalTableData] = useState<TableData>(initialData);
 
     const initialColumnWidths = useCallback(() => {

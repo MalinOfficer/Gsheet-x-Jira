@@ -11,7 +11,7 @@ import {
     CardDescription
 } from "@/components/ui/card";
 import { useContext, useMemo, useState, useEffect, useTransition } from "react";
-import { TableDataContext } from "@/store/table-data-context";
+import { SettingsContext } from "@/contexts/settings-provider";
 import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar, Tooltip, Legend } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getAllCaseData } from "@/app/actions";
@@ -46,7 +46,7 @@ interface DashboardState {
 }
 
 export function Dashboard() {
-    const { dbSheetUrl } = useContext(TableDataContext);
+    const { dbSheetUrl } = useContext(SettingsContext);
     const [state, setState] = useState<DashboardState>({ data: null, error: undefined, loading: true });
     const [isRefreshing, startRefresh] = useTransition();
     const { toast } = useToast();

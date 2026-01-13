@@ -2,14 +2,14 @@
 "use client";
 
 import { AppProvider } from "@/contexts/app-provider";
-import { TableDataContextProvider } from "@/store/table-data-context";
+import { SettingsProvider } from "@/contexts/settings-provider";
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   return (
-    <TableDataContextProvider>
+    <SettingsProvider>
       <AppProvider>
         {children}
       </AppProvider>
-    </TableDataContextProvider>
+    </SettingsProvider>
   );
 }

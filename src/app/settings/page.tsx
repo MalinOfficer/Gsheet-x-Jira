@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/card';
 import { CodeXml, Files, Link, Save, CheckCircle2, XCircle, RefreshCw, Pencil } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TableDataContext } from '@/store/table-data-context';
+import { SettingsContext } from '@/contexts/settings-provider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -43,7 +43,7 @@ export default function SettingsPage() {
       // KB URL states
       verifiedKbUrl, setVerifiedKbUrl,
       kbSpreadsheetTitle, setKbSpreadsheetTitle,
-  } = useContext(TableDataContext);
+  } = useContext(SettingsContext);
   
   const [isClient, setIsClient] = useState(false);
   const [isSaving, startSaving] = useTransition();
@@ -345,5 +345,4 @@ export default function SettingsPage() {
     </div>
   );
 }
-
     

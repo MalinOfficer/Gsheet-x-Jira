@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, Settings, GanttChartSquare, LayoutDashboard, ListTree, BarChart, BookOpen, Database, GitBranch, Files, Combine, PackageSearch, CodeXml, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useContext, useEffect, useState } from "react";
-import { TableDataContext } from "@/store/table-data-context";
+import { SettingsContext } from "@/contexts/settings-provider";
 import { useIsMobile } from "@/hooks/use-mobile";
 import React from "react";
 import { ThemeSwitch } from "../ui/theme-switch";
@@ -39,7 +39,7 @@ type NavCategory = keyof typeof navItems;
 
 function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
     const pathname = usePathname();
-    const { isCodeViewerEnabled, areSecondaryToolsEnabled } = useContext(TableDataContext);
+    const { isCodeViewerEnabled, areSecondaryToolsEnabled } = useContext(SettingsContext);
     
     const isVisible = (item: { featureFlag?: string }) => {
         if (!item.featureFlag) return true;
@@ -86,7 +86,7 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
 }
 
 function ProcessingIndicator() {
-    const { isProcessing } = useContext(TableDataContext);
+    const { isProcessing } = useContext(SettingsContext);
     if (!isProcessing) return null;
 
     return (
@@ -99,7 +99,7 @@ function ProcessingIndicator() {
 
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-    const { isProcessing, setIsProcessing } = useContext(TableDataContext);
+    const { isProcessing, setIsProcessing } = useContext(SettingsContext);
     const pathname = usePathname();
     const [isClient, setIsClient] = useState(false);
     const isMobile = useIsMobile();

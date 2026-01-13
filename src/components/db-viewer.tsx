@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent } from "react";
-import { TableDataContext } from "@/store/table-data-context";
+import { SettingsContext } from "@/contexts/settings-provider";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -63,7 +63,7 @@ const FILTER_COLUMNS = [
 
 
 export function DbViewer() {
-    const { dbSheetUrl } = useContext(TableDataContext);
+    const { dbSheetUrl } = useContext(SettingsContext);
     const [state, setState] = useState<DbViewerState>({
         data: null,
         source: 'N/A',
