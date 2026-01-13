@@ -15,14 +15,16 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart } from 'recharts';
 import type { ChartConfig } from "@/components/ui/chart"
 import { fetchL3ReportData } from '@/app/actions';
+import { ScrollArea } from './ui/scroll-area';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#a4de6c', '#d0ed57', '#ffc658'];
+const COLORS = ['#FF8042', '#00C49F', '#0088FE', '#FFBB28', '#8884d8', '#a4de6c', '#d0ed57', '#ffc658'];
 
 const chartConfig = {
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
   unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
-  L1: { label: "L1", color: "hsl(var(--chart-1))" },
-  L2: { label: "L2", color: "hsl(var(--chart-3))" },
+  L1: { label: "L1", color: "hsl(var(--chart-3))" },
+  L2: { label: "L2", color: "hsl(var(--chart-1))" },
   L3: { label: "L3", color: "hsl(var(--chart-4))" },
 } satisfies ChartConfig
 
@@ -46,6 +48,7 @@ function DashboardChart() {
                 solvedVsUnsolved: [],
                 topClientsData: [],
                 topModulesData: [],
+                unsolvedCases: [],
             };
         }
         
@@ -88,6 +91,8 @@ function DashboardChart() {
             { name: 'Unsolved', value: unsolvedCount }
         ];
 
+        const unsolvedCases = finalData.filter(row => String(row.Status).toLowerCase() !== 'solved');
+
         return {
             totalCases: finalData.length,
             clientTrend: topClientsData.length > 0 ? topClientsData[0].name : 'N/A',
@@ -96,6 +101,7 @@ function DashboardChart() {
             solvedVsUnsolved,
             topClientsData,
             topModulesData,
+            unsolvedCases,
         };
     }, [finalData]);
 
@@ -103,7 +109,7 @@ function DashboardChart() {
       return null;
     }
 
-    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved, topClientsData, topModulesData } = dashboardStats;
+    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved, topClientsData, topModulesData, unsolvedCases } = dashboardStats;
 
     const solvedPercentage = totalCases > 0 ? ((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100 : 0;
 
@@ -126,14 +132,14 @@ function DashboardChart() {
             <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Total Case</p>
             <p className="text-3xl font-bold mt-2">{totalCases}</p>
         </Card>
-        <Card className="lg:col-span-3 p-6 flex flex-col justify-between items-start">
+        <Card className="lg:col-span-3 p-6 flex flex-col items-start">
             <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
             <div className='w-full mt-2'>
                 <p className="font-bold text-wrap"><span>{clientTrend}</span></p>
                 <MiniBarChart data={topClientsData} color="hsl(var(--chart-1))" />
             </div>
         </Card>
-        <Card className="lg:col-span-3 p-6 flex flex-col justify-between items-start">
+        <Card className="lg:col-span-3 p-6 flex flex-col items-start">
             <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Module Trend</p>
             <div className='w-full mt-2'>
                 <p className="font-bold text-wrap"><span>{moduleTrend}</span></p>
@@ -150,8 +156,8 @@ function DashboardChart() {
                 <CardTitle className="text-base">Status Case</CardTitle>
             </CardHeader>
             <CardContent className="p-0 mt-4">
-                <div className="w-full h-[250px] flex items-center">
-                    <ResponsiveContainer width="40%" height="100%">
+                <div className="w-full h-[250px] grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                    <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie
                                 data={statusCounts}
@@ -164,46 +170,59 @@ function DashboardChart() {
                                 paddingAngle={5}
                                 dataKey="value"
                             >
-                                {statusCounts.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
+                                {statusCounts.map((entry, index) => {
+                                     const colorKey = entry.name as keyof typeof chartConfig;
+                                     const color = chartConfig[colorKey]?.color || COLORS[index % COLORS.length];
+                                     return <Cell key={`cell-${index}`} fill={color} />;
+                                })}
                             </Pie>
                             <Tooltip />
                         </PieChart>
                     </ResponsiveContainer>
-                    <div className="w-3/5 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                        {statusCounts.map((entry, index) => (
-                            <div key={`legend-${index}`} className="flex flex-col">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                                    <span className="text-muted-foreground">{entry.name}</span>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        {statusCounts.map((entry, index) => {
+                             const colorKey = entry.name as keyof typeof chartConfig;
+                             const color = chartConfig[colorKey]?.color || COLORS[index % COLORS.length];
+                             return (
+                                <div key={`legend-${index}`} className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+                                        <span className="text-muted-foreground">{entry.name}</span>
+                                    </div>
+                                    <span className="font-bold ml-4">{entry.percentage}%</span>
                                 </div>
-                                <span className="font-bold ml-4">{entry.percentage}%</span>
-                            </div>
-                        ))}
+                             )
+                        })}
                     </div>
                 </div>
             </CardContent>
         </Card>
 
-        <Card className="lg:col-span-5 p-6">
+        <Card className="lg:col-span-5 p-6 flex flex-col">
            <CardHeader className='p-0'>
-            <CardTitle className='text-base'>Solved vs Unsolved</CardTitle>
+            <CardTitle className='text-base'>List Case</CardTitle>
           </CardHeader>
-          <CardContent className='p-0 mt-4'>
-              <ResponsiveContainer width="100%" height={250}>
-                  <RechartsBarChart data={solvedVsUnsolved} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis dataKey="name" type="category" width={80} />
-                      <Tooltip cursor={{fill: 'hsl(var(--muted))'}}/>
-                      <Bar dataKey="value" name="Total" background={{ fill: 'hsl(var(--muted))' }} radius={8}>
-                           {solvedVsUnsolved.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.name === 'Solved' ? chartConfig.solved.color : chartConfig.unsolved.color} />
-                           ))}
-                      </Bar>
-                  </RechartsBarChart>
-              </ResponsiveContainer>
+          <CardContent className='p-0 mt-4 flex-grow'>
+              <ScrollArea className="h-64">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[50px]">NO</TableHead>
+                      <TableHead>CLIENT</TableHead>
+                      <TableHead>DETAIL CASE</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {unsolvedCases.map((caseItem, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{caseItem['Client Name']}</TableCell>
+                        <TableCell>{caseItem['Title']}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
           </CardContent>
         </Card>
       </div>
