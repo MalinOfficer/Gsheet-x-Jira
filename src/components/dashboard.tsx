@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw } from "lucide-react";
@@ -466,13 +465,3 @@ export function Dashboard() {
         </div>
     );
 }
-
-    
-
-    
-
-    
-
-
-
-    
