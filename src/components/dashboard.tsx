@@ -274,27 +274,13 @@ export function Dashboard() {
                                     data={topClients}
                                     margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
                                 >
-                                    <defs>
-                                        <linearGradient id="fillClient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop
-                                            offset="5%"
-                                            stopColor="var(--color-chart-2)"
-                                            stopOpacity={0.8}
-                                            />
-                                            <stop
-                                            offset="95%"
-                                            stopColor="var(--color-chart-2)"
-                                            stopOpacity={0.1}
-                                            />
-                                        </linearGradient>
-                                    </defs>
                                     <XAxis dataKey="name" type="category" tick={false} axisLine={false} />
                                     <YAxis type="number" hide />
                                     <ChartTooltip
                                         cursor={false}
                                         content={<ChartTooltipContent indicator="dot" />}
                                     />
-                                    <Bar dataKey="value" name="clients" radius={[4, 4, 0, 0]} fill="url(#fillClient)" />
+                                    <Bar dataKey="value" name="clients" radius={[4, 4, 0, 0]} fill="var(--color-chart-2)" />
                                 </RechartsBarChart>
                             </ChartContainer>
                         </CardContent>
@@ -487,3 +473,6 @@ export function Dashboard() {
 
     
 
+
+
+    
