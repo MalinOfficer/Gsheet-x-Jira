@@ -22,9 +22,9 @@ import { Badge } from './ui/badge';
 const chartConfig = {
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
   unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
-  L1: { label: "L1", color: "hsl(var(--chart-3))" },
+  L1: { label: "L1", color: "hsl(var(--chart-4))" },
   L2: { label: "L2", color: "hsl(var(--chart-1))" },
-  L3: { label: "L3", color: "hsl(var(--chart-4))" },
+  L3: { label: "L3", color: "hsl(var(--chart-5))" },
 } satisfies ChartConfig
 
 // State for this page is now managed locally
@@ -162,7 +162,7 @@ function DashboardChart() {
                              <defs>
                                 <linearGradient id="colorModule" x1="0" y1="0" x2="1" y2="0">
                                     <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.8}/>
-                                    <stop offset="95%" stopColor="hsl(var(--chart-4))" stopOpacity={0.8}/>
+                                    <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0.2}/>
                                 </linearGradient>
                             </defs>
                              <Tooltip
