@@ -98,6 +98,9 @@ function DashboardChart() {
 
     const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved, topClientsData, topModulesData } = dashboardStats;
 
+    const solvedPercentage = totalCases > 0 ? ((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100 : 0;
+
+
     const MiniBarChart = ({ data, color }: { data: {name: string, value: number}[], color: string }) => (
         <ResponsiveContainer width="100%" height={50}>
             <RechartsBarChart data={data} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
@@ -116,27 +119,24 @@ function DashboardChart() {
             <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Total Case</p>
             <p className="text-3xl font-bold mt-2">{totalCases}</p>
         </Card>
-        <Card className="lg:col-span-3 p-6 flex justify-between items-start">
-            <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
-                <p className="font-bold mt-2 text-wrap"><span className="text-xl">{clientTrend}</span></p>
-            </div>
-             <div className='w-2/5'>
+        <Card className="lg:col-span-3 p-6 flex flex-col justify-between items-start">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
+            <div className='w-full mt-2'>
+                <p className="font-bold text-wrap"><span className="text-xl">{clientTrend}</span></p>
                 <MiniBarChart data={topClientsData} color="hsl(var(--chart-1))" />
             </div>
         </Card>
-        <Card className="lg:col-span-3 p-6 flex justify-between items-start">
-            <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Module Trend</p>
-                <p className="font-bold mt-2 text-wrap"><span className="text-xl">{moduleTrend}</span></p>
-            </div>
-             <div className='w-2/5'>
+        <Card className="lg:col-span-3 p-6 flex flex-col justify-between items-start">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Module Trend</p>
+            <div className='w-full mt-2'>
+                <p className="font-bold text-wrap"><span className="text-xl">{moduleTrend}</span></p>
                 <MiniBarChart data={topModulesData} color="hsl(var(--chart-2))" />
             </div>
         </Card>
         <Card className="lg:col-span-2 p-6">
             <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Solved vs Unsolved</p>
             <p className="text-3xl font-bold mt-2">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
+            <p className="text-xs text-muted-foreground mt-1">{solvedPercentage.toFixed(1)}% Solved</p>
         </Card>
         <Card className="lg:col-span-5 p-6">
           <CardHeader className='p-0'>
@@ -507,3 +507,5 @@ export function ReportHarian({ error }: ReportHarianProps) {
     </div>
   );
 }
+
+    
