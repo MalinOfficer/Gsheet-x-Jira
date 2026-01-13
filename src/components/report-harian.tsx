@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useMemo, useEffect, useContext, useTransition } from 'react';
@@ -120,7 +119,7 @@ function DashboardChart() {
         <Card className="lg:col-span-3 p-6 flex justify-between items-end">
             <div>
                 <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
-                <p className="text-xl font-bold mt-2 text-wrap">{clientTrend}</p>
+                <p className="font-bold mt-2"><span className="text-xl text-wrap">{clientTrend}</span></p>
             </div>
              <div className='w-2/5'>
                 <MiniBarChart data={topClientsData} color="hsl(var(--chart-1))" />
@@ -129,7 +128,7 @@ function DashboardChart() {
         <Card className="lg:col-span-3 p-6 flex justify-between items-end">
             <div>
                 <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Module Trend</p>
-                <p className="text-xl font-bold mt-2 text-wrap">{moduleTrend}</p>
+                <p className="font-bold mt-2"><span className="text-xl text-wrap">{moduleTrend}</span></p>
             </div>
              <div className='w-2/5'>
                 <MiniBarChart data={topModulesData} color="hsl(var(--chart-2))" />
@@ -508,4 +507,3 @@ export function ReportHarian({ error }: ReportHarianProps) {
     </div>
   );
 }
-
