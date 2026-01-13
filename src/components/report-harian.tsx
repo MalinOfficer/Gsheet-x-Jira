@@ -165,10 +165,18 @@ function DashboardChart() {
                                 </linearGradient>
                             </defs>
                              <Tooltip
-                                contentStyle={{ fontSize: '12px', padding: '4px 8px' }}
+                                content={({ active, payload }) => {
+                                  if (active && payload && payload.length) {
+                                    return (
+                                      <div className="bg-background border rounded-lg shadow-lg p-2 text-xs">
+                                        <p className="font-bold">{`${payload[0].payload.name} : ${payload[0].value}`}</p>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                }}
                                 wrapperClassName="!border-none !shadow-lg !rounded-lg"
-                                cursor={false}
-                                formatter={(value, name, props) => [value, props.payload.name]}
+                                cursor={{fill: 'hsl(var(--background))', opacity: 0.5}}
                             />
                             <Bar dataKey="value" radius={20} barSize={20} fill="url(#colorModule)" />
                         </RechartsBarChart>
