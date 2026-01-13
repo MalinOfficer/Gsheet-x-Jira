@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw } from "lucide-react";
@@ -269,7 +268,7 @@ export function Dashboard() {
                             <CardTitle className="text-sm font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[60px] flex items-end">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ChartContainer config={chartConfig} className="w-full h-full">
                                 <RechartsBarChart
                                     accessibilityLayer
                                     data={topClients}
@@ -297,7 +296,7 @@ export function Dashboard() {
                                     />
                                     <Bar dataKey="value" name="clients" radius={[4, 4, 0, 0]} fill="url(#fillClient)" />
                                 </RechartsBarChart>
-                            </ResponsiveContainer>
+                            </ChartContainer>
                         </CardContent>
                     </Card>
                     <Card className="col-span-1">
@@ -305,7 +304,7 @@ export function Dashboard() {
                             <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[60px] flex items-end">
-                             <ResponsiveContainer width="100%" height="100%">
+                             <ChartContainer config={chartConfig} className="w-full h-full">
                                 <RechartsBarChart
                                     accessibilityLayer
                                     data={topModules}
@@ -323,7 +322,7 @@ export function Dashboard() {
                                         ))}
                                     </Bar>
                                 </RechartsBarChart>
-                            </ResponsiveContainer>
+                            </ChartContainer>
                         </CardContent>
                     </Card>
                 </div>
@@ -485,3 +484,5 @@ export function Dashboard() {
         </div>
     );
 }
+
+    
