@@ -116,19 +116,19 @@ function DashboardChart() {
             <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Total Case</p>
             <p className="text-3xl font-bold mt-2">{totalCases}</p>
         </Card>
-        <Card className="lg:col-span-3 p-6 flex justify-between items-end">
+        <Card className="lg:col-span-3 p-6 flex justify-between items-start">
             <div>
                 <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
-                <p className="font-bold mt-2"><span className="text-xl text-wrap">{clientTrend}</span></p>
+                <p className="font-bold mt-2 text-wrap"><span className="text-xl">{clientTrend}</span></p>
             </div>
              <div className='w-2/5'>
                 <MiniBarChart data={topClientsData} color="hsl(var(--chart-1))" />
             </div>
         </Card>
-        <Card className="lg:col-span-3 p-6 flex justify-between items-end">
+        <Card className="lg:col-span-3 p-6 flex justify-between items-start">
             <div>
                 <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Module Trend</p>
-                <p className="font-bold mt-2"><span className="text-xl text-wrap">{moduleTrend}</span></p>
+                <p className="font-bold mt-2 text-wrap"><span className="text-xl">{moduleTrend}</span></p>
             </div>
              <div className='w-2/5'>
                 <MiniBarChart data={topModulesData} color="hsl(var(--chart-2))" />
