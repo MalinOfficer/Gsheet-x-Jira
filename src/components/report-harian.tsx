@@ -147,6 +147,7 @@ function DashboardChart() {
                                 contentStyle={{ fontSize: '12px', padding: '4px 8px' }}
                                 wrapperClassName="!border-none !shadow-lg !rounded-lg"
                                 cursor={false}
+                                formatter={(value, name, props) => [value, props.payload.name]}
                             />
                             <Area type="monotone" dataKey="value" nameKey="name" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#colorClient)" />
                         </AreaChart>
@@ -174,8 +175,12 @@ function DashboardChart() {
                 </Card>
                  <Card className="p-6">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Solved vs Unsolved</p>
-                    <p className="text-3xl font-bold mt-2">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
-                    <Badge variant="outline" className="mt-2 text-green-700 border-green-200 bg-green-50">{totalCases > 0 ? (((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1) : 0}% Solved</Badge>
+                    <div className="flex items-baseline gap-2">
+                        <p className="text-3xl font-bold mt-2">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        {totalCases > 0 ? (((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1) : 0}% Solved
+                    </p>
                 </Card>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
