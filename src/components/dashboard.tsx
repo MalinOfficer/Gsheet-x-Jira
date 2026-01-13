@@ -292,7 +292,7 @@ export function Dashboard() {
                                     <YAxis type="number" hide />
                                     <ChartTooltip
                                         cursor={false}
-                                        content={<ChartTooltipContent indicator="dot" nameKey="name" />}
+                                        content={<ChartTooltipContent indicator="dot" />}
                                     />
                                     <Bar dataKey="value" name="clients" radius={[4, 4, 0, 0]} fill="url(#fillClient)" />
                                 </RechartsBarChart>
@@ -480,6 +480,8 @@ export function Dashboard() {
         </div>
     );
 }
+
+    
 
     
 
