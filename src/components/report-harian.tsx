@@ -22,9 +22,9 @@ import { Badge } from './ui/badge';
 const chartConfig = {
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
   unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
-  L1: { label: "L1", color: "hsl(var(--chart-3))" },
+  L1: { label: "L1", color: "hsl(var(--chart-4))" },
   L2: { label: "L2", color: "hsl(var(--chart-1))" },
-  L3: { label: "L3", color: "hsl(var(--chart-4))" },
+  L3: { label: "L3", color: "hsl(var(--chart-5))" },
 } satisfies ChartConfig
 
 // State for this page is now managed locally
@@ -132,7 +132,7 @@ function DashboardChart() {
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Total Case</p>
                     <p className="text-3xl font-bold mt-2">{totalCases}</p>
                 </Card>
-                <Card className="p-6 flex flex-col">
+                <Card className="p-6 flex flex-col min-h-[150px]">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
                     <p className="font-bold text-lg mt-2 text-wrap">{clientTrend}</p>
                     <ResponsiveContainer width="100%" height={60}>
@@ -153,7 +153,7 @@ function DashboardChart() {
                         </AreaChart>
                     </ResponsiveContainer>
                 </Card>
-                 <Card className="p-6 flex flex-col">
+                 <Card className="p-6 flex flex-col min-h-[150px]">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Module Trend</p>
                     <p className="font-bold text-lg mt-2 text-wrap">{moduleTrend}</p>
                      <ResponsiveContainer width="100%" height={60}>
@@ -204,11 +204,10 @@ function DashboardChart() {
                                         dataKey="value"
                                         cornerRadius={20}
                                     >
-                                        {statusCounts.map((entry, index) => {
-                                             const colorKey = entry.name as keyof typeof chartConfig;
-                                             const color = chartConfig[colorKey]?.color || 'hsl(var(--muted))';
-                                             return <Cell key={`cell-${index}`} fill={color} />;
-                                        })}
+                                        <Cell fill="hsl(var(--chart-2))" />
+                                        <Cell fill="hsl(var(--chart-4))" />
+                                        <Cell fill="hsl(var(--chart-1))" />
+                                        <Cell fill="hsl(var(--chart-5))" />
                                     </Pie>
                                     <Tooltip contentStyle={{ fontSize: '12px', padding: '4px 8px' }} formatter={(value, name) => [`${value} (${(Number(value)/totalCases*100).toFixed(0)}%)`, name]} />
                                 </PieChart>
