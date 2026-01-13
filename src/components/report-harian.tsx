@@ -32,9 +32,7 @@ type ReportData = {
 } | null;
 
 function DashboardChart() {
-    // This component now needs to get its data from a prop or a more specific context.
-    // For now, let's assume we pass it down. This can be further optimized.
-    const { tableData: contextData } = useContext(SettingsContext); // Using new context just for this part.
+    const { tableData: contextData } = useContext(SettingsContext);
     const finalData = contextData?.rows;
 
     const dashboardStats = useMemo(() => {
@@ -45,31 +43,27 @@ function DashboardChart() {
                 moduleTrend: 'N/A',
                 statusCounts: [],
                 solvedVsUnsolved: [],
+                topClientsData: [],
+                topModulesData: [],
             };
         }
-
-        const getMostFrequent = (field: string) => {
+        
+        const getTopN = (data: typeof finalData, field: string, n: number) => {
             const frequency: Record<string, number> = {};
-            let maxCount = 0;
-            let mostFrequent = 'N/A';
-            const filteredData = finalData.filter(row => row[field]);
-            if (filteredData.length === 0) return 'N/A';
-
-            filteredData.forEach(row => {
+            data.forEach(row => {
                 const value = row[field];
                 if (value) {
                     frequency[value] = (frequency[value] || 0) + 1;
                 }
             });
-
-            Object.entries(frequency).forEach(([value, count]) => {
-                if (count > maxCount) {
-                    maxCount = count;
-                    mostFrequent = value;
-                }
-            });
-            return mostFrequent;
+            return Object.entries(frequency)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, n)
+                .map(([name, value]) => ({ name, value }));
         };
+
+        const topClientsData = getTopN(finalData, 'Client Name', 5);
+        const topModulesData = getTopN(finalData, 'Detail Module', 5);
 
         const statusFrequency: Record<string, number> = {};
         finalData.forEach(row => {
@@ -89,10 +83,12 @@ function DashboardChart() {
 
         return {
             totalCases: finalData.length,
-            clientTrend: getMostFrequent('Client Name'),
-            moduleTrend: getMostFrequent('Detail Module'),
+            clientTrend: topClientsData.length > 0 ? topClientsData[0].name : 'N/A',
+            moduleTrend: topModulesData.length > 0 ? topModulesData[0].name : 'N/A',
             statusCounts,
             solvedVsUnsolved,
+            topClientsData,
+            topModulesData,
         };
     }, [finalData]);
 
@@ -100,55 +96,53 @@ function DashboardChart() {
       return null;
     }
 
-    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved } = dashboardStats;
+    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved, topClientsData, topModulesData } = dashboardStats;
+
+    const MiniBarChart = ({ data, color }: { data: {name: string, value: number}[], color: string }) => (
+        <ResponsiveContainer width="100%" height={50}>
+            <RechartsBarChart data={data} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                <Bar dataKey="value" radius={20} barSize={6}>
+                    {data.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={color} opacity={(index + 1) / data.length} />
+                    ))}
+                </Bar>
+            </RechartsBarChart>
+        </ResponsiveContainer>
+    );
 
     return (
-      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-10 mb-6">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Case</CardTitle>
-            <BarChartIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalCases}</div>
-          </CardContent>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-10 mb-6">
+        <Card className="lg:col-span-2 p-6">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Total Case</p>
+            <p className="text-3xl font-bold text-slate-800 mt-2">{totalCases}</p>
         </Card>
-        <Card className="lg:col-span-3">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Client Trend</CardTitle>
-            <User className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-wrap">{clientTrend}</div>
-          </CardContent>
+        <Card className="lg:col-span-3 p-6 flex justify-between items-end">
+            <div>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
+                <p className="text-xl font-bold text-slate-800 mt-2 text-wrap">{clientTrend}</p>
+            </div>
+            <div className='w-2/5'>
+                <MiniBarChart data={topClientsData} color="hsl(var(--chart-1))" />
+            </div>
         </Card>
-        <Card className="lg:col-span-3">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Module Trend</CardTitle>
-            <AppWindow className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-wrap">{moduleTrend}</div>
-          </CardContent>
+        <Card className="lg:col-span-3 p-6 flex justify-between items-end">
+            <div>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Module Trend</p>
+                <p className="text-xl font-bold text-slate-800 mt-2 text-wrap">{moduleTrend}</p>
+            </div>
+             <div className='w-2/5'>
+                <MiniBarChart data={topModulesData} color="hsl(var(--chart-2))" />
+            </div>
         </Card>
-         <Card className="lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Solved vs Unsolved</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                   {totalCases > 0 ? (((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1) : 0}% solved
-                </p>
-            </CardContent>
+        <Card className="lg:col-span-2 p-6">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Solved vs Unsolved</p>
+            <p className="text-3xl font-bold text-slate-800 mt-2">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
         </Card>
-        <Card className="lg:col-span-5">
-          <CardHeader>
-            <CardTitle>Status Case</CardTitle>
-            <CardDescription>Persentase kasus berdasarkan status L1, L2, L3, dan Solved.</CardDescription>
+        <Card className="lg:col-span-5 p-6">
+          <CardHeader className='p-0'>
+            <CardTitle className='text-base'>Status Case</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='p-0 mt-4'>
             <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                     <Pie
@@ -171,19 +165,18 @@ function DashboardChart() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-5">
-          <CardHeader>
-            <CardTitle>Solved vs Unsolved</CardTitle>
-            <CardDescription>Perbandingan jumlah kasus yang sudah selesai dan yang belum.</CardDescription>
+        <Card className="lg:col-span-5 p-6">
+           <CardHeader className='p-0'>
+            <CardTitle className='text-base'>Solved vs Unsolved</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='p-0 mt-4'>
               <ResponsiveContainer width="100%" height={250}>
                   <RechartsBarChart data={solvedVsUnsolved} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" />
                       <YAxis dataKey="name" type="category" width={80} />
                       <Tooltip cursor={{fill: 'hsl(var(--muted))'}}/>
-                      <Bar dataKey="value" name="Total" background={{ fill: 'hsl(var(--muted))' }} radius={[4, 4, 0, 0]}>
+                      <Bar dataKey="value" name="Total" background={{ fill: 'hsl(var(--muted))' }} radius={8}>
                            {solvedVsUnsolved.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={entry.name === 'Solved' ? chartConfig.solved.color : chartConfig.unsolved.color} />
                            ))}
@@ -514,3 +507,5 @@ export function ReportHarian({ error }: ReportHarianProps) {
     </div>
   );
 }
+
+    

@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,31 +7,31 @@
 
 @layer base {
   :root {
-    --background: 240 10% 100%; /* #ffffff */
-    --foreground: 240 10% 3.9%; /* #0f172a - Almost black */
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 240 10% 3.9%;
+    --background: 240 10% 97%; /* Lighter grey for a cleaner feel */
+    --foreground: 240 5% 15%; /* Dark slate */
+    --card: 0 0% 100%; /* Pure white */
+    --card-foreground: 240 5% 15%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 221 83% 53%; /* Blue-600 */
+    --popover-foreground: 240 5% 15%;
+    --primary: 221 83% 53%; /* Royal Blue */
     --primary-foreground: 0 0% 98%;
-    --secondary: 240 5% 96%; /* Slate-100 / #f1f5f9 */
+    --secondary: 240 5% 96%; /* Slate-100 */
     --secondary-foreground: 240 6% 10%;
-    --muted: 240 5% 96%; /* Slate-100 */
-    --muted-foreground: 220 9% 46%; /* Slate-500 / #64748b */
+    --muted: 240 5% 96%;
+    --muted-foreground: 220 9% 46%; /* Muted grey for labels */
     --accent: 240 5% 96%;
     --accent-foreground: 240 6% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 6% 94%; /* Slate-100 / #f1f5f9 */
+    --border: 240 6% 94%;
     --input: 240 6% 90%;
     --ring: 221 83% 53%;
-    --chart-1: 221 83% 53%; /* Blue-600 */
-    --chart-2: 173 58% 39%; /* Green */
+    --chart-1: 221 83% 53%; /* Royal Blue */
+    --chart-2: 142 71% 45%; /* Emerald Green */
     --chart-3: 43 74% 66%; /* Yellow */
     --chart-4: 0 84.2% 60.2%; /* Red */
     --chart-5: 270 90% 60%; /* Purple */
-    --radius: 0.75rem; /* 12px */
+    --radius: 1.25rem; /* 20px */
   }
 
   .dark {
@@ -58,6 +59,7 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    --radius: 1.25rem; /* 20px */
   }
 }
 
@@ -69,6 +71,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Add custom shadow utility */
+@layer utilities {
+  .shadow-soft-large {
+    box-shadow: 0 10px 40px -5px rgba(0, 0, 0, 0.05);
+  }
+}
+
 
 .spinner {
  width: 44px;
@@ -126,3 +136,5 @@
   transform: rotate(45deg) rotateX(-385deg) rotateY(385deg);
  }
 }
+
+    
