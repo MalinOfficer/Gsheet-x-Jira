@@ -177,7 +177,7 @@ function DashboardChart() {
                                 wrapperClassName="!border-none !shadow-lg !rounded-lg"
                                 cursor={{fill: 'hsl(var(--background))', opacity: 0.5}}
                             />
-                            <Bar dataKey="value" radius={20} barSize={20} fill="url(#colorModule)" />
+                            <Bar dataKey="value" barSize={20} fill="url(#colorModule)" />
                         </RechartsBarChart>
                     </ResponsiveContainer>
                 </Card>
@@ -247,17 +247,17 @@ function DashboardChart() {
                             <Table>
                                 <TableHeader className="sticky top-0 bg-green-100 dark:bg-green-900/20 z-10">
                                     <TableRow>
-                                    <TableHead className="w-[50px] text-green-900 dark:text-green-100">NO</TableHead>
-                                    <TableHead className="text-green-900 dark:text-green-100">CLIENT</TableHead>
-                                    <TableHead className="text-green-900 dark:text-green-100">DETAIL CASE</TableHead>
+                                    <TableHead className="w-[50px] text-green-900 dark:text-green-100 py-2">NO</TableHead>
+                                    <TableHead className="text-green-900 dark:text-green-100 py-2">CLIENT</TableHead>
+                                    <TableHead className="text-green-900 dark:text-green-100 py-2">DETAIL CASE</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {unsolvedCases.map((caseItem, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell className="font-medium">{index + 1}</TableCell>
-                                        <TableCell>{caseItem['Client Name']}</TableCell>
-                                        <TableCell>{caseItem['Title']}</TableCell>
+                                    <TableRow key={index} className="text-xs">
+                                        <TableCell className="font-medium py-1.5">{index + 1}</TableCell>
+                                        <TableCell className="py-1.5">{caseItem['Client Name']}</TableCell>
+                                        <TableCell className="py-1.5">{caseItem['Title']}</TableCell>
                                     </TableRow>
                                     ))}
                                 </TableBody>
@@ -588,6 +588,3 @@ export function ReportHarian({ error }: ReportHarianProps) {
     </div>
   );
 }
-
-
-    
