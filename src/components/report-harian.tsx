@@ -22,9 +22,9 @@ import { Badge } from './ui/badge';
 const chartConfig = {
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
   unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
-  L1: { label: "L1", color: "hsl(var(--chart-4))" },
+  L1: { label: "L1", color: "hsl(var(--chart-3))" },
   L2: { label: "L2", color: "hsl(var(--chart-1))" },
-  L3: { label: "L3", color: "hsl(var(--chart-5))" },
+  L3: { label: "L3", color: "hsl(var(--chart-4))" },
 } satisfies ChartConfig
 
 // State for this page is now managed locally
@@ -122,8 +122,6 @@ function DashboardChart() {
     }
 
     const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved, topClientsData, topModulesData, unsolvedCases, clientTrendHistory } = dashboardStats;
-
-    const solvedPercentage = totalCases > 0 ? ((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100 : 0;
     
     const sortedStatusCounts = [...statusCounts].sort((a, b) => b.value - a.value);
 
@@ -134,11 +132,11 @@ function DashboardChart() {
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Total Case</p>
                     <p className="text-3xl font-bold mt-2">{totalCases}</p>
                 </Card>
-                <Card className="p-6">
+                <Card className="p-6 flex flex-col">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
                     <p className="font-bold text-lg mt-2 text-wrap">{clientTrend}</p>
                     <ResponsiveContainer width="100%" height={60}>
-                         <AreaChart data={clientTrendHistory} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                         <AreaChart data={topClientsData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="colorClient" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.4}/>
@@ -150,11 +148,11 @@ function DashboardChart() {
                                 wrapperClassName="!border-none !shadow-lg !rounded-lg"
                                 cursor={false}
                             />
-                            <Area type="monotone" dataKey="cases" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#colorClient)" />
+                            <Area type="monotone" dataKey="value" nameKey="name" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#colorClient)" />
                         </AreaChart>
                     </ResponsiveContainer>
                 </Card>
-                 <Card className="p-6">
+                 <Card className="p-6 flex flex-col">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Module Trend</p>
                     <p className="font-bold text-lg mt-2 text-wrap">{moduleTrend}</p>
                      <ResponsiveContainer width="100%" height={60}>
@@ -177,7 +175,7 @@ function DashboardChart() {
                  <Card className="p-6">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Solved vs Unsolved</p>
                     <p className="text-3xl font-bold mt-2">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
-                    <Badge variant="outline" className="mt-2 text-green-700 border-green-200 bg-green-50">{solvedPercentage.toFixed(1)}% Solved</Badge>
+                    <Badge variant="outline" className="mt-2 text-green-700 border-green-200 bg-green-50">{totalCases > 0 ? (((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1) : 0}% Solved</Badge>
                 </Card>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -235,11 +233,11 @@ function DashboardChart() {
                     <CardContent className='flex-grow p-0'>
                         <ScrollArea className="h-64">
                             <Table>
-                                <TableHeader className="sticky top-0 bg-card z-10">
+                                <TableHeader className="sticky top-0 bg-green-100 dark:bg-green-900/20 z-10">
                                     <TableRow>
-                                    <TableHead className="w-[50px]">NO</TableHead>
-                                    <TableHead>CLIENT</TableHead>
-                                    <TableHead>DETAIL CASE</TableHead>
+                                    <TableHead className="w-[50px] text-green-900 dark:text-green-100">NO</TableHead>
+                                    <TableHead className="text-green-900 dark:text-green-100">CLIENT</TableHead>
+                                    <TableHead className="text-green-900 dark:text-green-100">DETAIL CASE</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
