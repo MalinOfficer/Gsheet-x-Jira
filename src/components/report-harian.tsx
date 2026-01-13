@@ -22,9 +22,9 @@ import { Badge } from './ui/badge';
 const chartConfig = {
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
   unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
-  L1: { label: "L1", color: "hsl(var(--chart-4))" },
+  L1: { label: "L1", color: "hsl(var(--chart-3))" },
   L2: { label: "L2", color: "hsl(var(--chart-1))" },
-  L3: { label: "L3", color: "hsl(var(--chart-5))" },
+  L3: { label: "L3", color: "hsl(var(--chart-4))" },
 } satisfies ChartConfig
 
 // State for this page is now managed locally
@@ -149,7 +149,7 @@ function DashboardChart() {
                                 cursor={false}
                                 formatter={(value, name, props) => [value, props.payload.name]}
                             />
-                            <Area type="monotone" dataKey="value" nameKey="name" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#colorClient)" />
+                            <Area type="monotone" dataKey="value" name="cases" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#colorClient)" />
                         </AreaChart>
                     </ResponsiveContainer>
                 </Card>
@@ -168,6 +168,7 @@ function DashboardChart() {
                                 contentStyle={{ fontSize: '12px', padding: '4px 8px' }}
                                 wrapperClassName="!border-none !shadow-lg !rounded-lg"
                                 cursor={false}
+                                formatter={(value, name, props) => [value, props.payload.name]}
                             />
                             <Bar dataKey="value" radius={20} barSize={20} fill="url(#colorModule)" />
                         </RechartsBarChart>
@@ -205,9 +206,9 @@ function DashboardChart() {
                                         cornerRadius={20}
                                     >
                                         <Cell fill="hsl(var(--chart-2))" />
-                                        <Cell fill="hsl(var(--chart-4))" />
+                                        <Cell fill="hsl(var(--chart-3))" />
                                         <Cell fill="hsl(var(--chart-1))" />
-                                        <Cell fill="hsl(var(--chart-5))" />
+                                        <Cell fill="hsl(var(--chart-4))" />
                                     </Pie>
                                     <Tooltip contentStyle={{ fontSize: '12px', padding: '4px 8px' }} formatter={(value, name) => [`${value} (${(Number(value)/totalCases*100).toFixed(0)}%)`, name]} />
                                 </PieChart>
