@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useMemo, useEffect, useContext, useTransition } from 'react';
@@ -182,8 +181,8 @@ function DashboardChart() {
                         </RechartsBarChart>
                     </ResponsiveContainer>
                 </Card>
-                 <Card className="p-6">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Solved vs Unsolved</p>
+                 <Card className="p-6 bg-green-100 dark:bg-green-900/20">
+                    <p className="text-xs uppercase tracking-wider text-green-900 dark:text-green-200 font-semibold">Solved vs Unsolved</p>
                     <div className="flex items-baseline gap-2">
                         <p className="text-3xl font-bold mt-2">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
                     </div>
@@ -590,3 +589,5 @@ export function ReportHarian({ error }: ReportHarianProps) {
   );
 }
 
+
+    
