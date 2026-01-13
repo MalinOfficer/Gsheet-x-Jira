@@ -132,11 +132,11 @@ function DashboardChart() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <Card className="p-6">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Total Case</p>
-                    <p className="text-3xl font-bold mt-2 text-slate-800">{totalCases}</p>
+                    <p className="text-3xl font-bold mt-2">{totalCases}</p>
                 </Card>
                 <Card className="p-6">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
-                    <p className="font-bold text-slate-800 text-lg mt-2">{clientTrend}</p>
+                    <p className="font-bold text-lg mt-2 text-wrap">{clientTrend}</p>
                     <ResponsiveContainer width="100%" height={60}>
                          <AreaChart data={clientTrendHistory} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
                             <defs>
@@ -156,25 +156,27 @@ function DashboardChart() {
                 </Card>
                  <Card className="p-6">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Module Trend</p>
-                    <p className="font-bold text-slate-800 text-lg mt-2 text-wrap">{moduleTrend}</p>
+                    <p className="font-bold text-lg mt-2 text-wrap">{moduleTrend}</p>
                      <ResponsiveContainer width="100%" height={60}>
                         <RechartsBarChart data={topModulesData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                             <defs>
+                                <linearGradient id="colorModule" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.8}/>
+                                    <stop offset="95%" stopColor="hsl(var(--chart-4))" stopOpacity={0.8}/>
+                                </linearGradient>
+                            </defs>
                              <Tooltip
                                 contentStyle={{ fontSize: '12px', padding: '4px 8px' }}
                                 wrapperClassName="!border-none !shadow-lg !rounded-lg"
                                 cursor={false}
                             />
-                            <Bar dataKey="value" radius={20} barSize={8}>
-                                {topModulesData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill="hsl(var(--chart-2))" opacity={1 - (index * 0.15)} />
-                                ))}
-                            </Bar>
+                            <Bar dataKey="value" radius={20} barSize={20} fill="url(#colorModule)" />
                         </RechartsBarChart>
                     </ResponsiveContainer>
                 </Card>
                  <Card className="p-6">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Solved vs Unsolved</p>
-                    <p className="text-3xl font-bold mt-2 text-slate-800">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
+                    <p className="text-3xl font-bold mt-2">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
                     <Badge variant="outline" className="mt-2 text-green-700 border-green-200 bg-green-50">{solvedPercentage.toFixed(1)}% Solved</Badge>
                 </Card>
             </div>
@@ -218,7 +220,7 @@ function DashboardChart() {
                                                 <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
                                                 <span className="text-muted-foreground">{entry.name}</span>
                                             </div>
-                                            <span className="font-bold ml-4 text-slate-800">{entry.percentage}%</span>
+                                            <span className="font-bold ml-4">{entry.percentage}%</span>
                                         </div>
                                      )
                                 })}
