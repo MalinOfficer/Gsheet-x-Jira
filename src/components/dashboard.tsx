@@ -35,7 +35,7 @@ const chartConfig = {
   'OPEN': { label: 'Open', color: 'hsl(var(--chart-1))' },
   'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
   modules: { label: "Modules", color: "hsl(var(--chart-1))" },
-  clients: { label: "Clients", color: "hsl(var(--chart-2))" },
+  clients: { label: "Clients", color: "hsl(var(--primary))" },
   "Top 5 Clients": { label: "Clients", color: "hsl(var(--primary))" },
   "Top 5 Modules": { label: "Modules", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig
@@ -314,31 +314,25 @@ export function Dashboard() {
                         </CardHeader>
                         <CardContent className="h-[250px] flex items-center justify-center">
                            <ChartContainer config={chartConfig} className="w-full h-full">
-                                <PieChart>
+                                <RechartsBarChart
+                                    data={topModules}
+                                    margin={{ top: 20, right: 20, left: -20, bottom: 5 }}
+                                >
+                                    <CartesianGrid vertical={false} />
+                                    <XAxis
+                                        dataKey="name"
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                        tick={false}
+                                    />
+                                    <YAxis />
                                     <ChartTooltip
-                                      content={<ChartTooltipContent nameKey="name" hideLabel />}
+                                        cursor={{ fill: "hsl(var(--muted))" }}
+                                        content={<ChartTooltipContent />}
                                     />
-                                    <Pie data={topModules} dataKey="value" nameKey="name" innerRadius={50} strokeWidth={2}>
-                                        {topModules.map((_, index) => (
-                                            <Cell key={`cell-${index}`} fill={`var(--chart-${index + 1})`} />
-                                        ))}
-                                    </Pie>
-                                    <Legend
-                                        content={({ payload }) => (
-                                            <div className="flex flex-col gap-1 text-xs">
-                                            {payload?.map((entry) => (
-                                                <div key={`item-${entry.value}`} className="flex items-center gap-2">
-                                                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                                                    <span className="text-muted-foreground">{entry.value}</span>
-                                                </div>
-                                            ))}
-                                            </div>
-                                        )}
-                                        verticalAlign="middle"
-                                        align="right"
-                                        layout="vertical"
-                                    />
-                                </PieChart>
+                                    <Bar dataKey="value" name="Top 5 Modules" fill="var(--color-modules)" radius={4} />
+                                </RechartsBarChart>
                             </ChartContainer>
                         </CardContent>
                     </Card>
