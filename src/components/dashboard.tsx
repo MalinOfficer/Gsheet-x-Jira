@@ -325,6 +325,9 @@ export function Dashboard() {
     
     const { totalCases, topClients, allClients, topModules, allModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
 
+    const dynamicClientChartHeight = allClients.length * 40;
+    const dynamicModuleChartHeight = allModules.length * 40;
+
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
             <div className="max-w-7xl mx-auto space-y-4">
@@ -503,12 +506,12 @@ export function Dashboard() {
                         <CardHeader>
                             <CardTitle>Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px] p-4">
-                            <ChartContainer config={chartConfig}>
-                                <ResponsiveContainer width="100%" height="100%">
+                        <CardContent className="h-[250px] p-0">
+                             <ChartContainer config={chartConfig} className="h-full w-full">
+                                <ResponsiveContainer width="100%" height={dynamicClientChartHeight} debounce={50}>
                                     <RechartsBarChart
                                         accessibilityLayer
-                                        data={topClients}
+                                        data={allClients}
                                         layout="vertical"
                                         margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
                                     >
@@ -519,7 +522,7 @@ export function Dashboard() {
                                             tickLine={false}
                                             tickMargin={5}
                                             axisLine={false}
-                                            width={80}
+                                            width={150}
                                             fontSize={12}
                                         />
                                         <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
@@ -535,12 +538,12 @@ export function Dashboard() {
                         <CardHeader>
                             <CardTitle>Top 5 Modules</CardTitle>
                         </CardHeader>
-                         <CardContent className="h-[250px] p-4">
-                            <ChartContainer config={chartConfig}>
-                                <ResponsiveContainer width="100%" height="100%">
+                         <CardContent className="h-[250px] p-0">
+                            <ChartContainer config={chartConfig} className="h-full w-full">
+                                <ResponsiveContainer width="100%" height={dynamicModuleChartHeight} debounce={50}>
                                     <RechartsBarChart
                                         accessibilityLayer
-                                        data={topModules}
+                                        data={allModules}
                                         layout="vertical"
                                         margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
                                     >
