@@ -321,9 +321,6 @@ export function Dashboard() {
     
     const { totalCases, topClients, allClients, topModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
 
-    const dynamicClientChartHeight = allClients.length * 40;
-    const dynamicModuleChartHeight = topModules.length * 40;
-
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
             <div className="max-w-7xl mx-auto space-y-4">
@@ -503,12 +500,12 @@ export function Dashboard() {
                         <CardHeader className="p-6">
                             <CardTitle className="text-base font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px] p-0">
-                           <ScrollArea className="h-full">
+                        <CardContent className="h-[250px] p-0 overflow-y-auto">
+                            <div className="h-[250px] overflow-y-auto">
                                 <ChartContainer config={chartConfig}>
                                    <RechartsBarChart
-                                       width={500}
-                                       height={dynamicClientChartHeight}
+                                       width={450}
+                                       height={allClients.length * 50}
                                        data={allClients}
                                        layout="vertical"
                                        margin={{ left: 20, top: 10, right: 40, bottom: 10 }}
@@ -525,24 +522,24 @@ export function Dashboard() {
                                            width={150}
                                        />
                                        <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                       <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={20}>
+                                       <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={24}>
                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
                                        </Bar>
                                    </RechartsBarChart>
                                 </ChartContainer>
-                            </ScrollArea>
+                            </div>
                         </CardContent>
                     </Card>
                     <Card className="min-w-0">
                         <CardHeader className="p-6">
                             <CardTitle className="text-base font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
-                         <CardContent className="h-[250px] p-0">
-                            <ScrollArea className="h-full">
+                         <CardContent className="h-[250px] p-0 overflow-y-auto">
+                            <div className="h-[250px] overflow-y-auto">
                                <ChartContainer config={chartConfig}>
                                    <RechartsBarChart
-                                       width={500}
-                                       height={dynamicModuleChartHeight}
+                                       width={450}
+                                       height={topModules.length * 50}
                                        data={topModules}
                                        layout="vertical"
                                        margin={{ left: 20, top: 10, right: 40, bottom: 10 }}
@@ -559,12 +556,12 @@ export function Dashboard() {
                                            interval={0}
                                        />
                                        <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                       <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={20}>
+                                       <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={24}>
                                             <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
                                        </Bar>
                                    </RechartsBarChart>
                                 </ChartContainer>
-                            </ScrollArea>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
@@ -572,3 +569,5 @@ export function Dashboard() {
         </div>
     );
 }
+
+    
