@@ -544,7 +544,7 @@ export function Dashboard() {
                         </CardHeader>
                          <CardContent className="h-[250px] p-0 relative w-full overflow-hidden">
                             <ScrollArea className="h-full">
-                                <ChartContainer config={chartConfig}>
+                               <ChartContainer config={chartConfig}>
                                     <ResponsiveContainer width="100%" height={dynamicModuleChartHeight} debounce={50}>
                                         <RechartsBarChart
                                             data={topModules}
@@ -581,3 +581,5 @@ export function Dashboard() {
         </div>
     );
 }
+
+    
