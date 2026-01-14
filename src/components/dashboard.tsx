@@ -197,7 +197,6 @@ export function Dashboard() {
         const moduleFrequency = createFrequencyMap(detailModuleHeader);
         const topModules = Object.entries(moduleFrequency)
             .sort(([, a], [, b]) => b - a)
-            .slice(0, 5)
             .map(([name, value]) => ({ name, value }));
 
         const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
@@ -324,6 +323,7 @@ export function Dashboard() {
     const { totalCases, topClients, allClients, topModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
 
     const dynamicClientChartHeight = Math.max(250, allClients.length * 40);
+    const dynamicModuleChartHeight = Math.max(250, topModules.length * 40);
 
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
@@ -504,10 +504,9 @@ export function Dashboard() {
                         <CardHeader className="p-6">
                             <CardTitle className="text-base font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px] overflow-hidden w-full relative">
+                        <CardContent className="h-[250px] overflow-hidden w-full relative p-0">
                            <ScrollArea className="h-full">
-                                <ResponsiveContainer width="100%" height={dynamicClientChartHeight} debounce={50}>
-                                  <ChartContainer config={chartConfig} style={{ minHeight: dynamicClientChartHeight }}>
+                                <ChartContainer config={chartConfig} style={{ minHeight: dynamicClientChartHeight }}>
                                       <RechartsBarChart
                                           accessibilityLayer
                                           data={allClients}
@@ -535,17 +534,17 @@ export function Dashboard() {
                                           </Bar>
                                       </RechartsBarChart>
                                   </ChartContainer>
-                                </ResponsiveContainer>
-                            </ScrollArea>
+                                </ScrollArea>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="p-6">
                             <CardTitle className="text-base font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px] overflow-hidden w-full relative">
-                            <ResponsiveContainer width="100%" height="100%" debounce={50}>
-                               <ChartContainer config={chartConfig}>
+                        <CardContent className="h-[250px] overflow-hidden w-full relative p-0">
+                            <ScrollArea className="h-full">
+                                <ResponsiveContainer width="100%" height={dynamicModuleChartHeight} debounce={50}>
+                                <ChartContainer config={chartConfig}>
                                   <RechartsBarChart
                                       data={topModules}
                                       layout="vertical"
@@ -571,7 +570,8 @@ export function Dashboard() {
                                       </Bar>
                                   </RechartsBarChart>
                                </ChartContainer>
-                            </ResponsiveContainer>
+                                </ResponsiveContainer>
+                            </ScrollArea>
                         </CardContent>
                     </Card>
                 </div>
@@ -579,3 +579,5 @@ export function Dashboard() {
         </div>
     );
 }
+
+    
