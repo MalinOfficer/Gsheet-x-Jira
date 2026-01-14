@@ -36,7 +36,8 @@ const chartConfig = {
   'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
   modules: { label: "Modules", color: "hsl(var(--chart-1))" },
   clients: { label: "Clients", color: "hsl(var(--chart-2))" },
-  "Top 5 Clients": { label: "Clients", color: "hsl(var(--chart-2))" },
+  "Top 5 Clients": { label: "Clients", color: "hsl(var(--primary))" },
+  "Top 5 Modules": { label: "Modules", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig
 
 interface DashboardState {
@@ -148,7 +149,7 @@ export function Dashboard() {
             });
         }
         
-        const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ name, value, fill: `var(--color-${name})`}));
+        const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ name, value }));
 
         const solvedCount = statusFrequency['SOLVED'] || 0;
         const unsolvedCount = data.length - solvedCount;
@@ -300,7 +301,7 @@ export function Dashboard() {
                                         cursor={{ fill: "hsl(var(--muted))" }}
                                         content={<ChartTooltipContent />}
                                     />
-                                    <Bar dataKey="value" name="Top 5 Clients" radius={5} fill="var(--color-primary)" barSize={20}>
+                                    <Bar dataKey="value" name="Top 5 Clients" radius={5} fill="var(--color-clients)" barSize={20}>
                                         <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
                                     </Bar>
                                 </RechartsBarChart>
