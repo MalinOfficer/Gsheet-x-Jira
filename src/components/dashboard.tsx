@@ -94,7 +94,7 @@ export function Dashboard() {
     const [state, setState] = useState<DashboardState>({ data: null, error: undefined, loading: true });
     const [isRefreshing, startRefresh] = useTransition();
     const { toast } = useToast();
-    const [selectedYear, setSelectedYear] = useState<'all' | '2024' | '2025' | '2026'>('all');
+    const [selectedYear, setSelectedYear] = useState<string>('all');
     const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
     const [clientFilter, setClientFilter] = useState<string[]>([]);
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
@@ -151,9 +151,10 @@ export function Dashboard() {
     const clientHeader = useMemo(() => findHeader(['CLIENT NAME', 'Client Name', 'Client']), [state.data]);
     const moduleHeader = useMemo(() => findHeader(['MODULE', 'Module']), [state.data]);
     const detailModuleHeader = useMemo(() => findHeader(['DETAIL MODUL', 'Detail Module']), [state.data]);
+    const dateHeader = useMemo(() => findHeader(['DATE', 'Date']), [state.data]);
 
     const filterOptions = useMemo(() => {
-        if (!state.data) return { categories: [], clients: [], modules: [] };
+        if (!state.data) return { categories: [], clients: [], modules: [], years: [] };
         
         const createOptions = (header: string | undefined) => {
             if (!header) return [];
@@ -161,17 +162,36 @@ export function Dashboard() {
             return values.map(val => ({ label: val, value: val }));
         }
 
+        const years = new Set<string>();
+        if (dateHeader) {
+            state.data.forEach(row => {
+                const dateStr = row[dateHeader];
+                if (dateStr && typeof dateStr === 'string' && dateStr.includes('/')) {
+                    const year = dateStr.split('/')[2];
+                    if (year) years.add(year);
+                }
+            });
+        }
+
         return {
             categories: createOptions(categoryHeader),
             clients: createOptions(clientHeader),
-            modules: createOptions(moduleHeader)
+            modules: createOptions(moduleHeader),
+            years: Array.from(years).sort((a, b) => parseInt(b) - parseInt(a))
         }
-    }, [state.data, categoryHeader, clientHeader, moduleHeader]);
+    }, [state.data, categoryHeader, clientHeader, moduleHeader, dateHeader]);
 
     const filteredData = useMemo(() => {
         if (!state.data) return [];
         
         let data = state.data;
+        
+        if (selectedYear !== 'all' && dateHeader) {
+            data = data.filter(row => {
+                const dateStr = row[dateHeader];
+                return dateStr && typeof dateStr === 'string' && dateStr.endsWith(`/${selectedYear}`);
+            });
+        }
 
         if (categoryFilter.length > 0 && categoryHeader) {
             data = data.filter(row => categoryFilter.includes(row[categoryHeader]));
@@ -185,7 +205,7 @@ export function Dashboard() {
 
         return data;
 
-    }, [state.data, categoryFilter, clientFilter, moduleFilter, categoryHeader, clientHeader, moduleHeader]);
+    }, [state.data, selectedYear, categoryFilter, clientFilter, moduleFilter, categoryHeader, clientHeader, moduleHeader, dateHeader]);
 
     const dashboardStats = useMemo(() => {
         const data = filteredData;
@@ -202,6 +222,9 @@ export function Dashboard() {
                 totalSolved: 0,
             };
         }
+        
+        // Use all data for monthly comparison, not filtered data
+        const allDataForMonthly = state.data || [];
 
         const createFrequencyMap = (field: string | undefined) => {
             if (!field) return {};
@@ -260,9 +283,8 @@ export function Dashboard() {
             monthlyAggregation[month] = { "2024": 0, "2025": 0, "2026": 0 };
         });
 
-        const dateHeader = findHeader(['DATE', 'Date']);
         if (dateHeader) {
-            data.forEach(row => {
+            allDataForMonthly.forEach(row => {
                 const dateStr = row[dateHeader];
                 if (dateStr && typeof dateStr === 'string') {
                     const parts = dateStr.split('/');
@@ -295,7 +317,7 @@ export function Dashboard() {
             moduleTrend,
             totalSolved
         };
-    }, [filteredData, clientHeader, moduleHeader, detailModuleHeader]);
+    }, [filteredData, clientHeader, moduleHeader, detailModuleHeader, state.data, dateHeader]);
     
     if (state.loading) {
          return (
@@ -457,15 +479,15 @@ export function Dashboard() {
                             <CardTitle>Total Case of This Year</CardTitle>
                             <CardDescription>Comparison of total cases over the last three years.</CardDescription>
                         </div>
-                        <Select value={selectedYear} onValueChange={(value) => setSelectedYear(value as 'all' | '2024' | '2025' | '2026')}>
+                        <Select value={selectedYear} onValueChange={(value) => setSelectedYear(value)}>
                             <SelectTrigger className="w-[180px]">
                                 <SelectValue placeholder="Select a year" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Years</SelectItem>
-                                <SelectItem value="2024">2024</SelectItem>
-                                <SelectItem value="2025">2025</SelectItem>
-                                <SelectItem value="2026">2026</SelectItem>
+                                {filterOptions.years.map(year => (
+                                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </CardHeader>
@@ -503,27 +525,27 @@ export function Dashboard() {
                                     content={<ChartTooltipContent indicator="dot" />}
                                 />
                                 <Legend />
-                                {(selectedYear === 'all' || selectedYear === '2026') && <Area
+                                <Area
                                     dataKey="2026"
                                     type="monotone"
                                     fill="url(#fill2026)"
                                     stroke="var(--color-2026)"
                                     strokeWidth={2}
-                                />}
-                                 {(selectedYear === 'all' || selectedYear === '2025') && <Area
+                                />
+                                 <Area
                                     dataKey="2025"
                                     type="monotone"
                                     fill="url(#fill2025)"
                                     stroke="var(--color-2025)"
                                     strokeWidth={2}
-                                />}
-                                 {(selectedYear === 'all' || selectedYear === '2024') && <Area
+                                />
+                                 <Area
                                     dataKey="2024"
                                     type="monotone"
                                     fill="url(#fill2024)"
                                     stroke="var(--color-2024)"
                                     strokeWidth={2}
-                                />}
+                                />
                             </AreaChart>
                         </ChartContainer>
                     </CardContent>
