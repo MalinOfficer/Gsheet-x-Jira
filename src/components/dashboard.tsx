@@ -389,7 +389,6 @@ export function Dashboard() {
                                     type="monotone"
                                     fill="url(#fill2026)"
                                     stroke="var(--color-2026)"
-                                    stackId="a"
                                     strokeWidth={2}
                                 />}
                                  {(selectedYear === 'all' || selectedYear === '2025') && <Area
@@ -397,7 +396,6 @@ export function Dashboard() {
                                     type="monotone"
                                     fill="url(#fill2025)"
                                     stroke="var(--color-2025)"
-                                    stackId="b"
                                     strokeWidth={2}
                                 />}
                                  {(selectedYear === 'all' || selectedYear === '2024') && <Area
@@ -405,7 +403,6 @@ export function Dashboard() {
                                     type="monotone"
                                     fill="url(#fill2024)"
                                     stroke="var(--color-2024)"
-                                    stackId="c"
                                     strokeWidth={2}
                                 />}
                             </AreaChart>
@@ -416,7 +413,7 @@ export function Dashboard() {
                 {/* Footer Charts */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="p-4">
                             <CardTitle className="text-base font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[220px]">
@@ -451,7 +448,7 @@ export function Dashboard() {
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="p-4">
                             <CardTitle className="text-base font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[220px] flex items-center justify-center">
@@ -483,7 +480,5 @@ export function Dashboard() {
         </div>
     );
 }
-
-
 
     
