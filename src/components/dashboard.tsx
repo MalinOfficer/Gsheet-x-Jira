@@ -1,7 +1,7 @@
 
 "use client";
 
-import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw } from "lucide-react";
+import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw, CheckCircle, Users, FolderKanban } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -35,9 +35,9 @@ const chartConfig = {
   'OPEN': { label: 'Open', color: 'hsl(var(--chart-1))' },
   'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
   modules: { label: "Modules", color: "hsl(var(--chart-1))" },
+  "Top 5 Modules": { label: "Modules", color: "hsl(var(--chart-1))" },
   clients: { label: "Clients", color: "hsl(var(--primary))" },
   "Top 5 Clients": { label: "Clients", color: "hsl(var(--primary))" },
-  "Top 5 Modules": { label: "Modules", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig
 
 interface DashboardState {
@@ -101,6 +101,9 @@ export function Dashboard() {
                 statusCounts: [],
                 solvedVsUnsolved: [],
                 monthlyData: [],
+                totalClients: 0,
+                moduleTrend: 'N/A',
+                totalSolved: 0,
             };
         }
         
@@ -132,6 +135,8 @@ export function Dashboard() {
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5)
             .map(([name, value]) => ({ name, value }));
+        
+        const totalClients = Object.keys(clientFrequency).length;
 
         const moduleHeader = findHeader(['DETAIL MODUL', 'Detail Module', 'Module']);
         const moduleFrequency = createFrequencyMap(moduleHeader);
@@ -139,6 +144,8 @@ export function Dashboard() {
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5)
             .map(([name, value]) => ({ name, value }));
+        
+        const moduleTrend = topModules.length > 0 ? topModules[0].name : 'N/A';
 
         const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
         const statusFrequency: Record<string, number> = {};
@@ -151,11 +158,11 @@ export function Dashboard() {
         
         const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ name, value }));
 
-        const solvedCount = statusFrequency['SOLVED'] || 0;
-        const unsolvedCount = data.length - solvedCount;
+        const totalSolved = statusFrequency['SOLVED'] || 0;
+        const unsolvedCount = data.length - totalSolved;
 
         const solvedVsUnsolved = [
-            { name: 'Solved', value: solvedCount },
+            { name: 'Solved', value: totalSolved },
             { name: 'Unsolved', value: unsolvedCount }
         ];
 
@@ -196,6 +203,9 @@ export function Dashboard() {
             statusCounts,
             solvedVsUnsolved,
             monthlyData,
+            totalClients,
+            moduleTrend,
+            totalSolved
         };
     }, [state.data]);
     
@@ -207,10 +217,10 @@ export function Dashboard() {
                         <Skeleton className="h-[250px]" />
                         <Skeleton className="h-[250px]" />
                     </div>
-                     <Skeleton className="h-[350px] w-full" />
+                     <Skeleton className="h-[300px] w-full" />
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                        <Skeleton className="h-[300px] col-span-1 lg:col-span-4" />
-                        <Skeleton className="h-[300px] col-span-1 lg:col-span-3" />
+                        <Skeleton className="h-[250px] col-span-1 lg:col-span-4" />
+                        <Skeleton className="h-[250px] col-span-1 lg:col-span-3" />
                     </div>
                 </div>
             </div>
@@ -255,7 +265,7 @@ export function Dashboard() {
         );
     }
     
-    const { totalCases, topClients, topModules, statusCounts, solvedVsUnsolved, monthlyData } = dashboardStats;
+    const { totalCases, topClients, topModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -422,76 +432,47 @@ export function Dashboard() {
                 </Card>
 
                 {/* Footer Content */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                  <Card className="col-span-1 lg:col-span-4">
-                    <CardHeader>
-                      <CardTitle>Case Status Distribution</CardTitle>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
+                      <BarChartIcon className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-                            <PieChart>
-                                <ChartTooltip
-                                  cursor={false}
-                                  content={<ChartTooltipContent hideLabel />}
-                                />
-                                <Pie
-                                    data={statusCounts}
-                                    dataKey="value"
-                                    nameKey="name"
-                                    innerRadius={50}
-                                    strokeWidth={5}
-                                >
-                                  {statusCounts.map((entry) => (
-                                    <Cell
-                                      key={entry.name}
-                                      fill={chartConfig[entry.name as keyof typeof chartConfig]?.color || 'hsl(var(--muted))'}
-                                      className="focus:outline-none"
-                                    />
-                                  ))}
-                                </Pie>
-                                <Legend content={({ payload }) => {
-                                    return (
-                                        <ul className="flex flex-wrap gap-x-4 gap-y-2 justify-center text-xs">
-                                        {payload?.map((entry) => (
-                                            <li key={`item-${entry.value}`} className="flex items-center gap-1.5">
-                                            <span className="h-2 w-2 rounded-full" style={{backgroundColor: entry.color}} />
-                                            <span>{entry.value}</span>
-                                            </li>
-                                        ))}
-                                        </ul>
-                                    )
-                                    }}
-                                />
-                            </PieChart>
-                        </ChartContainer>
+                      <div className="text-2xl font-bold">{totalCases}</div>
                     </CardContent>
                   </Card>
-                  <Card className="col-span-1 lg:col-span-3">
-                     <CardHeader>
-                        <CardTitle>Solved vs Unsolved</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ChartContainer config={chartConfig} className="h-[240px] w-full">
-                            <RechartsBarChart
-                                data={solvedVsUnsolved}
-                                layout="vertical"
-                                margin={{ left: 10 }}
-                            >
-                                <CartesianGrid horizontal={false} />
-                                <XAxis type="number" dataKey="value" hide />
-                                <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} />
-                                <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                <Bar dataKey="value" radius={5}>
-                                     {solvedVsUnsolved.map((entry) => (
-                                        <Cell key={entry.name} fill={chartConfig[entry.name.toLowerCase() as keyof typeof chartConfig]?.color} />
-                                     ))}
-                                </Bar>
-                            </RechartsBarChart>
-                        </ChartContainer>
-                      </CardContent>
+                   <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Trending Category</CardTitle>
+                      <FolderKanban className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold truncate">{moduleTrend}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Status Solved</CardTitle>
+                      <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{totalSolved}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{totalClients}</div>
+                    </CardContent>
                   </Card>
                 </div>
             </div>
         </div>
     );
 }
+
+    
