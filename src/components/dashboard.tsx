@@ -38,8 +38,8 @@ const chartConfig = {
   'ON HOLD': { label: 'On Hold', color: 'hsl(var(--chart-5))' },
   'OPEN': { label: 'Open', color: 'hsl(var(--chart-1))' },
   'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
+  clients: { label: "Clients", color: "#2563eb" },
   modules: { label: "Modules", color: "hsl(var(--chart-2))" },
-  clients: { label: "Clients", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig
 
 interface DashboardState {
@@ -497,13 +497,12 @@ export function Dashboard() {
                         <CardContent className="h-[250px] p-0">
                             <ScrollArea className="h-full w-full">
                                 <ChartContainer config={chartConfig} className="h-full w-full">
+                                  <ResponsiveContainer height={allClients.length * 40} width="100%">
                                     <RechartsBarChart
                                         accessibilityLayer
                                         data={allClients}
                                         layout="vertical"
                                         margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
-                                        width={450}
-                                        height={allClients.length * 40}
                                     >
                                         <XAxis type="number" hide />
                                         <YAxis
@@ -517,10 +516,11 @@ export function Dashboard() {
                                             allowDuplicatedCategory={false}
                                         />
                                         <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                        <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={18}>
+                                        <Bar dataKey="value" fill="#2563eb" radius={4} barSize={18}>
                                             <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
                                         </Bar>
                                     </RechartsBarChart>
+                                  </ResponsiveContainer>
                                 </ChartContainer>
                             </ScrollArea>
                         </CardContent>
@@ -532,13 +532,12 @@ export function Dashboard() {
                          <CardContent className="h-[250px] p-0">
                              <ScrollArea className="h-full w-full">
                                 <ChartContainer config={chartConfig} className="h-full w-full">
+                                  <ResponsiveContainer height={allModules.length * 40} width="100%">
                                     <RechartsBarChart
                                         accessibilityLayer
                                         data={allModules}
                                         layout="vertical"
                                         margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
-                                        width={450}
-                                        height={allModules.length * 40}
                                     >
                                         <XAxis type="number" hide />
                                         <YAxis
@@ -556,6 +555,7 @@ export function Dashboard() {
                                             <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
                                         </Bar>
                                     </RechartsBarChart>
+                                  </ResponsiveContainer>
                                 </ChartContainer>
                             </ScrollArea>
                         </CardContent>
