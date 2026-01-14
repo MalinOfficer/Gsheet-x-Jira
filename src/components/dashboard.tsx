@@ -496,38 +496,40 @@ export function Dashboard() {
                             <CardTitle>All Clients</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div style={{ height: '250px', overflowY: 'auto' }} className="border rounded">
+                           <div style={{ height: '250px', overflowY: 'auto' }} className="border rounded">
                                 <ResponsiveContainer width="100%" height={allClients.length * 40}>
                                     <RechartsBarChart
                                         data={allClients}
                                         layout="vertical"
                                         margin={{ top: 5, right: 60, left: -20, bottom: 5 }}
                                     >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis type="number" />
+                                        <defs>
+                                            <linearGradient id="colorClients" x1="0" y1="0" x2="1" y2="0">
+                                                <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
+                                                <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                        <XAxis type="number" stroke="#64748b" style={{ fontSize: '12px' }} />
                                         <YAxis 
                                             type="category" 
                                             dataKey="name" 
                                             width={150}
-                                            tick={{ fontSize: 12 }}
+                                            tick={{ fontSize: 12, fill: '#475569' }}
                                             allowDuplicatedCategory={false}
                                         />
-                                        <Tooltip
-                                            content={({ active, payload }) => {
-                                              if (active && payload && payload.length) {
-                                                return (
-                                                  <div className="bg-background border rounded-lg shadow-lg p-2 text-xs">
-                                                    <p className="font-bold text-foreground">{`${payload[0].payload.name} : ${payload[0].value}`}</p>
-                                                  </div>
-                                                );
-                                              }
-                                              return null;
+                                        <Tooltip 
+                                            contentStyle={{ 
+                                                backgroundColor: '#1e293b', 
+                                                border: 'none', 
+                                                borderRadius: '8px',
+                                                color: 'white',
+                                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                                             }}
-                                            wrapperClassName="!border-none !shadow-lg !rounded-lg"
-                                            cursor={{fill: 'hsl(var(--background))', opacity: 0.5}}
+                                            cursor={{ fill: '#f1f5f9' }}
                                         />
-                                        <Bar dataKey="value" fill="var(--color-clients)" barSize={18}>
-                                            <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} />
+                                        <Bar dataKey="value" fill="url(#colorClients)" radius={[0, 8, 8, 0]} maxBarSize={40}>
+                                            <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: '#475569' }} />
                                         </Bar>
                                     </RechartsBarChart>
                                 </ResponsiveContainer>
@@ -546,31 +548,33 @@ export function Dashboard() {
                                         layout="vertical"
                                         margin={{ top: 5, right: 60, left: -20, bottom: 5 }}
                                     >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis type="number" />
+                                        <defs>
+                                            <linearGradient id="colorModules" x1="0" y1="0" x2="1" y2="0">
+                                                <stop offset="0%" stopColor="#10b981" stopOpacity={1}/>
+                                                <stop offset="100%" stopColor="#6366f1" stopOpacity={1}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                        <XAxis type="number" stroke="#64748b" style={{ fontSize: '12px' }}/>
                                         <YAxis 
                                             type="category" 
                                             dataKey="name" 
                                             width={150}
-                                            tick={{ fontSize: 12 }}
+                                            tick={{ fontSize: 12, fill: '#475569' }}
                                             allowDuplicatedCategory={false}
                                         />
-                                        <Tooltip
-                                            content={({ active, payload }) => {
-                                              if (active && payload && payload.length) {
-                                                return (
-                                                  <div className="bg-background border rounded-lg shadow-lg p-2 text-xs">
-                                                    <p className="font-bold text-foreground">{`${payload[0].payload.name} : ${payload[0].value}`}</p>
-                                                  </div>
-                                                );
-                                              }
-                                              return null;
+                                        <Tooltip 
+                                            contentStyle={{ 
+                                                backgroundColor: '#1e293b', 
+                                                border: 'none', 
+                                                borderRadius: '8px',
+                                                color: 'white',
+                                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                                             }}
-                                            wrapperClassName="!border-none !shadow-lg !rounded-lg"
-                                            cursor={{fill: 'hsl(var(--background))', opacity: 0.5}}
+                                            cursor={{ fill: '#f1f5f9' }}
                                         />
-                                        <Bar dataKey="value" fill="var(--color-modules)" barSize={18}>
-                                             <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} />
+                                        <Bar dataKey="value" fill="url(#colorModules)" radius={[0, 8, 8, 0]} maxBarSize={40}>
+                                             <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: '#475569' }} />
                                         </Bar>
                                     </RechartsBarChart>
                                 </ResponsiveContainer>
@@ -582,5 +586,3 @@ export function Dashboard() {
         </div>
     );
 }
-
-    
