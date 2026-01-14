@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw, CheckCircle, Users, FolderKanban, Filter } from "lucide-react";
@@ -491,70 +492,70 @@ export function Dashboard() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Top 5 Clients</CardTitle>
+                            <CardTitle>All Clients</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[250px] p-0">
                             <ScrollArea className="h-full w-full">
                                 <ChartContainer config={chartConfig} className="h-full w-full">
-                                    <ResponsiveContainer width="100%" height={allClients.length * 40} debounce={50}>
-                                        <RechartsBarChart
-                                            accessibilityLayer
-                                            data={allClients}
-                                            layout="vertical"
-                                            margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
-                                        >
-                                            <XAxis type="number" hide />
-                                            <YAxis
-                                                dataKey="name"
-                                                type="category"
-                                                tickLine={false}
-                                                tickMargin={5}
-                                                axisLine={false}
-                                                width={150}
-                                                fontSize={12}
-                                                allowDuplicatedCategory={false}
-                                            />
-                                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                            <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={18}>
-                                                <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
-                                            </Bar>
-                                        </RechartsBarChart>
-                                    </ResponsiveContainer>
+                                    <RechartsBarChart
+                                        accessibilityLayer
+                                        data={allClients}
+                                        layout="vertical"
+                                        margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
+                                        width={450}
+                                        height={allClients.length * 40}
+                                    >
+                                        <XAxis type="number" hide />
+                                        <YAxis
+                                            dataKey="name"
+                                            type="category"
+                                            tickLine={false}
+                                            tickMargin={5}
+                                            axisLine={false}
+                                            width={150}
+                                            fontSize={12}
+                                            allowDuplicatedCategory={false}
+                                        />
+                                        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                        <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={18}>
+                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                        </Bar>
+                                    </RechartsBarChart>
                                 </ChartContainer>
                             </ScrollArea>
                         </CardContent>
                     </Card>
                      <Card>
                         <CardHeader>
-                            <CardTitle>Top 5 Modules</CardTitle>
+                            <CardTitle>All Modules</CardTitle>
                         </CardHeader>
                          <CardContent className="h-[250px] p-0">
                              <ScrollArea className="h-full w-full">
                                 <ChartContainer config={chartConfig} className="h-full w-full">
-                                    <ResponsiveContainer width="100%" height={allModules.length * 40} debounce={50}>
-                                        <RechartsBarChart
-                                            accessibilityLayer
-                                            data={allModules}
-                                            layout="vertical"
-                                            margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
-                                        >
-                                            <XAxis type="number" hide />
-                                            <YAxis
-                                                dataKey="name"
-                                                type="category"
-                                                tickLine={false}
-                                                tickMargin={5}
-                                                axisLine={false}
-                                                width={150}
-                                                fontSize={12}
-                                                allowDuplicatedCategory={false}
-                                            />
-                                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                            <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={18}>
-                                                <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
-                                            </Bar>
-                                        </RechartsBarChart>
-                                    </ResponsiveContainer>
+                                    <RechartsBarChart
+                                        accessibilityLayer
+                                        data={allModules}
+                                        layout="vertical"
+                                        margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
+                                        width={450}
+                                        height={allModules.length * 40}
+                                    >
+                                        <XAxis type="number" hide />
+                                        <YAxis
+                                            dataKey="name"
+                                            type="category"
+                                            tickLine={false}
+                                            tickMargin={5}
+                                            axisLine={false}
+                                            width={150}
+                                            fontSize={12}
+                                            allowDuplicatedCategory={false}
+                                        />
+                                        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                        <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={18}>
+                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                        </Bar>
+                                    </RechartsBarChart>
                                 </ChartContainer>
                             </ScrollArea>
                         </CardContent>
