@@ -37,10 +37,8 @@ const chartConfig = {
   'ON HOLD': { label: 'On Hold', color: 'hsl(var(--chart-5))' },
   'OPEN': { label: 'Open', color: 'hsl(var(--chart-1))' },
   'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
-  modules: { label: "Modules", color: "#16a34a" },
-  "Top 5 Modules": { label: "Modules", color: "#16a34a" },
-  clients: { label: "Clients", color: "#2563eb" },
-  "Top 5 Clients": { label: "Clients", color: "#2563eb" },
+  modules: { label: "Modules", color: "hsl(var(--chart-2))" },
+  clients: { label: "Clients", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig
 
 interface DashboardState {
@@ -152,9 +150,7 @@ export function Dashboard() {
         if (!data || data.length === 0) {
             return {
                 totalCases: 0,
-                topClients: [],
                 allClients: [],
-                topModules: [],
                 allModules: [],
                 statusCounts: [],
                 solvedVsUnsolved: [],
@@ -182,8 +178,6 @@ export function Dashboard() {
             .sort(([, a], [, b]) => b - a)
             .map(([name, value]) => ({ name, value }));
 
-        const topClients = allClients.slice(0, 5);
-
         const totalClients = Object.keys(clientFrequency).length;
 
         const moduleFrequency = createFrequencyMap(moduleHeader);
@@ -198,8 +192,6 @@ export function Dashboard() {
         const allModules = Object.entries(detailModuleFrequency)
             .sort(([, a], [, b]) => b - a)
             .map(([name, value]) => ({ name, value }));
-        
-        const topModules = allModules.slice(0, 5);
 
         const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
         const statusFrequency: Record<string, number> = {};
@@ -252,9 +244,7 @@ export function Dashboard() {
 
         return {
             totalCases: data.length,
-            topClients,
             allClients,
-            topModules,
             allModules,
             statusCounts,
             solvedVsUnsolved,
@@ -323,10 +313,7 @@ export function Dashboard() {
         );
     }
     
-    const { totalCases, topClients, allClients, topModules, allModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
-
-    const dynamicClientChartHeight = allClients.length * 40;
-    const dynamicModuleChartHeight = allModules.length * 40;
+    const { totalCases, allClients, allModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
 
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
@@ -507,31 +494,33 @@ export function Dashboard() {
                             <CardTitle>Top 5 Clients</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[250px] p-0">
-                             <ChartContainer config={chartConfig} className="h-full w-full">
-                                <ResponsiveContainer width="100%" height={dynamicClientChartHeight} debounce={50}>
-                                    <RechartsBarChart
-                                        accessibilityLayer
-                                        data={allClients}
-                                        layout="vertical"
-                                        margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
-                                    >
-                                        <XAxis type="number" hide />
-                                        <YAxis
-                                            dataKey="name"
-                                            type="category"
-                                            tickLine={false}
-                                            tickMargin={5}
-                                            axisLine={false}
-                                            width={150}
-                                            fontSize={12}
-                                        />
-                                        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                        <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={20}>
-                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
-                                        </Bar>
-                                    </RechartsBarChart>
-                                </ResponsiveContainer>
-                            </ChartContainer>
+                             <ScrollArea className="h-full">
+                                <ChartContainer config={chartConfig} className="h-full w-full">
+                                    <ResponsiveContainer width="100%" height={allClients.length * 40} debounce={50}>
+                                        <RechartsBarChart
+                                            accessibilityLayer
+                                            data={allClients}
+                                            layout="vertical"
+                                            margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
+                                        >
+                                            <XAxis type="number" hide />
+                                            <YAxis
+                                                dataKey="name"
+                                                type="category"
+                                                tickLine={false}
+                                                tickMargin={5}
+                                                axisLine={false}
+                                                width={150}
+                                                fontSize={12}
+                                            />
+                                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                            <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={20}>
+                                                <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                            </Bar>
+                                        </RechartsBarChart>
+                                    </ResponsiveContainer>
+                                </ChartContainer>
+                            </ScrollArea>
                         </CardContent>
                     </Card>
                      <Card className="min-w-0">
@@ -539,31 +528,33 @@ export function Dashboard() {
                             <CardTitle>Top 5 Modules</CardTitle>
                         </CardHeader>
                          <CardContent className="h-[250px] p-0">
-                            <ChartContainer config={chartConfig} className="h-full w-full">
-                                <ResponsiveContainer width="100%" height={dynamicModuleChartHeight} debounce={50}>
-                                    <RechartsBarChart
-                                        accessibilityLayer
-                                        data={allModules}
-                                        layout="vertical"
-                                        margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
-                                    >
-                                        <XAxis type="number" hide />
-                                        <YAxis
-                                            dataKey="name"
-                                            type="category"
-                                            tickLine={false}
-                                            tickMargin={5}
-                                            axisLine={false}
-                                            width={150}
-                                            fontSize={12}
-                                        />
-                                        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                        <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={20}>
-                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
-                                        </Bar>
-                                    </RechartsBarChart>
-                                </ResponsiveContainer>
-                            </ChartContainer>
+                             <ScrollArea className="h-full">
+                                <ChartContainer config={chartConfig} className="h-full w-full">
+                                    <ResponsiveContainer width="100%" height={allModules.length * 40} debounce={50}>
+                                        <RechartsBarChart
+                                            accessibilityLayer
+                                            data={allModules}
+                                            layout="vertical"
+                                            margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
+                                        >
+                                            <XAxis type="number" hide />
+                                            <YAxis
+                                                dataKey="name"
+                                                type="category"
+                                                tickLine={false}
+                                                tickMargin={5}
+                                                axisLine={false}
+                                                width={150}
+                                                fontSize={12}
+                                            />
+                                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                            <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={20}>
+                                                <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                            </Bar>
+                                        </RechartsBarChart>
+                                    </ResponsiveContainer>
+                                </ChartContainer>
+                            </ScrollArea>
                         </CardContent>
                     </Card>
                 </div>
@@ -571,5 +562,7 @@ export function Dashboard() {
         </div>
     );
 }
+
+    
 
     
