@@ -51,30 +51,29 @@ interface DashboardState {
 const CustomYAxisTick = (props: any) => {
     const { x, y, payload, width } = props;
     const value = payload.value;
-    const maxCharsPerLine = Math.floor(width / 7); // Adjust the divisor based on font size
+    const maxCharsPerLine = 18; // Adjusted character limit per line
 
-    if (value.length > maxCharsPerLine) {
-        const words = value.split(' ');
-        let line = '';
-        const lines = [];
-        for (const word of words) {
-            if ((line + word).length > maxCharsPerLine) {
-                lines.push(line.trim());
-                line = word + ' ';
-            } else {
-                line += word + ' ';
-            }
+    // A simple function to break the string into chunks of a given size
+    const chunkSubstr = (str: string, size: number) => {
+        const numChunks = Math.ceil(str.length / size);
+        const chunks = new Array(numChunks);
+        for (let i = 0, o = 0; i < numChunks; ++i, o += size) {
+            chunks[i] = str.substring(o, o + size);
         }
-        lines.push(line.trim());
-        
-        const lineHeight = 14;
+        return chunks;
+    };
+    
+    // If the text is longer than our max, we wrap it.
+    if (value.length > maxCharsPerLine) {
+        const lines = chunkSubstr(value, maxCharsPerLine);
+        const lineHeight = 14; // Approximate height of a line of text
         const initialY = y - ((lines.length - 1) * lineHeight / 2);
 
         return (
             <g transform={`translate(${x},${y})`}>
-                <text x={0} y={0} dy={4} textAnchor="end" fill="#475569" fontSize={12}>
-                    {lines.map((l, i) => (
-                        <tspan key={i} x={0} y={i * lineHeight - (lines.length -1) * lineHeight / 2}>{l}</tspan>
+                <text x={-10} y={0} dy={4} textAnchor="end" fill="#475569" fontSize={12}>
+                    {lines.map((line, i) => (
+                        <tspan key={i} x={-10} dy={i > 0 ? lineHeight : 0}>{line}</tspan>
                     ))}
                 </text>
             </g>
@@ -83,7 +82,7 @@ const CustomYAxisTick = (props: any) => {
 
     return (
         <g transform={`translate(${x},${y})`}>
-            <text x={0} y={0} dy={4} textAnchor="end" fill="#475569" fontSize={12}>
+            <text x={-10} y={0} dy={4} textAnchor="end" fill="#475569" fontSize={12}>
                 {value}
             </text>
         </g>
@@ -488,7 +487,6 @@ export function Dashboard() {
                                         <stop offset="95%" stopColor="var(--color-2024)" stopOpacity={0.1} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid vertical={false} />
                                 <XAxis
                                     dataKey="month"
                                     tickLine={false}
@@ -551,7 +549,6 @@ export function Dashboard() {
                                                 <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1}/>
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis type="number" stroke="#64748b" style={{ fontSize: '12px' }} />
                                         <YAxis 
                                             type="category" 
@@ -596,7 +593,6 @@ export function Dashboard() {
                                                 <stop offset="100%" stopColor="#6366f1" stopOpacity={1}/>
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis type="number" stroke="#64748b" style={{ fontSize: '12px' }}/>
                                         <YAxis 
                                             type="category" 
