@@ -507,34 +507,36 @@ export function Dashboard() {
                         <CardContent className="h-[250px] overflow-hidden w-full relative p-0">
                            <ScrollArea className="h-full">
                                 <ChartContainer config={chartConfig} style={{ minHeight: dynamicClientChartHeight }}>
-                                      <RechartsBarChart
-                                          accessibilityLayer
-                                          data={allClients}
-                                          layout="vertical"
-                                          margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
-                                      >
-                                          <CartesianGrid horizontal={false} />
-                                          <YAxis
-                                              dataKey="name"
-                                              type="category"
-                                              tickLine={false}
-                                              tickMargin={10}
-                                              axisLine={false}
-                                              className="text-xs"
-                                              interval={0}
-                                              width={80}
-                                          />
-                                          <XAxis dataKey="value" type="number" hide />
-                                          <ChartTooltip
-                                              cursor={{ fill: "hsl(var(--muted))" }}
-                                              content={<ChartTooltipContent />}
-                                          />
-                                          <Bar dataKey="value" name="Top 5 Clients" radius={5} fill="var(--color-clients)" barSize={20}>
-                                              <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
-                                          </Bar>
-                                      </RechartsBarChart>
-                                  </ChartContainer>
-                                </ScrollArea>
+                                    <ResponsiveContainer width="100%" height="100%" debounce={50}>
+                                        <RechartsBarChart
+                                            accessibilityLayer
+                                            data={allClients}
+                                            layout="vertical"
+                                            margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
+                                        >
+                                            <CartesianGrid horizontal={false} />
+                                            <YAxis
+                                                dataKey="name"
+                                                type="category"
+                                                tickLine={false}
+                                                tickMargin={10}
+                                                axisLine={false}
+                                                className="text-xs"
+                                                interval={0}
+                                                width={80}
+                                            />
+                                            <XAxis dataKey="value" type="number" hide />
+                                            <ChartTooltip
+                                                cursor={{ fill: "hsl(var(--muted))" }}
+                                                content={<ChartTooltipContent />}
+                                            />
+                                            <Bar dataKey="value" name="Top 5 Clients" radius={5} fill="var(--color-clients)" barSize={20}>
+                                                <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
+                                            </Bar>
+                                        </RechartsBarChart>
+                                    </ResponsiveContainer>
+                                </ChartContainer>
+                            </ScrollArea>
                         </CardContent>
                     </Card>
                     <Card>
