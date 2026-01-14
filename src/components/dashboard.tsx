@@ -541,27 +541,29 @@ export function Dashboard() {
                         <CardHeader className="p-4">
                             <CardTitle className="text-base font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[200px] flex items-center justify-center">
-                           <ChartContainer config={chartConfig} className="w-full h-full">
-                                <RechartsBarChart
-                                    data={topModules}
-                                    margin={{ top: 20, right: 20, left: -20, bottom: 5 }}
-                                >
-                                    <CartesianGrid vertical={false} />
-                                    <XAxis
-                                        dataKey="name"
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickMargin={8}
-                                        tick={false}
-                                    />
-                                    <YAxis />
-                                    <ChartTooltip
-                                        cursor={{ fill: "hsl(var(--muted))" }}
-                                        content={<ChartTooltipContent />}
-                                    />
-                                    <Bar dataKey="value" name="Top 5 Modules" fill="var(--color-modules)" radius={4} />
-                                </RechartsBarChart>
+                        <CardContent className="h-[200px] w-full overflow-hidden">
+                           <ChartContainer config={chartConfig}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <RechartsBarChart
+                                        data={topModules}
+                                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                                    >
+                                        <CartesianGrid vertical={false} />
+                                        <XAxis
+                                            dataKey="name"
+                                            tickLine={false}
+                                            axisLine={false}
+                                            tickMargin={8}
+                                            tick={false}
+                                        />
+                                        <YAxis />
+                                        <ChartTooltip
+                                            cursor={{ fill: "hsl(var(--muted))" }}
+                                            content={<ChartTooltipContent />}
+                                        />
+                                        <Bar dataKey="value" name="Top 5 Modules" fill="var(--color-modules)" radius={4} />
+                                    </RechartsBarChart>
+                                </ResponsiveContainer>
                             </ChartContainer>
                         </CardContent>
                     </Card>
