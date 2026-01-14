@@ -49,11 +49,11 @@ interface DashboardState {
 }
 
 const CustomYAxisTick = (props: any) => {
-    const { x, y, payload, width } = props;
+    const { x, y, payload } = props;
     const value = payload.value;
-    const maxCharsPerLine = 18; // Adjusted character limit per line
+    const maxCharsPerLine = 18;
+    const lineHeight = 12;
 
-    // A simple function to break the string into chunks of a given size
     const chunkSubstr = (str: string, size: number) => {
         const numChunks = Math.ceil(str.length / size);
         const chunks = new Array(numChunks);
@@ -63,15 +63,11 @@ const CustomYAxisTick = (props: any) => {
         return chunks;
     };
     
-    // If the text is longer than our max, we wrap it.
     if (value.length > maxCharsPerLine) {
         const lines = chunkSubstr(value, maxCharsPerLine);
-        const lineHeight = 14; // Approximate height of a line of text
-        const initialY = y - ((lines.length - 1) * lineHeight / 2);
-
         return (
             <g transform={`translate(${x},${y})`}>
-                <text x={-10} y={0} dy={4} textAnchor="end" fill="#9ca3af" fontSize={12} fontWeight="500">
+                <text x={-10} y={0} dy={4} textAnchor="end" fill="#9ca3af" fontSize={11} fontWeight="500">
                     {lines.map((line, i) => (
                         <tspan key={i} x={-10} dy={i > 0 ? lineHeight : 0}>{line}</tspan>
                     ))}
@@ -82,7 +78,7 @@ const CustomYAxisTick = (props: any) => {
 
     return (
         <g transform={`translate(${x},${y})`}>
-            <text x={-10} y={0} dy={4} textAnchor="end" fill="#9ca3af" fontSize={12} fontWeight="500">
+            <text x={-10} y={0} dy={4} textAnchor="end" fill="#9ca3af" fontSize={11} fontWeight="500">
                 {value}
             </text>
         </g>
@@ -381,7 +377,7 @@ export function Dashboard() {
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
             <div className="max-w-7xl mx-auto space-y-4">
-                 <div className="flex justify-between items-center pt-4 sm:pt-6 md:pt-8">
+                 <div className="flex justify-between items-center">
                     <div>
                         <h1 className="text-2xl font-bold">Dashboard</h1>
                         <p className="text-muted-foreground">Sales performance overview</p>
@@ -434,7 +430,7 @@ export function Dashboard() {
                 {/* Header Cards */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
                       <BarChartIcon className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
@@ -443,7 +439,7 @@ export function Dashboard() {
                     </CardContent>
                   </Card>
                    <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium">Trending Category</CardTitle>
                       <FolderKanban className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
@@ -452,7 +448,7 @@ export function Dashboard() {
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium">Status Solved</CardTitle>
                       <CheckCircle className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
@@ -461,7 +457,7 @@ export function Dashboard() {
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
                       <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
@@ -556,12 +552,12 @@ export function Dashboard() {
                             <h2 className="text-2xl font-bold text-white mb-1">All Clients</h2>
                             <p className="text-sm text-gray-500">Comparison of all clients performance</p>
                         </div>
-                        <div style={{ height: '250px', overflowY: 'auto' }} className="bg-[#141414] border border-[#2a2a2a] rounded-lg">
+                        <div style={{ height: '220px', overflowY: 'auto' }} className="rounded-lg bg-[#141414] border border-[#2a2a2a]">
                             <ResponsiveContainer width="100%" height={allClients.length * 60}>
                                 <RechartsBarChart
                                     data={allClients}
                                     layout="vertical"
-                                    margin={{ top: 5, right: 70, left: 10, bottom: 5 }}
+                                    margin={{ top: 5, right: 70, left: -20, bottom: 5 }}
                                 >
                                     <defs>
                                       <linearGradient id="clientsGradient" x1="0" y1="0" x2="1" y2="0">
@@ -569,7 +565,7 @@ export function Dashboard() {
                                         <stop offset="50%" stopColor="#2dd4bf" stopOpacity={0.8}/>
                                         <stop offset="100%" stopColor="#5eead4" stopOpacity={0.7}/>
                                       </linearGradient>
-                                      <filter id="softGlow">
+                                      <filter id="softGlowClients">
                                         <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
                                         <feMerge>
                                           <feMergeNode in="coloredBlur"/>
@@ -590,7 +586,7 @@ export function Dashboard() {
                                       }}
                                       cursor={{ fill: '#1f2937', opacity: 0.3 }}
                                     />
-                                    <Bar dataKey="value" fill="url(#clientsGradient)" radius={[0, 6, 6, 0]} maxBarSize={36} filter="url(#softGlow)">
+                                    <Bar dataKey="value" fill="url(#clientsGradient)" radius={[0, 6, 6, 0]} maxBarSize={36} filter="url(#softGlowClients)">
                                         <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: '#d1d5db' }}/>
                                     </Bar>
                                 </RechartsBarChart>
@@ -602,12 +598,12 @@ export function Dashboard() {
                             <h2 className="text-2xl font-bold text-white mb-1">All Modules</h2>
                             <p className="text-sm text-gray-500">Comparison of all modules performance</p>
                         </div>
-                        <div style={{ height: '250px', overflowY: 'auto' }} className="bg-[#141414] border border-[#2a2a2a] rounded-lg">
+                        <div style={{ height: '220px', overflowY: 'auto' }} className="rounded-lg bg-[#141414] border border-[#2a2a2a]">
                             <ResponsiveContainer width="100%" height={allModules.length * 60}>
                                 <RechartsBarChart
                                     data={allModules}
                                     layout="vertical"
-                                    margin={{ top: 5, right: 70, left: -20, bottom: 5 }}
+                                    margin={{ top: 5, right: 70, left: 10, bottom: 5 }}
                                 >
                                     <defs>
                                       <linearGradient id="modulesGradient" x1="0" y1="0" x2="1" y2="0">
@@ -615,9 +611,16 @@ export function Dashboard() {
                                         <stop offset="50%" stopColor="#818cf8" stopOpacity={0.8}/>
                                         <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.7}/>
                                       </linearGradient>
+                                      <filter id="softGlowModules">
+                                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                        <feMerge>
+                                          <feMergeNode in="coloredBlur"/>
+                                          <feMergeNode in="SourceGraphic"/>
+                                        </feMerge>
+                                      </filter>
                                     </defs>
-                                    <XAxis type="number" stroke="#4a4a4a" style={{ fontSize: '11px' }} tick={{ fill: '#6b7280' }} axisLine={{ stroke: '#2a2a2a' }} tickLine={false} />
-                                    <YAxis type="category" dataKey="name" width={130} stroke="#4a4a4a" tick={<CustomYAxisTick />} axisLine={{ stroke: '#2a2a2a' }} tickLine={false} />
+                                    <XAxis type="number" stroke="#4a4a4a" style={{ fontSize: '11px' }} tick={{ fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                                    <YAxis type="category" dataKey="name" width={140} stroke="#4a4a4a" tick={{ fontSize: 12, fill: '#9ca3af', fontWeight: '500', textAnchor: 'end' }} axisLine={false} tickLine={false} />
                                     <Tooltip
                                       contentStyle={{ 
                                         backgroundColor: '#1f2937', 
@@ -629,7 +632,7 @@ export function Dashboard() {
                                       }}
                                       cursor={{ fill: '#1f2937', opacity: 0.3 }}
                                     />
-                                    <Bar dataKey="value" fill="url(#modulesGradient)" radius={[0, 6, 6, 0]} maxBarSize={36} filter="url(#softGlow)">
+                                    <Bar dataKey="value" fill="url(#modulesGradient)" radius={[0, 6, 6, 0]} maxBarSize={36} filter="url(#softGlowModules)">
                                          <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: '#d1d5db' }}/>
                                     </Bar>
                                 </RechartsBarChart>
