@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw, CheckCircle, Users, FolderKanban, Filter, Maximize } from "lucide-react";
@@ -48,6 +47,48 @@ interface DashboardState {
     error?: string;
     loading: boolean;
 }
+
+const CustomYAxisTick = (props: any) => {
+    const { x, y, payload, width } = props;
+    const value = payload.value;
+    const maxCharsPerLine = Math.floor(width / 7); // Adjust the divisor based on font size
+
+    if (value.length > maxCharsPerLine) {
+        const words = value.split(' ');
+        let line = '';
+        const lines = [];
+        for (const word of words) {
+            if ((line + word).length > maxCharsPerLine) {
+                lines.push(line.trim());
+                line = word + ' ';
+            } else {
+                line += word + ' ';
+            }
+        }
+        lines.push(line.trim());
+        
+        const lineHeight = 14;
+        const initialY = y - ((lines.length - 1) * lineHeight / 2);
+
+        return (
+            <g transform={`translate(${x},${y})`}>
+                <text x={0} y={0} dy={4} textAnchor="end" fill="#475569" fontSize={12}>
+                    {lines.map((l, i) => (
+                        <tspan key={i} x={0} y={i * lineHeight - (lines.length -1) * lineHeight / 2}>{l}</tspan>
+                    ))}
+                </text>
+            </g>
+        );
+    }
+
+    return (
+        <g transform={`translate(${x},${y})`}>
+            <text x={0} y={0} dy={4} textAnchor="end" fill="#475569" fontSize={12}>
+                {value}
+            </text>
+        </g>
+    );
+};
 
 export function Dashboard() {
     const { dbSheetUrl } = useContext(SettingsContext);
@@ -316,6 +357,7 @@ export function Dashboard() {
     }
     
     const { allClients, allModules } = dashboardStats;
+    const itemHeight = 60;
 
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
@@ -497,7 +539,7 @@ export function Dashboard() {
                         </CardHeader>
                         <CardContent>
                            <div style={{ height: '250px', overflowY: 'auto' }} className="border rounded">
-                                <ResponsiveContainer width="100%" height={allClients.length * 40}>
+                                <ResponsiveContainer width="100%" height={allClients.length * itemHeight}>
                                     <RechartsBarChart
                                         data={allClients}
                                         layout="vertical"
@@ -509,13 +551,13 @@ export function Dashboard() {
                                                 <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1}/>
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                        <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis type="number" stroke="#64748b" style={{ fontSize: '12px' }} />
                                         <YAxis 
                                             type="category" 
                                             dataKey="name" 
                                             width={150}
-                                            tick={{ fontSize: 12, fill: '#475569' }}
+                                            tick={<CustomYAxisTick />}
                                             allowDuplicatedCategory={false}
                                         />
                                         <Tooltip 
@@ -542,7 +584,7 @@ export function Dashboard() {
                         </CardHeader>
                         <CardContent>
                            <div style={{ height: '250px', overflowY: 'auto' }} className="border rounded">
-                                <ResponsiveContainer width="100%" height={allModules.length * 40}>
+                                <ResponsiveContainer width="100%" height={allModules.length * itemHeight}>
                                     <RechartsBarChart
                                         data={allModules}
                                         layout="vertical"
@@ -554,13 +596,13 @@ export function Dashboard() {
                                                 <stop offset="100%" stopColor="#6366f1" stopOpacity={1}/>
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                        <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis type="number" stroke="#64748b" style={{ fontSize: '12px' }}/>
                                         <YAxis 
                                             type="category" 
                                             dataKey="name" 
                                             width={150}
-                                            tick={{ fontSize: 12, fill: '#475569' }}
+                                            tick={<CustomYAxisTick />}
                                             allowDuplicatedCategory={false}
                                         />
                                         <Tooltip 
