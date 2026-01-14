@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw, CheckCircle, Users, FolderKanban, Filter } from "lucide-react";
@@ -314,7 +313,7 @@ export function Dashboard() {
         );
     }
     
-    const { totalCases, allClients, allModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
+    const { allClients, allModules } = dashboardStats;
 
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
@@ -377,7 +376,7 @@ export function Dashboard() {
                       <BarChartIcon className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{totalCases}</div>
+                      <div className="text-2xl font-bold">{dashboardStats.totalCases}</div>
                     </CardContent>
                   </Card>
                    <Card>
@@ -386,7 +385,7 @@ export function Dashboard() {
                       <FolderKanban className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold truncate">{moduleTrend}</div>
+                      <div className="text-2xl font-bold truncate">{dashboardStats.moduleTrend}</div>
                     </CardContent>
                   </Card>
                   <Card>
@@ -395,7 +394,7 @@ export function Dashboard() {
                       <CheckCircle className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{totalSolved}</div>
+                      <div className="text-2xl font-bold">{dashboardStats.totalSolved}</div>
                     </CardContent>
                   </Card>
                   <Card>
@@ -404,7 +403,7 @@ export function Dashboard() {
                       <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{totalClients}</div>
+                      <div className="text-2xl font-bold">{dashboardStats.totalClients}</div>
                     </CardContent>
                   </Card>
                 </div>
@@ -430,7 +429,7 @@ export function Dashboard() {
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                            <AreaChart data={monthlyData} margin={{ left: -20, right: 20, top: 10, bottom: 10 }}>
+                            <AreaChart data={dashboardStats.monthlyData} margin={{ left: -20, right: 20, top: 10, bottom: 10 }}>
                                 <defs>
                                     <linearGradient id="fill2026" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="var(--color-2026)" stopOpacity={0.8} />
@@ -495,14 +494,15 @@ export function Dashboard() {
                             <CardTitle>All Clients</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[250px] p-0">
-                            <ScrollArea className="h-full w-full">
-                                <ChartContainer config={chartConfig} className="h-full w-full">
-                                  <ResponsiveContainer height={allClients.length * 40} width="100%">
+                           <ScrollArea className="h-full w-full">
+                                <ChartContainer config={chartConfig} className="w-full h-full">
                                     <RechartsBarChart
                                         accessibilityLayer
                                         data={allClients}
                                         layout="vertical"
                                         margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
+                                        width={450}
+                                        height={allClients.length * 40}
                                     >
                                         <XAxis type="number" hide />
                                         <YAxis
@@ -520,7 +520,6 @@ export function Dashboard() {
                                             <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
                                         </Bar>
                                     </RechartsBarChart>
-                                  </ResponsiveContainer>
                                 </ChartContainer>
                             </ScrollArea>
                         </CardContent>
@@ -531,13 +530,14 @@ export function Dashboard() {
                         </CardHeader>
                          <CardContent className="h-[250px] p-0">
                              <ScrollArea className="h-full w-full">
-                                <ChartContainer config={chartConfig} className="h-full w-full">
-                                  <ResponsiveContainer height={allModules.length * 40} width="100%">
+                                <ChartContainer config={chartConfig} className="w-full h-full">
                                     <RechartsBarChart
                                         accessibilityLayer
                                         data={allModules}
                                         layout="vertical"
                                         margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
+                                        width={450}
+                                        height={allModules.length * 40}
                                     >
                                         <XAxis type="number" hide />
                                         <YAxis
@@ -555,7 +555,6 @@ export function Dashboard() {
                                             <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
                                         </Bar>
                                     </RechartsBarChart>
-                                  </ResponsiveContainer>
                                 </ChartContainer>
                             </ScrollArea>
                         </CardContent>
