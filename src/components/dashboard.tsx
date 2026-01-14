@@ -494,7 +494,7 @@ export function Dashboard() {
                             <CardTitle>Top 5 Clients</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[250px] p-0">
-                            <ScrollArea className="h-full w-full">
+                             <ScrollArea className="h-full w-full">
                                 <ChartContainer config={chartConfig} className="h-full w-full">
                                     <ResponsiveContainer width="100%" height={allClients.length * 40} debounce={50}>
                                         <RechartsBarChart
@@ -562,3 +562,5 @@ export function Dashboard() {
         </div>
     );
 }
+
+    
