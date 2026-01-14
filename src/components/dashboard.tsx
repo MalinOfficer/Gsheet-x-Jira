@@ -71,7 +71,7 @@ const CustomYAxisTick = (props: any) => {
 
         return (
             <g transform={`translate(${x},${y})`}>
-                <text x={-10} y={0} dy={4} textAnchor="end" fill="#475569" fontSize={12}>
+                <text x={-10} y={0} dy={4} textAnchor="end" fill="#9ca3af" fontSize={12} fontWeight="500">
                     {lines.map((line, i) => (
                         <tspan key={i} x={-10} dy={i > 0 ? lineHeight : 0}>{line}</tspan>
                     ))}
@@ -82,7 +82,7 @@ const CustomYAxisTick = (props: any) => {
 
     return (
         <g transform={`translate(${x},${y})`}>
-            <text x={-10} y={0} dy={4} textAnchor="end" fill="#475569" fontSize={12}>
+            <text x={-10} y={0} dy={4} textAnchor="end" fill="#9ca3af" fontSize={12} fontWeight="500">
                 {value}
             </text>
         </g>
@@ -356,7 +356,6 @@ export function Dashboard() {
     }
     
     const { allClients, allModules } = dashboardStats;
-    const itemHeight = 60;
 
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
@@ -531,94 +530,91 @@ export function Dashboard() {
                 </Card>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>All Clients</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                           <div style={{ height: '250px', overflowY: 'auto' }} className="border rounded">
-                                <ResponsiveContainer width="100%" height={allClients.length * itemHeight}>
-                                    <RechartsBarChart
-                                        data={allClients}
-                                        layout="vertical"
-                                        margin={{ top: 5, right: 60, left: -20, bottom: 5 }}
-                                    >
-                                        <defs>
-                                            <linearGradient id="colorClients" x1="0" y1="0" x2="1" y2="0">
-                                                <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
-                                                <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1}/>
-                                            </linearGradient>
-                                        </defs>
-                                        <XAxis type="number" stroke="#64748b" style={{ fontSize: '12px' }} />
-                                        <YAxis 
-                                            type="category" 
-                                            dataKey="name" 
-                                            width={150}
-                                            tick={<CustomYAxisTick />}
-                                            allowDuplicatedCategory={false}
-                                        />
-                                        <Tooltip 
-                                            contentStyle={{ 
-                                                backgroundColor: '#1e293b', 
-                                                border: 'none', 
-                                                borderRadius: '8px',
-                                                color: 'white',
-                                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                                            }}
-                                            cursor={{ fill: '#f1f5f9' }}
-                                        />
-                                        <Bar dataKey="value" fill="url(#colorClients)" radius={[0, 8, 8, 0]} maxBarSize={40}>
-                                            <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: '#475569' }} />
-                                        </Bar>
-                                    </RechartsBarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </CardContent>
-                    </Card>
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>All Modules</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                           <div style={{ height: '250px', overflowY: 'auto' }} className="border rounded">
-                                <ResponsiveContainer width="100%" height={allModules.length * itemHeight}>
-                                    <RechartsBarChart
-                                        data={allModules}
-                                        layout="vertical"
-                                        margin={{ top: 5, right: 60, left: -20, bottom: 5 }}
-                                    >
-                                        <defs>
-                                            <linearGradient id="colorModules" x1="0" y1="0" x2="1" y2="0">
-                                                <stop offset="0%" stopColor="#10b981" stopOpacity={1}/>
-                                                <stop offset="100%" stopColor="#6366f1" stopOpacity={1}/>
-                                            </linearGradient>
-                                        </defs>
-                                        <XAxis type="number" stroke="#64748b" style={{ fontSize: '12px' }}/>
-                                        <YAxis 
-                                            type="category" 
-                                            dataKey="name" 
-                                            width={150}
-                                            tick={<CustomYAxisTick />}
-                                            allowDuplicatedCategory={false}
-                                        />
-                                        <Tooltip 
-                                            contentStyle={{ 
-                                                backgroundColor: '#1e293b', 
-                                                border: 'none', 
-                                                borderRadius: '8px',
-                                                color: 'white',
-                                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                                            }}
-                                            cursor={{ fill: '#f1f5f9' }}
-                                        />
-                                        <Bar dataKey="value" fill="url(#colorModules)" radius={[0, 8, 8, 0]} maxBarSize={40}>
-                                             <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: '#475569' }} />
-                                        </Bar>
-                                    </RechartsBarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <div className="bg-[#1a1a1a] rounded-xl p-6 shadow-2xl border border-[#2a2a2a]">
+                        <div className="mb-6">
+                            <h2 className="text-2xl font-bold text-white mb-1">All Clients</h2>
+                            <p className="text-sm text-gray-500">Comparison of all clients performance</p>
+                        </div>
+                        <div style={{ height: '250px', overflowY: 'auto' }} className="bg-[#141414] border border-[#2a2a2a] rounded-lg">
+                            <ResponsiveContainer width="100%" height={allClients.length * 60}>
+                                <RechartsBarChart
+                                    data={allClients}
+                                    layout="vertical"
+                                    margin={{ top: 5, right: 70, left: 10, bottom: 5 }}
+                                >
+                                    <defs>
+                                      <linearGradient id="clientsGradient" x1="0" y1="0" x2="1" y2="0">
+                                        <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.9}/>
+                                        <stop offset="50%" stopColor="#2dd4bf" stopOpacity={0.8}/>
+                                        <stop offset="100%" stopColor="#5eead4" stopOpacity={0.7}/>
+                                      </linearGradient>
+                                      <filter id="softGlow">
+                                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                        <feMerge>
+                                          <feMergeNode in="coloredBlur"/>
+                                          <feMergeNode in="SourceGraphic"/>
+                                        </feMerge>
+                                      </filter>
+                                    </defs>
+                                    <XAxis type="number" stroke="#4a4a4a" style={{ fontSize: '11px' }} tick={{ fill: '#6b7280' }} axisLine={{ stroke: '#2a2a2a' }} tickLine={false} />
+                                    <YAxis type="category" dataKey="name" width={130} stroke="#4a4a4a" tick={<CustomYAxisTick />} axisLine={{ stroke: '#2a2a2a' }} tickLine={false} />
+                                    <Tooltip
+                                      contentStyle={{ 
+                                        backgroundColor: '#1f2937', 
+                                        border: '1px solid #14b8a6', 
+                                        borderRadius: '8px',
+                                        color: 'white',
+                                        fontWeight: '600',
+                                        boxShadow: '0 10px 25px rgba(20, 184, 166, 0.3)'
+                                      }}
+                                      cursor={{ fill: '#1f2937', opacity: 0.3 }}
+                                    />
+                                    <Bar dataKey="value" fill="url(#clientsGradient)" radius={[0, 6, 6, 0]} maxBarSize={36} filter="url(#softGlow)">
+                                        <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: '#d1d5db' }}/>
+                                    </Bar>
+                                </RechartsBarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                     <div className="bg-[#1a1a1a] rounded-xl p-6 shadow-2xl border border-[#2a2a2a]">
+                        <div className="mb-6">
+                            <h2 className="text-2xl font-bold text-white mb-1">All Modules</h2>
+                            <p className="text-sm text-gray-500">Comparison of all modules performance</p>
+                        </div>
+                        <div style={{ height: '250px', overflowY: 'auto' }} className="bg-[#141414] border border-[#2a2a2a] rounded-lg">
+                            <ResponsiveContainer width="100%" height={allModules.length * 60}>
+                                <RechartsBarChart
+                                    data={allModules}
+                                    layout="vertical"
+                                    margin={{ top: 5, right: 70, left: 10, bottom: 5 }}
+                                >
+                                    <defs>
+                                      <linearGradient id="modulesGradient" x1="0" y1="0" x2="1" y2="0">
+                                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9}/>
+                                        <stop offset="50%" stopColor="#818cf8" stopOpacity={0.8}/>
+                                        <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.7}/>
+                                      </linearGradient>
+                                    </defs>
+                                    <XAxis type="number" stroke="#4a4a4a" style={{ fontSize: '11px' }} tick={{ fill: '#6b7280' }} axisLine={{ stroke: '#2a2a2a' }} tickLine={false} />
+                                    <YAxis type="category" dataKey="name" width={130} stroke="#4a4a4a" tick={<CustomYAxisTick />} axisLine={{ stroke: '#2a2a2a' }} tickLine={false} />
+                                    <Tooltip
+                                      contentStyle={{ 
+                                        backgroundColor: '#1f2937', 
+                                        border: '1px solid #6366f1', 
+                                        borderRadius: '8px',
+                                        color: 'white',
+                                        fontWeight: '600',
+                                        boxShadow: '0 10px 25px rgba(99, 102, 241, 0.3)'
+                                      }}
+                                      cursor={{ fill: '#1f2937', opacity: 0.3 }}
+                                    />
+                                    <Bar dataKey="value" fill="url(#modulesGradient)" radius={[0, 6, 6, 0]} maxBarSize={36} filter="url(#softGlow)">
+                                         <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: '#d1d5db' }}/>
+                                    </Bar>
+                                </RechartsBarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
