@@ -271,18 +271,18 @@ export function Dashboard() {
                 </div>
 
                 {/* Header Report */}
-                 <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-sm font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[250px]">
-                            <ChartContainer config={chartConfig}>
+                            <ChartContainer config={chartConfig} className="w-full h-full">
                                 <RechartsBarChart
                                     accessibilityLayer
                                     data={topClients}
                                     layout="vertical"
-                                    margin={{ left: 10, top: 10, right: 30, bottom: 10 }}
+                                    margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
                                 >
                                     <CartesianGrid horizontal={false} />
                                     <YAxis
@@ -297,10 +297,10 @@ export function Dashboard() {
                                     />
                                     <XAxis dataKey="value" type="number" hide />
                                     <ChartTooltip
-                                        cursor={{ fill: 'hsl(var(--muted))' }}
+                                        cursor={{ fill: "hsl(var(--muted))" }}
                                         content={<ChartTooltipContent />}
                                     />
-                                    <Bar dataKey="value" name="Top 5 Clients" layout="vertical" radius={5} fill="var(--color-chart-2)" barSize={20}>
+                                    <Bar dataKey="value" name="Top 5 Clients" radius={5} fill="var(--color-primary)" barSize={20}>
                                         <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
                                     </Bar>
                                 </RechartsBarChart>
@@ -311,14 +311,14 @@ export function Dashboard() {
                         <CardHeader>
                             <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px]">
-                            <ChartContainer config={chartConfig}>
+                        <CardContent className="h-[250px] flex items-center justify-center">
+                           <ChartContainer config={chartConfig} className="w-full h-full">
                                 <PieChart>
                                     <ChartTooltip
                                       content={<ChartTooltipContent nameKey="name" hideLabel />}
                                     />
                                     <Pie data={topModules} dataKey="value" nameKey="name" innerRadius={50} strokeWidth={2}>
-                                        {topModules.map((entry, index) => (
+                                        {topModules.map((_, index) => (
                                             <Cell key={`cell-${index}`} fill={`var(--chart-${index + 1})`} />
                                         ))}
                                     </Pie>
