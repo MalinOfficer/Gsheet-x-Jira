@@ -56,6 +56,8 @@ export function Dashboard() {
     const { toast } = useToast();
     const [selectedYear, setSelectedYear] = useState<'all' | '2024' | '2025' | '2026'>('all');
     const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+    const [clientFilter, setClientFilter] = useState<string[]>([]);
+    const [moduleFilter, setModuleFilter] = useState<string[]>([]);
 
 
     useEffect(() => {
@@ -106,21 +108,43 @@ export function Dashboard() {
     };
     
     const categoryHeader = useMemo(() => findHeader(['KATEGORI', 'Ticket Category', 'Category']), [state.data]);
+    const clientHeader = useMemo(() => findHeader(['CLIENT NAME', 'Client Name', 'Client']), [state.data]);
+    const moduleHeader = useMemo(() => findHeader(['MODULE', 'Module']), [state.data]);
 
     const filterOptions = useMemo(() => {
-        if (!state.data || !categoryHeader) return [];
-        const categories = [...new Set(state.data.map(row => row[categoryHeader]).filter(Boolean))];
-        return categories.map(cat => ({ label: cat, value: cat }));
-    }, [state.data, categoryHeader]);
+        if (!state.data) return { categories: [], clients: [], modules: [] };
+        
+        const createOptions = (header: string | undefined) => {
+            if (!header) return [];
+            const values = [...new Set(state.data.map(row => row[header]).filter(Boolean))];
+            return values.map(val => ({ label: val, value: val }));
+        }
+
+        return {
+            categories: createOptions(categoryHeader),
+            clients: createOptions(clientHeader),
+            modules: createOptions(moduleHeader)
+        }
+    }, [state.data, categoryHeader, clientHeader, moduleHeader]);
 
     const filteredData = useMemo(() => {
         if (!state.data) return [];
-        if (categoryFilter.length === 0) return state.data;
-        if (!categoryHeader) return state.data;
+        
+        let data = state.data;
 
-        return state.data.filter(row => categoryFilter.includes(row[categoryHeader]));
+        if (categoryFilter.length > 0 && categoryHeader) {
+            data = data.filter(row => categoryFilter.includes(row[categoryHeader]));
+        }
+        if (clientFilter.length > 0 && clientHeader) {
+            data = data.filter(row => clientFilter.includes(row[clientHeader]));
+        }
+        if (moduleFilter.length > 0 && moduleHeader) {
+            data = data.filter(row => moduleFilter.includes(row[moduleHeader]));
+        }
 
-    }, [state.data, categoryFilter, categoryHeader]);
+        return data;
+
+    }, [state.data, categoryFilter, clientFilter, moduleFilter, categoryHeader, clientHeader, moduleHeader]);
 
     const dashboardStats = useMemo(() => {
         const data = filteredData;
@@ -150,7 +174,6 @@ export function Dashboard() {
             return frequency;
         };
         
-        const clientHeader = findHeader(['CLIENT NAME', 'Client Name', 'Client']);
         const clientFrequency = createFrequencyMap(clientHeader);
         const topClients = Object.entries(clientFrequency)
             .sort(([, a], [, b]) => b - a)
@@ -167,8 +190,8 @@ export function Dashboard() {
 
         const moduleTrend = topCategories.length > 0 ? topCategories[0].name : 'N/A';
         
-        const moduleHeader = findHeader(['DETAIL MODUL', 'Detail Module', 'Module']);
-        const moduleFrequency = createFrequencyMap(moduleHeader);
+        const detailModuleHeader = findHeader(['DETAIL MODUL', 'Detail Module']);
+        const moduleFrequency = createFrequencyMap(detailModuleHeader);
         const topModules = Object.entries(moduleFrequency)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5)
@@ -234,7 +257,7 @@ export function Dashboard() {
             moduleTrend,
             totalSolved
         };
-    }, [filteredData, categoryHeader]);
+    }, [filteredData, categoryHeader, clientHeader]);
     
     if (state.loading) {
          return (
@@ -312,19 +335,32 @@ export function Dashboard() {
                                     Filter
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-80">
-                                <div className="grid gap-4">
-                                    <div className="space-y-2">
-                                        <h4 className="font-medium leading-none">Filter by Category</h4>
-                                        <p className="text-sm text-muted-foreground">
-                                            Select categories to display on the dashboard.
-                                        </p>
-                                    </div>
+                            <PopoverContent className="w-80 space-y-4">
+                                <div className="space-y-2">
+                                    <h4 className="font-medium leading-none">Filter by Category</h4>
                                     <MultiSelect
-                                        options={filterOptions}
+                                        options={filterOptions.categories}
                                         selected={categoryFilter}
                                         onChange={setCategoryFilter}
                                         placeholder="Select categories..."
+                                    />
+                                </div>
+                                 <div className="space-y-2">
+                                    <h4 className="font-medium leading-none">Filter by Client</h4>
+                                    <MultiSelect
+                                        options={filterOptions.clients}
+                                        selected={clientFilter}
+                                        onChange={setClientFilter}
+                                        placeholder="Select clients..."
+                                    />
+                                </div>
+                                 <div className="space-y-2">
+                                    <h4 className="font-medium leading-none">Filter by Module</h4>
+                                    <MultiSelect
+                                        options={filterOptions.modules}
+                                        selected={moduleFilter}
+                                        onChange={setModuleFilter}
+                                        placeholder="Select modules..."
                                     />
                                 </div>
                             </PopoverContent>
@@ -527,3 +563,6 @@ export function Dashboard() {
     );
 }
 
+
+
+    
