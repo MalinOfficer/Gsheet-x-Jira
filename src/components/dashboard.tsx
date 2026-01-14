@@ -270,9 +270,9 @@ export function Dashboard() {
     const { totalCases, topClients, topModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
 
     return (
-        <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+        <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
             <div className="max-w-7xl mx-auto space-y-4">
-                 <div className="flex justify-between items-center">
+                 <div className="flex justify-between items-center pt-4 sm:pt-6 md:pt-8">
                     <div>
                         <h1 className="text-2xl font-bold">Dashboard</h1>
                         <p className="text-muted-foreground">Sales performance overview</p>
