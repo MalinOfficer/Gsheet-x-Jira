@@ -138,14 +138,21 @@ export function Dashboard() {
         
         const totalClients = Object.keys(clientFrequency).length;
 
+        const categoryHeader = findHeader(['KATEGORI', 'Ticket Category', 'Category']);
+        const categoryFrequency = createFrequencyMap(categoryHeader);
+        const topCategories = Object.entries(categoryFrequency)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 5)
+            .map(([name, value]) => ({ name, value }));
+
+        const moduleTrend = topCategories.length > 0 ? topCategories[0].name : 'N/A';
+        
         const moduleHeader = findHeader(['DETAIL MODUL', 'Detail Module', 'Module']);
         const moduleFrequency = createFrequencyMap(moduleHeader);
         const topModules = Object.entries(moduleFrequency)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5)
             .map(([name, value]) => ({ name, value }));
-        
-        const moduleTrend = topModules.length > 0 ? topModules[0].name : 'N/A';
 
         const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
         const statusFrequency: Record<string, number> = {};
@@ -476,3 +483,4 @@ export function Dashboard() {
         </div>
     );
 }
+
