@@ -323,6 +323,8 @@ export function Dashboard() {
     
     const { totalCases, topClients, allClients, topModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
 
+    const dynamicClientChartHeight = Math.max(250, allClients.length * 40);
+
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
             <div className="max-w-7xl mx-auto space-y-4">
@@ -502,69 +504,74 @@ export function Dashboard() {
                         <CardHeader className="p-6">
                             <CardTitle className="text-base font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px] overflow-hidden">
+                        <CardContent className="h-[250px] overflow-hidden w-full relative">
                            <ScrollArea className="h-full">
-                                <ChartContainer config={chartConfig} style={{ minHeight: allClients.length * 40 }}>
-                                    <ResponsiveContainer width="100%" height={allClients.length * 40}>
-                                        <RechartsBarChart
-                                            accessibilityLayer
-                                            data={allClients}
-                                            layout="vertical"
-                                            margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
-                                        >
-                                            <CartesianGrid horizontal={false} />
-                                            <YAxis
-                                                dataKey="name"
-                                                type="category"
-                                                tickLine={false}
-                                                tickMargin={10}
-                                                axisLine={false}
-                                                className="text-xs"
-                                                interval={0}
-                                                width={80}
-                                            />
-                                            <XAxis dataKey="value" type="number" hide />
-                                            <ChartTooltip
-                                                cursor={{ fill: "hsl(var(--muted))" }}
-                                                content={<ChartTooltipContent />}
-                                            />
-                                            <Bar dataKey="value" name="Top 5 Clients" radius={5} fill="var(--color-clients)" barSize={20}>
-                                                <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
-                                            </Bar>
-                                        </RechartsBarChart>
-                                    </ResponsiveContainer>
-                                </ChartContainer>
+                                <ResponsiveContainer width="100%" height={dynamicClientChartHeight} debounce={50}>
+                                  <ChartContainer config={chartConfig} style={{ minHeight: dynamicClientChartHeight }}>
+                                      <RechartsBarChart
+                                          accessibilityLayer
+                                          data={allClients}
+                                          layout="vertical"
+                                          margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
+                                      >
+                                          <CartesianGrid horizontal={false} />
+                                          <YAxis
+                                              dataKey="name"
+                                              type="category"
+                                              tickLine={false}
+                                              tickMargin={10}
+                                              axisLine={false}
+                                              className="text-xs"
+                                              interval={0}
+                                              width={80}
+                                          />
+                                          <XAxis dataKey="value" type="number" hide />
+                                          <ChartTooltip
+                                              cursor={{ fill: "hsl(var(--muted))" }}
+                                              content={<ChartTooltipContent />}
+                                          />
+                                          <Bar dataKey="value" name="Top 5 Clients" radius={5} fill="var(--color-clients)" barSize={20}>
+                                              <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
+                                          </Bar>
+                                      </RechartsBarChart>
+                                  </ChartContainer>
+                                </ResponsiveContainer>
                             </ScrollArea>
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="p-4">
+                        <CardHeader className="p-6">
                             <CardTitle className="text-base font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[200px] w-full overflow-hidden">
-                           <ChartContainer config={chartConfig}>
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <RechartsBarChart
-                                        data={topModules}
-                                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                                    >
-                                        <CartesianGrid vertical={false} />
-                                        <XAxis
-                                            dataKey="name"
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tickMargin={8}
-                                            tick={false}
-                                        />
-                                        <YAxis />
-                                        <ChartTooltip
-                                            cursor={{ fill: "hsl(var(--muted))" }}
-                                            content={<ChartTooltipContent />}
-                                        />
-                                        <Bar dataKey="value" name="Top 5 Modules" fill="var(--color-modules)" radius={4} />
-                                    </RechartsBarChart>
-                                </ResponsiveContainer>
-                            </ChartContainer>
+                        <CardContent className="h-[250px] overflow-hidden w-full relative">
+                            <ResponsiveContainer width="100%" height="100%" debounce={50}>
+                               <ChartContainer config={chartConfig}>
+                                  <RechartsBarChart
+                                      data={topModules}
+                                      layout="vertical"
+                                      margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
+                                  >
+                                      <CartesianGrid vertical={false} />
+                                      <XAxis type="number" hide />
+                                      <YAxis 
+                                          dataKey="name" 
+                                          type="category"
+                                          tickLine={false}
+                                          axisLine={false}
+                                          tickMargin={10}
+                                          width={80}
+                                          className="text-xs"
+                                      />
+                                      <ChartTooltip
+                                          cursor={{ fill: "hsl(var(--muted))" }}
+                                          content={<ChartTooltipContent />}
+                                      />
+                                      <Bar dataKey="value" name="Top 5 Modules" fill="var(--color-modules)" radius={4}>
+                                           <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
+                                      </Bar>
+                                  </RechartsBarChart>
+                               </ChartContainer>
+                            </ResponsiveContainer>
                         </CardContent>
                     </Card>
                 </div>
