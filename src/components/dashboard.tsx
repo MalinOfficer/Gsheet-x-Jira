@@ -38,9 +38,9 @@ const chartConfig = {
   'OPEN': { label: 'Open', color: 'hsl(var(--chart-1))' },
   'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
   modules: { label: "Modules", color: "hsl(var(--chart-1))" },
-  "Top 5 Modules": { label: "Modules", color: "hsl(var(--chart-1))" },
+  "Top 5 Modules": { label: "Modules", color: "var(--color-modules)" },
   clients: { label: "Clients", color: "hsl(var(--primary))" },
-  "Top 5 Clients": { label: "Clients", color: "hsl(var(--primary))" },
+  "Top 5 Clients": { label: "Clients", color: "var(--color-clients)" },
 } satisfies ChartConfig
 
 interface DashboardState {
@@ -499,13 +499,13 @@ export function Dashboard() {
 
                 {/* Footer Charts */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card>
+                    <Card className="min-w-0">
                         <CardHeader className="p-6">
                             <CardTitle className="text-base font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[250px] p-0 relative w-full overflow-hidden">
                            <ScrollArea className="h-full">
-                                <ChartContainer config={chartConfig} className="w-full" style={{ minHeight: dynamicClientChartHeight }}>
+                                <ChartContainer config={chartConfig}>
                                     <ResponsiveContainer width="100%" height={dynamicClientChartHeight} debounce={50}>
                                         <RechartsBarChart
                                             accessibilityLayer
@@ -538,13 +538,13 @@ export function Dashboard() {
                             </ScrollArea>
                         </CardContent>
                     </Card>
-                    <Card>
+                    <Card className="min-w-0">
                         <CardHeader className="p-6">
                             <CardTitle className="text-base font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
                          <CardContent className="h-[250px] p-0 relative w-full overflow-hidden">
                             <ScrollArea className="h-full">
-                                <ChartContainer config={chartConfig} className="w-full" style={{ minHeight: dynamicModuleChartHeight }}>
+                                <ChartContainer config={chartConfig}>
                                     <ResponsiveContainer width="100%" height={dynamicModuleChartHeight} debounce={50}>
                                         <RechartsBarChart
                                             data={topModules}
@@ -581,5 +581,3 @@ export function Dashboard() {
         </div>
     );
 }
-
-    
