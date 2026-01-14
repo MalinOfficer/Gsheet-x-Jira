@@ -494,66 +494,86 @@ export function Dashboard() {
                         <CardHeader>
                             <CardTitle>All Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px] overflow-y-auto">
-                           <ResponsiveContainer width="100%" height={allClients.length * 40}>
-                                <ChartContainer config={{...chartConfig, clients: {label: 'Clients', color: 'hsl(var(--chart-1))'}}}>
+                        <CardContent>
+                            <div style={{ height: '250px', overflowY: 'auto', overflowX: 'hidden' }} className="border rounded">
+                                <ResponsiveContainer width="100%" height={allClients.length * 40}>
                                     <RechartsBarChart
-                                        accessibilityLayer
                                         data={allClients}
                                         layout="vertical"
-                                        margin={{ left: 10, right: 50, top: 10, bottom: 10 }}
+                                        margin={{ top: 5, right: 60, left: 40, bottom: 5 }}
                                     >
+                                        <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis type="number" />
-                                        <YAxis
-                                            dataKey="name"
-                                            type="category"
-                                            tickLine={false}
-                                            tickMargin={5}
-                                            axisLine={false}
+                                        <YAxis 
+                                            type="category" 
+                                            dataKey="name" 
                                             width={150}
-                                            fontSize={12}
-                                            interval={0}
+                                            tick={{ fontSize: 12 }}
+                                            allowDuplicatedCategory={false}
                                         />
-                                        <Tooltip content={<ChartTooltipContent hideLabel />} />
-                                        <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={20}>
-                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                        <Tooltip
+                                            content={({ active, payload }) => {
+                                              if (active && payload && payload.length) {
+                                                return (
+                                                  <div className="bg-background border rounded-lg shadow-lg p-2 text-xs">
+                                                    <p className="font-bold text-foreground">{`${payload[0].payload.name} : ${payload[0].value}`}</p>
+                                                  </div>
+                                                );
+                                              }
+                                              return null;
+                                            }}
+                                            wrapperClassName="!border-none !shadow-lg !rounded-lg"
+                                            cursor={{fill: 'hsl(var(--background))', opacity: 0.5}}
+                                        />
+                                        <Bar dataKey="value" fill="var(--color-clients)" barSize={18}>
+                                            <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} />
                                         </Bar>
                                     </RechartsBarChart>
-                                </ChartContainer>
-                            </ResponsiveContainer>
+                                </ResponsiveContainer>
+                            </div>
                         </CardContent>
                     </Card>
                      <Card>
                         <CardHeader>
                             <CardTitle>All Modules</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px] overflow-y-auto">
-                            <ResponsiveContainer width="100%" height={allModules.length * 40}>
-                                <ChartContainer config={chartConfig}>
+                        <CardContent>
+                           <div style={{ height: '250px', overflowY: 'auto', overflowX: 'hidden' }} className="border rounded">
+                                <ResponsiveContainer width="100%" height={allModules.length * 40}>
                                     <RechartsBarChart
-                                        accessibilityLayer
                                         data={allModules}
                                         layout="vertical"
-                                        margin={{ left: 10, right: 50, top: 10, bottom: 10 }}
+                                        margin={{ top: 5, right: 60, left: 40, bottom: 5 }}
                                     >
+                                        <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis type="number" />
-                                        <YAxis
-                                            dataKey="name"
-                                            type="category"
-                                            tickLine={false}
-                                            tickMargin={5}
-                                            axisLine={false}
+                                        <YAxis 
+                                            type="category" 
+                                            dataKey="name" 
                                             width={150}
-                                            fontSize={12}
-                                            interval={0}
+                                            tick={{ fontSize: 12 }}
+                                            allowDuplicatedCategory={false}
                                         />
-                                        <Tooltip content={<ChartTooltipContent hideLabel />} />
-                                        <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={20}>
-                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                        <Tooltip
+                                            content={({ active, payload }) => {
+                                              if (active && payload && payload.length) {
+                                                return (
+                                                  <div className="bg-background border rounded-lg shadow-lg p-2 text-xs">
+                                                    <p className="font-bold text-foreground">{`${payload[0].payload.name} : ${payload[0].value}`}</p>
+                                                  </div>
+                                                );
+                                              }
+                                              return null;
+                                            }}
+                                            wrapperClassName="!border-none !shadow-lg !rounded-lg"
+                                            cursor={{fill: 'hsl(var(--background))', opacity: 0.5}}
+                                        />
+                                        <Bar dataKey="value" fill="var(--color-modules)" barSize={18}>
+                                             <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} />
                                         </Bar>
                                     </RechartsBarChart>
-                                </ChartContainer>
-                            </ResponsiveContainer>
+                                </ResponsiveContainer>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
@@ -561,5 +581,3 @@ export function Dashboard() {
         </div>
     );
 }
-
-    
