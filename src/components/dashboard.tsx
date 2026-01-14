@@ -21,7 +21,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MultiSelect } from "@/components/ui/multi-select";
-import { ScrollArea } from "./ui/scroll-area";
 
 
 const chartConfig = {
@@ -153,7 +152,6 @@ export function Dashboard() {
             return {
                 totalCases: 0,
                 topClients: [],
-                allClients: [],
                 topModules: [],
                 statusCounts: [],
                 solvedVsUnsolved: [],
@@ -177,12 +175,11 @@ export function Dashboard() {
         };
         
         const clientFrequency = createFrequencyMap(clientHeader);
-        const allClients = Object.entries(clientFrequency)
+        const topClients = Object.entries(clientFrequency)
             .sort(([, a], [, b]) => b - a)
+            .slice(0, 5)
             .map(([name, value]) => ({ name, value }));
 
-        const topClients = allClients.slice(0, 5);
-        
         const totalClients = Object.keys(clientFrequency).length;
 
         const categoryFrequency = createFrequencyMap(categoryHeader);
@@ -252,7 +249,6 @@ export function Dashboard() {
         return {
             totalCases: data.length,
             topClients,
-            allClients,
             topModules,
             statusCounts,
             solvedVsUnsolved,
@@ -321,7 +317,7 @@ export function Dashboard() {
         );
     }
     
-    const { totalCases, topClients, allClients, topModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
+    const { totalCases, topClients, topModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
 
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
@@ -500,39 +496,37 @@ export function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card>
                         <CardHeader className="p-4">
-                            <CardTitle className="text-base font-medium">Clients by Case Count</CardTitle>
+                            <CardTitle className="text-base font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[200px] pr-0">
-                            <ScrollArea className="h-full">
-                                <ChartContainer config={chartConfig} className="w-full h-[400px]">
-                                    <RechartsBarChart
-                                        accessibilityLayer
-                                        data={allClients}
-                                        layout="vertical"
-                                        margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
-                                    >
-                                        <CartesianGrid horizontal={false} />
-                                        <YAxis
-                                            dataKey="name"
-                                            type="category"
-                                            tickLine={false}
-                                            tickMargin={10}
-                                            axisLine={false}
-                                            className="text-xs"
-                                            interval={0}
-                                            width={80}
-                                        />
-                                        <XAxis dataKey="value" type="number" hide />
-                                        <ChartTooltip
-                                            cursor={{ fill: "hsl(var(--muted))" }}
-                                            content={<ChartTooltipContent />}
-                                        />
-                                        <Bar dataKey="value" name="Clients" radius={5} fill="var(--color-clients)" barSize={20}>
-                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
-                                        </Bar>
-                                    </RechartsBarChart>
-                                </ChartContainer>
-                            </ScrollArea>
+                        <CardContent className="h-[200px]">
+                            <ChartContainer config={chartConfig} className="w-full h-full">
+                                <RechartsBarChart
+                                    accessibilityLayer
+                                    data={topClients}
+                                    layout="vertical"
+                                    margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
+                                >
+                                    <CartesianGrid horizontal={false} />
+                                    <YAxis
+                                        dataKey="name"
+                                        type="category"
+                                        tickLine={false}
+                                        tickMargin={10}
+                                        axisLine={false}
+                                        className="text-xs"
+                                        interval={0}
+                                        width={80}
+                                    />
+                                    <XAxis dataKey="value" type="number" hide />
+                                    <ChartTooltip
+                                        cursor={{ fill: "hsl(var(--muted))" }}
+                                        content={<ChartTooltipContent />}
+                                    />
+                                    <Bar dataKey="value" name="Top 5 Clients" radius={5} fill="var(--color-clients)" barSize={20}>
+                                        <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
+                                    </Bar>
+                                </RechartsBarChart>
+                            </ChartContainer>
                         </CardContent>
                     </Card>
                     <Card>
