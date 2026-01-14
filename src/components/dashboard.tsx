@@ -322,6 +322,7 @@ export function Dashboard() {
     }
     
     const { totalCases, topClients, allClients, topModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
+    const dynamicChartHeight = Math.max(200, allClients.length * 40);
 
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
@@ -504,7 +505,7 @@ export function Dashboard() {
                         </CardHeader>
                         <CardContent className="h-[200px]">
                            <ScrollArea className="h-full">
-                                <ChartContainer config={chartConfig} className="w-full h-[400px]">
+                                <ChartContainer config={chartConfig} className="w-full" style={{ height: `${dynamicChartHeight}px` }}>
                                     <RechartsBarChart
                                         accessibilityLayer
                                         data={allClients}
