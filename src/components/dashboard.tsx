@@ -276,7 +276,7 @@ export function Dashboard() {
                         <CardHeader>
                             <CardTitle className="text-sm font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[200px]">
+                        <CardContent className="h-[250px]">
                             <ChartContainer config={chartConfig}>
                                 <RechartsBarChart
                                     accessibilityLayer
@@ -311,7 +311,7 @@ export function Dashboard() {
                         <CardHeader>
                             <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[200px]">
+                        <CardContent className="h-[250px]">
                             <ChartContainer config={chartConfig}>
                                 <PieChart>
                                     <ChartTooltip
@@ -500,7 +500,3 @@ export function Dashboard() {
         </div>
     );
 }
-
-    
-
-    
