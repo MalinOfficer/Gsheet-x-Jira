@@ -63,8 +63,8 @@ export function Dashboard() {
             setState(prevState => ({ ...prevState, loading: true }));
             const result = await getAllCaseData(dbSheetUrl);
             setState({
-                data: result.data || null,
-                error: result.error,
+                data: result?.data || null,
+                error: result?.error,
                 loading: false
             });
         };
@@ -484,3 +484,6 @@ export function Dashboard() {
     );
 }
 
+
+
+    
