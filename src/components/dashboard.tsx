@@ -488,14 +488,14 @@ export function Dashboard() {
                     </CardContent>
                 </Card>
 
-                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                     <Card className="min-w-0">
                         <CardHeader>
                             <CardTitle>Top 5 Clients</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[250px] p-0">
-                             <ScrollArea className="h-full">
-                                <ChartContainer config={chartConfig} className="w-full h-full">
+                             <ScrollArea className="h-full w-full">
+                                <ChartContainer config={chartConfig} className="h-full w-full">
                                     <ResponsiveContainer width="100%" height={allClients.length * 40} debounce={50}>
                                         <RechartsBarChart
                                             accessibilityLayer
@@ -528,7 +528,7 @@ export function Dashboard() {
                             <CardTitle>Top 5 Modules</CardTitle>
                         </CardHeader>
                          <CardContent className="h-[250px] p-0">
-                             <ScrollArea className="h-full">
+                             <ScrollArea className="h-full w-full">
                                 <ChartContainer config={chartConfig} className="h-full w-full">
                                     <ResponsiveContainer width="100%" height={allModules.length * 40} debounce={50}>
                                         <RechartsBarChart
@@ -562,7 +562,5 @@ export function Dashboard() {
         </div>
     );
 }
-
-    
 
     
