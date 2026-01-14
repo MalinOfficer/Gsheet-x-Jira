@@ -321,8 +321,8 @@ export function Dashboard() {
     
     const { totalCases, topClients, allClients, topModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
 
-    const dynamicClientChartHeight = Math.max(250, allClients.length * 40);
-    const dynamicModuleChartHeight = Math.max(250, topModules.length * 40);
+    const dynamicClientChartHeight = allClients.length * 40;
+    const dynamicModuleChartHeight = topModules.length * 40;
 
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
@@ -505,11 +505,10 @@ export function Dashboard() {
                         </CardHeader>
                         <CardContent className="h-[250px] p-0 relative w-full overflow-hidden">
                            <ScrollArea className="h-full">
-                               <ChartContainer config={chartConfig}>
+                                <ChartContainer config={chartConfig}>
                                    <RechartsBarChart
                                        width={500}
                                        height={dynamicClientChartHeight}
-                                       accessibilityLayer
                                        data={allClients}
                                        layout="vertical"
                                        margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
@@ -530,7 +529,7 @@ export function Dashboard() {
                                            cursor={{ fill: "hsl(var(--muted))" }}
                                            content={<ChartTooltipContent />}
                                        />
-                                       <Bar dataKey="value" name="Top 5 Clients" radius={5} fill="var(--color-clients)" barSize={20}>
+                                       <Bar dataKey="value" name="Top 5 Clients" radius={5} barSize={20} fill="var(--color-clients)">
                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
                                        </Bar>
                                    </RechartsBarChart>
@@ -581,3 +580,5 @@ export function Dashboard() {
         </div>
     );
 }
+
+    
