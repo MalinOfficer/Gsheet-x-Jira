@@ -325,8 +325,8 @@ export function Dashboard() {
     
     const { totalCases, topClients, allClients, topModules, allModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
 
-    const dynamicClientChartHeight = allClients.length * 50;
-    const dynamicModuleChartHeight = allModules.length * 50;
+    const dynamicClientChartHeight = allClients.length * 40;
+    const dynamicModuleChartHeight = allModules.length * 40;
 
 
     return (
@@ -507,56 +507,68 @@ export function Dashboard() {
                         <CardHeader>
                             <CardTitle>Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px] overflow-y-auto">
-                           <RechartsBarChart
-                                layout="vertical"
-                                data={allClients}
-                                width={450}
-                                height={dynamicClientChartHeight}
-                                margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
-                            >
-                                <XAxis type="number" hide />
-                                <YAxis
-                                    dataKey="name"
-                                    type="category"
-                                    width={150}
-                                    fontSize={10}
-                                    tickLine={false}
-                                    axisLine={false}
-                                />
-                                <Tooltip cursor={{ fill: 'hsl(var(--background))' }} content={<ChartTooltipContent hideLabel />} />
-                                <Bar dataKey="value" fill="#2563eb" radius={4} barSize={24}>
-                                    <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={10} />
-                                </Bar>
-                            </RechartsBarChart>
+                        <CardContent className="h-[250px] p-0">
+                           <ScrollArea className="h-full">
+                               <ChartContainer config={chartConfig} className="w-full">
+                                    <RechartsBarChart
+                                        accessibilityLayer
+                                        data={allClients}
+                                        layout="vertical"
+                                        height={dynamicClientChartHeight}
+                                        width={450}
+                                        margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
+                                    >
+                                        <XAxis type="number" hide />
+                                        <YAxis
+                                            dataKey="name"
+                                            type="category"
+                                            tickLine={false}
+                                            tickMargin={5}
+                                            axisLine={false}
+                                            width={150}
+                                            fontSize={12}
+                                        />
+                                        <Tooltip cursor={{ fill: 'hsl(var(--background))' }} content={<ChartTooltipContent hideLabel />} />
+                                        <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={24}>
+                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                        </Bar>
+                                    </RechartsBarChart>
+                                </ChartContainer>
+                            </ScrollArea>
                         </CardContent>
                     </Card>
                      <Card className="min-w-0">
                         <CardHeader>
                             <CardTitle>Top 5 Modules</CardTitle>
                         </CardHeader>
-                         <CardContent className="h-[250px] overflow-y-auto">
-                            <RechartsBarChart
-                                layout="vertical"
-                                data={allModules}
-                                width={450}
-                                height={dynamicModuleChartHeight}
-                                margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
-                            >
-                                <XAxis type="number" hide />
-                                <YAxis
-                                    dataKey="name"
-                                    type="category"
-                                    width={150}
-                                    fontSize={10}
-                                    tickLine={false}
-                                    axisLine={false}
-                                />
-                                <Tooltip cursor={{ fill: 'hsl(var(--background))' }} content={<ChartTooltipContent hideLabel />} />
-                                <Bar dataKey="value" fill="#16a34a" radius={4} barSize={24}>
-                                    <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={10} />
-                                </Bar>
-                            </RechartsBarChart>
+                         <CardContent className="h-[250px] p-0">
+                            <ScrollArea className="h-full">
+                                <ChartContainer config={chartConfig} className="w-full">
+                                    <RechartsBarChart
+                                        accessibilityLayer
+                                        data={allModules}
+                                        layout="vertical"
+                                        height={dynamicModuleChartHeight}
+                                        width={450}
+                                        margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
+                                    >
+                                        <XAxis type="number" hide />
+                                        <YAxis
+                                            dataKey="name"
+                                            type="category"
+                                            tickLine={false}
+                                            tickMargin={5}
+                                            axisLine={false}
+                                            width={150}
+                                            fontSize={12}
+                                        />
+                                        <Tooltip cursor={{ fill: 'hsl(var(--background))' }} content={<ChartTooltipContent hideLabel />} />
+                                        <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={24}>
+                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                        </Bar>
+                                    </RechartsBarChart>
+                                </ChartContainer>
+                            </ScrollArea>
                         </CardContent>
                     </Card>
                 </div>
