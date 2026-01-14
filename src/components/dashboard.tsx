@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw, CheckCircle, Users, FolderKanban } from "lucide-react";
+import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw, CheckCircle, Users, FolderKanban, Filter } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -18,6 +19,8 @@ import { Skeleton } from "./ui/skeleton";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 
 const chartConfig = {
@@ -52,6 +55,7 @@ export function Dashboard() {
     const [isRefreshing, startRefresh] = useTransition();
     const { toast } = useToast();
     const [selectedYear, setSelectedYear] = useState<'all' | '2024' | '2025' | '2026'>('all');
+    const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
 
 
     useEffect(() => {
@@ -83,16 +87,43 @@ export function Dashboard() {
             } else {
                 toast({ title: "Cache Refreshed", description: "Dashboard data has been synced with Google Sheets." });
                 setState({
-                    data: result.data || null,
+                    data: result?.data || null,
                     error: result.error,
                     loading: false
                 });
             }
         })
     }
+    
+    const findHeader = (possibleNames: string[]): string | undefined => {
+         if (!state.data || !state.data[0]) return undefined;
+         const actualHeaders = Object.keys(state.data[0]);
+         for (const name of possibleNames) {
+             const found = actualHeaders.find(header => header.toLowerCase() === name.toLowerCase());
+             if (found) return found;
+         }
+         return undefined;
+    };
+    
+    const categoryHeader = useMemo(() => findHeader(['KATEGORI', 'Ticket Category', 'Category']), [state.data]);
+
+    const filterOptions = useMemo(() => {
+        if (!state.data || !categoryHeader) return [];
+        const categories = [...new Set(state.data.map(row => row[categoryHeader]).filter(Boolean))];
+        return categories.map(cat => ({ label: cat, value: cat }));
+    }, [state.data, categoryHeader]);
+
+    const filteredData = useMemo(() => {
+        if (!state.data) return [];
+        if (categoryFilter.length === 0) return state.data;
+        if (!categoryHeader) return state.data;
+
+        return state.data.filter(row => categoryFilter.includes(row[categoryHeader]));
+
+    }, [state.data, categoryFilter, categoryHeader]);
 
     const dashboardStats = useMemo(() => {
-        const data = state.data;
+        const data = filteredData;
         if (!data || data.length === 0) {
             return {
                 totalCases: 0,
@@ -106,16 +137,6 @@ export function Dashboard() {
                 totalSolved: 0,
             };
         }
-        
-        const findHeader = (possibleNames: string[]): string | undefined => {
-             if (!data[0]) return undefined;
-             const actualHeaders = Object.keys(data[0]);
-             for (const name of possibleNames) {
-                 const found = actualHeaders.find(header => header.toLowerCase() === name.toLowerCase());
-                 if (found) return found;
-             }
-             return undefined;
-        };
 
         const createFrequencyMap = (field: string | undefined) => {
             if (!field) return {};
@@ -138,7 +159,6 @@ export function Dashboard() {
         
         const totalClients = Object.keys(clientFrequency).length;
 
-        const categoryHeader = findHeader(['KATEGORI', 'Ticket Category', 'Category']);
         const categoryFrequency = createFrequencyMap(categoryHeader);
         const topCategories = Object.entries(categoryFrequency)
             .sort(([, a], [, b]) => b - a)
@@ -214,7 +234,7 @@ export function Dashboard() {
             moduleTrend,
             totalSolved
         };
-    }, [state.data]);
+    }, [filteredData, categoryHeader]);
     
     if (state.loading) {
          return (
@@ -284,10 +304,36 @@ export function Dashboard() {
                         <h1 className="text-2xl font-bold">Dashboard</h1>
                         <p className="text-muted-foreground">Sales performance overview</p>
                     </div>
-                    <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" variant="outline">
-                        <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                        Refresh Data
-                    </Button>
+                    <div className="flex items-center gap-2">
+                         <Popover>
+                            <PopoverTrigger asChild>
+                                <Button size="sm" variant="outline">
+                                    <Filter className="mr-2 h-4 w-4" />
+                                    Filter
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80">
+                                <div className="grid gap-4">
+                                    <div className="space-y-2">
+                                        <h4 className="font-medium leading-none">Filter by Category</h4>
+                                        <p className="text-sm text-muted-foreground">
+                                            Select categories to display on the dashboard.
+                                        </p>
+                                    </div>
+                                    <MultiSelect
+                                        options={filterOptions}
+                                        selected={categoryFilter}
+                                        onChange={setCategoryFilter}
+                                        placeholder="Select categories..."
+                                    />
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                        <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" variant="outline">
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Refresh Data
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Header Cards */}
@@ -480,3 +526,4 @@ export function Dashboard() {
         </div>
     );
 }
+
