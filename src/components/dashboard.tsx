@@ -502,7 +502,7 @@ export function Dashboard() {
                                     </div>
                                 </DialogTrigger>
                                 <ScrollArea className="h-full w-full">
-                                    <ChartContainer config={chartConfig} className="w-full h-full">
+                                    <ChartContainer config={{...chartConfig, clients: {label: 'Clients', color: 'hsl(var(--chart-1))'}}}>
                                         <RechartsBarChart
                                             accessibilityLayer
                                             data={allClients}
@@ -523,7 +523,7 @@ export function Dashboard() {
                                                 allowDuplicatedCategory={false}
                                             />
                                             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                            <Bar dataKey="value" fill="#2563eb" radius={4} barSize={18}>
+                                            <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={18}>
                                                 <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
                                             </Bar>
                                         </RechartsBarChart>
@@ -535,30 +535,32 @@ export function Dashboard() {
                                     </DialogHeader>
                                     <div className="flex-grow min-h-0">
                                         <ScrollArea className="h-full w-full">
-                                            <RechartsBarChart
-                                                accessibilityLayer
-                                                data={allClients}
-                                                layout="vertical"
-                                                margin={{ left: 10, right: 50, top: 10, bottom: 10 }}
-                                                width={800}
-                                                height={allClients.length * 40}
-                                            >
-                                                <XAxis type="number" />
-                                                <YAxis
-                                                    dataKey="name"
-                                                    type="category"
-                                                    tickLine={false}
-                                                    tickMargin={5}
-                                                    axisLine={false}
-                                                    width={200}
-                                                    fontSize={12}
-                                                    interval={0}
-                                                />
-                                                <Tooltip content={<ChartTooltipContent hideLabel />} />
-                                                <Bar dataKey="value" fill="#2563eb" radius={4} barSize={20}>
-                                                    <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
-                                                </Bar>
-                                            </RechartsBarChart>
+                                            <ChartContainer config={{...chartConfig, clients: {label: 'Clients', color: 'hsl(var(--chart-1))'}}}>
+                                                <ResponsiveContainer width="100%" height={allClients.length * 40}>
+                                                    <RechartsBarChart
+                                                        accessibilityLayer
+                                                        data={allClients}
+                                                        layout="vertical"
+                                                        margin={{ left: 10, right: 50, top: 10, bottom: 10 }}
+                                                    >
+                                                        <XAxis type="number" />
+                                                        <YAxis
+                                                            dataKey="name"
+                                                            type="category"
+                                                            tickLine={false}
+                                                            tickMargin={5}
+                                                            axisLine={false}
+                                                            width={200}
+                                                            fontSize={12}
+                                                            interval={0}
+                                                        />
+                                                        <Tooltip content={<ChartTooltipContent hideLabel />} />
+                                                        <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={20}>
+                                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                                        </Bar>
+                                                    </RechartsBarChart>
+                                                </ResponsiveContainer>
+                                            </ChartContainer>
                                         </ScrollArea>
                                     </div>
                                 </DialogContent>
@@ -577,7 +579,7 @@ export function Dashboard() {
                                     </div>
                                 </DialogTrigger>
                                 <ScrollArea className="h-full w-full">
-                                    <ChartContainer config={chartConfig} className="w-full h-full">
+                                    <ChartContainer config={chartConfig}>
                                         <RechartsBarChart
                                             accessibilityLayer
                                             data={allModules}
@@ -610,30 +612,32 @@ export function Dashboard() {
                                     </DialogHeader>
                                     <div className="flex-grow min-h-0">
                                         <ScrollArea className="h-full w-full">
-                                            <RechartsBarChart
-                                                accessibilityLayer
-                                                data={allModules}
-                                                layout="vertical"
-                                                margin={{ left: 10, right: 50, top: 10, bottom: 10 }}
-                                                width={800}
-                                                height={allModules.length * 40}
-                                            >
-                                                <XAxis type="number" />
-                                                <YAxis
-                                                    dataKey="name"
-                                                    type="category"
-                                                    tickLine={false}
-                                                    tickMargin={5}
-                                                    axisLine={false}
-                                                    width={200}
-                                                    fontSize={12}
-                                                    interval={0}
-                                                />
-                                                <Tooltip content={<ChartTooltipContent hideLabel />} />
-                                                <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={20}>
-                                                    <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
-                                                </Bar>
-                                            </RechartsBarChart>
+                                            <ChartContainer config={chartConfig}>
+                                                <ResponsiveContainer width="100%" height={allModules.length * 40}>
+                                                    <RechartsBarChart
+                                                        accessibilityLayer
+                                                        data={allModules}
+                                                        layout="vertical"
+                                                        margin={{ left: 10, right: 50, top: 10, bottom: 10 }}
+                                                    >
+                                                        <XAxis type="number" />
+                                                        <YAxis
+                                                            dataKey="name"
+                                                            type="category"
+                                                            tickLine={false}
+                                                            tickMargin={5}
+                                                            axisLine={false}
+                                                            width={200}
+                                                            fontSize={12}
+                                                            interval={0}
+                                                        />
+                                                        <Tooltip content={<ChartTooltipContent hideLabel />} />
+                                                        <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={20}>
+                                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                                        </Bar>
+                                                    </RechartsBarChart>
+                                                </ResponsiveContainer>
+                                            </ChartContainer>
                                         </ScrollArea>
                                     </div>
                                 </DialogContent>
