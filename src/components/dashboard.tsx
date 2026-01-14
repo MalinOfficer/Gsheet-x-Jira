@@ -358,7 +358,7 @@ export function Dashboard() {
                         </Select>
                     </CardHeader>
                     <CardContent>
-                        <ChartContainer config={chartConfig} className="h-[350px] w-full">
+                        <ChartContainer config={chartConfig} className="h-[300px] w-full">
                             <AreaChart data={monthlyData} margin={{ left: -20, right: 20, top: 10, bottom: 10 }}>
                                 <defs>
                                     <linearGradient id="fill2026" x1="0" y1="0" x2="0" y2="1">
@@ -471,7 +471,7 @@ export function Dashboard() {
                         <CardTitle>Solved vs Unsolved</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                        <ChartContainer config={chartConfig} className="h-[240px] w-full">
                             <RechartsBarChart
                                 data={solvedVsUnsolved}
                                 layout="vertical"
