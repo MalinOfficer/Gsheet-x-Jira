@@ -494,7 +494,7 @@ export function Dashboard() {
                             <CardTitle>Top 5 Clients</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[250px] p-0">
-                             <ScrollArea className="h-full w-full">
+                            <ScrollArea className="h-full w-full">
                                 <ChartContainer config={chartConfig} className="h-full w-full">
                                     <ResponsiveContainer width="100%" height={allClients.length * 40} debounce={50}>
                                         <RechartsBarChart
@@ -512,9 +512,10 @@ export function Dashboard() {
                                                 axisLine={false}
                                                 width={150}
                                                 fontSize={12}
+                                                allowDuplicatedCategory={false}
                                             />
                                             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                            <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={20}>
+                                            <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={18}>
                                                 <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
                                             </Bar>
                                         </RechartsBarChart>
@@ -546,9 +547,10 @@ export function Dashboard() {
                                                 axisLine={false}
                                                 width={150}
                                                 fontSize={12}
+                                                allowDuplicatedCategory={false}
                                             />
                                             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                            <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={20}>
+                                            <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={18}>
                                                 <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
                                             </Bar>
                                         </RechartsBarChart>
@@ -562,5 +564,3 @@ export function Dashboard() {
         </div>
     );
 }
-
-    
