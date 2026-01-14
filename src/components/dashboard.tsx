@@ -137,7 +137,7 @@ export function Dashboard() {
         const topModules = Object.entries(moduleFrequency)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5)
-            .map(([name, value], index) => ({ name, value, fill: `var(--chart-${index + 1})` }));
+            .map(([name, value]) => ({ name, value }));
 
         const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
         const statusFrequency: Record<string, number> = {};
@@ -300,7 +300,7 @@ export function Dashboard() {
                                         cursor={{ fill: 'hsl(var(--muted))' }}
                                         content={<ChartTooltipContent />}
                                     />
-                                    <Bar dataKey="value" name="Top 5 Clients" layout="vertical" radius={5} fill="var(--color-clients)" barSize={20}>
+                                    <Bar dataKey="value" name="Top 5 Clients" layout="vertical" radius={5} fill="var(--color-chart-2)" barSize={20}>
                                         <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
                                     </Bar>
                                 </RechartsBarChart>
@@ -319,7 +319,7 @@ export function Dashboard() {
                                     />
                                     <Pie data={topModules} dataKey="value" nameKey="name" innerRadius={50} strokeWidth={2}>
                                         {topModules.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                            <Cell key={`cell-${index}`} fill={`var(--chart-${index + 1})`} />
                                         ))}
                                     </Pie>
                                     <Legend
@@ -500,5 +500,7 @@ export function Dashboard() {
         </div>
     );
 }
+
+    
 
     
