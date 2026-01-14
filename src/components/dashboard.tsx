@@ -110,6 +110,7 @@ export function Dashboard() {
     const categoryHeader = useMemo(() => findHeader(['KATEGORI', 'Ticket Category', 'Category']), [state.data]);
     const clientHeader = useMemo(() => findHeader(['CLIENT NAME', 'Client Name', 'Client']), [state.data]);
     const moduleHeader = useMemo(() => findHeader(['MODULE', 'Module']), [state.data]);
+    const detailModuleHeader = useMemo(() => findHeader(['DETAIL MODUL', 'Detail Module']), [state.data]);
 
     const filterOptions = useMemo(() => {
         if (!state.data) return { categories: [], clients: [], modules: [] };
@@ -154,6 +155,7 @@ export function Dashboard() {
                 topClients: [],
                 allClients: [],
                 topModules: [],
+                allModules: [],
                 statusCounts: [],
                 solvedVsUnsolved: [],
                 monthlyData: [],
@@ -184,19 +186,20 @@ export function Dashboard() {
 
         const totalClients = Object.keys(clientFrequency).length;
 
-        const categoryFrequency = createFrequencyMap(categoryHeader);
-        const topCategories = Object.entries(categoryFrequency)
+        const moduleFrequency = createFrequencyMap(moduleHeader);
+        const topCategories = Object.entries(moduleFrequency)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5)
             .map(([name, value]) => ({ name, value }));
 
         const moduleTrend = topCategories.length > 0 ? topCategories[0].name : 'N/A';
         
-        const detailModuleHeader = findHeader(['DETAIL MODUL', 'Detail Module']);
-        const moduleFrequency = createFrequencyMap(detailModuleHeader);
-        const topModules = Object.entries(moduleFrequency)
+        const detailModuleFrequency = createFrequencyMap(detailModuleHeader);
+        const allModules = Object.entries(detailModuleFrequency)
             .sort(([, a], [, b]) => b - a)
             .map(([name, value]) => ({ name, value }));
+        
+        const topModules = allModules.slice(0, 5);
 
         const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
         const statusFrequency: Record<string, number> = {};
@@ -252,6 +255,7 @@ export function Dashboard() {
             topClients,
             allClients,
             topModules,
+            allModules,
             statusCounts,
             solvedVsUnsolved,
             monthlyData,
@@ -259,7 +263,7 @@ export function Dashboard() {
             moduleTrend,
             totalSolved
         };
-    }, [filteredData, categoryHeader, clientHeader]);
+    }, [filteredData, clientHeader, moduleHeader, detailModuleHeader]);
     
     if (state.loading) {
          return (
@@ -319,7 +323,11 @@ export function Dashboard() {
         );
     }
     
-    const { totalCases, topClients, allClients, topModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
+    const { totalCases, topClients, allClients, topModules, allModules, statusCounts, solvedVsUnsolved, monthlyData, totalClients, moduleTrend, totalSolved } = dashboardStats;
+
+    const dynamicClientChartHeight = allClients.length * 50;
+    const dynamicModuleChartHeight = allModules.length * 50;
+
 
     return (
         <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
@@ -494,74 +502,61 @@ export function Dashboard() {
                     </CardContent>
                 </Card>
 
-                {/* Footer Charts */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                     <Card className="min-w-0">
-                        <CardHeader className="p-6">
-                            <CardTitle className="text-base font-medium">Top 5 Clients</CardTitle>
+                        <CardHeader>
+                            <CardTitle>Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px] p-0 overflow-y-auto">
-                            <div className="h-[250px] overflow-y-auto">
-                                <ChartContainer config={chartConfig}>
-                                   <RechartsBarChart
-                                       width={450}
-                                       height={allClients.length * 50}
-                                       data={allClients}
-                                       layout="vertical"
-                                       margin={{ left: 20, top: 10, right: 40, bottom: 10 }}
-                                   >
-                                       <XAxis type="number" hide />
-                                       <YAxis
-                                           dataKey="name"
-                                           type="category"
-                                           tickLine={false}
-                                           tickMargin={10}
-                                           axisLine={false}
-                                           className="text-xs"
-                                           interval={0}
-                                           width={150}
-                                       />
-                                       <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                       <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={24}>
-                                           <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
-                                       </Bar>
-                                   </RechartsBarChart>
-                                </ChartContainer>
-                            </div>
+                        <CardContent className="h-[250px] overflow-y-auto">
+                           <RechartsBarChart
+                                layout="vertical"
+                                data={allClients}
+                                width={450}
+                                height={dynamicClientChartHeight}
+                                margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
+                            >
+                                <XAxis type="number" hide />
+                                <YAxis
+                                    dataKey="name"
+                                    type="category"
+                                    width={150}
+                                    fontSize={10}
+                                    tickLine={false}
+                                    axisLine={false}
+                                />
+                                <Tooltip cursor={{ fill: 'hsl(var(--background))' }} content={<ChartTooltipContent hideLabel />} />
+                                <Bar dataKey="value" fill="#2563eb" radius={4} barSize={24}>
+                                    <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={10} />
+                                </Bar>
+                            </RechartsBarChart>
                         </CardContent>
                     </Card>
-                    <Card className="min-w-0">
-                        <CardHeader className="p-6">
-                            <CardTitle className="text-base font-medium">Top 5 Modules</CardTitle>
+                     <Card className="min-w-0">
+                        <CardHeader>
+                            <CardTitle>Top 5 Modules</CardTitle>
                         </CardHeader>
-                         <CardContent className="h-[250px] p-0 overflow-y-auto">
-                            <div className="h-[250px] overflow-y-auto">
-                               <ChartContainer config={chartConfig}>
-                                   <RechartsBarChart
-                                       width={450}
-                                       height={topModules.length * 50}
-                                       data={topModules}
-                                       layout="vertical"
-                                       margin={{ left: 20, top: 10, right: 40, bottom: 10 }}
-                                   >
-                                       <XAxis type="number" hide />
-                                       <YAxis 
-                                           dataKey="name" 
-                                           type="category"
-                                           tickLine={false}
-                                           axisLine={false}
-                                           tickMargin={10}
-                                           width={150}
-                                           className="text-xs"
-                                           interval={0}
-                                       />
-                                       <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                       <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={24}>
-                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
-                                       </Bar>
-                                   </RechartsBarChart>
-                                </ChartContainer>
-                            </div>
+                         <CardContent className="h-[250px] overflow-y-auto">
+                            <RechartsBarChart
+                                layout="vertical"
+                                data={allModules}
+                                width={450}
+                                height={dynamicModuleChartHeight}
+                                margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
+                            >
+                                <XAxis type="number" hide />
+                                <YAxis
+                                    dataKey="name"
+                                    type="category"
+                                    width={150}
+                                    fontSize={10}
+                                    tickLine={false}
+                                    axisLine={false}
+                                />
+                                <Tooltip cursor={{ fill: 'hsl(var(--background))' }} content={<ChartTooltipContent hideLabel />} />
+                                <Bar dataKey="value" fill="#16a34a" radius={4} barSize={24}>
+                                    <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={10} />
+                                </Bar>
+                            </RechartsBarChart>
                         </CardContent>
                     </Card>
                 </div>
