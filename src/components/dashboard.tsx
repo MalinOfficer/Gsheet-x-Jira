@@ -37,10 +37,10 @@ const chartConfig = {
   'ON HOLD': { label: 'On Hold', color: 'hsl(var(--chart-5))' },
   'OPEN': { label: 'Open', color: 'hsl(var(--chart-1))' },
   'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
-  modules: { label: "Modules", color: "var(--color-modules)" },
-  "Top 5 Modules": { label: "Modules", color: "var(--color-modules)" },
-  clients: { label: "Clients", color: "hsl(var(--primary))" },
-  "Top 5 Clients": { label: "Clients", color: "var(--color-clients)" },
+  modules: { label: "Modules", color: "#16a34a" },
+  "Top 5 Modules": { label: "Modules", color: "#16a34a" },
+  clients: { label: "Clients", color: "#2563eb" },
+  "Top 5 Clients": { label: "Clients", color: "#2563eb" },
 } satisfies ChartConfig
 
 interface DashboardState {
@@ -503,7 +503,7 @@ export function Dashboard() {
                         <CardHeader className="p-6">
                             <CardTitle className="text-base font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px] p-0 relative w-full overflow-hidden">
+                        <CardContent className="h-[250px] p-0">
                            <ScrollArea className="h-full">
                                 <ChartContainer config={chartConfig}>
                                    <RechartsBarChart
@@ -511,9 +511,9 @@ export function Dashboard() {
                                        height={dynamicClientChartHeight}
                                        data={allClients}
                                        layout="vertical"
-                                       margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
+                                       margin={{ left: 20, top: 10, right: 40, bottom: 10 }}
                                    >
-                                       <CartesianGrid horizontal={false} />
+                                       <XAxis type="number" hide />
                                        <YAxis
                                            dataKey="name"
                                            type="category"
@@ -524,12 +524,8 @@ export function Dashboard() {
                                            interval={0}
                                            width={150}
                                        />
-                                       <XAxis dataKey="value" type="number" hide />
-                                       <ChartTooltip
-                                           cursor={{ fill: "hsl(var(--muted))" }}
-                                           content={<ChartTooltipContent />}
-                                       />
-                                       <Bar dataKey="value" name="Top 5 Clients" radius={5} barSize={20} fill="var(--color-clients)">
+                                       <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                       <Bar dataKey="value" fill="var(--color-clients)" radius={4} barSize={20}>
                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
                                        </Bar>
                                    </RechartsBarChart>
@@ -541,7 +537,7 @@ export function Dashboard() {
                         <CardHeader className="p-6">
                             <CardTitle className="text-base font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
-                         <CardContent className="h-[250px] p-0 relative w-full overflow-hidden">
+                         <CardContent className="h-[250px] p-0">
                             <ScrollArea className="h-full">
                                <ChartContainer config={chartConfig}>
                                    <RechartsBarChart
@@ -549,9 +545,8 @@ export function Dashboard() {
                                        height={dynamicModuleChartHeight}
                                        data={topModules}
                                        layout="vertical"
-                                       margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
+                                       margin={{ left: 20, top: 10, right: 40, bottom: 10 }}
                                    >
-                                       <CartesianGrid horizontal={false} />
                                        <XAxis type="number" hide />
                                        <YAxis 
                                            dataKey="name" 
@@ -563,11 +558,8 @@ export function Dashboard() {
                                            className="text-xs"
                                            interval={0}
                                        />
-                                       <ChartTooltip
-                                           cursor={{ fill: "hsl(var(--muted))" }}
-                                           content={<ChartTooltipContent />}
-                                       />
-                                       <Bar dataKey="value" name="Top 5 Modules" fill="var(--color-modules)" radius={4} barSize={20}>
+                                       <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                       <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={20}>
                                             <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
                                        </Bar>
                                    </RechartsBarChart>
@@ -580,5 +572,3 @@ export function Dashboard() {
         </div>
     );
 }
-
-    
