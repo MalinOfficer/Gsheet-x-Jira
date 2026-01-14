@@ -416,7 +416,7 @@ export function Dashboard() {
                         <CardHeader className="p-4">
                             <CardTitle className="text-base font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[220px]">
+                        <CardContent className="h-[200px]">
                             <ChartContainer config={chartConfig} className="w-full h-full">
                                 <RechartsBarChart
                                     accessibilityLayer
@@ -451,7 +451,7 @@ export function Dashboard() {
                         <CardHeader className="p-4">
                             <CardTitle className="text-base font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[220px] flex items-center justify-center">
+                        <CardContent className="h-[200px] flex items-center justify-center">
                            <ChartContainer config={chartConfig} className="w-full h-full">
                                 <RechartsBarChart
                                     data={topModules}
@@ -480,5 +480,3 @@ export function Dashboard() {
         </div>
     );
 }
-
-    
