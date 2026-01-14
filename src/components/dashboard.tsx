@@ -223,8 +223,7 @@ export function Dashboard() {
             };
         }
         
-        // Use all data for monthly comparison, not filtered data
-        const allDataForMonthly = state.data || [];
+        const allDataForMonthly = filteredData;
 
         const createFrequencyMap = (field: string | undefined) => {
             if (!field) return {};
@@ -608,7 +607,7 @@ export function Dashboard() {
                                 <RechartsBarChart
                                     data={allModules}
                                     layout="vertical"
-                                    margin={{ top: 5, right: 70, left: 10, bottom: 5 }}
+                                    margin={{ top: 5, right: 70, left: -20, bottom: 5 }}
                                 >
                                     <defs>
                                       <linearGradient id="modulesGradient" x1="0" y1="0" x2="1" y2="0">
