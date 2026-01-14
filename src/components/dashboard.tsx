@@ -281,71 +281,44 @@ export function Dashboard() {
                     </Button>
                 </div>
 
-                {/* Header Report */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm font-medium">Top 5 Clients</CardTitle>
-                        </CardHeader>
-                        <CardContent className="h-[250px]">
-                            <ChartContainer config={chartConfig} className="w-full h-full">
-                                <RechartsBarChart
-                                    accessibilityLayer
-                                    data={topClients}
-                                    layout="vertical"
-                                    margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
-                                >
-                                    <CartesianGrid horizontal={false} />
-                                    <YAxis
-                                        dataKey="name"
-                                        type="category"
-                                        tickLine={false}
-                                        tickMargin={10}
-                                        axisLine={false}
-                                        className="text-xs"
-                                        interval={0}
-                                        width={80}
-                                    />
-                                    <XAxis dataKey="value" type="number" hide />
-                                    <ChartTooltip
-                                        cursor={{ fill: "hsl(var(--muted))" }}
-                                        content={<ChartTooltipContent />}
-                                    />
-                                    <Bar dataKey="value" name="Top 5 Clients" radius={5} fill="var(--color-clients)" barSize={20}>
-                                        <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
-                                    </Bar>
-                                </RechartsBarChart>
-                            </ChartContainer>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
-                        </CardHeader>
-                        <CardContent className="h-[250px] flex items-center justify-center">
-                           <ChartContainer config={chartConfig} className="w-full h-full">
-                                <RechartsBarChart
-                                    data={topModules}
-                                    margin={{ top: 20, right: 20, left: -20, bottom: 5 }}
-                                >
-                                    <CartesianGrid vertical={false} />
-                                    <XAxis
-                                        dataKey="name"
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickMargin={8}
-                                        tick={false}
-                                    />
-                                    <YAxis />
-                                    <ChartTooltip
-                                        cursor={{ fill: "hsl(var(--muted))" }}
-                                        content={<ChartTooltipContent />}
-                                    />
-                                    <Bar dataKey="value" name="Top 5 Modules" fill="var(--color-modules)" radius={4} />
-                                </RechartsBarChart>
-                            </ChartContainer>
-                        </CardContent>
-                    </Card>
+                {/* Header Cards */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
+                      <BarChartIcon className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{totalCases}</div>
+                    </CardContent>
+                  </Card>
+                   <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Trending Category</CardTitle>
+                      <FolderKanban className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold truncate">{moduleTrend}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Status Solved</CardTitle>
+                      <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{totalSolved}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{totalClients}</div>
+                    </CardContent>
+                  </Card>
                 </div>
                 
                 {/* Main Content */}
@@ -431,48 +404,73 @@ export function Dashboard() {
                     </CardContent>
                 </Card>
 
-                {/* Footer Content */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
-                      <BarChartIcon className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{totalCases}</div>
-                    </CardContent>
-                  </Card>
-                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Trending Category</CardTitle>
-                      <FolderKanban className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold truncate">{moduleTrend}</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Status Solved</CardTitle>
-                      <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{totalSolved}</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{totalClients}</div>
-                    </CardContent>
-                  </Card>
+                {/* Footer Charts */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm font-medium">Top 5 Clients</CardTitle>
+                        </CardHeader>
+                        <CardContent className="h-[250px]">
+                            <ChartContainer config={chartConfig} className="w-full h-full">
+                                <RechartsBarChart
+                                    accessibilityLayer
+                                    data={topClients}
+                                    layout="vertical"
+                                    margin={{ left: 10, top: 10, right: 40, bottom: 10 }}
+                                >
+                                    <CartesianGrid horizontal={false} />
+                                    <YAxis
+                                        dataKey="name"
+                                        type="category"
+                                        tickLine={false}
+                                        tickMargin={10}
+                                        axisLine={false}
+                                        className="text-xs"
+                                        interval={0}
+                                        width={80}
+                                    />
+                                    <XAxis dataKey="value" type="number" hide />
+                                    <ChartTooltip
+                                        cursor={{ fill: "hsl(var(--muted))" }}
+                                        content={<ChartTooltipContent />}
+                                    />
+                                    <Bar dataKey="value" name="Top 5 Clients" radius={5} fill="var(--color-clients)" barSize={20}>
+                                        <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
+                                    </Bar>
+                                </RechartsBarChart>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
+                        </CardHeader>
+                        <CardContent className="h-[250px] flex items-center justify-center">
+                           <ChartContainer config={chartConfig} className="w-full h-full">
+                                <RechartsBarChart
+                                    data={topModules}
+                                    margin={{ top: 20, right: 20, left: -20, bottom: 5 }}
+                                >
+                                    <CartesianGrid vertical={false} />
+                                    <XAxis
+                                        dataKey="name"
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                        tick={false}
+                                    />
+                                    <YAxis />
+                                    <ChartTooltip
+                                        cursor={{ fill: "hsl(var(--muted))" }}
+                                        content={<ChartTooltipContent />}
+                                    />
+                                    <Bar dataKey="value" name="Top 5 Modules" fill="var(--color-modules)" radius={4} />
+                                </RechartsBarChart>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         </div>
     );
 }
-
-    
