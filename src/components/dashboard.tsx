@@ -1,7 +1,7 @@
 
 "use client";
 
-import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw, CheckCircle, Users, FolderKanban, Filter } from "lucide-react";
+import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw, CheckCircle, Users, FolderKanban, Filter, Maximize } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -9,6 +9,7 @@ import {
     CardTitle,
     CardDescription
 } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar, Tooltip, Legend, LabelList } from 'recharts';
@@ -493,70 +494,150 @@ export function Dashboard() {
                         <CardHeader>
                             <CardTitle>All Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px] p-0">
-                           <ScrollArea className="h-full w-full">
-                                <ChartContainer config={chartConfig} className="w-full h-full">
-                                    <RechartsBarChart
-                                        accessibilityLayer
-                                        data={allClients}
-                                        layout="vertical"
-                                        margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
-                                        width={450}
-                                        height={allClients.length * 40}
-                                    >
-                                        <XAxis type="number" hide />
-                                        <YAxis
-                                            dataKey="name"
-                                            type="category"
-                                            tickLine={false}
-                                            tickMargin={5}
-                                            axisLine={false}
-                                            width={150}
-                                            fontSize={12}
-                                            allowDuplicatedCategory={false}
-                                        />
-                                        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                        <Bar dataKey="value" fill="#2563eb" radius={4} barSize={18}>
-                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
-                                        </Bar>
-                                    </RechartsBarChart>
-                                </ChartContainer>
-                            </ScrollArea>
+                        <CardContent className="h-[250px] p-0 relative group">
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                        <Maximize className="h-8 w-8 text-white" />
+                                    </div>
+                                </DialogTrigger>
+                                <ScrollArea className="h-full w-full">
+                                    <ChartContainer config={chartConfig} className="w-full h-full">
+                                        <RechartsBarChart
+                                            accessibilityLayer
+                                            data={allClients}
+                                            layout="vertical"
+                                            margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
+                                            width={450}
+                                            height={allClients.length * 40}
+                                        >
+                                            <XAxis type="number" hide />
+                                            <YAxis
+                                                dataKey="name"
+                                                type="category"
+                                                tickLine={false}
+                                                tickMargin={5}
+                                                axisLine={false}
+                                                width={150}
+                                                fontSize={12}
+                                                allowDuplicatedCategory={false}
+                                            />
+                                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                            <Bar dataKey="value" fill="#2563eb" radius={4} barSize={18}>
+                                                <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                            </Bar>
+                                        </RechartsBarChart>
+                                    </ChartContainer>
+                                </ScrollArea>
+                                <DialogContent className="max-w-3xl h-[80vh] flex flex-col">
+                                    <DialogHeader>
+                                        <DialogTitle>All Clients</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="flex-grow min-h-0">
+                                        <ScrollArea className="h-full w-full">
+                                            <RechartsBarChart
+                                                accessibilityLayer
+                                                data={allClients}
+                                                layout="vertical"
+                                                margin={{ left: 10, right: 50, top: 10, bottom: 10 }}
+                                                width={800}
+                                                height={allClients.length * 40}
+                                            >
+                                                <XAxis type="number" />
+                                                <YAxis
+                                                    dataKey="name"
+                                                    type="category"
+                                                    tickLine={false}
+                                                    tickMargin={5}
+                                                    axisLine={false}
+                                                    width={200}
+                                                    fontSize={12}
+                                                    interval={0}
+                                                />
+                                                <Tooltip content={<ChartTooltipContent hideLabel />} />
+                                                <Bar dataKey="value" fill="#2563eb" radius={4} barSize={20}>
+                                                    <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                                </Bar>
+                                            </RechartsBarChart>
+                                        </ScrollArea>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         </CardContent>
                     </Card>
                      <Card>
                         <CardHeader>
                             <CardTitle>All Modules</CardTitle>
                         </CardHeader>
-                         <CardContent className="h-[250px] p-0">
-                             <ScrollArea className="h-full w-full">
-                                <ChartContainer config={chartConfig} className="w-full h-full">
-                                    <RechartsBarChart
-                                        accessibilityLayer
-                                        data={allModules}
-                                        layout="vertical"
-                                        margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
-                                        width={450}
-                                        height={allModules.length * 40}
-                                    >
-                                        <XAxis type="number" hide />
-                                        <YAxis
-                                            dataKey="name"
-                                            type="category"
-                                            tickLine={false}
-                                            tickMargin={5}
-                                            axisLine={false}
-                                            width={150}
-                                            fontSize={12}
-                                            allowDuplicatedCategory={false}
-                                        />
-                                        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                        <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={18}>
-                                            <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
-                                        </Bar>
-                                    </RechartsBarChart>
-                                </ChartContainer>
-                            </ScrollArea>
+                        <CardContent className="h-[250px] p-0 relative group">
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                        <Maximize className="h-8 w-8 text-white" />
+                                    </div>
+                                </DialogTrigger>
+                                <ScrollArea className="h-full w-full">
+                                    <ChartContainer config={chartConfig} className="w-full h-full">
+                                        <RechartsBarChart
+                                            accessibilityLayer
+                                            data={allModules}
+                                            layout="vertical"
+                                            margin={{ left: 10, right: 40, top: 10, bottom: 10 }}
+                                            width={450}
+                                            height={allModules.length * 40}
+                                        >
+                                            <XAxis type="number" hide />
+                                            <YAxis
+                                                dataKey="name"
+                                                type="category"
+                                                tickLine={false}
+                                                tickMargin={5}
+                                                axisLine={false}
+                                                width={150}
+                                                fontSize={12}
+                                                allowDuplicatedCategory={false}
+                                            />
+                                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                            <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={18}>
+                                                <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                            </Bar>
+                                        </RechartsBarChart>
+                                    </ChartContainer>
+                                </ScrollArea>
+                                <DialogContent className="max-w-3xl h-[80vh] flex flex-col">
+                                    <DialogHeader>
+                                        <DialogTitle>All Modules</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="flex-grow min-h-0">
+                                        <ScrollArea className="h-full w-full">
+                                            <RechartsBarChart
+                                                accessibilityLayer
+                                                data={allModules}
+                                                layout="vertical"
+                                                margin={{ left: 10, right: 50, top: 10, bottom: 10 }}
+                                                width={800}
+                                                height={allModules.length * 40}
+                                            >
+                                                <XAxis type="number" />
+                                                <YAxis
+                                                    dataKey="name"
+                                                    type="category"
+                                                    tickLine={false}
+                                                    tickMargin={5}
+                                                    axisLine={false}
+                                                    width={200}
+                                                    fontSize={12}
+                                                    interval={0}
+                                                />
+                                                <Tooltip content={<ChartTooltipContent hideLabel />} />
+                                                <Bar dataKey="value" fill="var(--color-modules)" radius={4} barSize={20}>
+                                                    <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                                </Bar>
+                                            </RechartsBarChart>
+                                        </ScrollArea>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         </CardContent>
                     </Card>
                 </div>
