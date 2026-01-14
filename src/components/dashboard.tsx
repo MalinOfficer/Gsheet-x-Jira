@@ -212,15 +212,17 @@ export function Dashboard() {
     if (state.loading) {
          return (
              <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-                <div className="max-w-7xl mx-auto space-y-6">
-                    <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-2">
-                        <Skeleton className="h-[250px]" />
-                        <Skeleton className="h-[250px]" />
+                <div className="max-w-7xl mx-auto space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+                        <Skeleton className="h-[88px]" />
+                        <Skeleton className="h-[88px]" />
+                        <Skeleton className="h-[88px]" />
+                        <Skeleton className="h-[88px]" />
                     </div>
                      <Skeleton className="h-[300px] w-full" />
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                        <Skeleton className="h-[250px] col-span-1 lg:col-span-4" />
-                        <Skeleton className="h-[250px] col-span-1 lg:col-span-3" />
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+                        <Skeleton className="h-[250px]" />
+                        <Skeleton className="h-[250px]" />
                     </div>
                 </div>
             </div>
@@ -269,7 +271,7 @@ export function Dashboard() {
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-            <div className="max-w-7xl mx-auto space-y-6">
+            <div className="max-w-7xl mx-auto space-y-4">
                  <div className="flex justify-between items-center">
                     <div>
                         <h1 className="text-2xl font-bold">Dashboard</h1>
@@ -341,7 +343,7 @@ export function Dashboard() {
                         </Select>
                     </CardHeader>
                     <CardContent>
-                        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                        <ChartContainer config={chartConfig} className="h-[250px] w-full">
                             <AreaChart data={monthlyData} margin={{ left: -20, right: 20, top: 10, bottom: 10 }}>
                                 <defs>
                                     <linearGradient id="fill2026" x1="0" y1="0" x2="0" y2="1">
@@ -405,12 +407,12 @@ export function Dashboard() {
                 </Card>
 
                 {/* Footer Charts */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-sm font-medium">Top 5 Clients</CardTitle>
+                            <CardTitle className="text-base font-medium">Top 5 Clients</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px]">
+                        <CardContent className="h-[220px]">
                             <ChartContainer config={chartConfig} className="w-full h-full">
                                 <RechartsBarChart
                                     accessibilityLayer
@@ -443,9 +445,9 @@ export function Dashboard() {
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-sm font-medium">Top 5 Modules</CardTitle>
+                            <CardTitle className="text-base font-medium">Top 5 Modules</CardTitle>
                         </CardHeader>
-                        <CardContent className="h-[250px] flex items-center justify-center">
+                        <CardContent className="h-[220px] flex items-center justify-center">
                            <ChartContainer config={chartConfig} className="w-full h-full">
                                 <RechartsBarChart
                                     data={topModules}
