@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw, CheckCircle, Users, FolderKanban, Filter, Maximize } from "lucide-react";
@@ -495,12 +496,12 @@ export function Dashboard() {
                             <CardTitle>All Clients</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div style={{ height: '250px', overflowY: 'auto', overflowX: 'hidden' }} className="border rounded">
+                            <div style={{ height: '250px', overflowY: 'auto' }} className="border rounded">
                                 <ResponsiveContainer width="100%" height={allClients.length * 40}>
                                     <RechartsBarChart
                                         data={allClients}
                                         layout="vertical"
-                                        margin={{ top: 5, right: 60, left: 40, bottom: 5 }}
+                                        margin={{ top: 5, right: 60, left: -20, bottom: 5 }}
                                     >
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis type="number" />
@@ -538,12 +539,12 @@ export function Dashboard() {
                             <CardTitle>All Modules</CardTitle>
                         </CardHeader>
                         <CardContent>
-                           <div style={{ height: '250px', overflowY: 'auto', overflowX: 'hidden' }} className="border rounded">
+                           <div style={{ height: '250px', overflowY: 'auto' }} className="border rounded">
                                 <ResponsiveContainer width="100%" height={allModules.length * 40}>
                                     <RechartsBarChart
                                         data={allModules}
                                         layout="vertical"
-                                        margin={{ top: 5, right: 60, left: 40, bottom: 5 }}
+                                        margin={{ top: 5, right: 60, left: -20, bottom: 5 }}
                                     >
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis type="number" />
@@ -581,3 +582,5 @@ export function Dashboard() {
         </div>
     );
 }
+
+    
