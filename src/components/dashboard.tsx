@@ -495,7 +495,7 @@ export function Dashboard() {
                         </CardHeader>
                         <CardContent className="h-[250px] p-0">
                              <ScrollArea className="h-full">
-                                <ChartContainer config={chartConfig} className="h-full w-full">
+                                <ChartContainer config={chartConfig} className="w-full h-full">
                                     <ResponsiveContainer width="100%" height={allClients.length * 40} debounce={50}>
                                         <RechartsBarChart
                                             accessibilityLayer
