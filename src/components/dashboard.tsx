@@ -505,7 +505,7 @@ export function Dashboard() {
                         </CardHeader>
                         <CardContent className="h-[200px]">
                            <ScrollArea className="h-full">
-                                <ChartContainer config={chartConfig} className="w-full" style={{ height: `${dynamicChartHeight}px` }}>
+                                <ResponsiveContainer width="100%" height={dynamicChartHeight}>
                                     <RechartsBarChart
                                         accessibilityLayer
                                         data={allClients}
@@ -532,7 +532,7 @@ export function Dashboard() {
                                             <LabelList dataKey="value" position="right" offset={8} className="fill-foreground text-xs" />
                                         </Bar>
                                     </RechartsBarChart>
-                                </ChartContainer>
+                                </ResponsiveContainer>
                             </ScrollArea>
                         </CardContent>
                     </Card>
@@ -569,10 +569,3 @@ export function Dashboard() {
         </div>
     );
 }
-
-
-
-    
-
-    
-
