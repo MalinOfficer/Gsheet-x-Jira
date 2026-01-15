@@ -6,7 +6,6 @@ import { google } from 'googleapis';
 import fs from 'fs';
 import path from 'path';
 import { redis } from '@/lib/redis';
-import { knowledgeBaseFlow } from '@/ai/flows/knowledge-base-flow';
 import mammoth from 'mammoth';
 
 const CACHE_KEY_ALL_CASE = 'all_case_data_cache';
@@ -1282,187 +1281,6 @@ export async function getAllCaseData(sheetUrl: string) {
 
     return { ...result, source: 'sheet' };
 }
-
-// ---- AI KNOWLEDGE BASE ENGINE ----
-
-// Define the input type here as it's used by the calling action.
-type KnowledgeBaseInput = {
-    query: string;
-    context: string;
-};
-
-const fetchRawContentFromSingleFile = async (drive: any, fileId: string): Promise<string> => {
-    // Step 1: Get file metadata to determine the MIME type
-    const metadataResponse = await drive.files.get({
-        fileId: fileId,
-        fields: 'mimeType, name',
-    });
-    const mimeType = metadataResponse.data.mimeType;
-    const fileName = metadataResponse.data.name;
-
-    let content: string;
-
-    // Step 2: Choose download/export method based on MIME type
-    if (mimeType === 'application/vnd.google-apps.document') {
-        const exportResponse = await drive.files.export({
-            fileId: fileId,
-            mimeType: 'text/plain',
-        }, { responseType: 'stream' });
-        
-        content = await new Promise((resolve, reject) => {
-            let text = '';
-            (exportResponse.data as any)
-                .on('data', (chunk: Buffer) => (text += chunk.toString()))
-                .on('end', () => resolve(text))
-                .on('error', (err: Error) => reject(new Error(`Failed to read exported stream for ${fileName}: ${err.message}`)));
-        });
-    } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        const downloadResponse = await drive.files.get({ fileId: fileId, alt: 'media' }, { responseType: 'arraybuffer' });
-        const arrayBuffer = downloadResponse.data as ArrayBuffer;
-        const buffer = Buffer.from(arrayBuffer);
-        const mammothResult = await mammoth.extractRawText({ buffer });
-        content = mammothResult.value;
-    } else if (mimeType && (mimeType.startsWith('text/') || mimeType === 'application/pdf')) {
-        const downloadResponse = await drive.files.get({ fileId: fileId, alt: 'media' }, { responseType: 'stream' });
-        content = await new Promise((resolve, reject) => {
-            let text = '';
-            (downloadResponse.data as any)
-                .on('data', (chunk: Buffer) => (text += chunk.toString()))
-                .on('end', () => resolve(text))
-                .on('error', (err: Error) => reject(new Error(`Failed to read downloaded stream for ${fileName}: ${err.message}`)));
-        });
-    } else {
-        console.warn(`Skipping unsupported file type: ${mimeType} for file: ${fileName}`);
-        return `Content of ${fileName} is not readable (unsupported type: ${mimeType}).`;
-    }
-    return `--- START OF FILE: ${fileName} ---\n\n${content}\n\n--- END OF FILE: ${fileName} ---\n\n`;
-}
-
-
-const fetchRawKnowledgeData = unstable_cache(
-    async (knowledgeBaseUrl: string): Promise<string> => {
-        const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|drive\/folders\/)([a-zA-Z0-9-_]+)/;
-        const match = knowledgeBaseUrl.match(idRegex);
-        if (!match || !match[1]) {
-            throw new Error("Invalid Google Drive URL format for Knowledge Base.");
-        }
-        const fileId = match[1];
-        const { drive } = getGoogleApiClients();
-
-        try {
-            const metadataResponse = await drive.files.get({
-                fileId: fileId,
-                fields: 'mimeType, name',
-            });
-            const mimeType = metadataResponse.data.mimeType;
-
-            if (mimeType === 'application/vnd.google-apps.folder') {
-                // It's a folder, so list files and read them all
-                const listResponse = await drive.files.list({
-                    q: `'${fileId}' in parents and trashed = false`,
-                    fields: 'files(id, name, mimeType)',
-                });
-
-                const files = listResponse.data.files;
-                if (!files || files.length === 0) {
-                    return "The specified folder is empty.";
-                }
-
-                const contentPromises = files.map(file => 
-                    fetchRawContentFromSingleFile(drive, file.id!)
-                      .catch(e => `Error reading file ${file.name}: ${e.message}`)
-                );
-                
-                const allContents = await Promise.all(contentPromises);
-                return allContents.join('\n');
-
-            } else {
-                // It's a single file
-                return await fetchRawContentFromSingleFile(drive, fileId);
-            }
-
-        } catch (error: any) {
-            console.error("Error fetching from Drive:", error);
-            if (error.errors && error.errors[0]) {
-                if (error.errors[0].reason === 'fileNotDownloadable') {
-                    throw new Error("This file is a Google Doc and cannot be downloaded directly. The system failed to auto-detect this. Please check file permissions.");
-                }
-                throw new Error(`Failed to fetch from Google Drive: ${error.errors[0].message}`);
-            }
-            throw new Error(`Failed to fetch from Google Drive. ${error.message}`);
-        }
-    },
-    ['knowledge-base-data'],
-    { revalidate: 3600 } // Cache for 1 hour
-);
-
-
-export async function runKnowledgeBaseEngine(
-    knowledgeBaseUrl: string,
-    query: string
-) {
-    if (!knowledgeBaseUrl) {
-        return { success: false, error: "Knowledge Base URL is not configured. Please set a valid Google Drive file URL in Settings." };
-    }
-    try {
-        console.log("KB Engine - Step 1: Fetching data from Google Drive...");
-        const context = await fetchRawKnowledgeData(knowledgeBaseUrl);
-        console.log("KB Engine - Step 1: Completed. Context is ready.");
-
-        console.log("KB Engine - Step 2: Passing to AI for analysis...");
-        const input: KnowledgeBaseInput = { query, context };
-        const response = await knowledgeBaseFlow(input);
-        console.log("KB Engine - Step 3: AI analysis complete.");
-
-        console.log("KNOWLEDGE BASE ENGINE PIPELINE FINISHED SUCCESSFULLY.");
-        return { success: true, message: "Successfully generated an answer.", data: { answer: response.answer } };
-
-    } catch (error: any) {
-        console.error("Knowledge Base Engine pipeline failed:", error);
-        return { success: false, error: error.message };
-    }
-}
-    
-export async function getKnowledgeBaseFiles(knowledgeBaseUrl: string) {
-    if (!knowledgeBaseUrl) {
-        return { success: false, error: "Knowledge Base URL is not configured." };
-    }
-    const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|drive\/folders\/)([a-zA-Z0-9-_]+)/;
-    const match = knowledgeBaseUrl.match(idRegex);
-    if (!match || !match[1]) {
-        return { success: false, error: "Invalid Google Drive URL format." };
-    }
-    const fileId = match[1];
-
-    try {
-        const { drive } = getGoogleApiClients();
-        const metadataResponse = await drive.files.get({
-            fileId: fileId,
-            fields: 'mimeType, name',
-        });
-        const mimeType = metadataResponse.data.mimeType;
-
-        if (mimeType === 'application/vnd.google-apps.folder') {
-            const listResponse = await drive.files.list({
-                q: `'${fileId}' in parents and trashed = false`,
-                fields: 'files(name)',
-            });
-            const files = listResponse.data.files;
-            if (!files || files.length === 0) {
-                return { success: true, data: { files: [], type: 'folder' } };
-            }
-            return { success: true, data: { files: files.map(f => ({ name: f.name! })), type: 'folder' } };
-        } else {
-            return { success: true, data: { files: [{ name: metadataResponse.data.name! }], type: 'file' } };
-        }
-    } catch (error: any) {
-        console.error("Error fetching file list from Drive:", error);
-        const apiError = error.errors?.[0]?.message || 'An unknown error occurred while fetching file list.';
-        return { success: false, error: `Failed to fetch from Drive: ${apiError}` };
-    }
-}
-
-
     
 
     
@@ -1480,5 +1298,6 @@ export async function getKnowledgeBaseFiles(knowledgeBaseUrl: string) {
     
 
       
+
 
 

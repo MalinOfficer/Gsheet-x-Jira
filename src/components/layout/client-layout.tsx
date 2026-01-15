@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Settings, GanttChartSquare, LayoutDashboard, ListTree, BarChart, BookOpen, Database, GitBranch, Files, Combine, PackageSearch, CodeXml, RefreshCw } from "lucide-react";
+import { Menu, Settings, GanttChartSquare, LayoutDashboard, ListTree, BarChart, BookOpen, Database, GitBranch, Files, Combine, PackageSearch, CodeXml, RefreshCw, HardHat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useContext, useEffect, useState } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
@@ -21,7 +21,7 @@ const navItems = {
     ],
     reports: [
         { href: "/report-harian", label: "Daily Report", icon: BarChart },
-        { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
+        { href: "/knowledge-base", label: "Knowledge Base", icon: HardHat, disabled: true },
     ],
     tools: [
         { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
@@ -70,7 +70,8 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                                         "text-sm font-medium",
                                         pathname === item.href 
                                             ? "bg-blue-100 dark:bg-blue-900/20 text-primary font-semibold" 
-                                            : "hover:bg-muted/50 hover:text-foreground"
+                                            : "hover:bg-muted/50 hover:text-foreground",
+                                        item.disabled && "pointer-events-none opacity-50"
                                     )}
                                 >
                                     <item.icon className="h-5 w-5" strokeWidth={1.5} />

@@ -27,8 +27,6 @@ interface SettingsContextType {
     setSheetUrl: (url: string) => void;
     dbSheetUrl: string;
     setDbSheetUrl: (url: string) => void;
-    knowledgeBaseUrl: string;
-    setKnowledgeBaseUrl: (url: string) => void;
     
     verifiedUrl: string;
     setVerifiedUrl: (url: string) => void;
@@ -39,11 +37,6 @@ interface SettingsContextType {
     setVerifiedDbUrl: (url: string) => void;
     dbSpreadsheetTitle: string | null;
     setDbSpreadsheetTitle: (title: string | null) => void;
-    
-    verifiedKbUrl: string;
-    setVerifiedKbUrl: (url: string) => void;
-    kbSpreadsheetTitle: string | null;
-    setKbSpreadsheetTitle: (title: string | null) => void;
 }
 
 export const SettingsContext = createContext<SettingsContextType>({
@@ -59,8 +52,6 @@ export const SettingsContext = createContext<SettingsContextType>({
     setSheetUrl: () => {},
     dbSheetUrl: '',
     setDbSheetUrl: () => {},
-    knowledgeBaseUrl: '',
-    setKnowledgeBaseUrl: () => {},
     verifiedUrl: '',
     setVerifiedUrl: () => {},
     spreadsheetTitle: null,
@@ -69,22 +60,15 @@ export const SettingsContext = createContext<SettingsContextType>({
     setVerifiedDbUrl: () => {},
     dbSpreadsheetTitle: null,
     setDbSpreadsheetTitle: () => {},
-    verifiedKbUrl: '',
-    setVerifiedKbUrl: () => {},
-    kbSpreadsheetTitle: null,
-    setKbSpreadsheetTitle: () => {},
 });
 
 const LOCAL_STORAGE_KEY_CODE_VIEWER = 'isCodeViewerEnabled';
 const LOCAL_STORAGE_KEY_SECONDARY_TOOLS = 'areSecondaryToolsEnabled';
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 const LOCAL_STORAGE_KEY_DB_SHEET_URL = 'gsheetDashboardDbSheetUrl';
-const LOCAL_STORAGE_KEY_KB_URL = 'gsheetKnowledgeBaseUrl'; // Changed key to be more generic
 const LOCAL_STORAGE_KEY_MAIN_TITLE = 'gsheetMainSheetTitle';
 const LOCAL_STORAGE_KEY_DB_TITLE = 'gsheetDbSheetTitle';
-const LOCAL_STORAGE_KEY_KB_TITLE = 'gsheetKbSheetTitle';
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1S9oSokUh8SyWlNObCLdwpn2r2iXA8Gy73OnxsZa728E/edit?gid=0#gid=0';
-const DEFAULT_KB_URL = 'https://docs.google.com/document/d/1q2w3e4r5t6y7u8i9o0p/edit'; // Example URL
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [tableData, setTableData] = useState<TableData | null>(null);
@@ -101,9 +85,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [verifiedDbUrl, setVerifiedDbUrlState] = useState('');
     const [dbSpreadsheetTitle, setDbSpreadsheetTitleState] = useState<string | null>(null);
 
-    const [knowledgeBaseUrl, setKnowledgeBaseUrlState] = useState('');
-    const [verifiedKbUrl, setVerifiedKbUrlState] = useState('');
-    const [kbSpreadsheetTitle, setKbSpreadsheetTitleState] = useState<string | null>(null);
 
     useEffect(() => {
         try {
@@ -115,11 +96,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             
             const savedSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
             const savedDbSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_DB_SHEET_URL);
-            const savedKbUrl = localStorage.getItem(LOCAL_STORAGE_KEY_KB_URL);
 
             const initialSheetUrl = savedSheetUrl === null ? DEFAULT_SHEET_URL : savedSheetUrl;
             const initialDbSheetUrl = savedDbSheetUrl === null ? DEFAULT_SHEET_URL : savedDbSheetUrl;
-            const initialKbUrl = savedKbUrl === null ? DEFAULT_KB_URL : savedKbUrl;
 
             setSheetUrlState(initialSheetUrl);
             setVerifiedUrl(initialSheetUrl);
@@ -127,17 +106,12 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             setDbSheetUrlState(initialDbSheetUrl);
             setVerifiedDbUrl(initialDbSheetUrl);
             
-            setKnowledgeBaseUrlState(initialKbUrl);
-            setVerifiedKbUrl(initialKbUrl);
 
             const savedMainTitle = localStorage.getItem(LOCAL_STORAGE_KEY_MAIN_TITLE);
             if(savedMainTitle) setSpreadsheetTitleState(savedMainTitle);
 
             const savedDbTitle = localStorage.getItem(LOCAL_STORAGE_KEY_DB_TITLE);
             if(savedDbTitle) setDbSpreadsheetTitleState(savedDbTitle);
-
-            const savedKbTitle = localStorage.getItem(LOCAL_STORAGE_KEY_KB_TITLE);
-            if(savedKbTitle) setKbSpreadsheetTitleState(savedKbTitle);
 
         } catch (error) {
             console.error("Failed to parse settings from localStorage", error);
@@ -171,10 +145,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setDbSheetUrlState(url);
     }, []);
     
-    const setKnowledgeBaseUrl = useCallback((url: string) => {
-        localStorage.setItem(LOCAL_STORAGE_KEY_KB_URL, url);
-        setKnowledgeBaseUrlState(url);
-    }, []);
 
     const setVerifiedUrl = useCallback((url: string) => {
         setVerifiedUrlState(url);
@@ -184,9 +154,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setVerifiedDbUrlState(url);
     }, []);
 
-    const setVerifiedKbUrl = useCallback((url: string) => {
-        setVerifiedKbUrlState(url);
-    }, []);
     
     const setSpreadsheetTitle = useCallback((title: string | null) => {
         if(title) {
@@ -206,16 +173,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setDbSpreadsheetTitleState(title);
     }, []);
 
-    const setKbSpreadsheetTitle = useCallback((title: string | null) => {
-        if(title) {
-            localStorage.setItem(LOCAL_STORAGE_KEY_KB_TITLE, title);
-        } else {
-            localStorage.removeItem(LOCAL_STORAGE_KEY_KB_TITLE);
-        }
-        setKbSpreadsheetTitleState(title);
-    }, []);
-
-
     const toggleCodeViewer = createToggle(setIsCodeViewerEnabled, LOCAL_STORAGE_KEY_CODE_VIEWER);
     const toggleSecondaryTools = createToggle(setAreSecondaryToolsEnabled, LOCAL_STORAGE_KEY_SECONDARY_TOOLS);
 
@@ -233,8 +190,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             setSheetUrl,
             dbSheetUrl,
             setDbSheetUrl,
-            knowledgeBaseUrl,
-            setKnowledgeBaseUrl,
             verifiedUrl,
             setVerifiedUrl,
             spreadsheetTitle,
@@ -243,14 +198,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             setVerifiedDbUrl,
             dbSpreadsheetTitle,
             setDbSpreadsheetTitle,
-            verifiedKbUrl,
-            setVerifiedKbUrl,
-            kbSpreadsheetTitle,
-            setKbSpreadsheetTitle,
         }}>
             {children}
         </SettingsContext.Provider>
     );
 };
-
-    
