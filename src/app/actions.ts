@@ -1291,6 +1291,54 @@ type KnowledgeBaseInput = {
     context: string;
 };
 
+const fetchRawContentFromSingleFile = async (drive: any, fileId: string): Promise<string> => {
+    // Step 1: Get file metadata to determine the MIME type
+    const metadataResponse = await drive.files.get({
+        fileId: fileId,
+        fields: 'mimeType, name',
+    });
+    const mimeType = metadataResponse.data.mimeType;
+    const fileName = metadataResponse.data.name;
+
+    let content: string;
+
+    // Step 2: Choose download/export method based on MIME type
+    if (mimeType === 'application/vnd.google-apps.document') {
+        const exportResponse = await drive.files.export({
+            fileId: fileId,
+            mimeType: 'text/plain',
+        }, { responseType: 'stream' });
+        
+        content = await new Promise((resolve, reject) => {
+            let text = '';
+            (exportResponse.data as any)
+                .on('data', (chunk: Buffer) => (text += chunk.toString()))
+                .on('end', () => resolve(text))
+                .on('error', (err: Error) => reject(new Error(`Failed to read exported stream for ${fileName}: ${err.message}`)));
+        });
+    } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        const downloadResponse = await drive.files.get({ fileId: fileId, alt: 'media' }, { responseType: 'arraybuffer' });
+        const arrayBuffer = downloadResponse.data as ArrayBuffer;
+        const buffer = Buffer.from(arrayBuffer);
+        const mammothResult = await mammoth.extractRawText({ buffer });
+        content = mammothResult.value;
+    } else if (mimeType && (mimeType.startsWith('text/') || mimeType === 'application/pdf')) {
+        const downloadResponse = await drive.files.get({ fileId: fileId, alt: 'media' }, { responseType: 'stream' });
+        content = await new Promise((resolve, reject) => {
+            let text = '';
+            (downloadResponse.data as any)
+                .on('data', (chunk: Buffer) => (text += chunk.toString()))
+                .on('end', () => resolve(text))
+                .on('error', (err: Error) => reject(new Error(`Failed to read downloaded stream for ${fileName}: ${err.message}`)));
+        });
+    } else {
+        console.warn(`Skipping unsupported file type: ${mimeType} for file: ${fileName}`);
+        return `Content of ${fileName} is not readable (unsupported type: ${mimeType}).`;
+    }
+    return `--- START OF FILE: ${fileName} ---\n\n${content}\n\n--- END OF FILE: ${fileName} ---\n\n`;
+}
+
+
 const fetchRawKnowledgeData = unstable_cache(
     async (knowledgeBaseUrl: string): Promise<string> => {
         const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|drive\/folders\/)([a-zA-Z0-9-_]+)/;
@@ -1299,64 +1347,49 @@ const fetchRawKnowledgeData = unstable_cache(
             throw new Error("Invalid Google Drive URL format for Knowledge Base.");
         }
         const fileId = match[1];
-
         const { drive } = getGoogleApiClients();
 
         try {
-            // Step 1: Get file metadata to determine the MIME type
             const metadataResponse = await drive.files.get({
                 fileId: fileId,
                 fields: 'mimeType, name',
             });
             const mimeType = metadataResponse.data.mimeType;
 
-            let content: string;
+            if (mimeType === 'application/vnd.google-apps.folder') {
+                // It's a folder, so list files and read them all
+                const listResponse = await drive.files.list({
+                    q: `'${fileId}' in parents and trashed = false`,
+                    fields: 'files(id, name, mimeType)',
+                });
 
-            // Step 2: Choose download/export method based on MIME type
-            if (mimeType === 'application/vnd.google-apps.document') {
-                // It's a Google Doc, so we export it as plain text
-                const exportResponse = await drive.files.export({
-                    fileId: fileId,
-                    mimeType: 'text/plain',
-                }, { responseType: 'stream' });
+                const files = listResponse.data.files;
+                if (!files || files.length === 0) {
+                    return "The specified folder is empty.";
+                }
+
+                const contentPromises = files.map(file => 
+                    fetchRawContentFromSingleFile(drive, file.id!)
+                      .catch(e => `Error reading file ${file.name}: ${e.message}`)
+                );
                 
-                content = await new Promise((resolve, reject) => {
-                    let text = '';
-                    (exportResponse.data as any)
-                        .on('data', (chunk: Buffer) => (text += chunk.toString()))
-                        .on('end', () => resolve(text))
-                        .on('error', (err: Error) => reject(new Error(`Failed to read exported stream: ${err.message}`)));
-                });
-            } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                 // It's a .docx file, download and parse with mammoth
-                const downloadResponse = await drive.files.get({ fileId: fileId, alt: 'media' }, { responseType: 'arraybuffer' });
-                const arrayBuffer = downloadResponse.data as ArrayBuffer;
-                const buffer = Buffer.from(arrayBuffer);
-                const mammothResult = await mammoth.extractRawText({ buffer });
-                content = mammothResult.value;
-            } else {
-                // For other file types (PDF, plain text), download directly
-                const downloadResponse = await drive.files.get({ fileId: fileId, alt: 'media' }, { responseType: 'stream' });
+                const allContents = await Promise.all(contentPromises);
+                return allContents.join('\n');
 
-                content = await new Promise((resolve, reject) => {
-                    let text = '';
-                    (downloadResponse.data as any)
-                        .on('data', (chunk: Buffer) => (text += chunk.toString()))
-                        .on('end', () => resolve(text))
-                        .on('error', (err: Error) => reject(new Error(`Failed to read downloaded stream: ${err.message}`)));
-                });
+            } else {
+                // It's a single file
+                return await fetchRawContentFromSingleFile(drive, fileId);
             }
-            return content;
 
         } catch (error: any) {
             console.error("Error fetching from Drive:", error);
             if (error.errors && error.errors[0]) {
                 if (error.errors[0].reason === 'fileNotDownloadable') {
-                    throw new Error("This file is a Google Doc and cannot be downloaded directly. It must be exported. The system failed to auto-detect this. Please check file permissions.");
+                    throw new Error("This file is a Google Doc and cannot be downloaded directly. The system failed to auto-detect this. Please check file permissions.");
                 }
-                throw new Error(`Failed to fetch file from Google Drive: ${error.errors[0].message}`);
+                throw new Error(`Failed to fetch from Google Drive: ${error.errors[0].message}`);
             }
-            throw new Error(`Failed to fetch file from Google Drive. ${error.message}`);
+            throw new Error(`Failed to fetch from Google Drive. ${error.message}`);
         }
     },
     ['knowledge-base-data'],
@@ -1368,7 +1401,7 @@ export async function runKnowledgeBaseEngine(
     knowledgeBaseUrl: string,
     query: string
 ) {
-    if (!knowledgeBaseUrl || knowledgeBaseUrl === DEFAULT_SHEET_URL) {
+    if (!knowledgeBaseUrl) {
         return { success: false, error: "Knowledge Base URL is not configured. Please set a valid Google Drive file URL in Settings." };
     }
     try {
@@ -1409,3 +1442,4 @@ export async function runKnowledgeBaseEngine(
     
 
       
+
