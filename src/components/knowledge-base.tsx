@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useTransition, useCallback, useContext } from 'react';
@@ -10,45 +9,18 @@ import { runKnowledgeBaseEngine } from '@/app/actions';
 import { SettingsContext } from '@/contexts/settings-provider';
 
 const KnowledgeDashboard = () => {
+  const { knowledgeBaseUrl } = useContext(SettingsContext);
+  const { toast } = useToast();
+
   const [documents, setDocuments] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredDocs, setFilteredDocs] = useState<any[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false);
   const [filterType, setFilterType] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [showAllDocs, setShowAllDocs] = useState(false);
   const [aiResponse, setAiResponse] = useState<string | null>(null);
+
   const [isSearching, startSearch] = useTransition();
-
-  const { toast } = useToast();
-  const { knowledgeBaseUrl } = useContext(SettingsContext);
-
-  const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Query is empty",
-        description: "Please enter a question to search.",
-      });
-      return;
-    }
-
-    startSearch(async () => {
-      setAiResponse(null);
-      const result = await runKnowledgeBaseEngine(knowledgeBaseUrl, searchQuery);
-      if (result.success && result.data) {
-        setAiResponse(result.data.answer);
-      } else {
-        setAiResponse(`Error: ${result.error}`);
-        toast({
-          variant: "destructive",
-          title: "AI Engine Error",
-          description: result.error,
-        });
-      }
-    });
-  }, [searchQuery, knowledgeBaseUrl, toast]);
 
   // Demo data
   const demoDocuments = [
@@ -122,37 +94,60 @@ const KnowledgeDashboard = () => {
 
   useEffect(() => {
     setDocuments(demoDocuments);
-    setFilteredDocs(demoDocuments);
   }, []);
 
+  const handleSearch = () => {
+    if (!searchQuery.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Query is empty",
+        description: "Please enter a question to search.",
+      });
+      return;
+    }
+
+    startSearch(async () => {
+      setAiResponse(null);
+      const result = await runKnowledgeBaseEngine(knowledgeBaseUrl, searchQuery);
+      if (result.success && result.data) {
+        setAiResponse(result.data.answer);
+      } else {
+        setAiResponse(`Error: ${result.error}`);
+        toast({
+          variant: "destructive",
+          title: "AI Engine Error",
+          description: result.error,
+        });
+      }
+    });
+  };
+
+  const calculateRelevance = (doc: any, query: any) => {
+    let score = 0;
+    if (doc.name.toLowerCase().includes(query)) score += 10;
+    if (doc.tags.some((tag: string) => tag.toLowerCase().includes(query))) score += 5;
+    if (doc.content.toLowerCase().includes(query)) score += 3;
+    return score;
+  };
+
   useEffect(() => {
-    if (!searchQuery.trim() && !showAllDocs) {
+    const query = searchQuery.toLowerCase().trim();
+
+    if (!query) {
       setFilteredDocs([]);
       return;
     }
 
-    if (!searchQuery.trim() && showAllDocs) {
-      const filtered = documents.filter(doc => {
-        const matchesType = filterType === 'all' || doc.type === filterType;
-        const matchesCategory = selectedCategory === 'all' || doc.category === selectedCategory;
-        return matchesType && matchesCategory;
-      });
-      setFilteredDocs(filtered);
-      return;
-    }
-
-    const query = searchQuery.toLowerCase();
     const filtered = documents.filter(doc => {
+      const matchesCategory = selectedCategory === 'all' || doc.category === selectedCategory;
+      const matchesType = filterType === 'all' || doc.type === filterType;
+      
       const matchesSearch = 
         doc.name.toLowerCase().includes(query) ||
         doc.content.toLowerCase().includes(query) ||
-        doc.tags.some((tag: string) => tag.toLowerCase().includes(query)) ||
-        doc.category.toLowerCase().includes(query);
+        doc.tags.some((tag: string) => tag.toLowerCase().includes(query));
 
-      const matchesType = filterType === 'all' || doc.type === filterType;
-      const matchesCategory = selectedCategory === 'all' || doc.category === selectedCategory;
-
-      return matchesSearch && matchesType && matchesCategory;
+      return matchesSearch && matchesCategory && matchesType;
     });
 
     const sorted = filtered.sort((a, b) => {
@@ -162,15 +157,7 @@ const KnowledgeDashboard = () => {
     });
 
     setFilteredDocs(sorted);
-  }, [searchQuery, filterType, selectedCategory, documents, showAllDocs]);
-
-  const calculateRelevance = (doc: any, query: any) => {
-    let score = 0;
-    if (doc.name.toLowerCase().includes(query)) score += 10;
-    if (doc.tags.some((tag: string) => tag.toLowerCase().includes(query))) score += 5;
-    if (doc.content.toLowerCase().includes(query)) score += 3;
-    return score;
-  };
+  }, [searchQuery, filterType, selectedCategory, documents]);
 
   const handleDocumentClick = (doc: any) => {
     setSelectedDoc(doc);
@@ -273,7 +260,7 @@ const KnowledgeDashboard = () => {
                   </div>
                 )}
 
-                {searchQuery || showAllDocs ? (
+                {searchQuery ? (
                   // Search Results
                   <div className="grid grid-cols-12 gap-6">
                     {/* Filters Sidebar */}
@@ -327,26 +314,23 @@ const KnowledgeDashboard = () => {
                       <div className="flex items-center justify-between mb-4">
                         <div>
                           <h2 className="text-lg font-semibold text-gray-900">
-                            {showAllDocs && !searchQuery ? 'All Documents' : 'Search Results'}
+                            Search Results
                           </h2>
                           <p className="text-sm text-gray-500">
                             {filteredDocs.length} document{filteredDocs.length !== 1 ? 's' : ''} found
                           </p>
                         </div>
-                        {(showAllDocs || searchQuery) && (
-                          <button
-                            onClick={() => {
-                              setShowAllDocs(false);
-                              setSearchQuery('');
-                              setFilterType('all');
-                              setSelectedCategory('all');
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg transition-all"
-                          >
-                            <X className="w-4 h-4" />
-                            Clear
-                          </button>
-                        )}
+                        <button
+                          onClick={() => {
+                            setSearchQuery('');
+                            setFilterType('all');
+                            setSelectedCategory('all');
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg transition-all"
+                        >
+                          <X className="w-4 h-4" />
+                          Clear
+                        </button>
                       </div>
 
                       {isSearching ? (
@@ -460,27 +444,6 @@ const KnowledgeDashboard = () => {
                         </div>
                       </div>
 
-                      {/* All Documents Button */}
-                      <div className="mt-8">
-                        <button
-                          onClick={() => setShowAllDocs(true)}
-                          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all"
-                        >
-                          <Folder className="w-5 h-5" />
-                          Browse All Documents ({documents.length})
-                        </button>
-                      </div>
-
-                      {/* Recent Updates */}
-                      <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                        <div className="flex items-center justify-center gap-2 mb-2">
-                          <span className="text-lg">✨</span>
-                          <p className="text-sm font-semibold text-amber-900">Recently Updated</p>
-                        </div>
-                        <p className="text-xs text-amber-800">
-                          {documents.length} documents synced from Google Drive • Last sync: Today at 10:30 AM
-                        </p>
-                      </div>
                     </div>
                   </div>
                 )}
@@ -603,6 +566,7 @@ const KnowledgeDashboard = () => {
             )}
           </div>
         </div>
-    </div>
+      </div>
   );
 };
+export default KnowledgeDashboard;
