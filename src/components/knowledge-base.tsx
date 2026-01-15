@@ -4,10 +4,15 @@ import React, { useState, useEffect, useTransition, useCallback, useContext } fr
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useToast } from "@/hooks/use-toast";
-import { Search, FileText, RefreshCw, Folder, BookOpen } from 'lucide-react';
-import { runKnowledgeBaseEngine } from '@/app/actions';
+import { Search, FileText, RefreshCw, Folder, BookOpen, AlertTriangle } from 'lucide-react';
+import { runKnowledgeBaseEngine, getKnowledgeBaseFiles } from '@/app/actions';
 import { SettingsContext } from '@/contexts/settings-provider';
 import { Button } from './ui/button';
+import { Skeleton } from './ui/skeleton';
+
+type FileInfo = {
+  name: string;
+};
 
 const KnowledgeDashboard = () => {
   const { knowledgeBaseUrl, kbSpreadsheetTitle } = useContext(SettingsContext);
@@ -16,6 +21,26 @@ const KnowledgeDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [isSearching, startSearch] = useTransition();
+
+  const [fileList, setFileList] = useState<FileInfo[] | null>(null);
+  const [fileListError, setFileListError] = useState<string | null>(null);
+  const [isLoadingFiles, startLoadingFiles] = useTransition();
+
+  useEffect(() => {
+    if (knowledgeBaseUrl) {
+      startLoadingFiles(async () => {
+        setFileList(null);
+        setFileListError(null);
+        const result = await getKnowledgeBaseFiles(knowledgeBaseUrl);
+        if (result.success) {
+          setFileList(result.data.files);
+        } else {
+          setFileListError(result.error || 'Failed to fetch file list.');
+        }
+      });
+    }
+  }, [knowledgeBaseUrl]);
+
 
   const handleSearch = useCallback(() => {
     if (!searchQuery.trim()) {
@@ -42,6 +67,46 @@ const KnowledgeDashboard = () => {
       }
     });
   }, [searchQuery, knowledgeBaseUrl, toast]);
+
+
+  const renderFilePreview = () => {
+      if (isLoadingFiles) {
+          return (
+               <div className="space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-2/3" />
+               </div>
+          )
+      }
+
+      if (fileListError) {
+          return (
+              <div className="flex items-center gap-3 text-destructive">
+                  <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                  <div className="text-sm">
+                      <p className="font-semibold">Could not load files</p>
+                      <p className="text-xs">{fileListError}</p>
+                  </div>
+              </div>
+          )
+      }
+
+      if (!fileList || fileList.length === 0) {
+          return <p className="text-muted-foreground text-sm italic">No files found in the source.</p>
+      }
+
+      return (
+          <ul className="space-y-2">
+              {fileList.map((file, index) => (
+                  <li key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <FileText className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{file.name}</span>
+                  </li>
+              ))}
+          </ul>
+      )
+  }
 
 
   return (
@@ -108,14 +173,22 @@ const KnowledgeDashboard = () => {
                         Enter a question above to get insights from your knowledge base.
                       </p>
                       
-                       <div className="border-t pt-4">
-                        <p className="text-xs text-muted-foreground mb-2">CURRENT DATA SOURCE</p>
-                        <div className="flex items-center justify-center gap-2 p-3 bg-muted rounded-md text-sm">
-                            <Folder className="h-4 w-4 text-primary" />
-                            <span className="font-semibold text-foreground truncate">{kbSpreadsheetTitle || 'Not Configured'}</span>
-                            <Button variant="link" size="sm" className="h-auto p-0 text-xs as-child">
-                               <Link href="/settings">Change</Link>
-                            </Button>
+                       <div className="border-t pt-4 text-left">
+                        <div className='flex justify-between items-center mb-2'>
+                           <p className="text-xs font-semibold text-muted-foreground">CURRENT DATA SOURCE</p>
+                           <Button variant="link" size="sm" className="h-auto p-0 text-xs as-child">
+                              <Link href="/settings">Change</Link>
+                           </Button>
+                        </div>
+                        <div className="p-4 bg-muted rounded-md space-y-3">
+                           <div className="flex items-center gap-2 text-sm font-semibold">
+                              <Folder className="h-5 w-5 text-primary flex-shrink-0" />
+                              <span className="text-foreground truncate">{kbSpreadsheetTitle || 'Not Configured'}</span>
+                           </div>
+                           <div className="border-t border-border/50 my-2"></div>
+                           <div className="max-h-32 overflow-y-auto pr-2">
+                               {renderFilePreview()}
+                           </div>
                         </div>
                       </div>
                     </div>

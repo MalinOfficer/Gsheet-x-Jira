@@ -1423,6 +1423,44 @@ export async function runKnowledgeBaseEngine(
     }
 }
     
+export async function getKnowledgeBaseFiles(knowledgeBaseUrl: string) {
+    if (!knowledgeBaseUrl) {
+        return { success: false, error: "Knowledge Base URL is not configured." };
+    }
+    const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|drive\/folders\/)([a-zA-Z0-9-_]+)/;
+    const match = knowledgeBaseUrl.match(idRegex);
+    if (!match || !match[1]) {
+        return { success: false, error: "Invalid Google Drive URL format." };
+    }
+    const fileId = match[1];
+
+    try {
+        const { drive } = getGoogleApiClients();
+        const metadataResponse = await drive.files.get({
+            fileId: fileId,
+            fields: 'mimeType, name',
+        });
+        const mimeType = metadataResponse.data.mimeType;
+
+        if (mimeType === 'application/vnd.google-apps.folder') {
+            const listResponse = await drive.files.list({
+                q: `'${fileId}' in parents and trashed = false`,
+                fields: 'files(name)',
+            });
+            const files = listResponse.data.files;
+            if (!files || files.length === 0) {
+                return { success: true, data: { files: [], type: 'folder' } };
+            }
+            return { success: true, data: { files: files.map(f => ({ name: f.name! })), type: 'folder' } };
+        } else {
+            return { success: true, data: { files: [{ name: metadataResponse.data.name! }], type: 'file' } };
+        }
+    } catch (error: any) {
+        console.error("Error fetching file list from Drive:", error);
+        const apiError = error.errors?.[0]?.message || 'An unknown error occurred while fetching file list.';
+        return { success: false, error: `Failed to fetch from Drive: ${apiError}` };
+    }
+}
 
 
     
@@ -1442,4 +1480,5 @@ export async function runKnowledgeBaseEngine(
     
 
       
+
 
