@@ -613,5 +613,3 @@ const KnowledgeDashboard = () => {
       </div>
   );
 };
-
-export default KnowledgeDashboard;

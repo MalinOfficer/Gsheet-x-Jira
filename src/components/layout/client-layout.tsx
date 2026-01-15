@@ -128,11 +128,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         setIsProcessing(false);
     }, [pathname, setIsProcessing]);
-    
-    // Hide default layout for the new knowledge base page
-    if (pathname === '/knowledge-base') {
-        return <>{children}</>;
-    }
 
     if (!isClient) {
         return (
