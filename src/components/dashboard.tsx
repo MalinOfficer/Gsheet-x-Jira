@@ -375,93 +375,50 @@ export function Dashboard() {
     const { allClients, allModules } = dashboardStats;
 
     return (
-        <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8">
+        <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto space-y-4">
                  <div className="flex justify-between items-center">
                     <div>
                         <h1 className="text-2xl font-bold">Dashboard</h1>
                         <p className="text-muted-foreground">Sales performance overview</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                         <Popover>
-                            <PopoverTrigger asChild>
-                                <Button size="sm" variant="outline">
-                                    <Filter className="mr-2 h-4 w-4" />
-                                    Filter
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-80 space-y-4">
-                                <div className="space-y-2">
-                                    <h4 className="font-medium leading-none">Filter by Category</h4>
-                                    <MultiSelect
-                                        options={filterOptions.categories}
-                                        selected={categoryFilter}
-                                        onChange={setCategoryFilter}
-                                        placeholder="Select categories..."
-                                    />
-                                </div>
-                                 <div className="space-y-2">
-                                    <h4 className="font-medium leading-none">Filter by Client</h4>
-                                    <MultiSelect
-                                        options={filterOptions.clients}
-                                        selected={clientFilter}
-                                        onChange={setClientFilter}
-                                        placeholder="Select clients..."
-                                    />
-                                </div>
-                                 <div className="space-y-2">
-                                    <h4 className="font-medium leading-none">Filter by Module</h4>
-                                    <MultiSelect
-                                        options={filterOptions.modules}
-                                        selected={moduleFilter}
-                                        onChange={setModuleFilter}
-                                        placeholder="Select modules..."
-                                    />
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-                        <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" variant="outline">
-                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                            Refresh Data
-                        </Button>
-                    </div>
                 </div>
 
                 {/* Header Cards */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
                       <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
                       <BarChartIcon className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-6 pt-2">
                       <div className="text-2xl font-bold">{dashboardStats.totalCases}</div>
                     </CardContent>
                   </Card>
                    <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
                       <CardTitle className="text-sm font-medium">Trending Category</CardTitle>
                       <FolderKanban className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-6 pt-2">
                       <div className="text-2xl font-bold truncate">{dashboardStats.moduleTrend}</div>
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
                       <CardTitle className="text-sm font-medium">Status Solved</CardTitle>
                       <CheckCircle className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-6 pt-2">
                       <div className="text-2xl font-bold">{dashboardStats.totalSolved}</div>
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
                       <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
                       <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-6 pt-2">
                       <div className="text-2xl font-bold">{dashboardStats.totalClients}</div>
                     </CardContent>
                   </Card>
@@ -474,17 +431,60 @@ export function Dashboard() {
                             <CardTitle>Total Case of This Year</CardTitle>
                             <CardDescription>Comparison of total cases over the last three years.</CardDescription>
                         </div>
-                        <Select value={selectedYear} onValueChange={(value) => setSelectedYear(value)}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Select a year" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Years</SelectItem>
-                                {filterOptions.years.map(year => (
-                                    <SelectItem key={year} value={year}>{year}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button size="sm" variant="outline">
+                                        <Filter className="mr-2 h-4 w-4" />
+                                        Filter
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 space-y-4">
+                                    <div className="space-y-2">
+                                        <h4 className="font-medium leading-none">Filter by Category</h4>
+                                        <MultiSelect
+                                            options={filterOptions.categories}
+                                            selected={categoryFilter}
+                                            onChange={setCategoryFilter}
+                                            placeholder="Select categories..."
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h4 className="font-medium leading-none">Filter by Client</h4>
+                                        <MultiSelect
+                                            options={filterOptions.clients}
+                                            selected={clientFilter}
+                                            onChange={setClientFilter}
+                                            placeholder="Select clients..."
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h4 className="font-medium leading-none">Filter by Module</h4>
+                                        <MultiSelect
+                                            options={filterOptions.modules}
+                                            selected={moduleFilter}
+                                            onChange={setModuleFilter}
+                                            placeholder="Select modules..."
+                                        />
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                            <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" variant="outline">
+                                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                Refresh Data
+                            </Button>
+                            <Select value={selectedYear} onValueChange={(value) => setSelectedYear(value)}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Select a year" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Years</SelectItem>
+                                    {filterOptions.years.map(year => (
+                                        <SelectItem key={year} value={year}>{year}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={chartConfig} className="h-[250px] w-full">
