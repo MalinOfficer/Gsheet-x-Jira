@@ -519,12 +519,16 @@ export function MigrasiMurid() {
                     }
                     sourceData.push(rowData);
                 }
+                
+                const sourceHeight = selEndRow - selStartRow + 1;
+                const sourceWidth = selEndCol - selStartCol + 1;
 
                 for (let r = fillStartRow; r <= fillEndRow; r++) {
                     for (let c = fillStartCol; c <= fillEndCol; c++) {
                         if (r < selStartRow || r > selEndRow || c < selStartCol || c > selEndCol) { // Don't overwrite source
-                            const sourceRow = sourceData[(r - fillStartRow) % sourceData.length];
-                            const sourceValue = sourceRow[(c - fillStartCol) % sourceRow.length];
+                            const sourceRowIndex = (r - selStartRow + sourceHeight) % sourceHeight;
+                            const sourceColIndex = (c - selStartCol + sourceWidth) % sourceWidth;
+                            const sourceValue = sourceData[sourceRowIndex][sourceColIndex];
                             newRows[r] = { ...newRows[r], [tableHeaders[c]]: sourceValue };
                         }
                     }
@@ -828,13 +832,18 @@ export function MigrasiMurid() {
             </header>
 
             {/* Table Area */}
-            <main className="flex-grow relative overflow-auto" ref={tableContainerRef}>
+            <main 
+                className="flex-grow relative overflow-auto" 
+                ref={tableContainerRef}
+                onMouseUp={handleMouseUp}
+            >
                  <div 
                     style={{ 
                         width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
                         height: `${totalHeight + 36}px`,
                         position: 'relative',
                     }}
+                    onMouseLeave={handleMouseUp}
                 >
                     <header className="sticky top-0 z-30 flex bg-secondary" style={{height: '36px'}}>
                         {tableHeaders.map((header) => (
@@ -885,8 +894,6 @@ export function MigrasiMurid() {
                                         height: `${virtualRow.size}px`,
                                         transform: `translateY(${virtualRow.start}px)`,
                                     }}
-                                    onMouseOver={(e: MouseEvent<HTMLDivElement>) => handleMouseOver(e as any, { row: virtualRow.index, col: 0 })}
-                                    onMouseUp={handleMouseUp}
                                 >
                                     {tableHeaders.map((header, colIndex) => {
                                         const isSelected = isCellSelected(virtualRow.index, colIndex);
@@ -915,6 +922,7 @@ export function MigrasiMurid() {
                                                     "p-0 m-0 border-r border-b relative flex items-center",
                                                     header === "No" && "sticky z-20 bg-background"
                                                 )}
+                                                onMouseOver={(e: MouseEvent<HTMLDivElement>) => handleMouseOver(e, { row: virtualRow.index, col: colIndex })}
                                             >
                                                 <Input
                                                     type="text"
