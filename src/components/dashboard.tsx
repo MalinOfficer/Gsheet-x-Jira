@@ -216,7 +216,7 @@ export function Dashboard() {
                 statusCounts: [],
                 solvedVsUnsolved: [],
                 totalClients: 0,
-                moduleTrend: 'N/A',
+                categoryTrend: 'N/A',
                 totalSolved: 0,
             };
         }
@@ -245,7 +245,9 @@ export function Dashboard() {
             .sort(([, a], [, b]) => b - a)
             .map(([name, value]) => ({ name, value }));
         
-        const moduleTrend = allModules.length > 0 ? allModules[0].name : 'N/A';
+        const categoryFrequency = createFrequencyMap(categoryHeader);
+        const sortedCategories = Object.entries(categoryFrequency).sort(([,a],[,b]) => b-a);
+        const categoryTrend = sortedCategories.length > 0 ? sortedCategories[0][0] : 'N/A';
 
         const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
         const statusFrequency: Record<string, number> = {};
@@ -303,10 +305,10 @@ export function Dashboard() {
             solvedVsUnsolved,
             monthlyData,
             totalClients,
-            moduleTrend,
+            categoryTrend,
             totalSolved
         };
-    }, [filteredData, clientHeader, moduleHeader, detailModuleHeader, dateHeader]);
+    }, [filteredData, clientHeader, moduleHeader, detailModuleHeader, dateHeader, categoryHeader]);
     
     if (state.loading) {
          return (
@@ -391,7 +393,7 @@ export function Dashboard() {
                       <FolderKanban className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="p-6 pt-2">
-                      <div className="text-2xl font-bold truncate">{dashboardStats.moduleTrend}</div>
+                      <div className="text-2xl font-bold truncate">{dashboardStats.categoryTrend}</div>
                     </CardContent>
                   </Card>
                   <Card>
