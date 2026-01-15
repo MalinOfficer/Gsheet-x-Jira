@@ -2,7 +2,7 @@
 
 "use client";
 
-import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX } from "lucide-react";
+import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, ArrowRightLeft, List, Wand2 } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -10,9 +10,9 @@ import {
     CardTitle,
     CardDescription
 } from "@/components/ui/card";
-import { useContext, useMemo, useState, useEffect, useTransition } from "react";
+import { useContext, useMemo, useState, useEffect, useTransition, useCallback, SVGProps } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
-import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend } from 'recharts';
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Bar, BarChart as RechartsBarChart } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getAllCaseData } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
@@ -49,6 +49,44 @@ interface DashboardState {
     error?: string;
     loading: boolean;
 }
+
+const CustomYAxisTick = (props: any) => {
+    const { x, y, payload } = props;
+    const value = payload.value;
+    const maxChars = 20; // Adjust as needed
+    if (value && value.length > maxChars) {
+        const words = value.split(' ');
+        let line = '';
+        const lines = [];
+        for(let i=0; i<words.length; i++) {
+            const testLine = line + words[i] + ' ';
+            if (testLine.length > maxChars) {
+                lines.push(line);
+                line = words[i] + ' ';
+            } else {
+                line = testLine;
+            }
+        }
+        lines.push(line.trim());
+        return (
+            <g transform={`translate(${x},${y})`}>
+                {lines.map((l, i) => (
+                     <text key={i} x={0} y={i * 12} textAnchor="end" fill="hsl(var(--muted-foreground))" style={{ fontSize: '12px' }}>
+                        {l}
+                    </text>
+                ))}
+            </g>
+        )
+    }
+    return (
+        <g transform={`translate(${x},${y})`}>
+            <text x={0} y={0} dy={4} textAnchor="end" fill="hsl(var(--muted-foreground))" style={{ fontSize: '12px' }}>
+                {value}
+            </text>
+        </g>
+    );
+};
+
 
 export function Dashboard() {
     const { dbSheetUrl } = useContext(SettingsContext);
@@ -450,12 +488,12 @@ export function Dashboard() {
                             <AreaChart data={dashboardStats.monthlyData} margin={{ left: -20, right: 20, top: 10, bottom: 10 }}>
                                 <defs>
                                     <linearGradient id="fill2026" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.1} />
+                                        <stop offset="5%" stopColor="hsl(221 83% 53%)" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="hsl(221 83% 53%)" stopOpacity={0.1} />
                                     </linearGradient>
                                     <linearGradient id="fill2025" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0.1} />
+                                        <stop offset="5%" stopColor="hsl(160 60% 45%)" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="hsl(160 60% 45%)" stopOpacity={0.1} />
                                     </linearGradient>
                                     <linearGradient id="fill2024" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.8} />
@@ -483,14 +521,14 @@ export function Dashboard() {
                                     dataKey="2026"
                                     type="monotone"
                                     fill="url(#fill2026)"
-                                    stroke="hsl(var(--chart-1))"
+                                    stroke="hsl(221 83% 53%)"
                                     strokeWidth={2}
                                 />
                                  <Area
                                     dataKey="2025"
                                     type="monotone"
                                     fill="url(#fill2025)"
-                                    stroke="hsl(var(--chart-2))"
+                                    stroke="hsl(160 60% 45%)"
                                     strokeWidth={2}
                                 />
                                  <Area
@@ -511,7 +549,7 @@ export function Dashboard() {
                             <CardTitle className="text-xl font-semibold">All Clients</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <ScrollArea className="h-64 pr-4">
+                            <ScrollArea className="h-48 pr-4">
                                 <div className="space-y-4">
                                   {allClients.map((item, index) => (
                                     <TooltipProvider key={index} delayDuration={0}>
@@ -545,7 +583,7 @@ export function Dashboard() {
                             <CardTitle className="text-xl font-semibold">All Modules</CardTitle>
                         </CardHeader>
                         <CardContent>
-                           <ScrollArea className="h-64 pr-4">
+                           <ScrollArea className="h-48 pr-4">
                                 <div className="space-y-4">
                                   {allModules.map((item, index) => (
                                     <TooltipProvider key={index} delayDuration={0}>
