@@ -77,9 +77,9 @@ const parseAndFormatDate = (dateStr: string): string | null => {
 
     const trimmedDate = dateStr.trim().toLowerCase().replace(/,/g, '/');
     
-    // Check if it's already in DD/MM/YYYY format
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmedDate)) {
-        const parts = trimmedDate.split('/');
+    // Check if it's already in DD/MM/YYYY or DD-MM-YYYY format
+    if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(trimmedDate)) {
+        const parts = trimmedDate.split(/[/-]/);
         if (parts.length === 3) {
             const day = parts[0].padStart(2, '0');
             const month = parts[1].padStart(2, '0');
