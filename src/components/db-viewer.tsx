@@ -205,22 +205,31 @@ export function DbViewer() {
     }, [fetchData]);
 
     useEffect(() => {
-        if (state.isSyncing) {
-            const timer = setInterval(() => {
-                setProgress(oldProgress => {
-                    if (oldProgress >= 95) {
-                        clearInterval(timer);
-                        return oldProgress;
-                    }
-                    return Math.min(oldProgress + 5, 95);
-                });
-            }, 200);
-
-            return () => {
-                clearInterval(timer);
-            };
+        let timer: NodeJS.Timeout | undefined;
+        if (state.loading && !state.data) {
+             setProgress(0);
+             // Start a smoother animation
+             timer = setInterval(() => {
+                 setProgress(oldProgress => {
+                     if (oldProgress >= 95) {
+                         clearInterval(timer);
+                         return oldProgress;
+                     }
+                     // Use a smaller increment for a smoother feel
+                     return Math.min(oldProgress + 2, 95);
+                 });
+             }, 80);
+        } else if (!state.loading) {
+            // When loading finishes, jump to 100%
+            setProgress(100);
         }
-    }, [state.isSyncing]);
+    
+        return () => {
+            if (timer) {
+                clearInterval(timer);
+            }
+        };
+    }, [state.loading, state.data]);
 
     const filteredData = useMemo(() => {
         if (!state.data) return [];
@@ -511,7 +520,7 @@ export function DbViewer() {
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                         {(state.isSyncing || state.loading) && !state.data && (
+                         {(state.loading && !state.data) && (
                              <div className="px-4 pb-2 space-y-1">
                                 <div className='flex items-center gap-2'>
                                     <Progress value={progress} className="w-full" />
@@ -595,5 +604,3 @@ export function DbViewer() {
         </div>
     );
 }
-
-    
