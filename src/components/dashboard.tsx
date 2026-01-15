@@ -1,7 +1,7 @@
 
 "use client";
 
-import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw, CheckCircle, Users, FolderKanban, Filter, Maximize } from "lucide-react";
+import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw, CheckCircle, Users, FolderKanban, Filter, Maximize, FilterX } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -542,7 +542,7 @@ export function Dashboard() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                     <Card>
                         <CardHeader>
-                            <h2 className="text-2xl font-bold text-card-foreground mb-1">All Clients</h2>
+                            <CardTitle className="text-xl font-bold">All Clients</CardTitle>
                         </CardHeader>
                          <CardContent>
                             <div style={{ height: '220px', overflowY: 'auto' }} className="rounded-lg bg-muted/30">
@@ -588,7 +588,7 @@ export function Dashboard() {
                     </Card>
                      <Card>
                         <CardHeader>
-                            <h2 className="text-2xl font-bold text-card-foreground mb-1">All Modules</h2>
+                            <CardTitle className="text-xl font-bold">All Modules</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div style={{ height: '220px', overflowY: 'auto' }} className="rounded-lg bg-muted/30">
@@ -637,3 +637,5 @@ export function Dashboard() {
         </div>
     );
 }
+
+    
