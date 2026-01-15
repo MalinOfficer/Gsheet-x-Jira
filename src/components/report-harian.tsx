@@ -567,16 +567,7 @@ export function ReportHarian({ error }: ReportHarianProps) {
   return (
     <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex">
-          <Button
-            onClick={() => router.push('/')}
-            variant="outline"
-            size="sm"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Import Data
-          </Button>
-        </div>
+        
 
         {hasData ? <DashboardChart /> : <InitialState />}
         
