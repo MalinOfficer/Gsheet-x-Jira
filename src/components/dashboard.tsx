@@ -554,8 +554,8 @@ export function Dashboard() {
                                     >
                                         <defs>
                                           <linearGradient id="clientsGradient" x1="0" y1="0" x2="1" y2="0">
-                                            <stop offset="0%" stopColor="hsl(142 71% 45%)" stopOpacity={0.9}/>
-                                            <stop offset="100%" stopColor="hsl(142 71% 45%)" stopOpacity={0.4}/>
+                                            <stop offset="0%" stopColor="hsl(160 60% 45%)" stopOpacity={0.9}/>
+                                            <stop offset="100%" stopColor="hsl(160 60% 45%)" stopOpacity={0.4}/>
                                           </linearGradient>
                                           <filter id="softGlowClients">
                                             <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
@@ -570,7 +570,7 @@ export function Dashboard() {
                                         <Tooltip
                                           contentStyle={{ 
                                             backgroundColor: 'hsl(var(--background))', 
-                                            borderColor: 'hsl(142 71% 45%)', 
+                                            borderColor: 'hsl(160 60% 45%)', 
                                             color: 'hsl(var(--foreground))',
                                             borderRadius: 'var(--radius)',
                                             fontWeight: '600',
