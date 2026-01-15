@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import { AlertTriangle, BarChart as BarChartIcon, User, AppWindow, TrendingUp, RefreshCw, CheckCircle, Users, FolderKanban, Filter, Maximize, FilterX } from "lucide-react";
+import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -9,10 +10,9 @@ import {
     CardTitle,
     CardDescription
 } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useContext, useMemo, useState, useEffect, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
-import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar, Tooltip, Legend, LabelList } from 'recharts';
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getAllCaseData } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
@@ -22,6 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ScrollArea } from "./ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 
 const chartConfig = {
@@ -240,7 +242,7 @@ export function Dashboard() {
         });
 
         if (dateHeader) {
-            filteredData.forEach(row => {
+            data.forEach(row => {
                 const dateStr = row[dateHeader];
                 if (dateStr && typeof dateStr === 'string') {
                     const parts = dateStr.split('/');
@@ -512,18 +514,27 @@ export function Dashboard() {
                             <ScrollArea className="h-64 pr-4">
                                 <div className="space-y-4">
                                   {allClients.map((item, index) => (
-                                    <div key={index} className="flex items-center gap-3">
-                                      <div className="w-32 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
-                                      <div className="flex-1 flex items-center gap-2 min-w-0">
-                                        <div className="flex-1 bg-muted rounded-full h-8 relative overflow-hidden">
-                                          <div 
-                                            className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500"
-                                            style={{ width: `${(item.value / maxClientValue) * 100}%` }}
-                                          ></div>
-                                        </div>
-                                        <span className="text-sm font-semibold text-foreground w-16 flex-shrink-0">{item.value.toLocaleString()}</span>
-                                      </div>
-                                    </div>
+                                    <TooltipProvider key={index} delayDuration={0}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className="flex items-center gap-3">
+                                            <div className="w-32 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
+                                            <div className="flex-1 flex items-center gap-2 min-w-0">
+                                              <div className="flex-1 bg-muted rounded-full h-8 relative overflow-hidden">
+                                                <div 
+                                                  className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500"
+                                                  style={{ width: `${(item.value / maxClientValue) * 100}%` }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-sm font-semibold text-foreground w-16 flex-shrink-0">{item.value.toLocaleString()}</span>
+                                            </div>
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>{item.name}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   ))}
                                 </div>
                             </ScrollArea>
@@ -537,18 +548,27 @@ export function Dashboard() {
                            <ScrollArea className="h-64 pr-4">
                                 <div className="space-y-4">
                                   {allModules.map((item, index) => (
-                                    <div key={index} className="flex items-center gap-3">
-                                      <div className="w-48 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate" title={item.name}>{item.name}</div>
-                                      <div className="flex-1 flex items-center gap-2 min-w-0">
-                                        <div className="flex-1 bg-muted rounded-full h-8 relative overflow-hidden">
-                                          <div 
-                                            className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
-                                            style={{ width: `${(item.value / maxModuleValue) * 100}%` }}
-                                          ></div>
-                                        </div>
-                                        <span className="text-sm font-semibold text-foreground w-16 flex-shrink-0">{item.value.toLocaleString()}</span>
-                                      </div>
-                                    </div>
+                                    <TooltipProvider key={index} delayDuration={0}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className="flex items-center gap-3">
+                                            <div className="w-48 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
+                                            <div className="flex-1 flex items-center gap-2 min-w-0">
+                                              <div className="flex-1 bg-muted rounded-full h-8 relative overflow-hidden">
+                                                <div 
+                                                  className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
+                                                  style={{ width: `${(item.value / maxModuleValue) * 100}%` }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-sm font-semibold text-foreground w-16 flex-shrink-0">{item.value.toLocaleString()}</span>
+                                            </div>
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>{item.name}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   ))}
                                 </div>
                             </ScrollArea>
