@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useTransition, useCallback } from 'react';
@@ -8,19 +9,20 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { runKnowledgeBaseEngine } from '@/app/actions';
 import { SettingsContext } from '@/contexts/settings-provider';
+import { Button } from './ui/button';
 
 // This is a simplified version of the provided component, adapted to fit the existing app structure.
 // The sidebar from the provided code is removed to avoid duplication with the app's main layout.
 // Data fetching is integrated with the existing `runKnowledgeBaseEngine` action.
 
-const KnowledgeBase = () => {
+const KnowledgeDashboard = () => {
   const { knowledgeBaseUrl } = React.useContext(SettingsContext);
   const { toast } = useToast();
-  const [documents, setDocuments] = useState([]);
+  const [documents, setDocuments] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, startSearch] = useTransition();
-  const [filteredDocs, setFilteredDocs] = useState([]);
-  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [filteredDocs, setFilteredDocs] = useState<any[]>([]);
+  const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
   const [filterType, setFilterType] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showAllDocs, setShowAllDocs] = useState(false);
@@ -153,7 +155,7 @@ const KnowledgeBase = () => {
       const matchesSearch = 
         doc.name.toLowerCase().includes(query) ||
         doc.content.toLowerCase().includes(query) ||
-        doc.tags.some(tag => tag.toLowerCase().includes(query)) ||
+        doc.tags.some((tag: string) => tag.toLowerCase().includes(query)) ||
         doc.category.toLowerCase().includes(query);
 
       const matchesType = filterType === 'all' || doc.type === filterType;
@@ -171,20 +173,20 @@ const KnowledgeBase = () => {
     setFilteredDocs(sorted);
   }, [searchQuery, filterType, selectedCategory, documents]);
 
-  const calculateRelevance = (doc, query) => {
+  const calculateRelevance = (doc: any, query: string) => {
     let score = 0;
     if (doc.name.toLowerCase().includes(query)) score += 10;
-    if (doc.tags.some(tag => tag.toLowerCase().includes(query))) score += 5;
+    if (doc.tags.some((tag: string) => tag.toLowerCase().includes(query))) score += 5;
     if (doc.content.toLowerCase().includes(query)) score += 3;
     return score;
   };
 
-  const handleDocumentClick = (doc) => {
+  const handleDocumentClick = (doc: any) => {
     setSelectedDoc(doc);
   };
 
-  const getFileIcon = (type) => {
-    const icons = {
+  const getFileIcon = (type: string) => {
+    const icons: Record<string, string> = {
       docx: '📄',
       xlsx: '📊',
       pdf: '📕',
@@ -195,7 +197,7 @@ const KnowledgeBase = () => {
 
   const categories = ['all', 'Onboarding', 'Payment', 'Technical', 'Product', 'Support'];
 
-  const highlightText = (text, query) => {
+  const highlightText = (text: string, query: string) => {
     if (!query || typeof text !== 'string') return text;
     const parts = text.split(new RegExp(`(${query})`, 'gi'));
     return parts.map((part, i) => 
@@ -370,7 +372,7 @@ const KnowledgeBase = () => {
                                 </span>
                               </div>
                               <div className="flex flex-wrap gap-1">
-                                {doc.tags.slice(0, 3).map((tag, idx) => (
+                                {doc.tags.slice(0, 3).map((tag: string, idx: number) => (
                                   <span
                                     key={idx}
                                     className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs hover:bg-blue-100 transition-colors"
@@ -503,7 +505,7 @@ const KnowledgeBase = () => {
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {selectedDoc.tags.map((tag, idx) => (
+                        {selectedDoc.tags.map((tag: string, idx: number) => (
                           <span
                             key={idx}
                             className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium hover:bg-blue-200 cursor-pointer transition-colors"
@@ -572,6 +574,7 @@ const KnowledgeBase = () => {
           )}
         </div>
       </div>
+    </div>
   );
 };
 

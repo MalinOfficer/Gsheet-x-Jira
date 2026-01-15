@@ -1,8 +1,8 @@
 
-import { KnowledgeBase } from "@/components/knowledge-base";
+import KnowledgeDashboard from "@/components/knowledge-base";
 
 export default function KnowledgeBasePage() {
     return (
-        <KnowledgeBase />
+        <KnowledgeDashboard />
     );
 }
