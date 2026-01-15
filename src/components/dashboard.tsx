@@ -375,7 +375,7 @@ export function Dashboard() {
     const { allClients, allModules } = dashboardStats;
 
     return (
-        <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
+        <div className="flex-1 bg-background text-foreground px-4 sm:px-6 md:px-8">
             <div className="max-w-7xl mx-auto space-y-4">
                  <div className="flex justify-between items-center">
                     <div>
@@ -619,7 +619,7 @@ export function Dashboard() {
                                           </filter>
                                         </defs>
                                         <XAxis type="number" stroke="hsl(var(--border))" style={{ fontSize: '11px' }} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                                        <YAxis type="category" dataKey="name" width={140} stroke="hsl(var(--border))" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: '500', textAnchor: 'end' }} axisLine={false} tickLine={false} />
+                                        <YAxis type="category" dataKey="name" width={140} stroke="hsl(var(--border))" tick={<CustomYAxisTick />} axisLine={false} tickLine={false} />
                                         <Tooltip
                                           contentStyle={{ 
                                             backgroundColor: 'hsl(var(--background))', 
