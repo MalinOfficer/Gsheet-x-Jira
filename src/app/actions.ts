@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import { redis } from '@/lib/redis';
 import { knowledgeBaseFlow } from '@/ai/flows/knowledge-base-flow';
+import mammoth from 'mammoth';
 
 const CACHE_KEY_ALL_CASE = 'all_case_data_cache';
 
@@ -1298,24 +1299,56 @@ const fetchRawKnowledgeData = unstable_cache(
         }
         const fileId = match[1];
 
-        try {
-            const { drive } = getGoogleApiClients();
-            const response = await drive.files.export({
-                fileId: fileId,
-                mimeType: 'text/plain',
-            }, { responseType: 'stream' });
+        const { drive } = getGoogleApiClients();
 
-            return new Promise((resolve, reject) => {
-                let content = '';
-                (response.data as any)
-                    .on('data', (chunk: Buffer) => (content += chunk.toString()))
-                    .on('end', () => resolve(content))
-                    .on('error', (err: Error) => reject(new Error(`Failed to read file stream: ${err.message}`)));
+        try {
+            // Step 1: Get file metadata to determine the MIME type
+            const metadataResponse = await drive.files.get({
+                fileId: fileId,
+                fields: 'mimeType, name',
             });
+            const mimeType = metadataResponse.data.mimeType;
+
+            let content: string;
+
+            // Step 2: Choose download/export method based on MIME type
+            if (mimeType === 'application/vnd.google-apps.document') {
+                // It's a Google Doc, so we export it as plain text
+                const exportResponse = await drive.files.export({
+                    fileId: fileId,
+                    mimeType: 'text/plain',
+                }, { responseType: 'stream' });
+                
+                content = await new Promise((resolve, reject) => {
+                    let text = '';
+                    (exportResponse.data as any)
+                        .on('data', (chunk: Buffer) => (text += chunk.toString()))
+                        .on('end', () => resolve(text))
+                        .on('error', (err: Error) => reject(new Error(`Failed to read exported stream: ${err.message}`)));
+                });
+            } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                 // It's a .docx file, download and parse with mammoth
+                const downloadResponse = await drive.files.get({ fileId: fileId, alt: 'media' }, { responseType: 'arraybuffer' });
+                const arrayBuffer = downloadResponse.data as ArrayBuffer;
+                const buffer = Buffer.from(arrayBuffer);
+                const mammothResult = await mammoth.extractRawText({ buffer });
+                content = mammothResult.value;
+            } else {
+                // For other file types (PDF, plain text), download directly
+                const downloadResponse = await drive.files.get({ fileId: fileId, alt: 'media' }, { responseType: 'stream' });
+
+                content = await new Promise((resolve, reject) => {
+                    let text = '';
+                    (downloadResponse.data as any)
+                        .on('data', (chunk: Buffer) => (text += chunk.toString()))
+                        .on('end', () => resolve(text))
+                        .on('error', (err: Error) => reject(new Error(`Failed to read downloaded stream: ${err.message}`)));
+                });
+            }
+            return content;
 
         } catch (error: any) {
             console.error("Error fetching from Drive:", error);
-            // Check for specific Google API error structure
             if (error.errors && error.errors[0]) {
                 throw new Error(`Failed to fetch file from Google Drive: ${error.errors[0].message}`);
             }
@@ -1331,6 +1364,9 @@ export async function runKnowledgeBaseEngine(
     knowledgeBaseUrl: string,
     query: string
 ) {
+    if (!knowledgeBaseUrl || knowledgeBaseUrl === DEFAULT_SHEET_URL) {
+        return { success: false, error: "Knowledge Base URL is not configured. Please set a valid Google Drive file URL in Settings." };
+    }
     try {
         console.log("KB Engine - Step 1: Fetching data from Google Drive...");
         const context = await fetchRawKnowledgeData(knowledgeBaseUrl);
@@ -1362,3 +1398,6 @@ export async function runKnowledgeBaseEngine(
     
 
       
+
+
+    

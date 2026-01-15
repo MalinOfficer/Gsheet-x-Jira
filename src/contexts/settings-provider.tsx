@@ -79,11 +79,12 @@ const LOCAL_STORAGE_KEY_CODE_VIEWER = 'isCodeViewerEnabled';
 const LOCAL_STORAGE_KEY_SECONDARY_TOOLS = 'areSecondaryToolsEnabled';
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 const LOCAL_STORAGE_KEY_DB_SHEET_URL = 'gsheetDashboardDbSheetUrl';
-const LOCAL_STORAGE_KEY_KB_SHEET_URL = 'gsheetKnowledgeBaseSheetUrl';
+const LOCAL_STORAGE_KEY_KB_URL = 'gsheetKnowledgeBaseUrl'; // Changed key to be more generic
 const LOCAL_STORAGE_KEY_MAIN_TITLE = 'gsheetMainSheetTitle';
 const LOCAL_STORAGE_KEY_DB_TITLE = 'gsheetDbSheetTitle';
 const LOCAL_STORAGE_KEY_KB_TITLE = 'gsheetKbSheetTitle';
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1S9oSokUh8SyWlNObCLdwpn2r2iXA8Gy73OnxsZa728E/edit?gid=0#gid=0';
+const DEFAULT_KB_URL = 'https://docs.google.com/document/d/1q2w3e4r5t6y7u8i9o0p/edit'; // Example URL
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [tableData, setTableData] = useState<TableData | null>(null);
@@ -114,11 +115,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             
             const savedSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_SHEET_URL);
             const savedDbSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_DB_SHEET_URL);
-            const savedKbSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_KB_SHEET_URL);
+            const savedKbUrl = localStorage.getItem(LOCAL_STORAGE_KEY_KB_URL);
 
             const initialSheetUrl = savedSheetUrl === null ? DEFAULT_SHEET_URL : savedSheetUrl;
             const initialDbSheetUrl = savedDbSheetUrl === null ? DEFAULT_SHEET_URL : savedDbSheetUrl;
-            const initialKbSheetUrl = savedKbSheetUrl === null ? DEFAULT_SHEET_URL : savedKbSheetUrl;
+            const initialKbUrl = savedKbUrl === null ? DEFAULT_KB_URL : savedKbUrl;
 
             setSheetUrlState(initialSheetUrl);
             setVerifiedUrl(initialSheetUrl);
@@ -126,8 +127,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             setDbSheetUrlState(initialDbSheetUrl);
             setVerifiedDbUrl(initialDbSheetUrl);
             
-            setKnowledgeBaseUrlState(initialKbSheetUrl);
-            setVerifiedKbUrl(initialKbSheetUrl);
+            setKnowledgeBaseUrlState(initialKbUrl);
+            setVerifiedKbUrl(initialKbUrl);
 
             const savedMainTitle = localStorage.getItem(LOCAL_STORAGE_KEY_MAIN_TITLE);
             if(savedMainTitle) setSpreadsheetTitleState(savedMainTitle);
@@ -171,7 +172,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }, []);
     
     const setKnowledgeBaseUrl = useCallback((url: string) => {
-        localStorage.setItem(LOCAL_STORAGE_KEY_KB_SHEET_URL, url);
+        localStorage.setItem(LOCAL_STORAGE_KEY_KB_URL, url);
         setKnowledgeBaseUrlState(url);
     }, []);
 
@@ -251,3 +252,5 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         </SettingsContext.Provider>
     );
 };
+
+    
