@@ -1249,29 +1249,32 @@ export async function getAllCaseData(sheetUrl: string) {
 
 // ---- AI KNOWLEDGE BASE ENGINE ----
 
-async function fetchRawKnowledgeData(sheetUrl: string): Promise<string[][]> {
+async function fetchRawKnowledgeData(knowledgeBaseUrl: string): Promise<string> {
     const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|folders\/)([a-zA-Z0-9-_]+)/;
-    const match = sheetUrl.match(idRegex);
+    const match = knowledgeBaseUrl.match(idRegex);
     if (!match || !match[1]) {
         throw new Error("Invalid Google Drive URL format for Knowledge Base.");
     }
-    const spreadsheetId = match[1];
+    const fileId = match[1];
 
     try {
-        const { sheets } = getGoogleApiClients();
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: 'A:Z', // Ambil semua data dari sheet pertama
+        const { drive } = getGoogleApiClients();
+        const response = await drive.files.get({
+            fileId: fileId,
+            alt: 'media',
+        }, { responseType: 'stream' });
+
+        return new Promise((resolve, reject) => {
+            let content = '';
+            (response.data as any)
+                .on('data', (chunk: Buffer) => (content += chunk.toString()))
+                .on('end', () => resolve(content))
+                .on('error', (err: Error) => reject(new Error(`Failed to read file stream: ${err.message}`)));
         });
 
-        const rows = response.data.values;
-        if (!rows || rows.length === 0) {
-            throw new Error("Knowledge Base sheet is empty.");
-        }
-        return rows as string[][];
     } catch (error: any) {
-        console.error("Error fetching from KB sheet:", error.message);
-        throw new Error(`Failed to fetch data from Knowledge Base sheet. ${error.message}`);
+        console.error("Error fetching from Drive:", error.message);
+        throw new Error(`Failed to fetch file from Google Drive. ${error.message}`);
     }
 }
 
@@ -1280,27 +1283,13 @@ export async function runKnowledgeBaseEngine(
     query: string
 ) {
     try {
-        // Step 1: Data Validation & Cleaning
-        console.log("KB Engine - Step 1: Fetching and validating data...");
-        const rawData = await fetchRawKnowledgeData(knowledgeBaseUrl);
-        const headers = rawData.shift() || [];
-        if (headers.length === 0) {
-            return { success: false, error: "Knowledge Base sheet is missing a header row." };
-        }
-        const cleanedData = rawData.filter(row => row.some(cell => typeof cell === 'string' && cell.trim() !== ''));
-        console.log(`KB Engine - Step 1: Completed. Found ${cleanedData.length} valid rows.`);
+        console.log("KB Engine - Step 1: Fetching data from Google Drive...");
+        const context = await fetchRawKnowledgeData(knowledgeBaseUrl);
+        console.log("KB Engine - Step 1: Completed. Context is ready.");
 
-        // Step 2: Content Structuring & Chunking
-        console.log("KB Engine - Step 2: Structuring content into chunks...");
-        // Combine all rows into a single string for the context. This is a simple approach.
-        // For very large datasets, a more sophisticated chunking and retrieval strategy would be needed.
-        const context = cleanedData.map(row => headers.map((h, i) => `${h}: ${row[i] || 'N/A'}`).join(', ')).join('\n');
-        console.log("KB Engine - Step 2: Completed. Context is ready.");
-
-        // Step 3-5 are now handled by the Genkit Flow
-        console.log("KB Engine - Step 3: Passing to AI for analysis...");
+        console.log("KB Engine - Step 2: Passing to AI for analysis...");
         const response = await knowledgeBaseFlow({ query, context });
-        console.log("KB Engine - Step 4: AI analysis complete.");
+        console.log("KB Engine - Step 3: AI analysis complete.");
 
         console.log("KNOWLEDGE BASE ENGINE PIPELINE FINISHED SUCCESSFULLY.");
         return { success: true, message: "Successfully generated an answer.", data: { answer: response.answer } };
