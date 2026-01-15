@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useContext, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Copy, Check, BarChart as BarChartIcon, AlertTriangle, User, AppWindow, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { Copy, Check, BarChart as BarChartIcon, AlertTriangle, User, AppWindow, TrendingUp, TrendingDown, RefreshCw, ArrowLeft } from 'lucide-react';
 import { formatDateTime } from '@/lib/date-utils';
 import { SettingsContext, TableData } from '@/contexts/settings-provider';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +17,7 @@ import { fetchL3ReportData } from '@/app/actions';
 import { ScrollArea } from './ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
+import Link from 'next/link';
 
 const chartConfig = {
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
@@ -285,6 +286,14 @@ function InitialState({ error }: { error?: string }) {
         <CardDescription className="mt-2 mb-4 max-w-sm">
             {error ? error : "To view reports, please go to the Import Data page and convert your data."}
         </CardDescription>
+        {!error && (
+            <Button asChild variant="outline">
+                <Link href="/">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Import Data
+                </Link>
+            </Button>
+        )}
     </Card>
   );
 };
