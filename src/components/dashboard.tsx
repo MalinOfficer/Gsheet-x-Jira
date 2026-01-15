@@ -48,43 +48,6 @@ interface DashboardState {
     loading: boolean;
 }
 
-const CustomYAxisTick = (props: any) => {
-    const { x, y, payload } = props;
-    const value = payload.value;
-    const maxCharsPerLine = 18;
-    const lineHeight = 12;
-
-    const chunkSubstr = (str: string, size: number) => {
-        const numChunks = Math.ceil(str.length / size);
-        const chunks = new Array(numChunks);
-        for (let i = 0, o = 0; i < numChunks; ++i, o += size) {
-            chunks[i] = str.substring(o, o + size);
-        }
-        return chunks;
-    };
-    
-    if (value.length > maxCharsPerLine) {
-        const lines = chunkSubstr(value, maxCharsPerLine);
-        return (
-            <g transform={`translate(${x},${y})`}>
-                <text x={-10} y={0} dy={4} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: '11px', fontWeight: 500 }}>
-                    {lines.map((line, i) => (
-                        <tspan key={i} x={-10} dy={i > 0 ? lineHeight : 0}>{line}</tspan>
-                    ))}
-                </text>
-            </g>
-        );
-    }
-
-    return (
-        <g transform={`translate(${x},${y})`}>
-            <text x={-10} y={0} dy={4} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: '11px', fontWeight: 500 }}>
-                {value}
-            </text>
-        </g>
-    );
-};
-
 export function Dashboard() {
     const { dbSheetUrl } = useContext(SettingsContext);
     const [state, setState] = useState<DashboardState>({ data: null, error: undefined, loading: true });
@@ -218,8 +181,6 @@ export function Dashboard() {
                 totalSolved: 0,
             };
         }
-        
-        const allDataForMonthly = filteredData;
 
         const createFrequencyMap = (field: string | undefined) => {
             if (!field) return {};
@@ -279,7 +240,7 @@ export function Dashboard() {
         });
 
         if (dateHeader) {
-            allDataForMonthly.forEach(row => {
+            filteredData.forEach(row => {
                 const dateStr = row[dateHeader];
                 if (dateStr && typeof dateStr === 'string') {
                     const parts = dateStr.split('/');
@@ -373,6 +334,9 @@ export function Dashboard() {
     }
     
     const { allClients, allModules } = dashboardStats;
+    const maxClientValue = allClients.length > 0 ? allClients[0].value : 1;
+    const maxModuleValue = allModules.length > 0 ? allModules[0].value : 1;
+
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -542,94 +506,52 @@ export function Dashboard() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-xl font-bold">All Clients</CardTitle>
+                            <CardTitle className="text-xl font-semibold">All Clients</CardTitle>
                         </CardHeader>
-                         <CardContent>
-                            <div style={{ height: '220px', overflowY: 'auto' }} className="rounded-lg bg-muted/30">
-                                <ResponsiveContainer width="100%" height={allClients.length * 60}>
-                                    <RechartsBarChart
-                                        data={allClients}
-                                        layout="vertical"
-                                        margin={{ top: 5, right: 70, left: -20, bottom: 5 }}
-                                    >
-                                        <defs>
-                                          <linearGradient id="clientsGradient" x1="0" y1="0" x2="1" y2="0">
-                                            <stop offset="0%" stopColor="hsl(160 60% 45%)" stopOpacity={0.9}/>
-                                            <stop offset="100%" stopColor="hsl(160 60% 45%)" stopOpacity={0.4}/>
-                                          </linearGradient>
-                                          <filter id="softGlowClients">
-                                            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-                                            <feMerge>
-                                              <feMergeNode in="coloredBlur"/>
-                                              <feMergeNode in="SourceGraphic"/>
-                                            </feMerge>
-                                          </filter>
-                                        </defs>
-                                        <XAxis type="number" stroke="hsl(var(--border))" style={{ fontSize: '11px' }} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                                        <YAxis type="category" dataKey="name" width={130} stroke="hsl(var(--border))" tick={<CustomYAxisTick />} axisLine={false} tickLine={false} />
-                                        <Tooltip
-                                          contentStyle={{ 
-                                            backgroundColor: 'hsl(var(--background))', 
-                                            borderColor: 'hsl(160 60% 45%)', 
-                                            color: 'hsl(var(--foreground))',
-                                            borderRadius: 'var(--radius)',
-                                            fontWeight: '600',
-                                            boxShadow: '0 10px 25px rgba(20, 184, 166, 0.3)'
-                                          }}
-                                          cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
-                                        />
-                                        <Bar dataKey="value" fill="url(#clientsGradient)" radius={[0, 6, 6, 0]} maxBarSize={36} filter="url(#softGlowClients)">
-                                            <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: 'hsl(var(--foreground))' }}/>
-                                        </Bar>
-                                    </RechartsBarChart>
-                                </ResponsiveContainer>
-                            </div>
+                        <CardContent>
+                            <ScrollArea className="h-64 pr-4">
+                                <div className="space-y-4">
+                                  {allClients.map((item, index) => (
+                                    <div key={index} className="flex items-center gap-3">
+                                      <div className="w-32 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
+                                      <div className="flex-1 flex items-center gap-2 min-w-0">
+                                        <div className="flex-1 bg-muted rounded-full h-8 relative overflow-hidden">
+                                          <div 
+                                            className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500"
+                                            style={{ width: `${(item.value / maxClientValue) * 100}%` }}
+                                          ></div>
+                                        </div>
+                                        <span className="text-sm font-semibold text-foreground w-16 flex-shrink-0">{item.value.toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                            </ScrollArea>
                         </CardContent>
                     </Card>
                      <Card>
                         <CardHeader>
-                            <CardTitle className="text-xl font-bold">All Modules</CardTitle>
+                            <CardTitle className="text-xl font-semibold">All Modules</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div style={{ height: '220px', overflowY: 'auto' }} className="rounded-lg bg-muted/30">
-                                <ResponsiveContainer width="100%" height={allModules.length * 60}>
-                                    <RechartsBarChart
-                                        data={allModules}
-                                        layout="vertical"
-                                        margin={{ top: 5, right: 70, left: -20, bottom: 5 }}
-                                    >
-                                        <defs>
-                                          <linearGradient id="modulesGradient" x1="0" y1="0" x2="1" y2="0">
-                                            <stop offset="0%" stopColor="hsl(221 83% 53%)" stopOpacity={0.9}/>
-                                            <stop offset="100%" stopColor="hsl(221 83% 53%)" stopOpacity={0.4}/>
-                                          </linearGradient>
-                                          <filter id="softGlowModules">
-                                            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-                                            <feMerge>
-                                              <feMergeNode in="coloredBlur"/>
-                                              <feMergeNode in="SourceGraphic"/>
-                                            </feMerge>
-                                          </filter>
-                                        </defs>
-                                        <XAxis type="number" stroke="hsl(var(--border))" style={{ fontSize: '11px' }} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                                        <YAxis type="category" dataKey="name" width={140} stroke="hsl(var(--border))" tick={<CustomYAxisTick />} axisLine={false} tickLine={false} />
-                                        <Tooltip
-                                          contentStyle={{ 
-                                            backgroundColor: 'hsl(var(--background))', 
-                                            borderColor: 'hsl(221 83% 53%)',
-                                            color: 'hsl(var(--foreground))',
-                                            borderRadius: 'var(--radius)',
-                                            fontWeight: '600',
-                                            boxShadow: '0 10px 25px rgba(99, 102, 241, 0.3)'
-                                          }}
-                                          cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
-                                        />
-                                        <Bar dataKey="value" fill="url(#modulesGradient)" radius={[0, 6, 6, 0]} maxBarSize={36} filter="url(#softGlowModules)">
-                                             <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: 'hsl(var(--foreground))' }}/>
-                                        </Bar>
-                                    </RechartsBarChart>
-                                </ResponsiveContainer>
-                            </div>
+                           <ScrollArea className="h-64 pr-4">
+                                <div className="space-y-4">
+                                  {allModules.map((item, index) => (
+                                    <div key={index} className="flex items-center gap-3">
+                                      <div className="w-48 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate" title={item.name}>{item.name}</div>
+                                      <div className="flex-1 flex items-center gap-2 min-w-0">
+                                        <div className="flex-1 bg-muted rounded-full h-8 relative overflow-hidden">
+                                          <div 
+                                            className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
+                                            style={{ width: `${(item.value / maxModuleValue) * 100}%` }}
+                                          ></div>
+                                        </div>
+                                        <span className="text-sm font-semibold text-foreground w-16 flex-shrink-0">{item.value.toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                            </ScrollArea>
                         </CardContent>
                     </Card>
                 </div>
@@ -637,5 +559,3 @@ export function Dashboard() {
         </div>
     );
 }
-
-    
