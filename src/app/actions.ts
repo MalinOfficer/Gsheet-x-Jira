@@ -1351,6 +1351,9 @@ const fetchRawKnowledgeData = unstable_cache(
         } catch (error: any) {
             console.error("Error fetching from Drive:", error);
             if (error.errors && error.errors[0]) {
+                if (error.errors[0].reason === 'fileNotDownloadable') {
+                    throw new Error("This file is a Google Doc and cannot be downloaded directly. It must be exported. The system failed to auto-detect this. Please check file permissions.");
+                }
                 throw new Error(`Failed to fetch file from Google Drive: ${error.errors[0].message}`);
             }
             throw new Error(`Failed to fetch file from Google Drive. ${error.message}`);
@@ -1404,3 +1407,5 @@ export async function runKnowledgeBaseEngine(
     
 
     
+
+      
