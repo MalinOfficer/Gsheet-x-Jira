@@ -18,7 +18,7 @@ const navItems = {
     overview: [
         { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { href: "/", label: "Import Data", icon: ListTree },
-        { href: "/db", label: "Data ALL Case", icon: Database },
+        { href: "/db", label: "Data All Case", icon: Database },
     ],
     reports: [
         { href: "/report-harian", label: "Daily Report", icon: BarChart },
