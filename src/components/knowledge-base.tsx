@@ -3,8 +3,6 @@
 
 import React, { useState, useEffect, useMemo, useTransition, useCallback } from 'react';
 import { Search, FileText, Download, Eye, Filter, RefreshCw, Folder, BookOpen, Tag, Clock, File, Menu, LayoutDashboard, Upload, Database, BarChart3, Settings, X, ShieldOff } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import mammoth from 'mammoth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { runKnowledgeBaseEngine } from '@/app/actions';
@@ -138,48 +136,48 @@ const KnowledgeDashboard = () => {
         });
     }, [searchQuery, knowledgeBaseUrl, toast]);
 
+    const calculateRelevance = (doc: any, query: string) => {
+        let score = 0;
+        if (doc.name.toLowerCase().includes(query)) score += 10;
+        if (doc.tags.some((tag: string) => tag.toLowerCase().includes(query))) score += 5;
+        if (doc.content.toLowerCase().includes(query)) score += 3;
+        return score;
+    };
 
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      const filtered = documents.filter(doc => {
+
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+        const filtered = documents.filter(doc => {
+            const matchesType = filterType === 'all' || doc.type === filterType;
+            const matchesCategory = selectedCategory === 'all' || doc.category === selectedCategory;
+            return matchesType && matchesCategory;
+        });
+        setFilteredDocs(filtered);
+        return;
+        }
+
+        const query = searchQuery.toLowerCase();
+        const filtered = documents.filter(doc => {
+        const matchesSearch = 
+            doc.name.toLowerCase().includes(query) ||
+            doc.content.toLowerCase().includes(query) ||
+            doc.tags.some((tag: string) => tag.toLowerCase().includes(query)) ||
+            doc.category.toLowerCase().includes(query);
+
         const matchesType = filterType === 'all' || doc.type === filterType;
         const matchesCategory = selectedCategory === 'all' || doc.category === selectedCategory;
-        return matchesType && matchesCategory;
-      });
-      setFilteredDocs(filtered);
-      return;
-    }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = documents.filter(doc => {
-      const matchesSearch = 
-        doc.name.toLowerCase().includes(query) ||
-        doc.content.toLowerCase().includes(query) ||
-        doc.tags.some((tag: string) => tag.toLowerCase().includes(query)) ||
-        doc.category.toLowerCase().includes(query);
+        return matchesSearch && matchesType && matchesCategory;
+        });
 
-      const matchesType = filterType === 'all' || doc.type === filterType;
-      const matchesCategory = selectedCategory === 'all' || doc.category === selectedCategory;
+        const sorted = filtered.sort((a, b) => {
+        const aScore = calculateRelevance(a, query);
+        const bScore = calculateRelevance(b, query);
+        return bScore - aScore;
+        });
 
-      return matchesSearch && matchesType && matchesCategory;
-    });
-
-    const sorted = filtered.sort((a, b) => {
-      const aScore = calculateRelevance(a, query);
-      const bScore = calculateRelevance(b, query);
-      return bScore - aScore;
-    });
-
-    setFilteredDocs(sorted);
-  }, [searchQuery, filterType, selectedCategory, documents]);
-
-  const calculateRelevance = (doc: any, query: string) => {
-    let score = 0;
-    if (doc.name.toLowerCase().includes(query)) score += 10;
-    if (doc.tags.some((tag: string) => tag.toLowerCase().includes(query))) score += 5;
-    if (doc.content.toLowerCase().includes(query)) score += 3;
-    return score;
-  };
+        setFilteredDocs(sorted);
+    }, [searchQuery, filterType, selectedCategory, documents]);
 
   const handleDocumentClick = (doc: any) => {
     setSelectedDoc(doc);
