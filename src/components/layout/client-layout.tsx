@@ -109,7 +109,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         "/dashboard": "Dashboard",
         "/db": "All Case Database",
         "/knowledge-base": "Knowledge Base",
-        "/report-harian": "Report Center",
+        "/report-harian": "Daily Report",
         "/migrasi-murid": "Migrasi Murid",
         "/cek-duplikasi": "Cek Duplikasi",
         "/data-weaver": "Edit NIS",
