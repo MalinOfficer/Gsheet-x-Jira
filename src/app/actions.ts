@@ -72,7 +72,6 @@ const projectFilesForAction = [
   // File terkait AI
   "src/ai/genkit.ts",
   "src/ai/dev.ts",
-  "src/ai/flows/knowledge-base-flow.ts",
 
   // Komponen UI (ShadCN)
   "src/components/ui/accordion.tsx",
@@ -1275,7 +1274,6 @@ export async function getAllCaseData(sheetUrl: string) {
         const syncResult = await syncCache(sheetUrl, result.data, CACHE_KEY_ALL_CASE);
         if (syncResult.success) {
             console.log("All Case data synced to cache after fetching from sheet.");
-            return { ...result, source: 'cache' }; // Now we can say it's from cache
         }
     }
 
@@ -1301,3 +1299,6 @@ export async function getAllCaseData(sheetUrl: string) {
 
 
 
+
+
+    

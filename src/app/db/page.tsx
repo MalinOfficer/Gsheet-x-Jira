@@ -1,4 +1,6 @@
 
+'use client';
+
 import { DbViewer } from "@/components/db-viewer";
 
 export default function DbPage() {
@@ -10,3 +12,5 @@ export default function DbPage() {
         </main>
     );
 }
+
+    
