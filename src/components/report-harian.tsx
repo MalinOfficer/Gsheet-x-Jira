@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy, Check, BarChart as BarChartIcon, AlertTriangle, User, AppWindow, TrendingUp, TrendingDown, RefreshCw, ArrowLeft } from 'lucide-react';
 import { formatDateTime } from '@/lib/date-utils';
-import { SettingsContext, TableData } from '@/contexts/settings-provider';
+import { TableDataContext } from '@/store/table-data-context';
+import { SettingsContext } from '@/contexts/settings-provider';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -34,7 +35,7 @@ type ReportData = {
 } | null;
 
 function DashboardChart() {
-    const { tableData: contextData } = useContext(SettingsContext);
+    const { tableData: contextData } = useContext(TableDataContext);
     const finalData = contextData?.rows;
 
     const dashboardStats = useMemo(() => {
@@ -299,7 +300,7 @@ function InitialState({ error }: { error?: string }) {
 };
 
 function DailyReportCard() {
-    const { tableData } = useContext(SettingsContext); // Changed to SettingsContext
+    const { tableData } = useContext(TableDataContext);
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
     const [todayDate, setTodayDate] = useState('');
@@ -465,7 +466,7 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
 }
 
 function L3CaseReportCard() {
-    const { sheetUrl } = useContext(SettingsContext); // Changed to SettingsContext
+    const { sheetUrl } = useContext(SettingsContext);
     const [l3ReportData, setL3ReportData] = useState<ReportData>(null); // State is now local
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
@@ -554,7 +555,7 @@ interface ReportHarianProps {
 }
 
 export function ReportHarian({ error }: ReportHarianProps) {
-  const { tableData } = useContext(SettingsContext); // Changed to SettingsContext
+  const { tableData } = useContext(TableDataContext);
 
   // Check if data exists in the context from the import flow
   const hasData = tableData && tableData.rows.length > 0;

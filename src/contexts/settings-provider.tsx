@@ -3,19 +3,7 @@
 
 import React, { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
 
-export type TableData = {
-    headers: string[];
-    rows: Record<string, any>[];
-};
-
 interface SettingsContextType {
-    // This context will now hold data passed from the ImportFlow page
-    tableData: TableData | null;
-    setTableData: (data: TableData | null) => void;
-    
-    isProcessing: boolean;
-    setIsProcessing: (processing: boolean) => void;
-    
     // Feature toggles
     isCodeViewerEnabled: boolean;
     toggleCodeViewer: () => void;
@@ -40,10 +28,6 @@ interface SettingsContextType {
 }
 
 export const SettingsContext = createContext<SettingsContextType>({
-    tableData: null,
-    setTableData: () => {},
-    isProcessing: false,
-    setIsProcessing: () => {},
     isCodeViewerEnabled: false,
     toggleCodeViewer: () => {},
     areSecondaryToolsEnabled: false,
@@ -71,8 +55,6 @@ const LOCAL_STORAGE_KEY_DB_TITLE = 'gsheetDbSheetTitle';
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1S9oSokUh8SyWlNObCLdwpn2r2iXA8Gy73OnxsZa728E/edit?gid=0#gid=0';
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [tableData, setTableData] = useState<TableData | null>(null);
-    const [isProcessing, setIsProcessing] = useState<boolean>(false);
     const [isCodeViewerEnabled, setIsCodeViewerEnabled] = useState<boolean>(false);
     const [areSecondaryToolsEnabled, setAreSecondaryToolsEnabled] = useState<boolean>(false);
     
@@ -178,10 +160,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     return (
         <SettingsContext.Provider value={{ 
-            tableData, 
-            setTableData,
-            isProcessing, 
-            setIsProcessing,
             isCodeViewerEnabled,
             toggleCodeViewer,
             areSecondaryToolsEnabled,

@@ -9,6 +9,7 @@ import { Menu, Settings, GanttChartSquare, LayoutDashboard, ListTree, BarChart, 
 import { cn } from "@/lib/utils";
 import { useContext, useEffect, useState } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
+import { TableDataContext } from "@/store/table-data-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import React from "react";
 import { ThemeSwitch } from "../ui/theme-switch";
@@ -87,7 +88,7 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
 }
 
 function ProcessingIndicator() {
-    const { isProcessing } = useContext(SettingsContext);
+    const { isProcessing } = useContext(TableDataContext);
     if (!isProcessing) return null;
 
     return (
@@ -100,7 +101,7 @@ function ProcessingIndicator() {
 
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-    const { isProcessing, setIsProcessing } = useContext(SettingsContext);
+    const { setIsProcessing } = useContext(TableDataContext);
     const pathname = usePathname();
     const [isClient, setIsClient] = useState(false);
     const isMobile = useIsMobile();
@@ -129,6 +130,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         setIsProcessing(false);
     }, [pathname, setIsProcessing]);
+    
+    const isProcessing = useContext(TableDataContext).isProcessing;
+
 
     if (!isClient) {
         return (

@@ -10,7 +10,8 @@ import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
-import { SettingsContext, type TableData } from '@/contexts/settings-provider';
+import { SettingsContext } from '@/contexts/settings-provider';
+import { TableDataContext } from '@/store/table-data-context';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import {
   AlertDialog,
@@ -55,13 +56,15 @@ type LastActionUndoData = {
 declare const XLSX: any;
 
 export function ImportFlow() {
-  const { 
-    tableData, setTableData, 
-    isProcessing, setIsProcessing,
+  const {
     sheetUrl,
     verifiedUrl, setVerifiedUrl,
     spreadsheetTitle, setSpreadsheetTitle,
   } = useContext(SettingsContext);
+  const { 
+    tableData, setTableData, 
+    isProcessing, setIsProcessing,
+  } = useContext(TableDataContext);
   const { toast } = useToast();
 
   const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
@@ -685,7 +688,6 @@ export function ImportFlow() {
               initialData={tableData}
               dateFormats={dateFormats}
               isProcessing={isProcessing}
-              onUndoDataChange={setLastActionUndoData}
               handleDateFormatChange={handleDateFormatChange}
               handleCopyToClipboard={handleCopyToClipboard}
               isCopied={isCopied}
@@ -702,7 +704,6 @@ export function ImportFlow() {
               isUpdateConfirmOpen={isUpdateConfirmOpen}
               setIsUpdateConfirmOpen={setIsUpdateConfirmOpen}
               updatePreview={updatePreview}
-              setUpdatePreview={setUpdatePreview}
               handleConfirmUpdate={handleConfirmUpdate}
               isUpdating={isUpdating}
           />
@@ -717,7 +718,6 @@ function PreviewTable({
     initialData,
     dateFormats,
     isProcessing,
-    onUndoDataChange,
     handleDateFormatChange,
     handleCopyToClipboard,
     isCopied,
@@ -734,14 +734,12 @@ function PreviewTable({
     isUpdateConfirmOpen,
     setIsUpdateConfirmOpen,
     updatePreview,
-    setUpdatePreview,
     handleConfirmUpdate,
     isUpdating,
 } : {
-    initialData: TableData;
+    initialData: TableDataContext['tableData'];
     dateFormats: Record<string, DateFormat>;
     isProcessing: boolean;
-    onUndoDataChange: (data: LastActionUndoData) => void;
     handleDateFormatChange: (header: string, format: string) => void;
     handleCopyToClipboard: () => void;
     isCopied: boolean;
@@ -758,14 +756,13 @@ function PreviewTable({
     isUpdateConfirmOpen: boolean;
     setIsUpdateConfirmOpen: (open: boolean) => void;
     updatePreview: UpdatePreview[];
-    setUpdatePreview: (preview: UpdatePreview[]) => void;
     handleConfirmUpdate: () => void;
     isUpdating: boolean;
 }) {
-    const { setTableData } = useContext(SettingsContext);
-    const [localTableData, setLocalTableData] = useState<TableData>(initialData);
+    const { tableData, setTableData } = useContext(TableDataContext);
 
     const initialColumnWidths = useCallback(() => {
+        if (!initialData) return {};
         const widths: Record<string, number> = {};
         initialData.headers.forEach(header => {
             const lowerHeader = header.toLowerCase();
@@ -779,16 +776,15 @@ function PreviewTable({
             else widths[header] = 128;
         });
         return widths;
-    }, [initialData.headers]);
+    }, [initialData]);
 
-    const [columnWidths, setColumnWidths] = useState<Record<string, number>>(initialColumnWidths);
+    const [columnWidths, setColumnWidths] = useState<Record<string, number>>(initialColumnWidths());
 
     const isResizing = useRef<string | null>(null);
     const startX = useRef(0);
     const startWidth = useRef(0);
     
     useEffect(() => {
-        setLocalTableData(initialData);
         setColumnWidths(initialColumnWidths());
     }, [initialData, initialColumnWidths]);
 
@@ -821,14 +817,15 @@ function PreviewTable({
     }, [handleResizeMouseMove]);
 
     const handleStatusChange = (rowIndex: number, header: string, value: string) => {
-        const newRows = [...localTableData.rows];
+        if (!tableData) return;
+        const newRows = [...tableData.rows];
         newRows[rowIndex] = { ...newRows[rowIndex], [header]: value };
-        const newTableData = { ...localTableData, rows: newRows };
+        const newTableData = { ...tableData, rows: newRows };
         
-        setLocalTableData(newTableData);
         setTableData(newTableData);
-        onUndoDataChange(null);
     };
+
+    if (!tableData) return null;
 
     return (
          <Card className="shadow-lg mt-6">
@@ -870,7 +867,7 @@ function PreviewTable({
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Konfirmasi Ekspor</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                Apakah Anda yakin akan mengekspor {localTableData.rows.length} baris ke sheet <span className="font-bold">{spreadsheetTitle || 'target'}</span>?
+                                Apakah Anda yakin akan mengekspor {tableData.rows.length} baris ke sheet <span className="font-bold">{spreadsheetTitle || 'target'}</span>?
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -918,7 +915,7 @@ function PreviewTable({
                                 </div>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel onClick={() => setUpdatePreview([])}>Batal</AlertDialogCancel>
+                                <AlertDialogCancel onClick={() => {}}>Batal</AlertDialogCancel>
                                 <AlertDialogAction onClick={handleConfirmUpdate} disabled={isUpdating || isPreviewing || updatePreview.length === 0}>
                                 {isUpdating ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Memperbarui...</> : "Ya, Lanjutkan Update"}
                                 </AlertDialogAction>
@@ -938,7 +935,7 @@ function PreviewTable({
                         {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
                         {isCopied ? 'Copied!' : 'Copy for Sheets/Excel'}
                     </Button>
-                    <Button onClick={handleNavigateToReport} size="sm" className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white" disabled={isProcessing || !localTableData}>
+                    <Button onClick={handleNavigateToReport} size="sm" className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white" disabled={isProcessing || !tableData}>
                         <BarChart className="mr-2 h-4 w-4" />
                         Daily Report
                     </Button>
@@ -962,7 +959,7 @@ function PreviewTable({
                                     >
                                         No
                                     </th>
-                                    {localTableData.headers.map((header, index) => (
+                                    {tableData.headers.map((header, index) => (
                                         <th 
                                         key={`header-${header}-${index}`}
                                         className="h-12 px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap p-2 border-r relative"
@@ -998,7 +995,7 @@ function PreviewTable({
                                 </tr>
                             </thead>
                             <tbody>
-                                {localTableData.rows.map((row, rowIndex) => (
+                                {tableData.rows.map((row, rowIndex) => (
                                     <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                                         <td
                                             className="align-middle p-1 border-r text-sm text-muted-foreground text-center sticky left-0 bg-background z-10"
@@ -1006,7 +1003,7 @@ function PreviewTable({
                                         >
                                             {rowIndex + 1}
                                         </td>
-                                        {localTableData.headers.map((header, headerIndex) => (
+                                        {tableData.headers.map((header, headerIndex) => (
                                             <td 
                                                 key={`cell-${header}-${headerIndex}-${rowIndex}`}
                                                 className="align-middle p-1 border-r"
@@ -1047,7 +1044,7 @@ function PreviewTable({
                 </div>
             </CardContent>
             <CardFooter className="pt-4">
-                <p className="text-sm text-muted-foreground">Showing {localTableData.rows.length} rows.</p>
+                <p className="text-sm text-muted-foreground">Showing {tableData.rows.length} rows.</p>
             </CardFooter>
         </Card>
     );
