@@ -279,6 +279,40 @@ export async function getSpreadsheetTitle(fileUrl: string) {
     }
 }
 
+export async function getDriveFileTitle(fileUrl: string) {
+    if (!fileUrl) {
+        return { error: "URL is empty. Please provide a Google Drive URL." };
+    }
+
+    const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|drive\/folders\/)([a-zA-Z0-9-_]+)/;
+    const match = fileUrl.match(idRegex);
+
+    if (!match || !match[1]) {
+        return { error: 'Invalid Google Drive URL format.' };
+    }
+    const fileId = match[1];
+
+    try {
+        const { drive } = getGoogleApiClients();
+        const response = await drive.files.get({
+            fileId: fileId,
+            fields: 'name',
+        });
+
+        const title = response.data.name;
+
+        if (!title) {
+            return { error: "Could not retrieve the file title from Google Drive." };
+        }
+
+        return { success: true, title };
+    } catch (error: any) {
+        console.error('Failed to get Google Drive file title:', error.message);
+        const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred while analyzing the URL.';
+        return { error: `Analysis Failed: ${apiError}` };
+    }
+}
+
 
 async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: string) {
     const rangeToRead = `${sheetName}!G:T`; // Read from Status (G) to Ticket OP (T)
@@ -1250,7 +1284,7 @@ export async function getAllCaseData(sheetUrl: string) {
 // ---- AI KNOWLEDGE BASE ENGINE ----
 
 async function fetchRawKnowledgeData(knowledgeBaseUrl: string): Promise<string> {
-    const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|folders\/)([a-zA-Z0-9-_]+)/;
+    const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|drive\/folders\/)([a-zA-Z0-9-_]+)/;
     const match = knowledgeBaseUrl.match(idRegex);
     if (!match || !match[1]) {
         throw new Error("Invalid Google Drive URL format for Knowledge Base.");

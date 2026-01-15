@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { getSpreadsheetTitle } from '@/app/actions';
+import { getSpreadsheetTitle, getDriveFileTitle } from '@/app/actions';
 
 export default function SettingsPage() {
   const { 
@@ -115,7 +115,7 @@ export default function SettingsPage() {
         const [mainResult, dbResult, kbResult] = await Promise.all([
             getSpreadsheetTitle(sheetUrl),
             getSpreadsheetTitle(dbSheetUrl),
-            getSpreadsheetTitle(knowledgeBaseUrl)
+            getDriveFileTitle(knowledgeBaseUrl) // Use the new Drive validation function
         ]);
         
         let isMainValid = false;
@@ -267,13 +267,13 @@ export default function SettingsPage() {
                     </div>
                  </div>
                  <div className="grid gap-2">
-                    <Label htmlFor="url-knowledge-base">URL Knowledge Base</Label>
+                    <Label htmlFor="url-knowledge-base">URL Knowledge Base (Google Drive)</Label>
                      <div className='flex items-center gap-2'>
                         <Link className="h-9 w-9 p-2 bg-muted rounded-md flex items-center justify-center shrink-0" />
                         <Input
                           id="url-knowledge-base"
                           type="url"
-                          placeholder="https://docs.google.com/spreadsheets/d/..."
+                          placeholder="https://docs.google.com/document/d/... or /file/d/..."
                           value={knowledgeBaseUrl}
                           onChange={(e) => setKnowledgeBaseUrl(e.target.value)}
                           readOnly={!isEditing}
