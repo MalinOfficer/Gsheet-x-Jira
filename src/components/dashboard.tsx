@@ -2,7 +2,7 @@
 
 "use client";
 
-import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, ArrowRightLeft, List, Wand2 } from "lucide-react";
+import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -407,7 +407,14 @@ export function Dashboard() {
                       <CheckCircle className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="p-6 pt-2">
-                      <div className="text-2xl font-bold">{dashboardStats.totalSolved}</div>
+                      <div className="flex items-baseline gap-2">
+                        <div className="text-2xl font-bold">{dashboardStats.totalSolved}</div>
+                        {dashboardStats.totalCases > 0 && (
+                            <span className="text-xs font-medium text-green-600 border border-green-200 dark:border-green-800 rounded-full px-2 py-0.5">
+                                {((dashboardStats.totalSolved / dashboardStats.totalCases) * 100).toFixed(1)}%
+                            </span>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                   <Card>
@@ -425,8 +432,7 @@ export function Dashboard() {
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
-                            <CardTitle>Total Case of This Year</CardTitle>
-                            <CardDescription>Comparison of total cases over the last three years.</CardDescription>
+                            <CardTitle>Total Case</CardTitle>
                         </div>
                         <div className="flex items-center gap-2">
                             <Popover>
