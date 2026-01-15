@@ -486,7 +486,7 @@ export function Dashboard() {
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                            <AreaChart data={dashboardStats.monthlyData} margin={{ left: -20, right: 20, top: 10, bottom: 10 }}>
+                            <AreaChart data={dashboardStats.monthlyData} margin={{ left: 12, right: 20, top: 10, bottom: 10 }}>
                                 <defs>
                                     <linearGradient id="fill2026" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="hsl(221 83% 53%)" stopOpacity={0.8} />
