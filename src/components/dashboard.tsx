@@ -2,7 +2,7 @@
 
 "use client";
 
-import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, ArrowLeft } from "lucide-react";
+import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, ArrowLeft, AlertTriangle } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ScrollArea } from "./ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { cn } from "@/lib/utils";
 
 
@@ -215,7 +215,6 @@ export function Dashboard() {
                 allModules: [],
                 statusCounts: [],
                 solvedVsUnsolved: [],
-                monthlyData: [],
                 totalClients: 0,
                 moduleTrend: 'N/A',
                 totalSolved: 0,
@@ -240,19 +239,13 @@ export function Dashboard() {
             .map(([name, value]) => ({ name, value }));
 
         const totalClients = Object.keys(clientFrequency).length;
-
-        const moduleFrequency = createFrequencyMap(moduleHeader);
-        const topCategories = Object.entries(moduleFrequency)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 5)
-            .map(([name, value]) => ({ name, value }));
-
-        const moduleTrend = topCategories.length > 0 ? topCategories[0].name : 'N/A';
         
         const detailModuleFrequency = createFrequencyMap(detailModuleHeader);
         const allModules = Object.entries(detailModuleFrequency)
             .sort(([, a], [, b]) => b - a)
             .map(([name, value]) => ({ name, value }));
+        
+        const moduleTrend = allModules.length > 0 ? allModules[0].name : 'N/A';
 
         const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
         const statusFrequency: Record<string, number> = {};
