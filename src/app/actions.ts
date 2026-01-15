@@ -1283,6 +1283,12 @@ export async function getAllCaseData(sheetUrl: string) {
 
 // ---- AI KNOWLEDGE BASE ENGINE ----
 
+// Define the input type here as it's used by the calling action.
+type KnowledgeBaseInput = {
+    query: string;
+    context: string;
+};
+
 async function fetchRawKnowledgeData(knowledgeBaseUrl: string): Promise<string> {
     const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|drive\/folders\/)([a-zA-Z0-9-_]+)/;
     const match = knowledgeBaseUrl.match(idRegex);
@@ -1322,7 +1328,8 @@ export async function runKnowledgeBaseEngine(
         console.log("KB Engine - Step 1: Completed. Context is ready.");
 
         console.log("KB Engine - Step 2: Passing to AI for analysis...");
-        const response = await knowledgeBaseFlow({ query, context });
+        const input: KnowledgeBaseInput = { query, context };
+        const response = await knowledgeBaseFlow(input);
         console.log("KB Engine - Step 3: AI analysis complete.");
 
         console.log("KNOWLEDGE BASE ENGINE PIPELINE FINISHED SUCCESSFULLY.");

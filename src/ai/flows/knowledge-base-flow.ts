@@ -3,27 +3,25 @@
  * @fileOverview A knowledge base AI agent that answers questions based on provided data.
  *
  * - knowledgeBaseFlow - A function that handles the question answering process.
- * - KnowledgeBaseInput - The input type for the knowledgeBaseFlow function.
- * - KnowledgeBaseOutput - The return type for the knowledgeBaseFlow function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const KnowledgeBaseInputSchema = z.object({
+const KnowledgeBaseInputSchema = z.object({
   query: z.string().describe("The user's question."),
   context: z
     .string()
     .describe('The knowledge base data from the Google Sheet.'),
 });
-export type KnowledgeBaseInput = z.infer<typeof KnowledgeBaseInputSchema>;
+type KnowledgeBaseInput = z.infer<typeof KnowledgeBaseInputSchema>;
 
-export const KnowledgeBaseOutputSchema = z.object({
+const KnowledgeBaseOutputSchema = z.object({
   answer: z
     .string()
     .describe("The AI-generated answer to the user's question."),
 });
-export type KnowledgeBaseOutput = z.infer<typeof KnowledgeBaseOutputSchema>;
+type KnowledgeBaseOutput = z.infer<typeof KnowledgeBaseOutputSchema>;
 
 
 const knowledgeBasePrompt = ai.definePrompt({
