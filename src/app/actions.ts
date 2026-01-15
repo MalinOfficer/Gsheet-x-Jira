@@ -1289,34 +1289,43 @@ type KnowledgeBaseInput = {
     context: string;
 };
 
-async function fetchRawKnowledgeData(knowledgeBaseUrl: string): Promise<string> {
-    const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|drive\/folders\/)([a-zA-Z0-9-_]+)/;
-    const match = knowledgeBaseUrl.match(idRegex);
-    if (!match || !match[1]) {
-        throw new Error("Invalid Google Drive URL format for Knowledge Base.");
-    }
-    const fileId = match[1];
+const fetchRawKnowledgeData = unstable_cache(
+    async (knowledgeBaseUrl: string): Promise<string> => {
+        const idRegex = /(?:spreadsheets\/d\/|document\/d\/|file\/d\/|drive\/folders\/)([a-zA-Z0-9-_]+)/;
+        const match = knowledgeBaseUrl.match(idRegex);
+        if (!match || !match[1]) {
+            throw new Error("Invalid Google Drive URL format for Knowledge Base.");
+        }
+        const fileId = match[1];
 
-    try {
-        const { drive } = getGoogleApiClients();
-        const response = await drive.files.get({
-            fileId: fileId,
-            alt: 'media',
-        }, { responseType: 'stream' });
+        try {
+            const { drive } = getGoogleApiClients();
+            const response = await drive.files.export({
+                fileId: fileId,
+                mimeType: 'text/plain',
+            }, { responseType: 'stream' });
 
-        return new Promise((resolve, reject) => {
-            let content = '';
-            (response.data as any)
-                .on('data', (chunk: Buffer) => (content += chunk.toString()))
-                .on('end', () => resolve(content))
-                .on('error', (err: Error) => reject(new Error(`Failed to read file stream: ${err.message}`)));
-        });
+            return new Promise((resolve, reject) => {
+                let content = '';
+                (response.data as any)
+                    .on('data', (chunk: Buffer) => (content += chunk.toString()))
+                    .on('end', () => resolve(content))
+                    .on('error', (err: Error) => reject(new Error(`Failed to read file stream: ${err.message}`)));
+            });
 
-    } catch (error: any) {
-        console.error("Error fetching from Drive:", error.message);
-        throw new Error(`Failed to fetch file from Google Drive. ${error.message}`);
-    }
-}
+        } catch (error: any) {
+            console.error("Error fetching from Drive:", error);
+            // Check for specific Google API error structure
+            if (error.errors && error.errors[0]) {
+                throw new Error(`Failed to fetch file from Google Drive: ${error.errors[0].message}`);
+            }
+            throw new Error(`Failed to fetch file from Google Drive. ${error.message}`);
+        }
+    },
+    ['knowledge-base-data'],
+    { revalidate: 3600 } // Cache for 1 hour
+);
+
 
 export async function runKnowledgeBaseEngine(
     knowledgeBaseUrl: string,
