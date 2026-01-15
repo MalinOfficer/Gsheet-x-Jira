@@ -38,8 +38,8 @@ const chartConfig = {
   'ON HOLD': { label: 'On Hold', color: 'hsl(var(--chart-5))' },
   'OPEN': { label: 'Open', color: 'hsl(var(--chart-1))' },
   'RESOLVED': { label: 'Solved', color: 'hsl(var(--chart-2))' },
-  clients: { label: "Clients", color: "#2563eb" },
-  modules: { label: "Modules", color: "hsl(var(--chart-2))" },
+  clients: { label: "Clients", color: "hsl(var(--chart-2))" },
+  modules: { label: "Modules", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig
 
 interface DashboardState {
@@ -562,12 +562,11 @@ export function Dashboard() {
                                     >
                                         <defs>
                                           <linearGradient id="clientsGradient" x1="0" y1="0" x2="1" y2="0">
-                                            <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.9}/>
-                                            <stop offset="50%" stopColor="#2dd4bf" stopOpacity={0.8}/>
-                                            <stop offset="100%" stopColor="#5eead4" stopOpacity={0.7}/>
+                                            <stop offset="0%" stopColor="var(--color-2025)" stopOpacity={0.9}/>
+                                            <stop offset="100%" stopColor="var(--color-2025)" stopOpacity={0.4}/>
                                           </linearGradient>
                                           <filter id="softGlowClients">
-                                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
                                             <feMerge>
                                               <feMergeNode in="coloredBlur"/>
                                               <feMergeNode in="SourceGraphic"/>
@@ -579,7 +578,7 @@ export function Dashboard() {
                                         <Tooltip
                                           contentStyle={{ 
                                             backgroundColor: 'hsl(var(--background))', 
-                                            borderColor: '#14b8a6', 
+                                            borderColor: 'var(--color-2025)', 
                                             color: 'hsl(var(--foreground))',
                                             borderRadius: 'var(--radius)',
                                             fontWeight: '600',
@@ -610,12 +609,11 @@ export function Dashboard() {
                                     >
                                         <defs>
                                           <linearGradient id="modulesGradient" x1="0" y1="0" x2="1" y2="0">
-                                            <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9}/>
-                                            <stop offset="50%" stopColor="#818cf8" stopOpacity={0.8}/>
-                                            <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.7}/>
+                                            <stop offset="0%" stopColor="var(--color-2026)" stopOpacity={0.9}/>
+                                            <stop offset="100%" stopColor="var(--color-2026)" stopOpacity={0.4}/>
                                           </linearGradient>
                                           <filter id="softGlowModules">
-                                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
                                             <feMerge>
                                               <feMergeNode in="coloredBlur"/>
                                               <feMergeNode in="SourceGraphic"/>
@@ -627,7 +625,7 @@ export function Dashboard() {
                                         <Tooltip
                                           contentStyle={{ 
                                             backgroundColor: 'hsl(var(--background))', 
-                                            borderColor: '#6366f1',
+                                            borderColor: 'var(--color-2026)',
                                             color: 'hsl(var(--foreground))',
                                             borderRadius: 'var(--radius)',
                                             fontWeight: '600',
