@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useContext, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Copy, Check, BarChart as BarChartIcon, AlertTriangle, User, AppWindow, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { Copy, Check, BarChart as BarChartIcon, AlertTriangle, User, AppWindow, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { formatDateTime } from '@/lib/date-utils';
 import { SettingsContext, TableData } from '@/contexts/settings-provider';
 import { useToast } from '@/hooks/use-toast';
@@ -186,8 +186,10 @@ function DashboardChart() {
                     <div className="flex items-baseline gap-2">
                         <p className="text-3xl font-bold mt-2">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
                     </div>
-                    <p className="text-xs text-green-600 font-medium">
-                        {totalCases > 0 ? (((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1) : 0}% Solved
+                    <p className="text-xs text-green-700 dark:text-green-300 font-medium mt-4">
+                        <span className="border border-green-300 dark:border-green-700 rounded-full px-2 py-0.5">
+                            {totalCases > 0 ? (((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1) : 0}% Solved
+                        </span>
                     </p>
                 </Card>
             </div>
@@ -272,7 +274,6 @@ function DashboardChart() {
 
 
 function InitialState({ error }: { error?: string }) {
-  const router = useRouter();
   return (
     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px]">
         {error ? (
@@ -284,10 +285,6 @@ function InitialState({ error }: { error?: string }) {
         <CardDescription className="mt-2 mb-4 max-w-sm">
             {error ? error : "To view reports, please go to the Import Data page and convert your data."}
         </CardDescription>
-        <Button onClick={() => router.push('/')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Import Data
-        </Button>
     </Card>
   );
 };
@@ -548,7 +545,6 @@ interface ReportHarianProps {
 }
 
 export function ReportHarian({ error }: ReportHarianProps) {
-  const router = useRouter();
   const { tableData } = useContext(SettingsContext); // Changed to SettingsContext
 
   // Check if data exists in the context from the import flow
