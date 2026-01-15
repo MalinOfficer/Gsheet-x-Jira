@@ -1,11 +1,11 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useTransition, useContext } from 'react';
+import React, { useState, useEffect, useTransition, useCallback, useContext } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useToast } from "@/hooks/use-toast";
-import { Search, FileText, Download, Eye, Filter, RefreshCw, Folder, BookOpen, Tag, Clock, File, Menu, LayoutDashboard, Upload, Database, BarChart3, Settings, X } from 'lucide-react';
+import { Search, FileText, Download, Eye, Filter, RefreshCw, Folder, BookOpen, Tag, Clock, File, X, Menu, LayoutDashboard, Upload, Database, BarChart3, Settings } from 'lucide-react';
 import { runKnowledgeBaseEngine } from '@/app/actions';
 import { SettingsContext } from '@/contexts/settings-provider';
 
@@ -17,7 +17,6 @@ const KnowledgeDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [filterType, setFilterType] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showAllDocs, setShowAllDocs] = useState(false);
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [isSearching, startSearch] = useTransition();
@@ -36,7 +35,6 @@ const KnowledgeDashboard = () => {
     }
 
     startSearch(async () => {
-      setLoading(true);
       setAiResponse(null);
       const result = await runKnowledgeBaseEngine(knowledgeBaseUrl, searchQuery);
       if (result.success && result.data) {
@@ -49,10 +47,8 @@ const KnowledgeDashboard = () => {
           description: result.error,
         });
       }
-      setLoading(false);
     });
   }, [searchQuery, knowledgeBaseUrl, toast]);
-
 
   // Demo data
   const demoDocuments = [
@@ -218,9 +214,6 @@ const KnowledgeDashboard = () => {
                   <RefreshCw className="w-4 h-4" />
                   Sync Drive
                 </button>
-                <div className="w-12 h-6 bg-blue-500 rounded-full relative cursor-pointer">
-                  <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5 shadow-sm"></div>
-                </div>
               </div>
             </div>
           </div>
@@ -356,7 +349,7 @@ const KnowledgeDashboard = () => {
                         )}
                       </div>
 
-                      {loading ? (
+                      {isSearching ? (
                         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
                           <RefreshCw className="w-12 h-12 text-gray-300 mx-auto mb-3 animate-spin" />
                           <h3 className="text-lg font-semibold text-gray-900 mb-1">Searching...</h3>
@@ -610,6 +603,6 @@ const KnowledgeDashboard = () => {
             )}
           </div>
         </div>
-      </div>
+    </div>
   );
 };

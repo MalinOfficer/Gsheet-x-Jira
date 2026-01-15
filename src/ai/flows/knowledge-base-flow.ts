@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A knowledge base AI agent that answers questions based on provided data.
@@ -91,6 +90,6 @@ export async function knowledgeBaseFlow(input: KnowledgeBaseInput): Promise<Know
     // Call our internal AI engine
     const response = await machonAI(validatedInput);
 
-    // Validate output before returning
+    // Validate output before returning and return the result.
     return KnowledgeBaseOutputSchema.parse(response);
 }
