@@ -10,6 +10,7 @@ import { knowledgeBaseFlow } from '@/ai/flows/knowledge-base-flow';
 import mammoth from 'mammoth';
 
 const CACHE_KEY_ALL_CASE = 'all_case_data_cache';
+const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1S9oSokUh8SyWlNObCLdwpn2r2iXA8Gy73OnxsZa728E/edit?gid=0#gid=0';
 
 
 // Daftar file yang sama seperti di code-viewer sebelumnya
@@ -1399,5 +1400,7 @@ export async function runKnowledgeBaseEngine(
 
       
 
+
+    
 
     
