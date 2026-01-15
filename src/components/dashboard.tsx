@@ -430,7 +430,7 @@ export function Dashboard() {
                 {/* Header Cards */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
                       <BarChartIcon className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
@@ -439,7 +439,7 @@ export function Dashboard() {
                     </CardContent>
                   </Card>
                    <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Trending Category</CardTitle>
                       <FolderKanban className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
@@ -448,7 +448,7 @@ export function Dashboard() {
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Status Solved</CardTitle>
                       <CheckCircle className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
@@ -457,7 +457,7 @@ export function Dashboard() {
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
                       <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
@@ -491,16 +491,16 @@ export function Dashboard() {
                             <AreaChart data={dashboardStats.monthlyData} margin={{ left: -20, right: 20, top: 10, bottom: 10 }}>
                                 <defs>
                                     <linearGradient id="fill2026" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="var(--color-2026)" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="var(--color-2026)" stopOpacity={0.1} />
+                                        <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.1} />
                                     </linearGradient>
                                     <linearGradient id="fill2025" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="var(--color-2025)" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="var(--color-2025)" stopOpacity={0.1} />
+                                        <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0.1} />
                                     </linearGradient>
                                     <linearGradient id="fill2024" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="var(--color-2024)" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="var(--color-2024)" stopOpacity={0.1} />
+                                        <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0.1} />
                                     </linearGradient>
                                 </defs>
                                 <XAxis
@@ -524,21 +524,21 @@ export function Dashboard() {
                                     dataKey="2026"
                                     type="monotone"
                                     fill="url(#fill2026)"
-                                    stroke="var(--color-2026)"
+                                    stroke="hsl(var(--chart-1))"
                                     strokeWidth={2}
                                 />
                                  <Area
                                     dataKey="2025"
                                     type="monotone"
                                     fill="url(#fill2025)"
-                                    stroke="var(--color-2025)"
+                                    stroke="hsl(var(--chart-2))"
                                     strokeWidth={2}
                                 />
                                  <Area
                                     dataKey="2024"
                                     type="monotone"
                                     fill="url(#fill2024)"
-                                    stroke="var(--color-2024)"
+                                    stroke="hsl(var(--chart-3))"
                                     strokeWidth={2}
                                 />
                             </AreaChart>
@@ -550,7 +550,6 @@ export function Dashboard() {
                     <Card>
                         <CardHeader>
                             <h2 className="text-2xl font-bold text-card-foreground mb-1">All Clients</h2>
-                            <p className="text-sm text-muted-foreground">Comparison of all clients performance</p>
                         </CardHeader>
                          <CardContent>
                             <div style={{ height: '220px', overflowY: 'auto' }} className="rounded-lg bg-muted/30">
@@ -597,7 +596,6 @@ export function Dashboard() {
                      <Card>
                         <CardHeader>
                             <h2 className="text-2xl font-bold text-card-foreground mb-1">All Modules</h2>
-                            <p className="text-sm text-muted-foreground">Comparison of all modules performance</p>
                         </CardHeader>
                         <CardContent>
                             <div style={{ height: '220px', overflowY: 'auto' }} className="rounded-lg bg-muted/30">
@@ -605,7 +603,7 @@ export function Dashboard() {
                                     <RechartsBarChart
                                         data={allModules}
                                         layout="vertical"
-                                        margin={{ top: 5, right: 70, left: 10, bottom: 5 }}
+                                        margin={{ top: 5, right: 70, left: -20, bottom: 5 }}
                                     >
                                         <defs>
                                           <linearGradient id="modulesGradient" x1="0" y1="0" x2="1" y2="0">
