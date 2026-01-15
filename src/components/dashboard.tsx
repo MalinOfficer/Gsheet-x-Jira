@@ -67,7 +67,7 @@ const CustomYAxisTick = (props: any) => {
         const lines = chunkSubstr(value, maxCharsPerLine);
         return (
             <g transform={`translate(${x},${y})`}>
-                <text x={-10} y={0} dy={4} textAnchor="end" fill="#9ca3af" fontSize={11} fontWeight="500">
+                <text x={-10} y={0} dy={4} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: '11px', fontWeight: 500 }}>
                     {lines.map((line, i) => (
                         <tspan key={i} x={-10} dy={i > 0 ? lineHeight : 0}>{line}</tspan>
                     ))}
@@ -78,7 +78,7 @@ const CustomYAxisTick = (props: any) => {
 
     return (
         <g transform={`translate(${x},${y})`}>
-            <text x={-10} y={0} dy={4} textAnchor="end" fill="#9ca3af" fontSize={11} fontWeight="500">
+            <text x={-10} y={0} dy={4} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: '11px', fontWeight: 500 }}>
                 {value}
             </text>
         </g>
@@ -547,98 +547,102 @@ export function Dashboard() {
                 </Card>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
-                    <div className="bg-[#1a1a1a] rounded-xl p-6 shadow-2xl border border-[#2a2a2a]">
-                        <div className="mb-6">
-                            <h2 className="text-2xl font-bold text-white mb-1">All Clients</h2>
-                            <p className="text-sm text-gray-500">Comparison of all clients performance</p>
-                        </div>
-                        <div style={{ height: '220px', overflowY: 'auto' }} className="rounded-lg bg-[#141414] border border-[#2a2a2a]">
-                            <ResponsiveContainer width="100%" height={allClients.length * 60}>
-                                <RechartsBarChart
-                                    data={allClients}
-                                    layout="vertical"
-                                    margin={{ top: 5, right: 70, left: -20, bottom: 5 }}
-                                >
-                                    <defs>
-                                      <linearGradient id="clientsGradient" x1="0" y1="0" x2="1" y2="0">
-                                        <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.9}/>
-                                        <stop offset="50%" stopColor="#2dd4bf" stopOpacity={0.8}/>
-                                        <stop offset="100%" stopColor="#5eead4" stopOpacity={0.7}/>
-                                      </linearGradient>
-                                      <filter id="softGlowClients">
-                                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                                        <feMerge>
-                                          <feMergeNode in="coloredBlur"/>
-                                          <feMergeNode in="SourceGraphic"/>
-                                        </feMerge>
-                                      </filter>
-                                    </defs>
-                                    <XAxis type="number" stroke="#4a4a4a" style={{ fontSize: '11px' }} tick={{ fill: '#6b7280' }} axisLine={{ stroke: '#2a2a2a' }} tickLine={false} />
-                                    <YAxis type="category" dataKey="name" width={130} stroke="#4a4a4a" tick={<CustomYAxisTick />} axisLine={{ stroke: '#2a2a2a' }} tickLine={false} />
-                                    <Tooltip
-                                      contentStyle={{ 
-                                        backgroundColor: '#1f2937', 
-                                        border: '1px solid #14b8a6', 
-                                        borderRadius: '8px',
-                                        color: 'white',
-                                        fontWeight: '600',
-                                        boxShadow: '0 10px 25px rgba(20, 184, 166, 0.3)'
-                                      }}
-                                      cursor={{ fill: '#1f2937', opacity: 0.3 }}
-                                    />
-                                    <Bar dataKey="value" fill="url(#clientsGradient)" radius={[0, 6, 6, 0]} maxBarSize={36} filter="url(#softGlowClients)">
-                                        <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: '#d1d5db' }}/>
-                                    </Bar>
-                                </RechartsBarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                     <div className="bg-[#1a1a1a] rounded-xl p-6 shadow-2xl border border-[#2a2a2a]">
-                        <div className="mb-6">
-                            <h2 className="text-2xl font-bold text-white mb-1">All Modules</h2>
-                            <p className="text-sm text-gray-500">Comparison of all modules performance</p>
-                        </div>
-                        <div style={{ height: '220px', overflowY: 'auto' }} className="rounded-lg bg-[#141414] border border-[#2a2a2a]">
-                            <ResponsiveContainer width="100%" height={allModules.length * 60}>
-                                <RechartsBarChart
-                                    data={allModules}
-                                    layout="vertical"
-                                    margin={{ top: 5, right: 70, left: 10, bottom: 5 }}
-                                >
-                                    <defs>
-                                      <linearGradient id="modulesGradient" x1="0" y1="0" x2="1" y2="0">
-                                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9}/>
-                                        <stop offset="50%" stopColor="#818cf8" stopOpacity={0.8}/>
-                                        <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.7}/>
-                                      </linearGradient>
-                                      <filter id="softGlowModules">
-                                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                                        <feMerge>
-                                          <feMergeNode in="coloredBlur"/>
-                                          <feMergeNode in="SourceGraphic"/>
-                                        </feMerge>
-                                      </filter>
-                                    </defs>
-                                    <XAxis type="number" stroke="#4a4a4a" style={{ fontSize: '11px' }} tick={{ fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                                    <YAxis type="category" dataKey="name" width={140} stroke="#4a4a4a" tick={{ fontSize: 12, fill: '#9ca3af', fontWeight: '500', textAnchor: 'end' }} axisLine={false} tickLine={false} />
-                                    <Tooltip
-                                      contentStyle={{ 
-                                        backgroundColor: '#1f2937', 
-                                        border: '1px solid #6366f1', 
-                                        borderRadius: '8px',
-                                        color: 'white',
-                                        fontWeight: '600',
-                                        boxShadow: '0 10px 25px rgba(99, 102, 241, 0.3)'
-                                      }}
-                                      cursor={{ fill: '#1f2937', opacity: 0.3 }}
-                                    />
-                                    <Bar dataKey="value" fill="url(#modulesGradient)" radius={[0, 6, 6, 0]} maxBarSize={36} filter="url(#softGlowModules)">
-                                         <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: '#d1d5db' }}/>
-                                    </Bar>
-                                </RechartsBarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
+                    <Card>
+                        <CardHeader>
+                            <h2 className="text-2xl font-bold text-card-foreground mb-1">All Clients</h2>
+                            <p className="text-sm text-muted-foreground">Comparison of all clients performance</p>
+                        </CardHeader>
+                         <CardContent>
+                            <div style={{ height: '220px', overflowY: 'auto' }} className="rounded-lg bg-muted/30">
+                                <ResponsiveContainer width="100%" height={allClients.length * 60}>
+                                    <RechartsBarChart
+                                        data={allClients}
+                                        layout="vertical"
+                                        margin={{ top: 5, right: 70, left: -20, bottom: 5 }}
+                                    >
+                                        <defs>
+                                          <linearGradient id="clientsGradient" x1="0" y1="0" x2="1" y2="0">
+                                            <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.9}/>
+                                            <stop offset="50%" stopColor="#2dd4bf" stopOpacity={0.8}/>
+                                            <stop offset="100%" stopColor="#5eead4" stopOpacity={0.7}/>
+                                          </linearGradient>
+                                          <filter id="softGlowClients">
+                                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                            <feMerge>
+                                              <feMergeNode in="coloredBlur"/>
+                                              <feMergeNode in="SourceGraphic"/>
+                                            </feMerge>
+                                          </filter>
+                                        </defs>
+                                        <XAxis type="number" stroke="hsl(var(--border))" style={{ fontSize: '11px' }} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                                        <YAxis type="category" dataKey="name" width={130} stroke="hsl(var(--border))" tick={<CustomYAxisTick />} axisLine={false} tickLine={false} />
+                                        <Tooltip
+                                          contentStyle={{ 
+                                            backgroundColor: 'hsl(var(--background))', 
+                                            borderColor: '#14b8a6', 
+                                            color: 'hsl(var(--foreground))',
+                                            borderRadius: 'var(--radius)',
+                                            fontWeight: '600',
+                                            boxShadow: '0 10px 25px rgba(20, 184, 166, 0.3)'
+                                          }}
+                                          cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
+                                        />
+                                        <Bar dataKey="value" fill="url(#clientsGradient)" radius={[0, 6, 6, 0]} maxBarSize={36} filter="url(#softGlowClients)">
+                                            <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: 'hsl(var(--foreground))' }}/>
+                                        </Bar>
+                                    </RechartsBarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader>
+                            <h2 className="text-2xl font-bold text-card-foreground mb-1">All Modules</h2>
+                            <p className="text-sm text-muted-foreground">Comparison of all modules performance</p>
+                        </CardHeader>
+                        <CardContent>
+                            <div style={{ height: '220px', overflowY: 'auto' }} className="rounded-lg bg-muted/30">
+                                <ResponsiveContainer width="100%" height={allModules.length * 60}>
+                                    <RechartsBarChart
+                                        data={allModules}
+                                        layout="vertical"
+                                        margin={{ top: 5, right: 70, left: 10, bottom: 5 }}
+                                    >
+                                        <defs>
+                                          <linearGradient id="modulesGradient" x1="0" y1="0" x2="1" y2="0">
+                                            <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9}/>
+                                            <stop offset="50%" stopColor="#818cf8" stopOpacity={0.8}/>
+                                            <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.7}/>
+                                          </linearGradient>
+                                          <filter id="softGlowModules">
+                                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                            <feMerge>
+                                              <feMergeNode in="coloredBlur"/>
+                                              <feMergeNode in="SourceGraphic"/>
+                                            </feMerge>
+                                          </filter>
+                                        </defs>
+                                        <XAxis type="number" stroke="hsl(var(--border))" style={{ fontSize: '11px' }} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                                        <YAxis type="category" dataKey="name" width={140} stroke="hsl(var(--border))" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: '500', textAnchor: 'end' }} axisLine={false} tickLine={false} />
+                                        <Tooltip
+                                          contentStyle={{ 
+                                            backgroundColor: 'hsl(var(--background))', 
+                                            borderColor: '#6366f1',
+                                            color: 'hsl(var(--foreground))',
+                                            borderRadius: 'var(--radius)',
+                                            fontWeight: '600',
+                                            boxShadow: '0 10px 25px rgba(99, 102, 241, 0.3)'
+                                          }}
+                                          cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
+                                        />
+                                        <Bar dataKey="value" fill="url(#modulesGradient)" radius={[0, 6, 6, 0]} maxBarSize={36} filter="url(#softGlowModules)">
+                                             <LabelList dataKey="value" position="right" formatter={(value: number) => value.toLocaleString()} style={{ fontSize: '13px', fontWeight: '600', fill: 'hsl(var(--foreground))' }}/>
+                                        </Bar>
+                                    </RechartsBarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         </div>
