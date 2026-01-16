@@ -459,7 +459,7 @@ export function DbViewer() {
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-            <div className="max-w-7xl mx-auto space-y-4">
+            <div className="space-y-4">
                  <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
                         <p className="text-sm text-muted-foreground mt-1">
@@ -602,3 +602,5 @@ export function DbViewer() {
         </div>
     );
 }
+
+    
