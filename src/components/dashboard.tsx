@@ -10,19 +10,19 @@ import {
     CardTitle,
     CardDescription
 } from "@/components/ui/card";
-import { useContext, useMemo, useState, useEffect, useTransition, useCallback, SVGProps } from "react";
+import { useContext, useState, useEffect, useTransition, useCallback } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Bar, BarChart as RechartsBarChart } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { getAllCaseData } from "@/app/actions";
+import { getDashboardStats, getDashboardFilterOptions, syncDashboardCache } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ScrollArea } from "./ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Tooltip, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { cn } from "@/lib/utils";
 
 
@@ -44,11 +44,23 @@ const chartConfig = {
   modules: { label: "Modules", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig
 
-interface DashboardState {
-    data: any[] | null;
-    error?: string;
-    loading: boolean;
-}
+type DashboardStats = {
+    totalCases: number;
+    allClients: { name: string; value: number }[];
+    allModules: { name: string; value: number }[];
+    solvedVsUnsolved: { name: string; value: number }[];
+    monthlyData: any[];
+    totalClients: number;
+    categoryTrend: string;
+    totalSolved: number;
+};
+
+type FilterOptions = {
+    categories: { label: string; value: string }[];
+    clients: { label: string; value: string }[];
+    modules: { label: string; value: string }[];
+    years: string[];
+};
 
 const CustomYAxisTick = (props: any) => {
     const { x, y, payload } = props;
@@ -90,227 +102,101 @@ const CustomYAxisTick = (props: any) => {
 
 export function Dashboard() {
     const { dbSheetUrl } = useContext(SettingsContext);
-    const [state, setState] = useState<DashboardState>({ data: null, error: undefined, loading: true });
-    const [isRefreshing, startRefresh] = useTransition();
     const { toast } = useToast();
+
+    // State Management
+    const [stats, setStats] = useState<DashboardStats | null>(null);
+    const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [isLoading, startTransition] = useTransition();
+    const [refreshCount, setRefreshCount] = useState(0);
+
+    // Filter states
     const [selectedYear, setSelectedYear] = useState<string>('all');
     const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
     const [clientFilter, setClientFilter] = useState<string[]>([]);
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
 
-
+    // Effect for initial data load and manual refresh
     useEffect(() => {
-        const loadData = async () => {
+        const fetchInitialData = async () => {
             if (!dbSheetUrl) {
-                setState({ data: null, error: 'DB GSheet URL is not configured in Settings.', loading: false });
+                setError('DB GSheet URL is not configured in Settings.');
                 return;
             }
-            setState(prevState => ({ ...prevState, loading: true }));
-            const result = await getAllCaseData(dbSheetUrl);
-            setState({
-                data: result?.data || null,
-                error: result?.error,
-                loading: false
+            
+            startTransition(async () => {
+                setError(null);
+
+                // On refresh, sync cache first
+                if (refreshCount > 0) {
+                    await syncDashboardCache(dbSheetUrl);
+                }
+
+                const [statsResult, optionsResult] = await Promise.all([
+                    getDashboardStats({ sheetUrl: dbSheetUrl, selectedYear: 'all', categoryFilter: [], clientFilter: [], moduleFilter: [] }),
+                    getDashboardFilterOptions(dbSheetUrl)
+                ]);
+
+                if (statsResult.error) {
+                    setError(statsResult.error);
+                    setStats(null);
+                } else {
+                    setStats(statsResult as DashboardStats);
+                }
+
+                if (optionsResult.error || !optionsResult.data) {
+                    console.error("Could not load filter options:", optionsResult.error);
+                    setFilterOptions({ categories: [], clients: [], modules: [], years: [] });
+                } else {
+                    setFilterOptions(optionsResult.data);
+                }
             });
         };
-        loadData();
-    }, [dbSheetUrl]);
-    
-    const handleRefresh = () => {
-        startRefresh(async () => {
-            if (!dbSheetUrl) {
-                toast({ variant: 'destructive', title: "URL Not Set", description: "Google Sheet URL is not configured in Settings." });
-                return;
-            }
-            const result = await getAllCaseData(dbSheetUrl);
-             if (result.error) {
-                toast({ variant: 'destructive', title: "Refresh Failed", description: result.error });
-            } else {
-                toast({ title: "Cache Refreshed", description: "Dashboard data has been synced with Google Sheets." });
-                setState({
-                    data: result?.data || null,
-                    error: result.error,
-                    loading: false
+
+        fetchInitialData();
+    }, [dbSheetUrl, refreshCount]);
+
+    // Effect to refetch stats when filters change
+    useEffect(() => {
+        // Don't run on initial mount; the first effect handles that.
+        if (refreshCount === 0 && !filterOptions) {
+            return;
+        }
+
+        const fetchFilteredStats = () => {
+             if (!dbSheetUrl) return;
+             startTransition(async () => {
+                setError(null);
+                const result = await getDashboardStats({
+                    sheetUrl: dbSheetUrl,
+                    selectedYear,
+                    categoryFilter,
+                    clientFilter,
+                    moduleFilter,
                 });
-            }
-        })
-    }
-    
-    const findHeader = (possibleNames: string[]): string | undefined => {
-         if (!state.data || !state.data[0]) return undefined;
-         const actualHeaders = Object.keys(state.data[0]);
-         for (const name of possibleNames) {
-             const found = actualHeaders.find(header => header.toLowerCase() === name.toLowerCase());
-             if (found) return found;
-         }
-         return undefined;
+
+                if (result.error) {
+                    toast({ variant: 'destructive', title: "Error applying filters", description: result.error });
+                } else {
+                    setStats(result as DashboardStats);
+                }
+            });
+        }
+        
+        // This check prevents running on the very first render before initial data is loaded
+        if (filterOptions) {
+            fetchFilteredStats();
+        }
+
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dbSheetUrl, filterOptions, toast]);
+
+    const handleRefresh = () => {
+        setRefreshCount(c => c + 1);
+        toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
     };
     
-    const categoryHeader = useMemo(() => findHeader(['KATEGORI', 'Ticket Category', 'Category']), [state.data]);
-    const clientHeader = useMemo(() => findHeader(['CLIENT NAME', 'Client Name', 'Client']), [state.data]);
-    const moduleHeader = useMemo(() => findHeader(['MODULE', 'Module']), [state.data]);
-    const detailModuleHeader = useMemo(() => findHeader(['DETAIL MODUL', 'Detail Module']), [state.data]);
-    const dateHeader = useMemo(() => findHeader(['DATE', 'Date']), [state.data]);
-
-    const filterOptions = useMemo(() => {
-        if (!state.data) return { categories: [], clients: [], modules: [], years: [] };
-        
-        const createOptions = (header: string | undefined) => {
-            if (!header) return [];
-            const values = [...new Set(state.data.map(row => row[header]).filter(Boolean))];
-            return values.map(val => ({ label: val, value: val }));
-        }
-
-        const years = new Set<string>();
-        if (dateHeader) {
-            state.data.forEach(row => {
-                const dateStr = row[dateHeader];
-                if (dateStr && typeof dateStr === 'string' && dateStr.includes('/')) {
-                    const year = dateStr.split('/')[2];
-                    if (year) years.add(year);
-                }
-            });
-        }
-
-        return {
-            categories: createOptions(categoryHeader),
-            clients: createOptions(clientHeader),
-            modules: createOptions(moduleHeader),
-            years: Array.from(years).sort((a, b) => parseInt(b) - parseInt(a))
-        }
-    }, [state.data, categoryHeader, clientHeader, moduleHeader, dateHeader]);
-
-    const filteredData = useMemo(() => {
-        if (!state.data) return [];
-        
-        let data = state.data;
-        
-        if (selectedYear !== 'all' && dateHeader) {
-            data = data.filter(row => {
-                const dateStr = row[dateHeader];
-                return dateStr && typeof dateStr === 'string' && dateStr.endsWith(`/${selectedYear}`);
-            });
-        }
-
-        if (categoryFilter.length > 0 && categoryHeader) {
-            data = data.filter(row => categoryFilter.includes(row[categoryHeader]));
-        }
-        if (clientFilter.length > 0 && clientHeader) {
-            data = data.filter(row => clientFilter.includes(row[clientHeader]));
-        }
-        if (moduleFilter.length > 0 && moduleHeader) {
-            data = data.filter(row => moduleFilter.includes(row[moduleHeader]));
-        }
-
-        return data;
-
-    }, [state.data, selectedYear, categoryFilter, clientFilter, moduleFilter, categoryHeader, clientHeader, moduleHeader, dateHeader]);
-
-    const dashboardStats = useMemo(() => {
-        const data = filteredData;
-        if (!data || data.length === 0) {
-            return {
-                totalCases: 0,
-                allClients: [],
-                allModules: [],
-                statusCounts: [],
-                solvedVsUnsolved: [],
-                totalClients: 0,
-                categoryTrend: 'N/A',
-                totalSolved: 0,
-            };
-        }
-
-        const createFrequencyMap = (field: string | undefined) => {
-            if (!field) return {};
-            const frequency: Record<string, number> = {};
-            data.forEach(row => {
-                const value = row[field];
-                if (value) {
-                    frequency[value] = (frequency[value] || 0) + 1;
-                }
-            });
-            return frequency;
-        };
-        
-        const clientFrequency = createFrequencyMap(clientHeader);
-        const allClients = Object.entries(clientFrequency)
-            .sort(([, a], [, b]) => b - a)
-            .map(([name, value]) => ({ name, value }));
-
-        const totalClients = Object.keys(clientFrequency).length;
-        
-        const detailModuleFrequency = createFrequencyMap(detailModuleHeader);
-        const allModules = Object.entries(detailModuleFrequency)
-            .sort(([, a], [, b]) => b - a)
-            .map(([name, value]) => ({ name, value }));
-        
-        const categoryFrequency = createFrequencyMap(categoryHeader);
-        const sortedCategories = Object.entries(categoryFrequency).sort(([,a],[,b]) => b-a);
-        const categoryTrend = sortedCategories.length > 0 ? sortedCategories[0][0] : 'N/A';
-
-        const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
-        const statusFrequency: Record<string, number> = {};
-        if (statusHeader) {
-            data.forEach(row => {
-                const status = String(row[statusHeader] || 'N/A').toUpperCase();
-                statusFrequency[status] = (statusFrequency[status] || 0) + 1;
-            });
-        }
-        
-        const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ name, value }));
-
-        const totalSolved = statusFrequency['SOLVED'] || 0;
-        const unsolvedCount = data.length - totalSolved;
-
-        const solvedVsUnsolved = [
-            { name: 'Solved', value: totalSolved },
-            { name: 'Unsolved', value: unsolvedCount }
-        ];
-
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const monthlyAggregation: Record<string, { "2024": number; "2025": number; "2026": number }> = {};
-        months.forEach(month => {
-            monthlyAggregation[month] = { "2024": 0, "2025": 0, "2026": 0 };
-        });
-
-        if (dateHeader) {
-            data.forEach(row => {
-                const dateStr = row[dateHeader];
-                if (dateStr && typeof dateStr === 'string') {
-                    const parts = dateStr.split('/');
-                    if (parts.length === 3) {
-                        const monthIndex = parseInt(parts[1], 10) - 1;
-                        const year = parts[2];
-                        if (monthIndex >= 0 && monthIndex < 12 && ['2024', '2025', '2026'].includes(year)) {
-                            const monthName = months[monthIndex];
-                            monthlyAggregation[monthName][year as "2024" | "2025" | "2026"] += 1;
-                        }
-                    }
-                }
-            });
-        }
-
-        const monthlyData = months.map(month => ({
-            month,
-            ...monthlyAggregation[month]
-        }));
-
-
-        return {
-            totalCases: data.length,
-            allClients,
-            allModules,
-            statusCounts,
-            solvedVsUnsolved,
-            monthlyData,
-            totalClients,
-            categoryTrend,
-            totalSolved
-        };
-    }, [filteredData, clientHeader, moduleHeader, detailModuleHeader, dateHeader, categoryHeader]);
-    
-    if (state.loading) {
+    if (isLoading && !stats) {
          return (
              <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto space-y-4">
@@ -330,7 +216,7 @@ export function Dashboard() {
          )
     }
 
-    if (state.error) {
+    if (error) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto">
@@ -338,10 +224,10 @@ export function Dashboard() {
                         <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
                         <CardTitle>Failed to Load Dashboard Data</CardTitle>
                         <CardDescription className="mt-2 mb-4 max-w-sm">
-                            {state.error}
+                            {error}
                         </CardDescription>
-                         <Button onClick={handleRefresh} disabled={isRefreshing}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                         <Button onClick={handleRefresh} disabled={isLoading}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                             Try Again
                         </Button>
                     </Card>
@@ -350,7 +236,7 @@ export function Dashboard() {
         );
     }
     
-    if (!state.data || state.data.length === 0) {
+    if (!stats) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto">
@@ -358,8 +244,8 @@ export function Dashboard() {
                         <AlertTriangle className="w-16 h-16 text-muted-foreground mb-4" />
                         <CardTitle>No Data Found</CardTitle>
                         <p className="mt-2 text-muted-foreground">The configured Google Sheet might be empty.</p>
-                         <Button onClick={handleRefresh} disabled={isRefreshing} className="mt-4">
-                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                         <Button onClick={handleRefresh} disabled={isLoading} className="mt-4">
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
                     </Card>
@@ -368,7 +254,7 @@ export function Dashboard() {
         );
     }
     
-    const { allClients, allModules } = dashboardStats;
+    const { allClients, allModules } = stats;
     const maxClientValue = allClients.length > 0 ? allClients[0].value : 1;
     const maxModuleValue = allModules.length > 0 ? allModules[0].value : 1;
 
@@ -384,7 +270,7 @@ export function Dashboard() {
                       <BarChartIcon className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="p-6 pt-2">
-                      <div className="text-2xl font-bold">{dashboardStats.totalCases}</div>
+                      <div className="text-2xl font-bold">{stats.totalCases}</div>
                     </CardContent>
                   </Card>
                    <Card>
@@ -393,7 +279,7 @@ export function Dashboard() {
                       <FolderKanban className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="p-6 pt-2">
-                      <div className="text-2xl font-bold truncate">{dashboardStats.categoryTrend}</div>
+                      <div className="text-2xl font-bold truncate">{stats.categoryTrend}</div>
                     </CardContent>
                   </Card>
                   <Card>
@@ -403,10 +289,10 @@ export function Dashboard() {
                     </CardHeader>
                     <CardContent className="p-6 pt-2">
                       <div className="flex items-baseline gap-2">
-                        <div className="text-2xl font-bold">{dashboardStats.totalSolved}</div>
-                        {dashboardStats.totalCases > 0 && (
+                        <div className="text-2xl font-bold">{stats.totalSolved}</div>
+                        {stats.totalCases > 0 && (
                             <span className="text-xs font-medium text-green-600 border border-green-200 dark:border-green-800 rounded-full px-2 py-0.5">
-                                {((dashboardStats.totalSolved / dashboardStats.totalCases) * 100).toFixed(1)}%
+                                {((stats.totalSolved / stats.totalCases) * 100).toFixed(1)}%
                             </span>
                         )}
                       </div>
@@ -418,7 +304,7 @@ export function Dashboard() {
                       <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="p-6 pt-2">
-                      <div className="text-2xl font-bold">{dashboardStats.totalClients}</div>
+                      <div className="text-2xl font-bold">{stats.totalClients}</div>
                     </CardContent>
                   </Card>
                 </div>
@@ -441,7 +327,7 @@ export function Dashboard() {
                                     <div className="space-y-2">
                                         <h4 className="font-medium leading-none">Filter by Category</h4>
                                         <MultiSelect
-                                            options={filterOptions.categories}
+                                            options={filterOptions?.categories || []}
                                             selected={categoryFilter}
                                             onChange={setCategoryFilter}
                                             placeholder="Select categories..."
@@ -450,7 +336,7 @@ export function Dashboard() {
                                     <div className="space-y-2">
                                         <h4 className="font-medium leading-none">Filter by Client</h4>
                                         <MultiSelect
-                                            options={filterOptions.clients}
+                                            options={filterOptions?.clients || []}
                                             selected={clientFilter}
                                             onChange={setClientFilter}
                                             placeholder="Select clients..."
@@ -459,7 +345,7 @@ export function Dashboard() {
                                     <div className="space-y-2">
                                         <h4 className="font-medium leading-none">Filter by Module</h4>
                                         <MultiSelect
-                                            options={filterOptions.modules}
+                                            options={filterOptions?.modules || []}
                                             selected={moduleFilter}
                                             onChange={setModuleFilter}
                                             placeholder="Select modules..."
@@ -467,8 +353,8 @@ export function Dashboard() {
                                     </div>
                                 </PopoverContent>
                             </Popover>
-                            <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" variant="outline">
-                                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            <Button onClick={handleRefresh} disabled={isLoading} size="sm" variant="outline">
+                                <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                                 Refresh Data
                             </Button>
                             <Select value={selectedYear} onValueChange={(value) => setSelectedYear(value)}>
@@ -477,7 +363,7 @@ export function Dashboard() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Years</SelectItem>
-                                    {filterOptions.years.map(year => (
+                                    {(filterOptions?.years || []).map(year => (
                                         <SelectItem key={year} value={year}>{year}</SelectItem>
                                     ))}
                                 </SelectContent>
@@ -486,7 +372,7 @@ export function Dashboard() {
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                            <AreaChart data={dashboardStats.monthlyData} margin={{ left: 12, right: 20, top: 10, bottom: 10 }}>
+                            <AreaChart data={stats.monthlyData} margin={{ left: 12, right: 20, top: 10, bottom: 10 }}>
                                 <defs>
                                     <linearGradient id="fill2026" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="hsl(221 83% 53%)" stopOpacity={0.8} />

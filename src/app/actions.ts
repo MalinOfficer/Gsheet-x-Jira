@@ -1280,21 +1280,211 @@ export async function getAllCaseData(sheetUrl: string) {
     return { ...result, source: 'sheet' };
 }
     
-
+export async function getDashboardStats(filters: {
+    sheetUrl: string;
+    selectedYear: string;
+    categoryFilter: string[];
+    clientFilter: string[];
+    moduleFilter: string[];
+}) {
+    // 1. Get raw data
+    const allCaseResult = await getAllCaseData(filters.sheetUrl);
+    if (allCaseResult.error || !allCaseResult.data) {
+        return { error: allCaseResult.error || "No data found." };
+    }
     
+    const rawData = allCaseResult.data;
 
+    // 2. Helper to find header names
+    const findHeader = (possibleNames: string[]): string | undefined => {
+         if (!rawData[0]) return undefined;
+         const actualHeaders = Object.keys(rawData[0]);
+         for (const name of possibleNames) {
+             const found = actualHeaders.find(header => header.toLowerCase() === name.toLowerCase());
+             if (found) return found;
+         }
+         return undefined;
+    };
 
+    const categoryHeader = findHeader(['KATEGORI', 'Ticket Category', 'Category']);
+    const clientHeader = findHeader(['CLIENT NAME', 'Client Name', 'Client']);
+    const moduleHeader = findHeader(['MODULE', 'Module']);
+    const detailModuleHeader = findHeader(['DETAIL MODUL', 'Detail Module']);
+    const dateHeader = findHeader(['DATE', 'Date']);
+    const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
 
-
+    // 3. Filter data based on input filters
+    let filteredData = rawData;
     
+    if (filters.selectedYear !== 'all' && dateHeader) {
+        filteredData = filteredData.filter(row => {
+            const dateStr = row[dateHeader];
+            return dateStr && typeof dateStr === 'string' && dateStr.endsWith(`/${filters.selectedYear}`);
+        });
+    }
 
-      
+    if (filters.categoryFilter.length > 0 && categoryHeader) {
+        filteredData = filteredData.filter(row => filters.categoryFilter.includes(row[categoryHeader]));
+    }
+    if (filters.clientFilter.length > 0 && clientHeader) {
+        filteredData = filteredData.filter(row => filters.clientFilter.includes(row[clientHeader]));
+    }
+    if (filters.moduleFilter.length > 0 && moduleHeader) {
+        filteredData = filteredData.filter(row => filters.moduleFilter.includes(row[moduleHeader]));
+    }
 
+    // 4. Perform aggregations (the heavy lifting)
+    if (filteredData.length === 0) {
+        return {
+            totalCases: 0,
+            allClients: [],
+            allModules: [],
+            statusCounts: [],
+            solvedVsUnsolved: [],
+            monthlyData: [],
+            totalClients: 0,
+            categoryTrend: 'N/A',
+            totalSolved: 0,
+        };
+    }
 
+    const createFrequencyMap = (data: any[], field: string | undefined) => {
+        if (!field) return {};
+        const frequency: Record<string, number> = {};
+        data.forEach(row => {
+            const value = row[field];
+            if (value) {
+                frequency[value] = (frequency[value] || 0) + 1;
+            }
+        });
+        return frequency;
+    };
     
+    const clientFrequency = createFrequencyMap(filteredData, clientHeader);
+    const allClients = Object.entries(clientFrequency)
+        .sort(([, a], [, b]) => b - a)
+        .map(([name, value]) => ({ name, value }));
 
+    const totalClients = Object.keys(clientFrequency).length;
     
+    const detailModuleFrequency = createFrequencyMap(filteredData, detailModuleHeader);
+    const allModules = Object.entries(detailModuleFrequency)
+        .sort(([, a], [, b]) => b - a)
+        .map(([name, value]) => ({ name, value }));
+    
+    const categoryFrequency = createFrequencyMap(filteredData, categoryHeader);
+    const sortedCategories = Object.entries(categoryFrequency).sort(([,a],[,b]) => b-a);
+    const categoryTrend = sortedCategories.length > 0 ? sortedCategories[0][0] : 'N/A';
 
+    const statusFrequency: Record<string, number> = {};
+    if (statusHeader) {
+        filteredData.forEach(row => {
+            const status = String(row[statusHeader] || 'N/A').toUpperCase();
+            statusFrequency[status] = (statusFrequency[status] || 0) + 1;
+        });
+    }
+    
+    const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ name, value }));
+
+    const totalSolved = statusFrequency['SOLVED'] || 0;
+    const unsolvedCount = filteredData.length - totalSolved;
+
+    const solvedVsUnsolved = [
+        { name: 'Solved', value: totalSolved },
+        { name: 'Unsolved', value: unsolvedCount }
+    ];
+
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthlyAggregation: Record<string, { "2024": number; "2025": number; "2026": number }> = {};
+    months.forEach(month => {
+        monthlyAggregation[month] = { "2024": 0, "2025": 0, "2026": 0 };
+    });
+
+    if (dateHeader) {
+        filteredData.forEach(row => {
+            const dateStr = row[dateHeader];
+            if (dateStr && typeof dateStr === 'string') {
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    const monthIndex = parseInt(parts[1], 10) - 1;
+                    const year = parts[2];
+                    if (monthIndex >= 0 && monthIndex < 12 && ['2024', '2025', '2026'].includes(year)) {
+                        const monthName = months[monthIndex];
+                        monthlyAggregation[monthName][year as "2024" | "2025" | "2026"] += 1;
+                    }
+                }
+            }
+        });
+    }
+
+    const monthlyData = months.map(month => ({
+        month,
+        ...monthlyAggregation[month]
+    }));
+
+    // 5. Return the aggregated stats
+    return {
+        totalCases: filteredData.length,
+        allClients,
+        allModules,
+        statusCounts,
+        solvedVsUnsolved,
+        monthlyData,
+        totalClients,
+        categoryTrend,
+        totalSolved,
+    };
+}
+
+export async function getDashboardFilterOptions(sheetUrl: string) {
+    const allCaseResult = await getAllCaseData(sheetUrl);
+    if (allCaseResult.error || !allCaseResult.data) {
+        return { error: allCaseResult.error || "No data found." };
+    }
+    const data = allCaseResult.data;
+
+    const findHeader = (possibleNames: string[]): string | undefined => {
+         if (!data[0]) return undefined;
+         const actualHeaders = Object.keys(data[0]);
+         for (const name of possibleNames) {
+             const found = actualHeaders.find(header => header.toLowerCase() === name.toLowerCase());
+             if (found) return found;
+         }
+         return undefined;
+    };
+
+    const categoryHeader = findHeader(['KATEGORI', 'Ticket Category', 'Category']);
+    const clientHeader = findHeader(['CLIENT NAME', 'Client Name', 'Client']);
+    const moduleHeader = findHeader(['MODULE', 'Module']);
+    const dateHeader = findHeader(['DATE', 'Date']);
+
+    const createOptions = (header: string | undefined) => {
+        if (!header || !data) return [];
+        const values = [...new Set(data.map(row => row[header]).filter(Boolean))];
+        return values.map(val => ({ label: val, value: val }));
+    }
+
+    const years = new Set<string>();
+    if (dateHeader) {
+        data.forEach(row => {
+            const dateStr = row[dateHeader];
+            if (dateStr && typeof dateStr === 'string' && dateStr.includes('/')) {
+                const year = dateStr.split('/')[2];
+                if (year) years.add(year);
+            }
+        });
+    }
+
+    return {
+        success: true,
+        data: {
+            categories: createOptions(categoryHeader),
+            clients: createOptions(clientHeader),
+            modules: createOptions(moduleHeader),
+            years: Array.from(years).sort((a, b) => parseInt(b) - parseInt(a))
+        }
+    }
+}
       
 
 
