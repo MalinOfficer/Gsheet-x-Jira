@@ -62,6 +62,7 @@ const projectFilesForAction = [
   "src/store/store-provider.tsx",
   "src/store/table-data-context.tsx",
   "src/contexts/app-provider.tsx",
+  "src/contexts/settings-provider.tsx",
 
   // Hooks Kustom
   "src/hooks/use-toast.ts",
@@ -120,15 +121,15 @@ const projectFilesForAction = [
 async function getFileContent(filePath: string) {
     try {
         const fullPath = path.join(process.cwd(), filePath);
-        // Pengecekan stat tidak diperlukan jika kita hanya ingin membaca file
         const content = await fs.promises.readFile(fullPath, 'utf-8');
         return content;
     } catch (error: any) {
         if (error.code === 'ENOENT') {
-            return `// File tidak ditemukan di path: ${filePath}\n// File ini mungkin belum dibuat atau sudah dihapus.`;
+            // Return a specific, machine-readable error string
+            return `// FILE_NOT_FOUND: File tidak ditemukan di path: ${filePath}`;
         }
         console.error(`Error reading file at ${filePath}:`, error);
-        return `Error: Tidak dapat membaca file di ${filePath}`;
+        return `// ERROR: Tidak dapat membaca file di ${filePath}`;
     }
 }
 

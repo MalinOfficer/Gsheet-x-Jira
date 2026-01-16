@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Download, Archive, RefreshCw } from 'lucide-react';
+import { Download, Archive, RefreshCw, XCircle } from 'lucide-react';
 import { getProjectFileContents } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import JSZip from 'jszip';
@@ -69,7 +69,10 @@ export default function CodeViewerPage() {
             try {
                 const zip = new JSZip();
                 fileContents.forEach(file => {
-                    zip.file(file.path, file.content);
+                    // Only add files with actual content to the zip
+                    if (!file.content.startsWith('// FILE_NOT_FOUND:') && !file.content.startsWith('// ERROR:')) {
+                       zip.file(file.path, file.content);
+                    }
                 });
                 const zipBlob = await zip.generateAsync({ type: 'blob' });
                 saveAs(zipBlob, 'GSheetDashboard-SourceCode.zip');
@@ -152,33 +155,48 @@ export default function CodeViewerPage() {
 
                 {fileContents && (
                     <Accordion type="multiple" className="w-full space-y-4">
-                        {fileContents.map(({ path, content, name }, index) => (
-                            <AccordionItem value={`item-${index}`} key={path} className="border-b-0">
-                                <Card>
-                                    <AccordionTrigger className="p-4 md:p-6 text-left hover:no-underline w-full">
-                                        <div className="flex justify-between items-center w-full pr-4">
-                                            <div className='flex flex-col items-start'>
-                                                <CardTitle className="text-lg">File: {path}</CardTitle>
-                                                <CardDescription className="text-xs mt-1">Klik untuk melihat atau menyembunyikan kode</CardDescription>
+                        {fileContents.map(({ path, content, name }, index) => {
+                            const isFileNotFound = content.startsWith('// FILE_NOT_FOUND:');
+                            const isError = content.startsWith('// ERROR:');
+
+                            return (
+                                <AccordionItem value={`item-${index}`} key={path} className="border-b-0">
+                                    <Card>
+                                        <AccordionTrigger className="p-4 md:p-6 text-left hover:no-underline w-full">
+                                            <div className="flex justify-between items-center w-full pr-4">
+                                                <div className='flex flex-col items-start'>
+                                                    <CardTitle className="text-lg">File: {path}</CardTitle>
+                                                    <CardDescription className="text-xs mt-1">Klik untuk melihat atau menyembunyikan kode</CardDescription>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </AccordionTrigger>
-                                    <AccordionContent className="px-4 md:px-6 pb-4 md:pb-6">
-                                        <div className="flex justify-end mb-2">
-                                            <Button onClick={() => handleDownload(content, name)} variant="outline" size="sm" disabled={isZipping || isSyncing}>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Unduh File
-                                            </Button>
-                                        </div>
-                                        <ScrollArea className="h-[40vh] w-full rounded-md border bg-muted/20">
-                                            <pre className="p-4 text-xs font-code">
-                                                <code>{content}</code>
-                                            </pre>
-                                        </ScrollArea>
-                                    </AccordionContent>
-                                </Card>
-                            </AccordionItem>
-                        ))}
+                                        </AccordionTrigger>
+                                        <AccordionContent className="px-4 md:px-6 pb-4 md:pb-6">
+                                            {isFileNotFound || isError ? (
+                                                <div className="flex flex-col items-center justify-center text-center p-8 min-h-[200px] bg-destructive/10 rounded-md border border-destructive/20">
+                                                    <XCircle className="h-10 w-10 text-destructive mb-3" />
+                                                    <h3 className="font-semibold text-lg text-destructive">{isFileNotFound ? 'File Tidak Ditemukan' : 'Gagal Membaca File'}</h3>
+                                                    <p className="text-sm text-destructive/80 mt-1">{content.substring(content.indexOf(':') + 2)}</p>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="flex justify-end mb-2">
+                                                        <Button onClick={() => handleDownload(content, name)} variant="outline" size="sm" disabled={isZipping || isSyncing}>
+                                                            <Download className="mr-2 h-4 w-4" />
+                                                            Unduh File
+                                                        </Button>
+                                                    </div>
+                                                    <ScrollArea className="h-[40vh] w-full rounded-md border bg-muted/20">
+                                                        <pre className="p-4 text-xs font-code">
+                                                            <code>{content}</code>
+                                                        </pre>
+                                                    </ScrollArea>
+                                                </>
+                                            )}
+                                        </AccordionContent>
+                                    </Card>
+                                </AccordionItem>
+                            );
+                        })}
                     </Accordion>
                 )}
             </div>
