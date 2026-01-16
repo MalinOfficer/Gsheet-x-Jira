@@ -15,14 +15,14 @@ import { SettingsContext } from "@/contexts/settings-provider";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Bar, BarChart as RechartsBarChart } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getDashboardStats, getDashboardFilterOptions, syncDashboardCache } from "@/app/actions";
-import { Skeleton } from "./ui/skeleton";
-import { Button } from "./ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MultiSelect } from "@/components/ui/multi-select";
-import { ScrollArea } from "./ui/scroll-area";
-import { Tooltip, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 
