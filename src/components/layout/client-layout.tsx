@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -259,7 +258,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                             height: '111.11%',
                         }}
                     >
-                        <div className="h-full w-full overflow-y-auto">
+                        <div className="h-full w-full overflow-y-auto flex flex-col">
                             {children}
                         </div>
                     </div>
