@@ -30,6 +30,7 @@ const ScrollBar = React.forwardRef<
   <ScrollAreaPrimitive.ScrollAreaScrollbar
     ref={ref}
     orientation={orientation}
+    forceMount
     className={cn(
       "flex touch-none select-none transition-colors",
       orientation === "vertical" &&
