@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
@@ -53,6 +52,7 @@ const LOCAL_STORAGE_KEY_DB_SHEET_URL = 'gsheetDashboardDbSheetUrl';
 const LOCAL_STORAGE_KEY_MAIN_TITLE = 'gsheetMainSheetTitle';
 const LOCAL_STORAGE_KEY_DB_TITLE = 'gsheetDbSheetTitle';
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1S9oSokUh8SyWlNObCLdwpn2r2iXA8Gy73OnxsZa728E/edit?gid=0#gid=0';
+const DEFAULT_DB_SHEET_URL = 'https://docs.google.com/spreadsheets/d/17IreWvSgn3gr-kUmvI4-nOhqOYm9tJtUkwzPxo2wODU/edit?usp=drive_link';
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isCodeViewerEnabled, setIsCodeViewerEnabled] = useState<boolean>(false);
@@ -80,7 +80,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             const savedDbSheetUrl = localStorage.getItem(LOCAL_STORAGE_KEY_DB_SHEET_URL);
 
             const initialSheetUrl = savedSheetUrl === null ? DEFAULT_SHEET_URL : savedSheetUrl;
-            const initialDbSheetUrl = savedDbSheetUrl === null ? DEFAULT_SHEET_URL : savedDbSheetUrl;
+            const initialDbSheetUrl = savedDbSheetUrl === null ? DEFAULT_DB_SHEET_URL : savedDbSheetUrl;
 
             setSheetUrlState(initialSheetUrl);
             setVerifiedUrl(initialSheetUrl);
