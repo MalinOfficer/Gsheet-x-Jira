@@ -1,38 +1,29 @@
 
-'use client';
+import { cookies } from 'next/headers';
+import { Dashboard } from '@/components/dashboard';
+import { getDashboardStats, getDashboardFilterOptions } from '@/app/actions';
 
-import dynamic from 'next/dynamic';
-import { Skeleton } from '@/components/ui/skeleton';
+const DEFAULT_DB_SHEET_URL = 'https://docs.google.com/spreadsheets/d/17IreWvSgn3gr-kUmvI4-nOhqOYm9tJtUkwzPxo2wODU/edit?usp=drive_link';
 
-const Dashboard = dynamic(
-    () => import('@/components/dashboard').then(mod => mod.Dashboard),
-    {
-        ssr: false,
-        loading: () => (
-             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-                <div className="max-w-7xl mx-auto space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-                        <Skeleton className="h-[88px]" />
-                        <Skeleton className="h-[88px]" />
-                        <Skeleton className="h-[88px]" />
-                        <Skeleton className="h-[88px]" />
-                    </div>
-                     <Skeleton className="h-[300px] w-full" />
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
-                        <Skeleton className="h-[250px]" />
-                        <Skeleton className="h-[250px]" />
-                    </div>
-                </div>
-            </div>
-        )
-    }
-);
+export default async function DashboardPage() {
+    const cookieStore = cookies();
+    const dbSheetUrl = cookieStore.get('gsheetDashboardDbSheetUrl')?.value || DEFAULT_DB_SHEET_URL;
 
+    // Fetch initial data in parallel on the server
+    const [statsResult, optionsResult] = await Promise.all([
+        getDashboardStats({ sheetUrl: dbSheetUrl, selectedYear: 'all', categoryFilter: [], clientFilter: [], moduleFilter: [] }),
+        getDashboardFilterOptions(dbSheetUrl)
+    ]);
+    
+    const error = statsResult.error || optionsResult.error;
 
-export default function DashboardPage() {
     return (
         <main>
-            <Dashboard />
+            <Dashboard
+                initialStats={statsResult.error ? null : statsResult}
+                initialOptions={optionsResult.error || !optionsResult.data ? null : optionsResult.data}
+                error={error}
+            />
         </main>
     );
 }

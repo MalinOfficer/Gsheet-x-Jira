@@ -1,6 +1,8 @@
+
 "use client";
 
 import React, { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
+import Cookies from 'js-cookie';
 
 interface SettingsContextType {
     // Feature toggles
@@ -119,11 +121,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     
     const setSheetUrl = useCallback((url: string) => {
         localStorage.setItem(LOCAL_STORAGE_KEY_SHEET_URL, url);
+        Cookies.set(LOCAL_STORAGE_KEY_SHEET_URL, url, { expires: 365 });
         setSheetUrlState(url);
     }, []);
     
     const setDbSheetUrl = useCallback((url: string) => {
         localStorage.setItem(LOCAL_STORAGE_KEY_DB_SHEET_URL, url);
+        Cookies.set(LOCAL_STORAGE_KEY_DB_SHEET_URL, url, { expires: 365 });
         setDbSheetUrlState(url);
     }, []);
     

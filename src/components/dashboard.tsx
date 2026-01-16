@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, ArrowLeft, AlertTriangle } from "lucide-react";
@@ -62,38 +61,21 @@ type FilterOptions = {
     years: string[];
 };
 
-const STATS_CACHE_KEY = 'dashboard-stats-cache';
-const OPTIONS_CACHE_KEY = 'dashboard-options-cache';
+interface DashboardProps {
+    initialStats: DashboardStats | null;
+    initialOptions: FilterOptions | null;
+    error?: string | null;
+}
 
-
-export function Dashboard() {
+export function Dashboard({ initialStats, initialOptions, error: initialError }: DashboardProps) {
     const { dbSheetUrl } = useContext(SettingsContext);
     const { toast } = useToast();
 
-    // State Management with localStorage hydration
-    const [stats, setStats] = useState<DashboardStats | null>(() => {
-        if (typeof window === 'undefined') return null;
-        try {
-            const item = window.localStorage.getItem(STATS_CACHE_KEY);
-            return item ? JSON.parse(item) : null;
-        } catch (error) {
-            console.error("Failed to parse stats from localStorage", error);
-            return null;
-        }
-    });
-    const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(() => {
-        if (typeof window === 'undefined') return null;
-        try {
-            const item = window.localStorage.getItem(OPTIONS_CACHE_KEY);
-            return item ? JSON.parse(item) : null;
-        } catch (error) {
-            console.error("Failed to parse options from localStorage", error);
-            return null;
-        }
-    });
-    const [error, setError] = useState<string | null>(null);
+    // State is initialized with data passed from the Server Component
+    const [stats, setStats] = useState<DashboardStats | null>(initialStats);
+    const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(initialOptions);
+    const [error, setError] = useState<string | null>(initialError || null);
     const [isLoading, startTransition] = useTransition();
-    const [refreshCount, setRefreshCount] = useState(0);
 
     // Filter states
     const [selectedYear, setSelectedYear] = useState<string>('all');
@@ -101,83 +83,10 @@ export function Dashboard() {
     const [clientFilter, setClientFilter] = useState<string[]>([]);
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
 
-    // Function to update state and localStorage
-    const updateStats = (newStats: DashboardStats | null) => {
-        setStats(newStats);
-        if (typeof window !== 'undefined') {
-            try {
-                if (newStats) {
-                    window.localStorage.setItem(STATS_CACHE_KEY, JSON.stringify(newStats));
-                } else {
-                    window.localStorage.removeItem(STATS_CACHE_KEY);
-                }
-            } catch (e) {
-                console.error("Could not write to localStorage", e);
-            }
-        }
-    };
-
-    const updateOptions = (newOptions: FilterOptions | null) => {
-        setFilterOptions(newOptions);
-         if (typeof window !== 'undefined') {
-            try {
-                if (newOptions) {
-                    window.localStorage.setItem(OPTIONS_CACHE_KEY, JSON.stringify(newOptions));
-                } else {
-                    window.localStorage.removeItem(OPTIONS_CACHE_KEY);
-                }
-            } catch (e) {
-                 console.error("Could not write to localStorage", e);
-            }
-        }
-    };
-
-
-    // Effect for initial data load and manual refresh
+    // Effect to re-fetch stats when filters change. Initial fetch is done by the server.
     useEffect(() => {
-        const fetchInitialData = async () => {
-            if (!dbSheetUrl) {
-                setError('DB GSheet URL is not configured in Settings.');
-                return;
-            }
-            
-            startTransition(async () => {
-                setError(null);
-
-                // On refresh, sync cache first
-                if (refreshCount > 0) {
-                    await syncDashboardCache(dbSheetUrl);
-                }
-
-                const [statsResult, optionsResult] = await Promise.all([
-                    getDashboardStats({ sheetUrl: dbSheetUrl, selectedYear: 'all', categoryFilter: [], clientFilter: [], moduleFilter: [] }),
-                    getDashboardFilterOptions(dbSheetUrl)
-                ]);
-
-                if (statsResult.error) {
-                    setError(statsResult.error);
-                    updateStats(null);
-                } else {
-                    updateStats(statsResult as DashboardStats);
-                }
-
-                if (optionsResult.error || !optionsResult.data) {
-                    console.error("Could not load filter options:", optionsResult.error);
-                    updateOptions({ categories: [], clients: [], modules: [], years: [] });
-                } else {
-                    updateOptions(optionsResult.data);
-                }
-            });
-        };
-
-        fetchInitialData();
-    }, [dbSheetUrl, refreshCount]);
-
-    // Effect to refetch stats when filters change
-    useEffect(() => {
-        if (refreshCount === 0 && !filterOptions) {
-            return;
-        }
+        // Skip fetch on initial render if we have initial data
+        if (!initialStats) return;
 
         const fetchFilteredStats = () => {
              if (!dbSheetUrl) return;
@@ -194,22 +103,49 @@ export function Dashboard() {
                 if (result.error) {
                     toast({ variant: 'destructive', title: "Error applying filters", description: result.error });
                 } else {
-                    updateStats(result as DashboardStats);
+                    setStats(result as DashboardStats);
                 }
             });
         }
         
-        if (filterOptions) {
-            fetchFilteredStats();
+        fetchFilteredStats();
+
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dbSheetUrl, toast, initialStats]);
+
+
+    const handleRefresh = useCallback(async () => {
+        if (!dbSheetUrl) {
+            setError('DB GSheet URL is not configured in Settings.');
+            return;
         }
 
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter]);
+        startTransition(async () => {
+            setError(null);
+            toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
+            
+            await syncDashboardCache(dbSheetUrl);
 
-    const handleRefresh = () => {
-        setRefreshCount(c => c + 1);
-        toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
-    };
-    
+            const [statsResult, optionsResult] = await Promise.all([
+                getDashboardStats({ sheetUrl: dbSheetUrl, selectedYear, categoryFilter, clientFilter, moduleFilter }),
+                getDashboardFilterOptions(dbSheetUrl)
+            ]);
+
+            if (statsResult.error) {
+                setError(statsResult.error);
+                setStats(null);
+            } else {
+                setStats(statsResult as DashboardStats);
+            }
+
+            if (optionsResult.error || !optionsResult.data) {
+                console.error("Could not load filter options:", optionsResult.error);
+                setFilterOptions({ categories: [], clients: [], modules: [], years: [] });
+            } else {
+                setFilterOptions(optionsResult.data);
+            }
+        });
+    }, [dbSheetUrl, selectedYear, categoryFilter, clientFilter, moduleFilter, toast]);
+
     if (isLoading && !stats) {
          return (
              <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -250,14 +186,14 @@ export function Dashboard() {
         );
     }
     
-    if (!stats && !isLoading) {
+    if (!stats) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto">
                     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
                         <AlertTriangle className="w-16 h-16 text-muted-foreground mb-4" />
                         <CardTitle>No Data Found</CardTitle>
-                        <p className="mt-2 text-muted-foreground">The configured Google Sheet might be empty.</p>
+                        <p className="mt-2 text-muted-foreground">The configured Google Sheet might be empty or inaccessible.</p>
                          <Button onClick={handleRefresh} disabled={isLoading} className="mt-4">
                             <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                             Refresh
