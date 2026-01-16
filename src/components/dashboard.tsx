@@ -62,51 +62,35 @@ type FilterOptions = {
     years: string[];
 };
 
-const CustomYAxisTick = (props: any) => {
-    const { x, y, payload } = props;
-    const value = payload.value;
-    const maxChars = 20; // Adjust as needed
-    if (value && value.length > maxChars) {
-        const words = value.split(' ');
-        let line = '';
-        const lines = [];
-        for(let i=0; i<words.length; i++) {
-            const testLine = line + words[i] + ' ';
-            if (testLine.length > maxChars) {
-                lines.push(line);
-                line = words[i] + ' ';
-            } else {
-                line = testLine;
-            }
-        }
-        lines.push(line.trim());
-        return (
-            <g transform={`translate(${x},${y})`}>
-                {lines.map((l, i) => (
-                     <text key={i} x={0} y={i * 12} textAnchor="end" fill="hsl(var(--muted-foreground))" style={{ fontSize: '12px' }}>
-                        {l}
-                    </text>
-                ))}
-            </g>
-        )
-    }
-    return (
-        <g transform={`translate(${x},${y})`}>
-            <text x={0} y={0} dy={4} textAnchor="end" fill="hsl(var(--muted-foreground))" style={{ fontSize: '12px' }}>
-                {value}
-            </text>
-        </g>
-    );
-};
+const STATS_CACHE_KEY = 'dashboard-stats-cache';
+const OPTIONS_CACHE_KEY = 'dashboard-options-cache';
 
 
 export function Dashboard() {
     const { dbSheetUrl } = useContext(SettingsContext);
     const { toast } = useToast();
 
-    // State Management
-    const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+    // State Management with localStorage hydration
+    const [stats, setStats] = useState<DashboardStats | null>(() => {
+        if (typeof window === 'undefined') return null;
+        try {
+            const item = window.localStorage.getItem(STATS_CACHE_KEY);
+            return item ? JSON.parse(item) : null;
+        } catch (error) {
+            console.error("Failed to parse stats from localStorage", error);
+            return null;
+        }
+    });
+    const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(() => {
+        if (typeof window === 'undefined') return null;
+        try {
+            const item = window.localStorage.getItem(OPTIONS_CACHE_KEY);
+            return item ? JSON.parse(item) : null;
+        } catch (error) {
+            console.error("Failed to parse options from localStorage", error);
+            return null;
+        }
+    });
     const [error, setError] = useState<string | null>(null);
     const [isLoading, startTransition] = useTransition();
     const [refreshCount, setRefreshCount] = useState(0);
@@ -116,6 +100,38 @@ export function Dashboard() {
     const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
     const [clientFilter, setClientFilter] = useState<string[]>([]);
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
+
+    // Function to update state and localStorage
+    const updateStats = (newStats: DashboardStats | null) => {
+        setStats(newStats);
+        if (typeof window !== 'undefined') {
+            try {
+                if (newStats) {
+                    window.localStorage.setItem(STATS_CACHE_KEY, JSON.stringify(newStats));
+                } else {
+                    window.localStorage.removeItem(STATS_CACHE_KEY);
+                }
+            } catch (e) {
+                console.error("Could not write to localStorage", e);
+            }
+        }
+    };
+
+    const updateOptions = (newOptions: FilterOptions | null) => {
+        setFilterOptions(newOptions);
+         if (typeof window !== 'undefined') {
+            try {
+                if (newOptions) {
+                    window.localStorage.setItem(OPTIONS_CACHE_KEY, JSON.stringify(newOptions));
+                } else {
+                    window.localStorage.removeItem(OPTIONS_CACHE_KEY);
+                }
+            } catch (e) {
+                 console.error("Could not write to localStorage", e);
+            }
+        }
+    };
+
 
     // Effect for initial data load and manual refresh
     useEffect(() => {
@@ -140,16 +156,16 @@ export function Dashboard() {
 
                 if (statsResult.error) {
                     setError(statsResult.error);
-                    setStats(null);
+                    updateStats(null);
                 } else {
-                    setStats(statsResult as DashboardStats);
+                    updateStats(statsResult as DashboardStats);
                 }
 
                 if (optionsResult.error || !optionsResult.data) {
                     console.error("Could not load filter options:", optionsResult.error);
-                    setFilterOptions({ categories: [], clients: [], modules: [], years: [] });
+                    updateOptions({ categories: [], clients: [], modules: [], years: [] });
                 } else {
-                    setFilterOptions(optionsResult.data);
+                    updateOptions(optionsResult.data);
                 }
             });
         };
@@ -159,7 +175,6 @@ export function Dashboard() {
 
     // Effect to refetch stats when filters change
     useEffect(() => {
-        // Don't run on initial mount; the first effect handles that.
         if (refreshCount === 0 && !filterOptions) {
             return;
         }
@@ -179,17 +194,16 @@ export function Dashboard() {
                 if (result.error) {
                     toast({ variant: 'destructive', title: "Error applying filters", description: result.error });
                 } else {
-                    setStats(result as DashboardStats);
+                    updateStats(result as DashboardStats);
                 }
             });
         }
         
-        // This check prevents running on the very first render before initial data is loaded
         if (filterOptions) {
             fetchFilteredStats();
         }
 
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dbSheetUrl, filterOptions, toast]);
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter]);
 
     const handleRefresh = () => {
         setRefreshCount(c => c + 1);
@@ -236,7 +250,7 @@ export function Dashboard() {
         );
     }
     
-    if (!stats) {
+    if (!stats && !isLoading) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto">
