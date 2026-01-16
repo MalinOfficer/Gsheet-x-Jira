@@ -459,27 +459,9 @@ export function DbViewer() {
 
     return (
         <div className="flex-1 bg-background text-foreground px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3 md:px-8 md:pb-8 md:pt-4">
-            <div className="space-y-2">
-                 <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div>
-                        <p className="text-sm text-muted-foreground">
-                          Menampilkan semua data dari Google Sheet "All Case".
-                        </p>
-                    </div>
-                     <div className="flex items-center gap-2">
-                         <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.isSyncing || state.loading}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${state.isSyncing || state.loading ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </Button>
-                        <Badge variant={state.source === 'cache' ? 'default' : 'secondary'} className="w-fit">
-                            {state.source === 'cache' ? <Database className="mr-2 h-4 w-4"/> : <Cloud className="mr-2 h-4 w-4"/>}
-                            Data source: {state.source}
-                        </Badge>
-                    </div>
-                </header>
-                
-                <Card>
-                     <CardHeader>
+            <Card>
+                 <CardHeader>
+                    <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex flex-wrap items-center gap-2">
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -516,89 +498,99 @@ export function DbViewer() {
                             </Button>
                             )}
                         </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                         {(state.loading && !state.data) && (
-                             <div className="px-4 pb-2 space-y-1">
-                                <div className='flex items-center gap-2'>
-                                    <Progress value={progress} className="w-full" />
-                                    <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{Math.round(progress)}%</span>
-                                </div>
-                                <p className="text-xs text-muted-foreground">Syncing latest data from Google Sheets...</p>
+                        <div className="flex items-center gap-2">
+                            <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.isSyncing || state.loading}>
+                                <RefreshCw className={`mr-2 h-4 w-4 ${state.isSyncing || state.loading ? 'animate-spin' : ''}`} />
+                                Refresh
+                            </Button>
+                            <Badge variant={state.source === 'cache' ? 'default' : 'secondary'} className="w-fit">
+                                {state.source === 'cache' ? <Database className="mr-2 h-4 w-4"/> : <Cloud className="mr-2 h-4 w-4"/>}
+                                Data source: {state.source}
+                            </Badge>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                     {(state.loading && !state.data) && (
+                         <div className="px-4 pb-2 space-y-1">
+                            <div className='flex items-center gap-2'>
+                                <Progress value={progress} className="w-full" />
+                                <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{Math.round(progress)}%</span>
                             </div>
-                         )}
-                        <div ref={tableContainerRef} className="overflow-auto h-[65vh] border-t rounded-b-md">
-                           {(!state.data || state.data.length === 0) && !state.loading ? (
-                                <div className="flex items-center justify-center h-full">
-                                    <div className="text-center text-muted-foreground">
-                                        <Database className="mx-auto h-12 w-12 mb-2" />
-                                        <p>No data found.</p>
-                                    </div>
+                            <p className="text-xs text-muted-foreground">Syncing latest data from Google Sheets...</p>
+                        </div>
+                     )}
+                    <div ref={tableContainerRef} className="overflow-auto h-[75vh] border-t rounded-b-md">
+                       {(!state.data || state.data.length === 0) && !state.loading ? (
+                            <div className="flex items-center justify-center h-full">
+                                <div className="text-center text-muted-foreground">
+                                    <Database className="mx-auto h-12 w-12 mb-2" />
+                                    <p>No data found.</p>
                                 </div>
-                            ) : (
-                               <div style={{ height: `${totalHeight}px`, width: `${totalWidth}px`, position: 'relative' }}>
-                                   <div
-                                       className="sticky top-0 z-10 flex"
-                                   >
-                                       {headers.map(header => {
-                                           const lowerHeader = header.toLowerCase();
-                                           const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
-                                           
-                                           return (
-                                               <div
-                                                   key={header}
-                                                   className={cn(
-                                                       "h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-start bg-muted relative",
-                                                       isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
-                                                   )}
-                                                   style={{ width: columnWidths[header], flexShrink: 0, borderBottom: '1px solid hsl(var(--border))', borderRight: '1px solid hsl(var(--border))' }}
-                                               >
-                                                  {renderHeaderContent(header)}
-                                                  <div
-                                                    onMouseDown={(e) => handleResizeMouseDown(header, e)}
-                                                    className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-20"
-                                                  />
-                                               </div>
-                                           );
-                                       })}
-                                   </div>
-                                   {virtualRows.map((virtualRow) => {
-                                       const row = displayData[virtualRow.index];
+                            </div>
+                        ) : (
+                           <div style={{ height: `${totalHeight}px`, width: `${totalWidth}px`, position: 'relative' }}>
+                               <div
+                                   className="sticky top-0 z-10 flex"
+                               >
+                                   {headers.map(header => {
+                                       const lowerHeader = header.toLowerCase();
+                                       const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
                                        
                                        return (
                                            <div
-                                               key={virtualRow.key}
-                                               style={{
-                                                   position: 'absolute',
-                                                   top: 0,
-                                                   left: 0,
-                                                   width: '100%',
-                                                   height: `${virtualRow.size}px`,
-                                                   transform: `translateY(${virtualRow.start + 48}px)`,
-                                               }}
-                                               className="flex border-b transition-colors hover:bg-muted/50"
+                                               key={header}
+                                               className={cn(
+                                                   "h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-start bg-muted relative",
+                                                   isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
+                                               )}
+                                               style={{ width: columnWidths[header], flexShrink: 0, borderBottom: '1px solid hsl(var(--border))', borderRight: '1px solid hsl(var(--border))' }}
                                            >
-                                             {headers.map(header => (
-                                                <div 
-                                                    key={header} 
-                                                    className="p-4 align-middle truncate" 
-                                                    style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
-                                                >
-                                                    {row ? row[header] : <Skeleton className="h-4 w-full" />}
-                                                </div>
-                                             ))}
+                                              {renderHeaderContent(header)}
+                                              <div
+                                                onMouseDown={(e) => handleResizeMouseDown(header, e)}
+                                                className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-20"
+                                              />
                                            </div>
                                        );
                                    })}
                                </div>
-                           )}
-                        </div>
-                    </CardContent>
-                    <CardFooter className="p-2 border-t text-xs text-muted-foreground">
-                        {state.loading ? 'Loading...' : `Showing ${displayData.length} of ${state.data?.length || 0} rows.`}
-                    </CardFooter>
-                </Card>
-            </div>
+                               {virtualRows.map((virtualRow) => {
+                                   const row = displayData[virtualRow.index];
+                                   
+                                   return (
+                                       <div
+                                           key={virtualRow.key}
+                                           style={{
+                                               position: 'absolute',
+                                               top: 0,
+                                               left: 0,
+                                               width: '100%',
+                                               height: `${virtualRow.size}px`,
+                                               transform: `translateY(${virtualRow.start + 48}px)`,
+                                           }}
+                                           className="flex border-b transition-colors hover:bg-muted/50"
+                                       >
+                                         {headers.map(header => (
+                                            <div 
+                                                key={header} 
+                                                className="p-4 align-middle truncate" 
+                                                style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
+                                            >
+                                                {row ? row[header] : <Skeleton className="h-4 w-full" />}
+                                            </div>
+                                         ))}
+                                       </div>
+                                   );
+                               })}
+                           </div>
+                       )}
+                    </div>
+                </CardContent>
+                <CardFooter className="p-2 border-t text-xs text-muted-foreground">
+                    {state.loading ? 'Loading...' : `Showing ${displayData.length} of ${state.data?.length || 0} rows.`}
+                </CardFooter>
+            </Card>
         </div>
     );
 }
