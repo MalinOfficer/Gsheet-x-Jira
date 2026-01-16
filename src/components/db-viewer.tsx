@@ -324,7 +324,7 @@ export function DbViewer() {
     if (state.error) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-                <div className="max-w-7xl mx-auto">
+                <div className="mx-auto">
                     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
                         <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
                         <CardTitle>Failed to Load "All Case" Data</CardTitle>
@@ -458,11 +458,11 @@ export function DbViewer() {
     }
 
     return (
-        <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-            <div className="space-y-4">
+        <div className="flex-1 bg-background text-foreground px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3 md:px-8 md:pb-8 md:pt-4">
+            <div className="space-y-2">
                  <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-sm text-muted-foreground">
                           Menampilkan semua data dari Google Sheet "All Case".
                         </p>
                     </div>
@@ -602,5 +602,3 @@ export function DbViewer() {
         </div>
     );
 }
-
-    
