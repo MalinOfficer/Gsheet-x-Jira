@@ -250,7 +250,13 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     )}
                 </header>
                 <main className="flex-1 flex flex-col bg-muted/20 overflow-y-auto">
-                    {children}
+                    <div style={{
+                        width: '111.11%',
+                        transform: 'scale(0.9)',
+                        transformOrigin: 'top left'
+                    }}>
+                        {children}
+                    </div>
                 </main>
             </div>
         </div>
