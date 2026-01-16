@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter } from "lucide-react";
@@ -463,7 +462,6 @@ export function DbViewer() {
             <div className="max-w-7xl mx-auto space-y-4">
                  <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">All Case Database</h1>
                         <p className="text-sm text-muted-foreground mt-1">
                           Menampilkan semua data dari Google Sheet "All Case".
                         </p>
