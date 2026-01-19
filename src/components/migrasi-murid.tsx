@@ -312,7 +312,7 @@ export function MigrasiMurid() {
     };
 
 
-    const handleCopy = useCallback(() => {
+    const handleCopy = useCallback((showToast = true) => {
         if (!selectedRange.start) {
             return;
         }
@@ -333,18 +333,34 @@ export function MigrasiMurid() {
         }
 
         navigator.clipboard.writeText(copyString).then(() => {
-            toast({
-                title: "Copied to Clipboard",
-                description: `Selected data has been copied.`,
-            });
+            if (showToast) {
+                toast({
+                    title: "Copied to Clipboard",
+                    description: `Selected data has been copied.`,
+                });
+            }
         }, () => {
-            toast({
-                variant: "destructive",
-                title: "Copy Failed",
-                description: "Could not copy data to clipboard.",
-            });
+            if (showToast) {
+                toast({
+                    variant: "destructive",
+                    title: "Copy Failed",
+                    description: "Could not copy data to clipboard.",
+                });
+            }
         });
     }, [rows, normalizedSelectedRange, toast, selectedRange]);
+
+    const handleCut = useCallback(() => {
+        if (!selectedRange.start) {
+            return;
+        }
+        handleCopy(false); // Copy without showing a toast
+        handleClearSelectedCells();
+        toast({
+            title: "Cut to Clipboard",
+            description: "Selected data has been cut.",
+        });
+    }, [selectedRange, handleCopy, handleClearSelectedCells, toast]);
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, { row, col }: CellSelection) => {
         const move = (dRow: number, dCol: number) => {
@@ -425,7 +441,13 @@ export function MigrasiMurid() {
 
         if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
             e.preventDefault();
-            handleCopy();
+            handleCopy(true);
+            return;
+        }
+
+        if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+            e.preventDefault();
+            handleCut();
             return;
         }
         
