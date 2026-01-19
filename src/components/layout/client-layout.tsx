@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -125,10 +126,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         setIsClient(true);
     }, []);
-
-    useEffect(() => {
-        setIsProcessing(false);
-    }, [pathname, setIsProcessing]);
     
     const isProcessing = useContext(TableDataContext).isProcessing;
 

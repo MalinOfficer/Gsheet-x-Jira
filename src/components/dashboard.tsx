@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { useContext, useState, useEffect, useTransition, useCallback, useMemo } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
+import { TableDataContext } from "@/store/table-data-context";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Bar, BarChart as RechartsBarChart } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getDashboardStats, getDashboardFilterOptions, syncDashboardCache } from "@/app/actions";
@@ -74,6 +75,7 @@ interface DashboardProps {
 
 export function Dashboard({ initialStats, initialOptions, error: initialError }: DashboardProps) {
     const { dbSheetUrl } = useContext(SettingsContext);
+    const { setIsProcessing } = useContext(TableDataContext);
     const { toast } = useToast();
 
     // State is initialized with data passed from the Server Component
@@ -88,6 +90,10 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [clientFilter, setClientFilter] = useState<string[]>([]);
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+    useEffect(() => {
+        setIsProcessing(isPending);
+    }, [isPending, setIsProcessing]);
 
     const areFiltersActive = useMemo(() => {
         return (

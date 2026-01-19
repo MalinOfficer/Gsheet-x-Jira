@@ -15,6 +15,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
+import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -62,6 +63,7 @@ let FILTER_COLUMNS: string[] = [];
 
 export function DbViewer() {
     const { dbSheetUrl } = useContext(SettingsContext);
+    const { setIsProcessing } = useContext(TableDataContext);
     const [state, setState] = useState<DbViewerState>({
         data: null,
         source: 'N/A',
@@ -77,6 +79,10 @@ export function DbViewer() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
     const [yearFilter, setYearFilter] = useState<string>('');
+
+    useEffect(() => {
+        setIsProcessing(isPending);
+    }, [isPending, setIsProcessing]);
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return [];
