@@ -19,7 +19,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 import Link from 'next/link';
 
-const StatusCaseChart = ({ statusData, totalCases }: { statusData: { name: string; value: number; }[], totalCases: number }) => {
+const StatusCaseChart = ({ statusData, totalCases, avgResolutionTime }: { 
+    statusData: { name: string; value: number; }[], 
+    totalCases: number, 
+    avgResolutionTime: number 
+}) => {
   const colorMap: { [key: string]: string } = {
     'SOLVED': 'hsl(var(--chart-2))',
     'L3': 'hsl(var(--chart-4))',
@@ -28,7 +32,7 @@ const StatusCaseChart = ({ statusData, totalCases }: { statusData: { name: strin
   };
 
   const data = statusData.map(item => ({
-    label: item.name,
+    label: item.name.toUpperCase(),
     value: item.value,
     color: colorMap[item.name.toUpperCase()] || '#9ca3af',
   })).filter(item => item.value > 0);
@@ -138,7 +142,7 @@ const StatusCaseChart = ({ statusData, totalCases }: { statusData: { name: strin
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Avg. Resolution</div>
-              <div className="text-xl font-bold text-foreground">2.3 days</div>
+              <div className="text-xl font-bold text-foreground">{avgResolutionTime.toFixed(1)} jam</div>
             </div>
           </div>
         </CardContent>
@@ -169,6 +173,7 @@ function DashboardChart() {
                 topModulesData: [],
                 unsolvedCases: [],
                 clientTrendHistory: [],
+                avgResolutionTime: 0,
             };
         }
         
@@ -222,6 +227,32 @@ function DashboardChart() {
             { month: 'Jun', cases: Math.floor(Math.random() * 20) + 5 },
         ];
 
+        const solvedCasesForTimeCalc = finalData.filter(
+            row => String(row.Status).toLowerCase() === 'solved'
+        );
+
+        let totalResolutionTime = 0;
+        let resolvedCountWithTime = 0;
+
+        solvedCasesForTimeCalc.forEach(row => {
+            const createdAt = new Date(row['Created At']);
+            const resolvedAt = new Date(row['Resolved At']);
+
+            if (
+                !isNaN(createdAt.getTime()) &&
+                !isNaN(resolvedAt.getTime()) &&
+                resolvedAt > createdAt
+            ) {
+                totalResolutionTime += resolvedAt.getTime() - createdAt.getTime();
+                resolvedCountWithTime++;
+            }
+        });
+
+        const avgResolutionHours =
+            resolvedCountWithTime > 0
+                ? (totalResolutionTime / resolvedCountWithTime) / (1000 * 60 * 60)
+                : 0;
+
 
         return {
             totalCases: finalData.length,
@@ -233,6 +264,7 @@ function DashboardChart() {
             topModulesData,
             unsolvedCases,
             clientTrendHistory,
+            avgResolutionTime: avgResolutionHours,
         };
     }, [finalData]);
 
@@ -240,7 +272,7 @@ function DashboardChart() {
       return null;
     }
 
-    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved, topClientsData, topModulesData, unsolvedCases } = dashboardStats;
+    const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved, topClientsData, topModulesData, unsolvedCases, avgResolutionTime } = dashboardStats;
     
     return (
         <div className="space-y-6">
@@ -308,7 +340,7 @@ function DashboardChart() {
                 </Card>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <StatusCaseChart statusData={statusCounts} totalCases={totalCases} />
+                <StatusCaseChart statusData={statusCounts} totalCases={totalCases} avgResolutionTime={avgResolutionTime} />
                 <Card className="flex flex-col">
                     <CardHeader>
                         <CardTitle className='text-base'>List Case</CardTitle>
@@ -652,3 +684,5 @@ export function ReportHarian({ error }: ReportHarianProps) {
     </div>
   );
 }
+
+    
