@@ -80,7 +80,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [stats, setStats] = useState<DashboardStats | null>(initialStats);
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(initialOptions);
     const [error, setError] = useState<string | null>(initialError || null);
-    const [isLoading, startTransition] = useTransition();
+    const [isPending, startTransition] = useTransition();
 
     // Filter states
     const [selectedYear, setSelectedYear] = useState<string>('all');
@@ -172,7 +172,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         });
     }, [dbSheetUrl, selectedYear, categoryFilter, clientFilter, moduleFilter, toast, dateRange]);
 
-    if (isLoading && !stats) {
+    if (isPending && !stats) {
          return (
              <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto space-y-4">
@@ -202,8 +202,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         <CardDescription className="mt-2 mb-4 max-w-sm">
                             {error}
                         </CardDescription>
-                         <Button onClick={handleRefresh} disabled={isLoading}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                         <Button onClick={handleRefresh} disabled={isPending}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
                             Try Again
                         </Button>
                     </Card>
@@ -220,8 +220,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         <AlertTriangle className="w-16 h-16 text-muted-foreground mb-4" />
                         <CardTitle>No Data Found</CardTitle>
                         <p className="mt-2 text-muted-foreground">The configured Google Sheet might be empty or inaccessible.</p>
-                         <Button onClick={handleRefresh} disabled={isLoading} className="mt-4">
-                            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                         <Button onClick={handleRefresh} disabled={isPending} className="mt-4">
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
                     </Card>
@@ -375,8 +375,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     Clear Filters
                                 </Button>
                             )}
-                            <Button onClick={handleRefresh} disabled={isLoading} size="sm" variant="outline">
-                                <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                            <Button onClick={handleRefresh} disabled={isPending} size="sm" variant="outline">
+                                <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
                                 Refresh Data
                             </Button>
                             <Select value={selectedYear} onValueChange={(value) => setSelectedYear(value)}>

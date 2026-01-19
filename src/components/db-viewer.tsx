@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter } from "lucide-react";
@@ -12,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -34,32 +35,30 @@ interface DbViewerState {
     data: any[] | null;
     source: 'cache' | 'sheet' | 'N/A';
     error?: string;
-    loading: boolean;
-    isSyncing: boolean;
 }
 
 // Helper to parse DD/MM/YYYY strings into Date objects
 const parseDate = (dateStr: string): Date | null => {
     if (!dateStr || typeof dateStr !== 'string') return null;
-    try {
-        // Use date-fns for reliable parsing of DD/MM/YYYY format
-        const parsed = parse(dateStr, 'dd/MM/yyyy', new Date());
-        if (isNaN(parsed.getTime())) return null;
-        return parsed;
-    } catch (e) {
-        return null;
+    
+    // Handle ISO 8601 format from Supabase (e.g., "2024-07-29T17:00:00+00:00")
+    if (dateStr.includes('T')) {
+        try {
+            const parsed = new Date(dateStr);
+            if (!isNaN(parsed.getTime())) return parsed;
+        } catch (e) { /* ignore and fallback */ }
     }
+
+    // Handle DD/MM/YYYY format from GSheets
+    try {
+        const parsed = parse(dateStr, 'dd/MM/yyyy', new Date());
+        if (!isNaN(parsed.getTime())) return parsed;
+    } catch (e) { /* ignore and fallback */ }
+
+    return null;
 };
 
-const FILTER_COLUMNS = [
-    'CLIENT NAME',
-    'STATUS CASE',
-    'KATEGORI',
-    'MODULE',
-    'DETAIL MODUL',
-    'STATUS CASE 2',
-];
-
+let FILTER_COLUMNS: string[] = [];
 
 export function DbViewer() {
     const { dbSheetUrl } = useContext(SettingsContext);
@@ -67,9 +66,9 @@ export function DbViewer() {
         data: null,
         source: 'N/A',
         error: undefined,
-        loading: true,
-        isSyncing: false,
     });
+    const [isPending, startTransition] = useTransition();
+
     const [progress, setProgress] = useState(0);
     const { toast } = useToast();
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -79,7 +78,18 @@ export function DbViewer() {
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
     const [yearFilter, setYearFilter] = useState<string>('');
 
-    const headers = useMemo(() => state.data?.length ? Object.keys(state.data[0]) : [], [state.data]);
+    const headers = useMemo(() => {
+        if (!state.data || !state.data.length) return [];
+        // Dynamically create headers from the first row of data
+        const firstRowKeys = Object.keys(state.data[0]);
+
+        // Find potential dynamic filter columns
+        const potentialFilterCols = ['client name', 'client_name', 'status case', 'status_case', 'kategori', 'category', 'module', 'detail modul', 'detail_module', 'status case 2', 'status_case_2'];
+        FILTER_COLUMNS = firstRowKeys.filter(h => potentialFilterCols.includes(h.toLowerCase()));
+
+        return firstRowKeys;
+    }, [state.data]);
+
 
     const initialColumnWidths = useCallback(() => {
         const widths: Record<string, number> = {};
@@ -138,65 +148,36 @@ export function DbViewer() {
 
     const totalWidth = useMemo(() => Object.values(columnWidths).reduce((acc, width) => acc + width, 0), [columnWidths]);
 
+    const dateHeaderKey = useMemo(() => headers.find(h => h.toLowerCase() === 'date'), [headers]);
+    
+    const fetchData = useCallback(async (isRefresh = false) => {
+        startTransition(async () => {
+            if (!dbSheetUrl) {
+                setState({ data: null, source: 'N/A', error: 'DB GSheet URL is not configured in Settings.' });
+                return;
+            }
 
-     const filterOptions = useMemo(() => {
-        if (!state.data) return {};
-        const options: Record<string, string[]> = {};
-        FILTER_COLUMNS.forEach(col => {
-            const uniqueValues = [...new Set(state.data?.map(row => row[col]).filter(Boolean))];
-            uniqueValues.sort((a, b) => a.localeCompare(b));
-            options[col] = uniqueValues;
-        });
-        return options;
-    }, [state.data]);
+            if (isRefresh) {
+                setProgress(0);
+            }
+            
+            const result = await getAllCaseData(dbSheetUrl);
 
-    const yearOptions = useMemo(() => {
-        if (!state.data) return [];
-        const years = new Set<string>();
-        state.data.forEach(row => {
-            const dateValue = row['DATE'];
-            if (dateValue && typeof dateValue === 'string') {
-                const year = dateValue.split('/')[2];
-                if (year && /^\d{4}$/.test(year)) {
-                    years.add(year);
+            setState({
+                data: result.data || null,
+                source: result.source || 'N/A',
+                error: result.error,
+            });
+
+            if (isRefresh) {
+                setProgress(100);
+                if (result.error) {
+                    toast({ variant: 'destructive', title: "Refresh Failed", description: result.error });
+                } else {
+                    toast({ title: "Data Refreshed", description: `Data loaded from ${result.source}.` });
                 }
             }
         });
-        return Array.from(years).sort((a, b) => b.localeCompare(a));
-    }, [state.data]);
-
-
-    const fetchData = useCallback(async (isRefresh = false) => {
-        if (!dbSheetUrl) {
-            setState({ data: null, source: 'N/A', error: 'DB GSheet URL is not configured in Settings.', loading: false, isSyncing: false });
-            return;
-        }
-
-        if (isRefresh) {
-            setState(prevState => ({ ...prevState, isSyncing: true, loading: true }));
-            setProgress(0);
-        } else {
-            setState(prevState => ({ ...prevState, loading: true }));
-        }
-
-        const result = await getAllCaseData(dbSheetUrl);
-
-        setState({
-            data: result.data || null,
-            source: result.source || 'N/A',
-            error: result.error,
-            loading: false,
-            isSyncing: false,
-        });
-
-        if (isRefresh) {
-            setProgress(100);
-            if (result.error) {
-                 toast({ variant: 'destructive', title: "Refresh Failed", description: result.error });
-            } else {
-                 toast({ title: "Data Refreshed", description: `Data loaded from ${result.source}.` });
-            }
-        }
     }, [dbSheetUrl, toast]);
     
     useEffect(() => {
@@ -205,7 +186,7 @@ export function DbViewer() {
 
     useEffect(() => {
         let timer: NodeJS.Timeout | undefined;
-        if (state.loading && !state.data) {
+        if (isPending) {
              setProgress(0);
              // Start a smoother animation
              timer = setInterval(() => {
@@ -218,7 +199,7 @@ export function DbViewer() {
                      return Math.min(oldProgress + 2, 95);
                  });
              }, 80);
-        } else if (!state.loading) {
+        } else {
             // When loading finishes, jump to 100%
             setProgress(100);
         }
@@ -228,7 +209,32 @@ export function DbViewer() {
                 clearInterval(timer);
             }
         };
-    }, [state.loading, state.data]);
+    }, [isPending]);
+    
+    const filterOptions = useMemo(() => {
+        if (!state.data) return {};
+        const options: Record<string, string[]> = {};
+        FILTER_COLUMNS.forEach(col => {
+            const uniqueValues = [...new Set(state.data?.map(row => row[col]).filter(Boolean))];
+            uniqueValues.sort((a, b) => a.localeCompare(b));
+            options[col] = uniqueValues;
+        });
+        return options;
+    }, [state.data]);
+
+    const yearOptions = useMemo(() => {
+        if (!state.data || !dateHeaderKey) return [];
+        const years = new Set<string>();
+        state.data.forEach(row => {
+            const dateValue = row[dateHeaderKey];
+            const dateObj = parseDate(dateValue);
+            if(dateObj) {
+                years.add(dateObj.getFullYear().toString());
+            }
+        });
+        return Array.from(years).sort((a, b) => b.localeCompare(a));
+    }, [state.data, dateHeaderKey]);
+
 
     const filteredData = useMemo(() => {
         if (!state.data) return [];
@@ -236,9 +242,9 @@ export function DbViewer() {
         let dataToFilter = state.data;
 
         // 1. Date range filter
-        if (dateRange?.from) {
+        if (dateRange?.from && dateHeaderKey) {
              dataToFilter = dataToFilter.filter(row => {
-                const dateValue = row['DATE'];
+                const dateValue = row[dateHeaderKey];
                 if (!dateValue) return false;
 
                 const rowDate = parseDate(dateValue);
@@ -279,23 +285,24 @@ export function DbViewer() {
         }
 
         // 4. Year filter
-        if (yearFilter) {
+        if (yearFilter && dateHeaderKey) {
             dataToFilter = dataToFilter.filter(row => {
-                const dateValue = row['DATE'];
-                return dateValue && typeof dateValue === 'string' && dateValue.endsWith(`/${yearFilter}`);
+                const dateValue = row[dateHeaderKey];
+                const dateObj = parseDate(dateValue);
+                return dateObj && dateObj.getFullYear().toString() === yearFilter;
             });
         }
 
         return dataToFilter;
-    }, [state.data, debouncedSearchTerm, dateRange, columnFilters, yearFilter]);
+    }, [state.data, debouncedSearchTerm, dateRange, columnFilters, yearFilter, dateHeaderKey]);
     
     
     const displayData = useMemo(() => {
-        if (state.loading && !state.data) {
+        if (isPending && !state.data) {
             return Array.from({ length: 10 }, () => ({}));
         }
         return filteredData;
-    }, [state.loading, state.data, filteredData]);
+    }, [isPending, state.data, filteredData]);
     
     
     const rowVirtualizer = useVirtualizer({
@@ -331,8 +338,8 @@ export function DbViewer() {
                         <CardDescription className="mt-2 mb-4 max-w-sm">
                             {state.error}
                         </CardDescription>
-                         <Button onClick={() => fetchData(true)} disabled={state.isSyncing}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${state.isSyncing ? 'animate-spin' : ''}`} />
+                         <Button onClick={() => fetchData(true)} disabled={isPending}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
                             Try Again
                         </Button>
                     </Card>
@@ -345,7 +352,7 @@ export function DbViewer() {
         const isFilterable = FILTER_COLUMNS.includes(header);
         const isFilterActive = columnFilters[header]?.length > 0;
 
-        if (header === 'DATE') {
+        if (header === dateHeaderKey) {
             return (
                 <Popover>
                     <PopoverTrigger asChild>
@@ -499,8 +506,8 @@ export function DbViewer() {
                             )}
                         </div>
                         <div className="flex items-center gap-2">
-                            <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={state.isSyncing || state.loading}>
-                                <RefreshCw className={`mr-2 h-4 w-4 ${state.isSyncing || state.loading ? 'animate-spin' : ''}`} />
+                            <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={isPending}>
+                                <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>
                             <Badge variant={state.source === 'cache' ? 'default' : 'secondary'} className="w-fit">
@@ -511,17 +518,17 @@ export function DbViewer() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                     {(state.loading && !state.data) && (
+                     {isPending && (
                          <div className="px-4 pb-2 space-y-1">
                             <div className='flex items-center gap-2'>
                                 <Progress value={progress} className="w-full" />
                                 <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{Math.round(progress)}%</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">Syncing latest data from Google Sheets...</p>
+                            <p className="text-xs text-muted-foreground">Syncing latest data...</p>
                         </div>
                      )}
                     <div ref={tableContainerRef} className="overflow-auto h-[75vh] border-t rounded-b-md">
-                       {(!state.data || state.data.length === 0) && !state.loading ? (
+                       {(!state.data || state.data.length === 0) && !isPending ? (
                             <div className="flex items-center justify-center h-full">
                                 <div className="text-center text-muted-foreground">
                                     <Database className="mx-auto h-12 w-12 mb-2" />
@@ -588,7 +595,7 @@ export function DbViewer() {
                     </div>
                 </CardContent>
                 <CardFooter className="p-2 border-t text-xs text-muted-foreground">
-                    {state.loading ? 'Loading...' : `Showing ${displayData.length} of ${state.data?.length || 0} rows.`}
+                    {isPending ? 'Loading...' : `Showing ${displayData.length} of ${state.data?.length || 0} rows.`}
                 </CardFooter>
             </Card>
         </div>
