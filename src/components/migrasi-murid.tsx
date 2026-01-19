@@ -918,9 +918,16 @@ export function MigrasiMurid() {
                     </header>
                     
                     {/* Data Grid (Virtualized) */}
-                     <div className="relative" style={{ height: `${totalHeight}px` }}>
+                    <div className="relative" style={{ height: `${totalHeight}px` }}>
                         {virtualRows.map(virtualRow => (
-                            <Fragment key={virtualRow.key}>
+                            <div
+                                key={virtualRow.key}
+                                className="absolute top-0 left-0 w-full"
+                                style={{
+                                    height: `${virtualRow.size}px`,
+                                    transform: `translateY(${virtualRow.start}px)`,
+                                }}
+                            >
                                 {virtualCols.map(virtualCol => {
                                     const row = rows[virtualRow.index];
                                     const colIndex = virtualCol.index;
@@ -946,11 +953,10 @@ export function MigrasiMurid() {
                                         <div
                                             key={virtualCol.key}
                                             style={{ 
-                                                height: `${virtualRow.size}px`,
                                                 width: `${virtualCol.size}px`,
-                                                transform: `translateY(${virtualRow.start}px) translateX(${virtualCol.start}px)`,
+                                                transform: `translateX(${virtualCol.start}px)`,
                                             }}
-                                            className="absolute top-0 left-0 p-0 m-0 border-r border-b relative flex items-center"
+                                            className="absolute top-0 left-0 h-full p-0 m-0 border-r border-b relative flex items-center"
                                             onMouseOver={(e: MouseEvent<HTMLDivElement>) => handleMouseOver(e, { row: virtualRow.index, col: colIndex })}
                                         >
                                             <Input
@@ -980,7 +986,7 @@ export function MigrasiMurid() {
                                         </div>
                                     );
                                 })}
-                            </Fragment>
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -1009,5 +1015,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
