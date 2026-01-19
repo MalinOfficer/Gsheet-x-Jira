@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useContext, useTransition } from 'react';
@@ -21,11 +20,11 @@ import { Badge } from './ui/badge';
 import Link from 'next/link';
 
 const chartConfig = {
-  solved: { label: "Solved", color: "hsl(var(--chart-2))" },
+  solved: { label: "Solved", color: "hsl(var(--accent))" },
   unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
   // For Pie Chart, keys must be uppercase to match data
-  SOLVED: { label: "Solved", color: "hsl(var(--chart-2))" }, // Green
-  L1: { label: "L1", color: "hsl(var(--chart-4))" }, // Orange-ish
+  SOLVED: { label: "Solved", color: "hsl(var(--accent))" }, // Dark Green, like module trend
+  L1: { label: "L1", color: "hsl(var(--chart-3))" }, // Orange
   L2: { label: "L2", color: "hsl(var(--chart-1))" }, // Blue
   L3: { label: "L3", color: "hsl(var(--destructive))" }, // Red
   // Add other potential statuses with fallback colors
