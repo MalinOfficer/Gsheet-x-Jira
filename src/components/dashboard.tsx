@@ -1,7 +1,7 @@
 
 "use client";
 
-import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, ArrowLeft, AlertTriangle } from "lucide-react";
+import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, ArrowLeft, AlertTriangle, Calendar as CalendarIcon } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -23,6 +23,11 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { DateRange } from "react-day-picker";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
+import { Separator } from "./ui/separator";
 
 
 const chartConfig = {
@@ -82,6 +87,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
     const [clientFilter, setClientFilter] = useState<string[]>([]);
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
     // Effect to re-fetch stats when filters change. Initial fetch is done by the server.
     useEffect(() => {
@@ -98,6 +104,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     categoryFilter,
                     clientFilter,
                     moduleFilter,
+                    dateRange,
                 });
 
                 if (result.error) {
@@ -110,7 +117,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         
         fetchFilteredStats();
 
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dbSheetUrl, toast, initialStats]);
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dbSheetUrl, toast, initialStats, dateRange]);
 
 
     const handleRefresh = useCallback(async () => {
@@ -126,7 +133,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             await syncDashboardCache(dbSheetUrl);
 
             const [statsResult, optionsResult] = await Promise.all([
-                getDashboardStats({ sheetUrl: dbSheetUrl, selectedYear, categoryFilter, clientFilter, moduleFilter }),
+                getDashboardStats({ sheetUrl: dbSheetUrl, selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange }),
                 getDashboardFilterOptions(dbSheetUrl)
             ]);
 
@@ -144,7 +151,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 setFilterOptions(optionsResult.data);
             }
         });
-    }, [dbSheetUrl, selectedYear, categoryFilter, clientFilter, moduleFilter, toast]);
+    }, [dbSheetUrl, selectedYear, categoryFilter, clientFilter, moduleFilter, toast, dateRange]);
 
     if (isLoading && !stats) {
          return (
@@ -274,6 +281,46 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-80 space-y-4">
+                                    <div className="space-y-2">
+                                        <h4 className="font-medium leading-none">Filter by Date</h4>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    id="date"
+                                                    variant={"outline"}
+                                                    className={cn(
+                                                        "w-full justify-start text-left font-normal",
+                                                        !dateRange && "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {dateRange?.from ? (
+                                                        dateRange.to ? (
+                                                            <>
+                                                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                                                {format(dateRange.to, "LLL dd, y")}
+                                                            </>
+                                                        ) : (
+                                                            format(dateRange.from, "LLL dd, y")
+                                                        )
+                                                    ) : (
+                                                        <span>Pick a date range</span>
+                                                    )}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar
+                                                    initialFocus
+                                                    mode="range"
+                                                    defaultMonth={dateRange?.from}
+                                                    selected={dateRange}
+                                                    onSelect={setDateRange}
+                                                    numberOfMonths={2}
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                    <Separator />
                                     <div className="space-y-2">
                                         <h4 className="font-medium leading-none">Filter by Category</h4>
                                         <MultiSelect

@@ -11,7 +11,14 @@ export default async function DashboardPage() {
 
     // Fetch initial data in parallel on the server
     const [statsResult, optionsResult] = await Promise.all([
-        getDashboardStats({ sheetUrl: dbSheetUrl, selectedYear: 'all', categoryFilter: [], clientFilter: [], moduleFilter: [] }),
+        getDashboardStats({ 
+            sheetUrl: dbSheetUrl, 
+            selectedYear: 'all', 
+            categoryFilter: [], 
+            clientFilter: [], 
+            moduleFilter: [], 
+            dateRange: undefined 
+        }),
         getDashboardFilterOptions(dbSheetUrl)
     ]);
     

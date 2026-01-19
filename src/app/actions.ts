@@ -1287,6 +1287,7 @@ export async function getDashboardStats(filters: {
     categoryFilter: string[];
     clientFilter: string[];
     moduleFilter: string[];
+    dateRange?: { from?: Date; to?: Date };
 }) {
     // 1. Get raw data
     const allCaseResult = await getAllCaseData(filters.sheetUrl);
@@ -1316,11 +1317,59 @@ export async function getDashboardStats(filters: {
 
     // 3. Filter data based on input filters
     let filteredData = rawData;
+    const { dateRange, selectedYear, categoryFilter, clientFilter, moduleFilter } = filters;
     
-    if (filters.selectedYear !== 'all' && dateHeader) {
+    // Prioritize dateRange filter
+    if (dateRange?.from && dateHeader) {
+        const fromDate = new Date(dateRange.from);
+        fromDate.setHours(0, 0, 0, 0);
+
+        const toDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+        toDate.setHours(23, 59, 59, 999);
+        
         filteredData = filteredData.filter(row => {
             const dateStr = row[dateHeader];
-            return dateStr && typeof dateStr === 'string' && dateStr.endsWith(`/${filters.selectedYear}`);
+            if (!dateStr || typeof dateStr !== 'string') return false;
+            
+            let rowDate: Date | null = null;
+            // Check for ISO format first (YYYY-MM-DD)
+            if (/\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+                rowDate = new Date(dateStr);
+            } 
+            // Fallback to DD/MM/YYYY
+            else if (dateStr.includes('/')) {
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
+                    const year = parseInt(parts[2], 10);
+                    if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                        rowDate = new Date(year, month, day);
+                    }
+                }
+            }
+
+            if (!rowDate || isNaN(rowDate.getTime())) {
+                return false;
+            }
+
+            return rowDate >= fromDate && rowDate <= toDate;
+        });
+    } else if (selectedYear !== 'all' && dateHeader) {
+        // Keep existing year filter as fallback
+        filteredData = filteredData.filter(row => {
+            const dateStr = row[dateHeader];
+            if (!dateStr || typeof dateStr !== 'string') return false;
+
+            if (dateStr.includes('/')) {
+                return dateStr.endsWith(`/${selectedYear}`);
+            } else {
+                try {
+                    return new Date(dateStr).getFullYear().toString() === selectedYear;
+                } catch (e) {
+                    return false;
+                }
+            }
         });
     }
 
@@ -1469,8 +1518,13 @@ export async function getDashboardFilterOptions(sheetUrl: string) {
     if (dateHeader) {
         data.forEach(row => {
             const dateStr = row[dateHeader];
-            if (dateStr && typeof dateStr === 'string' && dateStr.includes('/')) {
-                const year = dateStr.split('/')[2];
+            if (dateStr && typeof dateStr === 'string') {
+                let year: string | undefined;
+                if (dateStr.includes('/')) {
+                    year = dateStr.split('/')[2];
+                } else if (/\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+                    year = dateStr.substring(0, 4);
+                }
                 if (year) years.add(year);
             }
         });
