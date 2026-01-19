@@ -25,10 +25,10 @@ const StatusCaseChart = ({ statusData, totalCases, avgResolutionTime }: {
     avgResolutionTime: number 
 }) => {
   const chartConfig = {
-    'SOLVED': { color: 'hsl(var(--chart-2))' },
-    'L3': { color: 'hsl(var(--chart-4))' },
-    'L2': { color: 'hsl(var(--chart-1))' },
-    'L1': { color: 'hsl(var(--chart-3))' },
+    'SOLVED': { color: '#10b981' }, // Green
+    'L3': { color: '#ef4444' },     // Red
+    'L2': { color: '#3b82f6' },     // Blue
+    'L1': { color: '#f59e0b' },     // Amber/Orange
   };
 
   const data = statusData.map(item => ({
