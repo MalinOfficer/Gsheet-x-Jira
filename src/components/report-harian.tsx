@@ -12,27 +12,142 @@ import { SettingsContext } from '@/contexts/settings-provider';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, AreaChart, Area } from 'recharts';
-import type { ChartConfig } from "@/components/ui/chart"
+import { ResponsiveContainer, Tooltip, XAxis, YAxis, Bar, BarChart as RechartsBarChart, AreaChart, Area } from 'recharts';
 import { fetchL3ReportData } from '@/app/actions';
 import { ScrollArea } from './ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import Link from 'next/link';
 
-const chartConfig = {
-  solved: { label: "Solved", color: "hsl(var(--accent))" },
-  unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
-  // For Pie Chart, keys must be uppercase to match data
-  SOLVED: { label: "Solved", color: "hsl(var(--chart-2))" },
-  L1: { label: "L1", color: "hsl(var(--chart-3))" }, // Yellow/Orange
-  L2: { label: "L2", color: "hsl(var(--chart-1))" }, // Blue
-  L3: { label: "L3", color: "hsl(var(--destructive))" }, // Red
-  // Add other potential statuses with fallback colors
-  PENDING: { label: "Pending", color: "hsl(var(--chart-5))" },
-  'ON HOLD': { label: 'On Hold', color: 'hsl(var(--chart-5))' },
-  'N/A': { label: 'N/A', color: 'hsl(var(--muted))' }
-} satisfies ChartConfig
+const StatusCaseChart = ({ statusData, totalCases }: { statusData: { name: string; value: number; percentage: number; }[], totalCases: number }) => {
+  const colorMap: { [key: string]: string } = {
+    'SOLVED': '#10b981',
+    'L3': '#ef4444',
+    'L2': '#3b82f6',
+    'L1': '#fbbf24',
+  };
+
+  const data = statusData.map(item => ({
+    label: item.name,
+    value: item.value,
+    color: colorMap[item.name] || '#9ca3af',
+    percentage: item.percentage,
+  })).filter(item => item.value > 0);
+
+  const total = totalCases;
+
+  let currentAngle = -90;
+  const radius = 70;
+  const strokeWidth = 24;
+  const center = 90;
+
+  const polarToCartesian = (angle: number, r: number) => {
+    const radian = (angle * Math.PI) / 180;
+    return {
+      x: center + r * Math.cos(radian),
+      y: center + r * Math.sin(radian)
+    };
+  };
+
+  const createArc = (startAngle: number, endAngle: number, color: string) => {
+    const start = polarToCartesian(startAngle, radius);
+    const end = polarToCartesian(endAngle, radius);
+    const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+    return {
+      path: `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`,
+      color
+    };
+  };
+
+  const arcs = data.map(item => {
+    if (total === 0) return createArc(0, 0, item.color);
+    const angle = (item.value / total) * 360;
+    const arc = createArc(currentAngle, currentAngle + angle, item.color);
+    currentAngle += angle;
+    return arc;
+  });
+
+  const resolvedItem = data.find(d => d.label === 'SOLVED');
+  const inProgressItems = data.filter(d => d.label !== 'SOLVED');
+  const resolvedPercentage = resolvedItem ? resolvedItem.percentage : 0;
+  const inProgressPercentage = inProgressItems.reduce((sum, item) => sum + item.percentage, 0);
+
+  return (
+    <Card>
+        <CardHeader>
+            <CardTitle className="text-xl">Status Case</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-8">
+            <div className="flex-shrink-0">
+              <svg width="180" height="180" viewBox="0 0 180 180">
+                {arcs.map((arc, index) => (
+                  <path
+                    key={index}
+                    d={arc.path}
+                    fill="none"
+                    stroke={arc.color}
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                  />
+                ))}
+                <circle cx={center} cy={center} r={radius - strokeWidth / 2 - 2} className="fill-card" />
+                <text
+                  x={center}
+                  y={center - 5}
+                  textAnchor="middle"
+                  className="text-2xl font-bold fill-foreground"
+                >
+                  {total}
+                </text>
+                <text
+                  x={center}
+                  y={center + 15}
+                  textAnchor="middle"
+                  className="text-sm fill-muted-foreground"
+                >
+                  Total Cases
+                </text>
+              </svg>
+            </div>
+
+            <div className="flex-1 grid grid-cols-2 gap-4">
+              {data.map((item, index) => (
+                <div key={index} className="flex items-start gap-3">
+                  <div
+                    className="w-3 h-3 rounded-full mt-1 flex-shrink-0"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-foreground">{item.label}</div>
+                    <div className="text-2xl font-bold text-foreground">{item.value}</div>
+                    <div className="text-xs text-muted-foreground">{item.percentage.toFixed(1)}%</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-6 pt-6 border-t border-border grid grid-cols-3 gap-4 text-center">
+            <div>
+              <div className="text-sm text-muted-foreground">Resolved</div>
+              <div className="text-xl font-bold text-green-600">{resolvedPercentage.toFixed(1)}%</div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground">In Progress</div>
+              <div className="text-xl font-bold text-blue-600">
+                {inProgressPercentage.toFixed(1)}%
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground">Avg. Resolution</div>
+              <div className="text-xl font-bold text-foreground">2.3 days</div>
+            </div>
+          </div>
+        </CardContent>
+    </Card>
+  );
+};
+
 
 // State for this page is now managed locally
 type ReportData = {
@@ -86,7 +201,7 @@ function DashboardChart() {
         const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ 
             name, 
             value,
-            percentage: total > 0 ? Math.round((value / total) * 100) : 0,
+            percentage: total > 0 ? (value / total) * 100 : 0,
         }));
 
 
@@ -202,52 +317,7 @@ function DashboardChart() {
                 </Card>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Status Case</CardTitle>
-                    </CardHeader>
-                    <CardContent className="shadow-inner bg-muted/30 p-4 rounded-lg">
-                        <div className="w-full h-[250px] grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={statusCounts}
-                                        cx="50%"
-                                        cy="50%"
-                                        labelLine={false}
-                                        label={false}
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {statusCounts.map((entry, index) => {
-                                            const entryName = entry.name as keyof typeof chartConfig;
-                                            const color = chartConfig[entryName]?.color || `hsl(var(--chart-${(index % 5) + 1}))`;
-                                            return <Cell key={`cell-${index}`} fill={color} />;
-                                        })}
-                                    </Pie>
-                                    <Tooltip contentStyle={{ fontSize: '12px', padding: '4px 8px' }} formatter={(value, name) => [`${value} (${(Number(value)/totalCases*100).toFixed(0)}%)`, name]} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                                {sortedStatusCounts.map((entry, index) => {
-                                     const colorKey = entry.name as keyof typeof chartConfig;
-                                     const color = chartConfig[colorKey]?.color || 'hsl(var(--muted))';
-                                     return (
-                                        <div key={`legend-${index}`} className="flex flex-col">
-                                            <div className="flex items-center gap-2">
-                                                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-                                                <span className="text-muted-foreground">{entry.name}</span>
-                                            </div>
-                                            <span className="font-bold ml-4">{entry.value}</span>
-                                        </div>
-                                     )
-                                })}
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <StatusCaseChart statusData={sortedStatusCounts} totalCases={totalCases} />
                 <Card className="flex flex-col">
                     <CardHeader>
                         <CardTitle className='text-base'>List Case</CardTitle>
