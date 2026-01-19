@@ -9,7 +9,7 @@ import {
     CardTitle,
     CardDescription
 } from "@/components/ui/card";
-import { useContext, useState, useEffect, useTransition, useCallback, useMemo } from "react";
+import { useContext, useState, useEffect, useTransition, useCallback, useMemo, useRef } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Bar, BarChart as RechartsBarChart } from 'recharts';
@@ -83,7 +83,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(initialOptions);
     const [error, setError] = useState<string | null>(initialError || null);
     const [isApplyingFilters, startApplyingFilters] = useTransition();
-    const [isRefreshing, startRefreshing] = useTransition();
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const isInitialMount = useRef(true);
 
 
     // Filter states
@@ -94,10 +95,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
     useEffect(() => {
-        // This effect now correctly reflects that any background processing should show the global spinner.
-        // The individual refresh button's state is handled separately.
-        setIsProcessing(isApplyingFilters || isRefreshing);
-    }, [isApplyingFilters, isRefreshing, setIsProcessing]);
+        setIsProcessing(isApplyingFilters);
+    }, [isApplyingFilters, setIsProcessing]);
 
 
     const areFiltersActive = useMemo(() => {
@@ -121,6 +120,12 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
 
     // Effect to re-fetch stats when filters change.
     useEffect(() => {
+        // Prevent re-fetching on initial mount since we have initialStats
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
         const fetchFilteredStats = () => {
              if (!dbSheetUrl) return;
              startApplyingFilters(async () => {
@@ -142,11 +147,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             });
         }
         
-        // We only call this if it's not the initial render with server-passed data,
-        // or if the dependencies change after the initial render.
-        if (initialStats) {
-             fetchFilteredStats();
-        }
+        fetchFilteredStats();
 
     }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dbSheetUrl, dateRange]);
 
@@ -157,7 +158,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             return;
         }
 
-        startRefreshing(async () => {
+        setIsRefreshing(true);
+        startApplyingFilters(async () => {
             setError(null);
             toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
             
@@ -181,6 +183,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             } else {
                 setFilterOptions(optionsResult.data);
             }
+            setIsRefreshing(false);
         });
     }, [dbSheetUrl, selectedYear, categoryFilter, clientFilter, moduleFilter, toast, dateRange]);
 
@@ -387,7 +390,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     Clear Filters
                                 </Button>
                             )}
-                            <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" variant="outline">
+                            <Button onClick={handleRefresh} disabled={isRefreshing || isApplyingFilters} size="sm" variant="outline">
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh Data
                             </Button>

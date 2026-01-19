@@ -1,24 +1,23 @@
-'use client';
 
-import dynamic from 'next/dynamic';
-import { RefreshCw } from 'lucide-react';
+import { cookies } from 'next/headers';
+import { DbViewer } from '@/components/db-viewer';
+import { getAllCaseData } from '@/app/actions';
 
-const DbViewer = dynamic(
-    () => import('@/components/db-viewer').then(mod => mod.DbViewer),
-    { 
-        ssr: false,
-        loading: () => (
-            <div className="flex items-center justify-center h-[80vh]">
-                <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        )
-    }
-);
+const DEFAULT_DB_SHEET_URL = 'https://docs.google.com/spreadsheets/d/17IreWvSgn3gr-kUmvI4-nOhqOYm9tJtUkwzPxo2wODU/edit?usp=drive_link';
 
-export default function DbPage() {
+export default async function DbPage() {
+    const cookieStore = cookies();
+    const dbSheetUrl = cookieStore.get('gsheetDashboardDbSheetUrl')?.value || DEFAULT_DB_SHEET_URL;
+
+    const result = await getAllCaseData(dbSheetUrl);
+
     return (
         <main>
-            <DbViewer />
+            <DbViewer 
+                initialData={result.data ?? null}
+                initialSource={result.source ?? 'N/A'}
+                initialError={result.error ?? undefined}
+            />
         </main>
     );
 }

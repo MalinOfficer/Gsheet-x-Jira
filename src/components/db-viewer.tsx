@@ -32,10 +32,16 @@ import { Progress } from "./ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 
+interface DbViewerProps {
+    initialData: any[] | null;
+    initialSource: 'cache' | 'sheet' | 'N/A';
+    initialError?: string | null;
+}
+
 interface DbViewerState {
     data: any[] | null;
     source: 'cache' | 'sheet' | 'N/A';
-    error?: string;
+    error?: string | null;
 }
 
 // Helper to parse DD/MM/YYYY strings into Date objects
@@ -61,13 +67,13 @@ const parseDate = (dateStr: string): Date | null => {
 
 let FILTER_COLUMNS: string[] = [];
 
-export function DbViewer() {
+export function DbViewer({ initialData, initialSource, initialError }: DbViewerProps) {
     const { dbSheetUrl } = useContext(SettingsContext);
     const { setIsProcessing } = useContext(TableDataContext);
     const [state, setState] = useState<DbViewerState>({
-        data: null,
-        source: 'N/A',
-        error: undefined,
+        data: initialData,
+        source: initialSource,
+        error: initialError,
     });
     const [isPending, startTransition] = useTransition();
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -195,35 +201,29 @@ export function DbViewer() {
     }, [dbSheetUrl, toast]);
     
     useEffect(() => {
-        fetchData(false);
-    }, [fetchData]);
-
-    useEffect(() => {
         let timer: NodeJS.Timeout | undefined;
-        if (isPending) {
+        if (isPending && !isRefreshing) { // Only show global spinner on navigation, not manual refresh
+             setIsProcessing(true);
              setProgress(0);
-             // Start a smoother animation
              timer = setInterval(() => {
                  setProgress(oldProgress => {
                      if (oldProgress >= 95) {
                          clearInterval(timer);
                          return oldProgress;
                      }
-                     // Use a smaller increment for a smoother feel
                      return Math.min(oldProgress + 2, 95);
                  });
              }, 80);
         } else {
-            // When loading finishes, jump to 100%
+            setIsProcessing(false);
             setProgress(100);
         }
     
         return () => {
-            if (timer) {
-                clearInterval(timer);
-            }
+            if (timer) clearInterval(timer);
+            setIsProcessing(false);
         };
-    }, [isPending]);
+    }, [isPending, isRefreshing, setIsProcessing]);
     
     const filterOptions = useMemo(() => {
         if (!state.data) return {};
@@ -520,7 +520,7 @@ export function DbViewer() {
                             )}
                         </div>
                         <div className="flex items-center gap-2">
-                            <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={isPending}>
+                            <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={isPending || isRefreshing}>
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>
@@ -532,13 +532,13 @@ export function DbViewer() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                     {isPending && (
+                     {(isPending && !isRefreshing) && (
                          <div className="px-4 pb-2 space-y-1">
                             <div className='flex items-center gap-2'>
                                 <Progress value={progress} className="w-full" />
                                 <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{Math.round(progress)}%</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">Syncing latest data...</p>
+                            <p className="text-xs text-muted-foreground">Loading data...</p>
                         </div>
                      )}
                     <div ref={tableContainerRef} className="overflow-auto h-[75vh] border-t rounded-b-md">
