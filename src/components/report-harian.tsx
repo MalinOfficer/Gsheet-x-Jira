@@ -12,7 +12,7 @@ import { SettingsContext } from '@/contexts/settings-provider';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { ResponsiveContainer, Tooltip, XAxis, YAxis, Bar, BarChart as RechartsBarChart, AreaChart, Area } from 'recharts';
+import { ResponsiveContainer, Tooltip, XAxis, YAxis, Bar, BarChart as RechartsBarChart, AreaChart, Area, PieChart, Pie, Sector } from 'recharts';
 import { fetchL3ReportData } from '@/app/actions';
 import { ScrollArea } from './ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
@@ -24,54 +24,23 @@ const StatusCaseChart = ({ statusData, totalCases, avgResolutionTime }: {
     totalCases: number, 
     avgResolutionTime: number 
 }) => {
-  const colorMap: { [key: string]: string } = {
-    'SOLVED': 'hsl(var(--chart-2))',
-    'L3': 'hsl(var(--chart-4))',
-    'L2': 'hsl(var(--chart-1))',
-    'L1': 'hsl(var(--chart-3))',
+  const chartConfig = {
+    'SOLVED': { color: 'hsl(var(--chart-2))' },
+    'L3': { color: 'hsl(var(--chart-4))' },
+    'L2': { color: 'hsl(var(--chart-1))' },
+    'L1': { color: 'hsl(var(--chart-3))' },
   };
 
   const data = statusData.map(item => ({
-    label: item.name.toUpperCase(),
+    name: item.name.toUpperCase(),
     value: item.value,
-    color: colorMap[item.name.toUpperCase()] || '#9ca3af',
+    fill: chartConfig[item.name.toUpperCase() as keyof typeof chartConfig]?.color || '#9ca3af',
   })).filter(item => item.value > 0);
 
   const total = totalCases;
 
-  let currentAngle = -90;
-  const radius = 70;
-  const strokeWidth = 24;
-  const center = 90;
-
-  const polarToCartesian = (angle: number, r: number) => {
-    const radian = (angle * Math.PI) / 180;
-    return {
-      x: center + r * Math.cos(radian),
-      y: center + r * Math.sin(radian)
-    };
-  };
-
-  const createArc = (startAngle: number, endAngle: number, color: string) => {
-    const start = polarToCartesian(startAngle, radius);
-    const end = polarToCartesian(endAngle, radius);
-    const largeArc = endAngle - startAngle > 180 ? 1 : 0;
-    return {
-      path: `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`,
-      color
-    };
-  };
-
-  const arcs = data.map(item => {
-    if (total === 0) return createArc(0, 0, item.color);
-    const angle = (item.value / total) * 360;
-    const arc = createArc(currentAngle, currentAngle + angle, item.color);
-    currentAngle += angle;
-    return arc;
-  });
-
-  const resolvedItem = data.find(d => d.label === 'SOLVED');
-  const inProgressItems = data.filter(d => d.label !== 'SOLVED');
+  const resolvedItem = data.find(d => d.name === 'SOLVED');
+  const inProgressItems = data.filter(d => d.name !== 'SOLVED');
   const resolvedValue = resolvedItem ? resolvedItem.value : 0;
   const inProgressValue = inProgressItems.reduce((sum, item) => sum + item.value, 0);
 
@@ -81,70 +50,79 @@ const StatusCaseChart = ({ statusData, totalCases, avgResolutionTime }: {
             <CardTitle className="text-xl">Status Case</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between gap-8">
-            <div className="flex-shrink-0">
-              <svg width="180" height="180" viewBox="0 0 180 180">
-                {arcs.map((arc, index) => (
-                  <path
-                    key={index}
-                    d={arc.path}
-                    fill="none"
-                    stroke={arc.color}
-                    strokeWidth={strokeWidth}
-                    strokeLinecap="round"
-                  />
-                ))}
-                <circle cx={center} cy={center} r={radius - strokeWidth / 2 - 2} className="fill-card" />
-                <text
-                  x={center}
-                  y={center - 5}
-                  textAnchor="middle"
-                  className="text-2xl font-bold fill-foreground"
-                >
-                  {total}
-                </text>
-                <text
-                  x={center}
-                  y={center + 15}
-                  textAnchor="middle"
-                  className="text-sm fill-muted-foreground"
-                >
-                  Total Cases
-                </text>
-              </svg>
-            </div>
-
-            <div className="flex-1 grid grid-cols-2 gap-4">
-              {data.map((item, index) => (
-                <div key={index} className="flex items-start gap-3">
-                  <div
-                    className="w-3 h-3 rounded-full mt-1 flex-shrink-0"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <div>
-                    <div className="text-sm font-medium text-foreground">{item.label}</div>
-                    <div className="text-2xl font-bold text-foreground">{item.value}</div>
-                  </div>
+            <div className="w-full h-[250px] grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                        <Pie
+                            data={data}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                        />
+                        <Tooltip
+                            content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                return (
+                                    <div className="bg-background border rounded-lg shadow-lg p-2 text-xs">
+                                    <p className="font-bold text-foreground">{`${payload[0].name} : ${payload[0].value}`}</p>
+                                    </div>
+                                );
+                                }
+                                return null;
+                            }}
+                        />
+                         <text
+                            x="50%"
+                            y="45%"
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            className="text-3xl font-bold fill-foreground"
+                        >
+                            {total}
+                        </text>
+                        <text
+                            x="50%"
+                            y="60%"
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            className="text-sm fill-muted-foreground"
+                        >
+                            Total Cases
+                        </text>
+                    </PieChart>
+                </ResponsiveContainer>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    {data.map((entry, index) => (
+                        <div key={`legend-${index}`} className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.fill }} />
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-sm font-medium">{entry.name}</span>
+                                <span className="font-bold">{entry.value}</span>
+                            </div>
+                        </div>
+                    ))}
                 </div>
-              ))}
             </div>
-          </div>
-          <div className="mt-6 pt-6 border-t border-border grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-sm text-muted-foreground">Resolved</div>
-              <div className="text-xl font-bold text-green-600">{resolvedValue}</div>
+            <div className="mt-6 pt-6 border-t border-border grid grid-cols-3 gap-4 text-center">
+                <div>
+                    <div className="text-sm text-muted-foreground">Resolved</div>
+                    <div className="text-xl font-bold text-green-600">{resolvedValue}</div>
+                </div>
+                <div>
+                    <div className="text-sm text-muted-foreground">In Progress</div>
+                    <div className="text-xl font-bold text-blue-600">
+                        {inProgressValue}
+                    </div>
+                </div>
+                <div>
+                    <div className="text-sm text-muted-foreground">Avg. Resolution</div>
+                    <div className="text-xl font-bold text-foreground">{avgResolutionTime} jam</div>
+                </div>
             </div>
-            <div>
-              <div className="text-sm text-muted-foreground">In Progress</div>
-              <div className="text-xl font-bold text-blue-600">
-                {inProgressValue}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Avg. Resolution</div>
-              <div className="text-xl font-bold text-foreground">{avgResolutionTime.toFixed(1)} jam</div>
-            </div>
-          </div>
         </CardContent>
     </Card>
   );
@@ -250,7 +228,7 @@ function DashboardChart() {
 
         const avgResolutionHours =
             resolvedCountWithTime > 0
-                ? (totalResolutionTime / resolvedCountWithTime) / (1000 * 60 * 60)
+                ? Math.ceil((totalResolutionTime / resolvedCountWithTime) / (1000 * 60 * 60))
                 : 0;
 
 
@@ -684,5 +662,3 @@ export function ReportHarian({ error }: ReportHarianProps) {
     </div>
   );
 }
-
-    
