@@ -41,12 +41,22 @@ type NavCategory = keyof typeof navItems;
 function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
     const pathname = usePathname();
     const { isCodeViewerEnabled, areSecondaryToolsEnabled } = useContext(SettingsContext);
+    const { setIsProcessing } = useContext(TableDataContext);
     
     const isVisible = (item: { featureFlag?: string }) => {
         if (!item.featureFlag) return true;
         if (item.featureFlag === 'isCodeViewerEnabled') return isCodeViewerEnabled;
         if (item.featureFlag === 'areSecondaryToolsEnabled') return areSecondaryToolsEnabled;
         return true;
+    };
+
+    const handleHeavyLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        // Prevent premature navigation if the current page is the same
+        if (e.currentTarget.pathname === pathname) {
+            e.preventDefault();
+            return;
+        }
+        setIsProcessing(true);
     };
     
     const Wrapper = isMobile ? SheetClose : 'div';
@@ -62,24 +72,29 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                         <h2 className="mb-3 mt-6 ml-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">
                             {category}
                         </h2>
-                        {visibleItems.map((item) => (
-                            <Wrapper key={item.label} asChild>
-                                <Link
-                                    href={item.href}
-                                    className={cn(
-                                        "flex items-center gap-3 rounded-lg px-4 py-2.5 text-muted-foreground transition-all",
-                                        "text-sm font-medium",
-                                        pathname === item.href 
-                                            ? "bg-blue-100 dark:bg-blue-900/20 text-primary font-semibold" 
-                                            : "hover:bg-muted/50 hover:text-foreground",
-                                        item.disabled && "pointer-events-none opacity-50"
-                                    )}
-                                >
-                                    <item.icon className="h-5 w-5" strokeWidth={1.5} />
-                                    {item.label}
-                                </Link>
-                            </Wrapper>
-                        ))}
+                        {visibleItems.map((item) => {
+                            const isHeavy = item.href === '/dashboard' || item.href === '/db';
+
+                            return (
+                                <Wrapper key={item.label} asChild>
+                                    <Link
+                                        href={item.href}
+                                        onClick={isHeavy ? handleHeavyLinkClick : undefined}
+                                        className={cn(
+                                            "flex items-center gap-3 rounded-lg px-4 py-2.5 text-muted-foreground transition-all",
+                                            "text-sm font-medium",
+                                            pathname === item.href 
+                                                ? "bg-blue-100 dark:bg-blue-900/20 text-primary font-semibold" 
+                                                : "hover:bg-muted/50 hover:text-foreground",
+                                            item.disabled && "pointer-events-none opacity-50"
+                                        )}
+                                    >
+                                        <item.icon className="h-5 w-5" strokeWidth={1.5} />
+                                        {item.label}
+                                    </Link>
+                                </Wrapper>
+                            );
+                        })}
                     </div>
                 );
             })}
@@ -101,7 +116,6 @@ function ProcessingIndicator() {
 
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-    const { setIsProcessing } = useContext(TableDataContext);
     const pathname = usePathname();
     const [isClient, setIsClient] = useState(false);
     const isMobile = useIsMobile();
