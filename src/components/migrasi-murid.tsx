@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect } from "react";
@@ -758,11 +757,23 @@ export function MigrasiMurid() {
         count: rows.length,
         getScrollElement: () => tableContainerRef.current,
         estimateSize: () => 28, // Corresponds to h-7
-        overscan: 5,
+        overscan: 10,
     });
     
+    const colVirtualizer = useVirtualizer({
+        horizontal: true,
+        count: tableHeaders.length,
+        getScrollElement: () => tableContainerRef.current,
+        estimateSize: (index) => columnWidths[tableHeaders[index]] || 120,
+        overscan: 3,
+    });
+
     const virtualRows = rowVirtualizer.getVirtualItems();
+    const virtualCols = colVirtualizer.getVirtualItems();
     const totalHeight = rowVirtualizer.getTotalSize();
+    const totalWidth = colVirtualizer.getTotalSize();
+    
+    const HEADER_HEIGHT = 36;
     
     const getRowNumberValue = (row: MuridData, index: number) => {
         return String(index + 1);
@@ -858,124 +869,125 @@ export function MigrasiMurid() {
                 className="flex-grow relative overflow-auto" 
                 ref={tableContainerRef}
                 onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
             >
                  <div 
                     style={{ 
-                        width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
-                        height: `${totalHeight + 36}px`,
+                        width: `${totalWidth}px`,
+                        height: `${totalHeight + HEADER_HEIGHT}px`,
                         position: 'relative',
                     }}
-                    onMouseLeave={handleMouseUp}
                 >
-                    <header className="sticky top-0 z-30 flex bg-secondary" style={{height: '36px'}}>
-                        {tableHeaders.map((header) => (
-                            <div
-                                key={header}
-                                style={{ 
-                                    width: columnWidths[header],
-                                    left: header === "No" ? 0 : 'auto',
-                                }}
-                                className={cn(
-                                    "relative select-none border-r border-b px-2 py-2 flex items-center justify-center font-semibold text-xs text-foreground",
-                                    header === "No" && "sticky z-40 bg-secondary"
-                                )}
-                            >
-                                <span className="truncate">{header}</span>
-                                {header === "Tanggal Lahir" && (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-5 w-5 ml-1">
-                                                <Wand2 className="h-3 w-3" />
-                                                <span className="sr-only">Format Menu</span>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent>
-                                            <DropdownMenuItem onClick={handleFormatDates}>
-                                                Format ke DD/MM/YYYY
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                )}
-                                <div
-                                    onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
-                                    className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
-                                />
-                            </div>
-                        ))}
-                    </header>
-                    
-                    <div style={{ height: totalHeight, position: 'relative' }}>
-                        {virtualRows.map(virtualRow => {
-                            const row = rows[virtualRow.index];
+                    {/* Header Row (Virtualized) */}
+                    <header className="sticky top-0 z-20 flex bg-secondary" style={{height: `${HEADER_HEIGHT}px`, width: `${totalWidth}px`}}>
+                        {virtualCols.map((virtualCol) => {
+                            const header = tableHeaders[virtualCol.index];
                             return (
                                 <div
-                                    key={virtualRow.key}
-                                    className="flex absolute top-0 left-0"
-                                    style={{
-                                        width: '100%',
-                                        height: `${virtualRow.size}px`,
-                                        transform: `translateY(${virtualRow.start}px)`,
+                                    key={virtualCol.key}
+                                    style={{ 
+                                        width: `${virtualCol.size}px`,
+                                        transform: `translateX(${virtualCol.start}px)`,
                                     }}
+                                    className="absolute top-0 left-0 h-full select-none border-r border-b px-2 py-2 flex items-center justify-center font-semibold text-xs text-foreground"
                                 >
-                                    {tableHeaders.map((header, colIndex) => {
-                                        const isSelected = isCellSelected(virtualRow.index, colIndex);
-                                        const isFillPreviewing = isDraggingFill && isCellInFillRange(virtualRow.index, colIndex) && !isSelected;
-                                        const isBottomRightCell = selectedRange.start && normalizedSelectedRange.endRow === virtualRow.index && normalizedSelectedRange.endCol === colIndex;
-                                        
-                                        const cellValue = row[header];
-                                        let displayValue = "";
-                                        if (cellValue instanceof Date) {
-                                            const day = String(cellValue.getUTCDate()).padStart(2, '0');
-                                            const month = String(cellValue.getUTCMonth() + 1).padStart(2, '0');
-                                            const year = cellValue.getUTCFullYear();
-                                            displayValue = `${day}/${month}/${year}`;
-                                        } else {
-                                            displayValue = String(cellValue || "");
-                                        }
-
-                                        return (
-                                            <div
-                                                key={`${virtualRow.index}-${colIndex}`}
-                                                style={{ 
-                                                    width: columnWidths[header],
-                                                    left: header === "No" ? 0 : 'auto',
-                                                }}
-                                                className={cn(
-                                                    "p-0 m-0 border-r border-b relative flex items-center",
-                                                    header === "No" && "sticky z-20 bg-background"
-                                                )}
-                                                onMouseOver={(e: MouseEvent<HTMLDivElement>) => handleMouseOver(e, { row: virtualRow.index, col: colIndex })}
-                                            >
-                                                <Input
-                                                    type="text"
-                                                    value={header === "No" ? getRowNumberValue(row, virtualRow.index) : displayValue}
-                                                    readOnly={header === "No"}
-                                                    onChange={(e) => handleCellChange(virtualRow.index, header, e.target.value)}
-                                                    onKeyDown={(e) => handleKeyDown(e, { row: virtualRow.index, col: colIndex })}
-                                                    onMouseDown={(e) => handleMouseDown(e, { row: virtualRow.index, col: colIndex })}
-                                                    data-row={virtualRow.index}
-                                                    data-col={colIndex}
-                                                    suppressHydrationWarning
-                                                    className={cn(
-                                                        "w-full h-7 text-xs px-1 rounded-none border-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
-                                                        header === "No" ? "bg-muted/30 cursor-default focus-visible:ring-0 text-center" : "bg-transparent",
-                                                        isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
-                                                        isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50"
-                                                    )}
-                                                />
-                                                {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
-                                                {isBottomRightCell && !isDraggingFill && (
-                                                    <div 
-                                                        onMouseDown={handleFillHandleMouseDown}
-                                                        className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
-                                                    />
-                                                )}
-                                            </div>
-                                        );
-                                    })}
+                                    <span className="truncate">{header}</span>
+                                    {header === "Tanggal Lahir" && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-5 w-5 ml-1">
+                                                    <Wand2 className="h-3 w-3" />
+                                                    <span className="sr-only">Format Menu</span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
+                                                <DropdownMenuItem onClick={handleFormatDates}>
+                                                    Format ke DD/MM/YYYY
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
+                                    <div
+                                        onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
+                                        className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
+                                    />
                                 </div>
                             );
                         })}
+                    </header>
+                    
+                    {/* Data Grid (Virtualized) */}
+                     <div className="relative" style={{ height: `${totalHeight}px` }}>
+                        {virtualRows.map(virtualRow => (
+                            <div
+                                key={virtualRow.key}
+                                className="absolute top-0 left-0"
+                                style={{
+                                    width: `${totalWidth}px`,
+                                    height: `${virtualRow.size}px`,
+                                    transform: `translateY(${virtualRow.start}px)`,
+                                }}
+                            >
+                                {virtualCols.map(virtualCol => {
+                                    const row = rows[virtualRow.index];
+                                    const colIndex = virtualCol.index;
+                                    const header = tableHeaders[colIndex];
+                                    const isSelected = isCellSelected(virtualRow.index, colIndex);
+                                    const isFillPreviewing = isDraggingFill && isCellInFillRange(virtualRow.index, colIndex) && !isSelected;
+                                    const isBottomRightCell = selectedRange.start && normalizedSelectedRange.endRow === virtualRow.index && normalizedSelectedRange.endCol === colIndex;
+
+                                    const cellValue = row[header];
+                                    let displayValue = "";
+                                     if (header === "No") {
+                                        displayValue = getRowNumberValue(row, virtualRow.index);
+                                    } else if (cellValue instanceof Date) {
+                                        const day = String(cellValue.getUTCDate()).padStart(2, '0');
+                                        const month = String(cellValue.getUTCMonth() + 1).padStart(2, '0');
+                                        const year = cellValue.getUTCFullYear();
+                                        displayValue = `${day}/${month}/${year}`;
+                                    } else {
+                                        displayValue = String(cellValue || "");
+                                    }
+                                    
+                                    return (
+                                        <div
+                                            key={virtualCol.key}
+                                            style={{ 
+                                                width: `${virtualCol.size}px`,
+                                                transform: `translateX(${virtualCol.start}px)`,
+                                            }}
+                                            className="absolute top-0 left-0 h-full p-0 m-0 border-r border-b relative flex items-center"
+                                            onMouseOver={(e: MouseEvent<HTMLDivElement>) => handleMouseOver(e, { row: virtualRow.index, col: colIndex })}
+                                        >
+                                            <Input
+                                                type="text"
+                                                value={displayValue}
+                                                readOnly={header === "No"}
+                                                onChange={(e) => handleCellChange(virtualRow.index, header, e.target.value)}
+                                                onKeyDown={(e) => handleKeyDown(e, { row: virtualRow.index, col: colIndex })}
+                                                onMouseDown={(e) => handleMouseDown(e, { row: virtualRow.index, col: colIndex })}
+                                                data-row={virtualRow.index}
+                                                data-col={colIndex}
+                                                suppressHydrationWarning
+                                                className={cn(
+                                                    "w-full h-7 text-xs px-1 rounded-none border-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
+                                                    header === "No" ? "bg-muted/30 cursor-default focus-visible:ring-0 text-center" : "bg-transparent",
+                                                    isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
+                                                    isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50"
+                                                )}
+                                            />
+                                            {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
+                                            {isBottomRightCell && !isDraggingFill && (
+                                                <div 
+                                                    onMouseDown={handleFillHandleMouseDown}
+                                                    className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
+                                                />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ))}
                     </div>
                 </div>
             </main>
