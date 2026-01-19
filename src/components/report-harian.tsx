@@ -25,11 +25,11 @@ const chartConfig = {
   unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
   // For Pie Chart, keys must be uppercase to match data
   SOLVED: { label: "Solved", color: "hsl(var(--chart-2))" }, // Green
-  L1: { label: "L1", color: "hsl(var(--chart-3))" }, // Orange-ish
+  L1: { label: "L1", color: "hsl(var(--chart-4))" }, // Orange-ish
   L2: { label: "L2", color: "hsl(var(--chart-1))" }, // Blue
   L3: { label: "L3", color: "hsl(var(--destructive))" }, // Red
   // Add other potential statuses with fallback colors
-  PENDING: { label: "Pending", color: "hsl(var(--chart-4))" },
+  PENDING: { label: "Pending", color: "hsl(var(--chart-5))" },
   'ON HOLD': { label: 'On Hold', color: 'hsl(var(--chart-5))' },
   'N/A': { label: 'N/A', color: 'hsl(var(--muted))' }
 } satisfies ChartConfig
@@ -220,7 +220,6 @@ function DashboardChart() {
                                         outerRadius={80}
                                         paddingAngle={5}
                                         dataKey="value"
-                                        cornerRadius={20}
                                     >
                                         {statusCounts.map((entry, index) => {
                                             const entryName = entry.name as keyof typeof chartConfig;
