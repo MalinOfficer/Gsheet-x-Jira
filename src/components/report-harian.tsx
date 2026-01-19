@@ -19,19 +19,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 import Link from 'next/link';
 
-const StatusCaseChart = ({ statusData, totalCases }: { statusData: { name: string; value: number; percentage: number; }[], totalCases: number }) => {
+const StatusCaseChart = ({ statusData, totalCases }: { statusData: { name: string; value: number; }[], totalCases: number }) => {
   const colorMap: { [key: string]: string } = {
-    'SOLVED': '#10b981',
-    'L3': '#ef4444',
-    'L2': '#3b82f6',
-    'L1': '#fbbf24',
+    'SOLVED': 'hsl(var(--chart-2))',
+    'L3': 'hsl(var(--chart-4))',
+    'L2': 'hsl(var(--chart-1))',
+    'L1': 'hsl(var(--chart-3))',
   };
 
   const data = statusData.map(item => ({
     label: item.name,
     value: item.value,
-    color: colorMap[item.name] || '#9ca3af',
-    percentage: item.percentage,
+    color: colorMap[item.name.toUpperCase()] || '#9ca3af',
   })).filter(item => item.value > 0);
 
   const total = totalCases;
@@ -69,8 +68,8 @@ const StatusCaseChart = ({ statusData, totalCases }: { statusData: { name: strin
 
   const resolvedItem = data.find(d => d.label === 'SOLVED');
   const inProgressItems = data.filter(d => d.label !== 'SOLVED');
-  const resolvedPercentage = resolvedItem ? resolvedItem.percentage : 0;
-  const inProgressPercentage = inProgressItems.reduce((sum, item) => sum + item.percentage, 0);
+  const resolvedValue = resolvedItem ? resolvedItem.value : 0;
+  const inProgressValue = inProgressItems.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <Card>
@@ -121,7 +120,6 @@ const StatusCaseChart = ({ statusData, totalCases }: { statusData: { name: strin
                   <div>
                     <div className="text-sm font-medium text-foreground">{item.label}</div>
                     <div className="text-2xl font-bold text-foreground">{item.value}</div>
-                    <div className="text-xs text-muted-foreground">{item.percentage.toFixed(1)}%</div>
                   </div>
                 </div>
               ))}
@@ -130,12 +128,12 @@ const StatusCaseChart = ({ statusData, totalCases }: { statusData: { name: strin
           <div className="mt-6 pt-6 border-t border-border grid grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-sm text-muted-foreground">Resolved</div>
-              <div className="text-xl font-bold text-green-600">{resolvedPercentage.toFixed(1)}%</div>
+              <div className="text-xl font-bold text-green-600">{resolvedValue}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">In Progress</div>
               <div className="text-xl font-bold text-blue-600">
-                {inProgressPercentage.toFixed(1)}%
+                {inProgressValue}
               </div>
             </div>
             <div>
@@ -201,7 +199,6 @@ function DashboardChart() {
         const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ 
             name, 
             value,
-            percentage: total > 0 ? (value / total) * 100 : 0,
         }));
 
 
@@ -245,15 +242,9 @@ function DashboardChart() {
 
     const { totalCases, clientTrend, moduleTrend, statusCounts, solvedVsUnsolved, topClientsData, topModulesData, unsolvedCases } = dashboardStats;
     
-    const sortedStatusCounts = [...statusCounts].sort((a, b) => b.value - a.value);
-
     return (
         <div className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <Card className="p-6">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Total Case</p>
-                    <p className="text-3xl font-bold mt-2">{totalCases}</p>
-                </Card>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <Card className="p-6 flex flex-col min-h-[150px]">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
                     <p className="font-bold text-lg mt-2 text-wrap">{clientTrend}</p>
@@ -310,14 +301,14 @@ function DashboardChart() {
                         <p className="text-3xl font-bold mt-2">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
                     </div>
                     <p className="text-xs text-green-700 dark:text-green-300 font-medium mt-4">
-                        <span className="border border-green-300 dark:border-green-700 rounded-full px-2 py-0.5">
+                        <span className="bg-card border border-green-300 dark:border-green-700 rounded-full px-2 py-0.5">
                             {totalCases > 0 ? (((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1) : 0}% Solved
                         </span>
                     </p>
                 </Card>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <StatusCaseChart statusData={sortedStatusCounts} totalCases={totalCases} />
+                <StatusCaseChart statusData={statusCounts} totalCases={totalCases} />
                 <Card className="flex flex-col">
                     <CardHeader>
                         <CardTitle className='text-base'>List Case</CardTitle>
