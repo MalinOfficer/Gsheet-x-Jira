@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tooltip, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
@@ -82,7 +82,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [stats, setStats] = useState<DashboardStats | null>(initialStats);
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(initialOptions);
     const [error, setError] = useState<string | null>(initialError || null);
-    const [isPending, startTransition] = useTransition();
+    const [isApplyingFilters, startApplyingFilters] = useTransition();
     const [isRefreshing, startRefreshing] = useTransition();
 
 
@@ -94,8 +94,11 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
     useEffect(() => {
-        setIsProcessing(isPending || isRefreshing);
-    }, [isPending, isRefreshing, setIsProcessing]);
+        // This effect now correctly reflects that any background processing should show the global spinner.
+        // The individual refresh button's state is handled separately.
+        setIsProcessing(isApplyingFilters || isRefreshing);
+    }, [isApplyingFilters, isRefreshing, setIsProcessing]);
+
 
     const areFiltersActive = useMemo(() => {
         return (
@@ -116,14 +119,11 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         toast({ title: "Filters Cleared", description: "All active filters have been reset." });
     };
 
-    // Effect to re-fetch stats when filters change. Initial fetch is done by the server.
+    // Effect to re-fetch stats when filters change.
     useEffect(() => {
-        // Skip fetch on initial render if we have initial data
-        if (!initialStats) return;
-
         const fetchFilteredStats = () => {
              if (!dbSheetUrl) return;
-             startTransition(async () => {
+             startApplyingFilters(async () => {
                 setError(null);
                 const result = await getDashboardStats({
                     sheetUrl: dbSheetUrl,
@@ -142,9 +142,13 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             });
         }
         
-        fetchFilteredStats();
+        // We only call this if it's not the initial render with server-passed data,
+        // or if the dependencies change after the initial render.
+        if (initialStats) {
+             fetchFilteredStats();
+        }
 
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dbSheetUrl, toast, initialStats, dateRange]);
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dbSheetUrl, dateRange]);
 
 
     const handleRefresh = useCallback(() => {
@@ -180,7 +184,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         });
     }, [dbSheetUrl, selectedYear, categoryFilter, clientFilter, moduleFilter, toast, dateRange]);
 
-    if (isPending && !stats) {
+    if (isApplyingFilters && !stats) {
          return (
              <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto space-y-4">
@@ -206,7 +210,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 <div className="max-w-7xl mx-auto">
                     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
                         <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
-                        <CardTitle>Failed to Load Dashboard Data</CardTitle>
+                        <CardTitle className="text-2xl font-bold">Failed to Load Dashboard Data</CardTitle>
                         <CardDescription className="mt-2 mb-4 max-w-sm">
                             {error}
                         </CardDescription>
@@ -226,7 +230,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 <div className="max-w-7xl mx-auto">
                     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
                         <AlertTriangle className="w-16 h-16 text-muted-foreground mb-4" />
-                        <CardTitle>No Data Found</CardTitle>
+                        <CardTitle className="text-2xl font-bold">No Data Found</CardTitle>
                         <p className="mt-2 text-muted-foreground">The configured Google Sheet might be empty or inaccessible.</p>
                          <Button onClick={handleRefresh} disabled={isRefreshing} className="mt-4">
                             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -245,37 +249,37 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-            <div className="max-w-7xl mx-auto space-y-4">
+            <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header Cards */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
-                      <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-base font-medium">Total Cases</CardTitle>
                       <BarChartIcon className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent className="p-6 pt-2">
-                      <div className="text-2xl font-extrabold">{stats.totalCases}</div>
+                    <CardContent>
+                      <div className="text-3xl font-bold">{stats.totalCases}</div>
                     </CardContent>
                   </Card>
                    <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
-                      <CardTitle className="text-sm font-medium">Trending Category</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-base font-medium">Trending Category</CardTitle>
                       <FolderKanban className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent className="p-6 pt-2">
-                      <div className="text-2xl font-extrabold truncate">{stats.categoryTrend}</div>
+                    <CardContent>
+                      <div className="text-3xl font-bold truncate">{stats.categoryTrend}</div>
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
-                      <CardTitle className="text-sm font-medium">Status Solved</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-base font-medium">Status Solved</CardTitle>
                       <CheckCircle className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent className="p-6 pt-2">
+                    <CardContent>
                       <div className="flex items-baseline gap-2">
-                        <div className="text-2xl font-extrabold">{stats.totalSolved}</div>
+                        <div className="text-3xl font-bold">{stats.totalSolved}</div>
                         {stats.totalCases > 0 && (
-                            <span className="text-xs font-medium text-green-600 bg-card border border-green-300 dark:border-green-700 rounded-full px-2 py-0.5">
+                            <span className="text-sm font-medium text-green-600 bg-card border border-green-300 dark:border-green-700 rounded-full px-2 py-0.5">
                                 {((stats.totalSolved / stats.totalCases) * 100).toFixed(1)}%
                             </span>
                         )}
@@ -283,23 +287,23 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
-                      <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-base font-medium">Total Clients</CardTitle>
                       <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent className="p-6 pt-2">
-                      <div className="text-2xl font-extrabold">{stats.totalClients}</div>
+                    <CardContent>
+                      <div className="text-3xl font-bold">{stats.totalClients}</div>
                     </CardContent>
                   </Card>
                 </div>
                 
                 {/* Main Content */}
                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
+                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div>
-                            <CardTitle>Total Case</CardTitle>
+                            <CardTitle className="text-xl font-bold">Total Case</CardTitle>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex w-full sm:w-auto items-center justify-end gap-2 flex-wrap">
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button size="sm" variant="outline">
@@ -388,7 +392,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                 Refresh Data
                             </Button>
                             <Select value={selectedYear} onValueChange={(value) => setSelectedYear(value)}>
-                                <SelectTrigger className="w-[180px]">
+                                <SelectTrigger className="w-full sm:w-[180px]">
                                     <SelectValue placeholder="Select a year" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -405,12 +409,12 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             <AreaChart data={stats.monthlyData} margin={{ left: 12, right: 20, top: 10, bottom: 10 }}>
                                 <defs>
                                     <linearGradient id="fill2026" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="hsl(221 83% 53%)" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="hsl(221 83% 53%)" stopOpacity={0.1} />
+                                        <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.1} />
                                     </linearGradient>
                                     <linearGradient id="fill2025" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="hsl(160 60% 45%)" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="hsl(160 60% 45%)" stopOpacity={0.1} />
+                                        <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0.1} />
                                     </linearGradient>
                                     <linearGradient id="fill2024" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.8} />
@@ -422,14 +426,14 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    tickClassName="text-xs"
+                                    tickClassName="text-sm"
                                 />
                                 <YAxis
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
                                     tickFormatter={(value) => `${value}`}
-                                    tickClassName="text-xs"
+                                    tickClassName="text-sm"
                                 />
                                 <ChartTooltip
                                     cursor={false}
@@ -440,14 +444,14 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     dataKey="2026"
                                     type="monotone"
                                     fill="url(#fill2026)"
-                                    stroke="hsl(221 83% 53%)"
+                                    stroke="hsl(var(--chart-1))"
                                     strokeWidth={2}
                                 />
                                  <Area
                                     dataKey="2025"
                                     type="monotone"
                                     fill="url(#fill2025)"
-                                    stroke="hsl(160 60% 45%)"
+                                    stroke="hsl(var(--chart-2))"
                                     strokeWidth={2}
                                 />
                                  <Area
@@ -462,10 +466,10 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </CardContent>
                 </Card>
 
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-xl font-semibold">All Clients</CardTitle>
+                            <CardTitle className="text-xl font-bold">All Clients</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <ScrollArea className="h-48 pr-4">
@@ -499,7 +503,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </Card>
                      <Card>
                         <CardHeader>
-                            <CardTitle className="text-xl font-semibold">All Modules</CardTitle>
+                            <CardTitle className="text-xl font-bold">All Modules</CardTitle>
                         </CardHeader>
                         <CardContent>
                            <ScrollArea className="h-48 pr-4">
