@@ -19,42 +19,43 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 import Link from 'next/link';
 
-const StatusCaseChart = ({ statusData, totalCases, avgResolutionTime }: { 
-    statusData: { name: string; value: number; }[], 
+const StatusCaseChart = ({ data: statusData, totalCases, avgResolutionTime }: { 
+    data: { name: string; value: number; }[], 
     totalCases: number, 
     avgResolutionTime: number 
 }) => {
-  const chartConfig = {
-    'SOLVED': { color: '#10b981' }, // Green
-    'L3': { color: '#ef4444' },     // Red
-    'L2': { color: '#3b82f6' },     // Blue
-    'L1': { color: '#f59e0b' },     // Amber/Orange
-  };
+    
+  const chartData = useMemo(() => {
+      const colorMap: Record<string, string> = {
+        'SOLVED': 'hsl(var(--chart-2))', // Emerald Green
+        'L3': 'hsl(var(--chart-4))',     // Red
+        'L2': 'hsl(var(--chart-1))',     // Royal Blue
+        'L1': 'hsl(var(--chart-3))',     // Yellow
+      };
+      
+      return statusData.map(item => ({
+        ...item,
+        name: item.name.toUpperCase(),
+        fill: colorMap[item.name.toUpperCase()] || 'hsl(var(--muted))',
+      })).filter(item => item.value > 0);
+  }, [statusData]);
 
-  const data = statusData.map(item => ({
-    name: item.name.toUpperCase(),
-    value: item.value,
-    fill: chartConfig[item.name.toUpperCase() as keyof typeof chartConfig]?.color || '#9ca3af',
-  })).filter(item => item.value > 0);
-
-  const total = totalCases;
-
-  const resolvedItem = data.find(d => d.name === 'SOLVED');
-  const inProgressItems = data.filter(d => d.name !== 'SOLVED');
+  const resolvedItem = chartData.find(d => d.name === 'SOLVED');
+  const inProgressItems = chartData.filter(d => d.name !== 'SOLVED');
   const resolvedValue = resolvedItem ? resolvedItem.value : 0;
   const inProgressValue = inProgressItems.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <Card>
         <CardHeader>
-            <CardTitle className="text-xl">Status Case</CardTitle>
+            <CardTitle>Status Case</CardTitle>
         </CardHeader>
         <CardContent>
             <div className="w-full h-[250px] grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
-                            data={data}
+                            data={chartData}
                             dataKey="value"
                             nameKey="name"
                             cx="50%"
@@ -62,13 +63,14 @@ const StatusCaseChart = ({ statusData, totalCases, avgResolutionTime }: {
                             innerRadius={60}
                             outerRadius={80}
                             paddingAngle={5}
-                        />
+                        >
+                        </Pie>
                         <Tooltip
                             content={({ active, payload }) => {
                                 if (active && payload && payload.length) {
                                 return (
                                     <div className="bg-background border rounded-lg shadow-lg p-2 text-xs">
-                                    <p className="font-bold text-foreground">{`${payload[0].name} : ${payload[0].value}`}</p>
+                                      <p className="font-bold text-foreground">{`${payload[0].name} : ${payload[0].value}`}</p>
                                     </div>
                                 );
                                 }
@@ -82,7 +84,7 @@ const StatusCaseChart = ({ statusData, totalCases, avgResolutionTime }: {
                             dominantBaseline="central"
                             className="text-3xl font-bold fill-foreground"
                         >
-                            {total}
+                            {totalCases}
                         </text>
                         <text
                             x="50%"
@@ -96,7 +98,7 @@ const StatusCaseChart = ({ statusData, totalCases, avgResolutionTime }: {
                     </PieChart>
                 </ResponsiveContainer>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                    {data.map((entry, index) => (
+                    {chartData.map((entry, index) => (
                         <div key={`legend-${index}`} className="flex items-center gap-2">
                             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.fill }} />
                             <div className="flex items-baseline gap-2">
@@ -205,12 +207,12 @@ function DashboardChart() {
             { month: 'Jun', cases: Math.floor(Math.random() * 20) + 5 },
         ];
 
+        let totalResolutionTime = 0;
+        let resolvedCountWithTime = 0;
+
         const solvedCasesForTimeCalc = finalData.filter(
             row => String(row.Status).toLowerCase() === 'solved'
         );
-
-        let totalResolutionTime = 0;
-        let resolvedCountWithTime = 0;
 
         solvedCasesForTimeCalc.forEach(row => {
             const createdAt = new Date(row['Created At']);
@@ -231,7 +233,6 @@ function DashboardChart() {
                 ? Math.ceil((totalResolutionTime / resolvedCountWithTime) / (1000 * 60 * 60))
                 : 0;
 
-
         return {
             totalCases: finalData.length,
             clientTrend: topClientsData.length > 0 ? topClientsData[0].name : 'N/A',
@@ -242,7 +243,7 @@ function DashboardChart() {
             topModulesData,
             unsolvedCases,
             clientTrendHistory,
-            avgResolutionTime: avgResolutionHours,
+            avgResolutionTime,
         };
     }, [finalData]);
 
@@ -318,7 +319,7 @@ function DashboardChart() {
                 </Card>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <StatusCaseChart statusData={statusCounts} totalCases={totalCases} avgResolutionTime={avgResolutionTime} />
+                <StatusCaseChart data={statusCounts} totalCases={totalCases} avgResolutionTime={avgResolutionTime} />
                 <Card className="flex flex-col">
                     <CardHeader>
                         <CardTitle className='text-base'>List Case</CardTitle>

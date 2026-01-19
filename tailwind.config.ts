@@ -11,9 +11,18 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Plus Jakarta Sans', 'sans-serif'],
-        headline: ['Plus Jakarta Sans', 'sans-serif'],
+        sans: ['var(--font-sans)', 'sans-serif'],
         code: ['monospace'],
+      },
+      fontSize: {
+        'xs': 'var(--font-size-xs)',
+        'sm': 'var(--font-size-sm)',
+        'base': 'var(--font-size-base)',
+        'lg': 'var(--font-size-lg)',
+        'xl': 'var(--font-size-xl)',
+        '2xl': 'var(--font-size-2xl)',
+        '3xl': 'var(--font-size-3xl)',
+        '4xl': 'var(--font-size-4xl)',
       },
       colors: {
         background: 'hsl(var(--background))',
@@ -59,8 +68,8 @@ const config: Config = {
       },
       borderRadius: {
         lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 4px)', // Adjusted for consistency
-        sm: 'calc(var(--radius) - 8px)', // Adjusted for consistency
+        md: 'calc(var(--radius) - 4px)',
+        sm: 'calc(var(--radius) - 8px)',
         full: '9999px',
       },
       keyframes: {
@@ -86,7 +95,7 @@ const config: Config = {
         'accordion-up': 'accordion-up 0.2s ease-out',
       },
        boxShadow: {
-        'soft-large': '0 10px 40px -5px rgba(0, 0, 0, 0.05)',
+        'soft-large': '0 8px 30px rgba(0, 0, 0, 0.05)',
       },
     },
   },

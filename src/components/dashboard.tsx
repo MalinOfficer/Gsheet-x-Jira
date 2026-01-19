@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
@@ -83,7 +83,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(initialOptions);
     const [error, setError] = useState<string | null>(initialError || null);
     const [isPending, startTransition] = useTransition();
-    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isRefreshing, startRefreshing] = useTransition();
 
 
     // Filter states
@@ -94,8 +94,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
     useEffect(() => {
-        setIsProcessing(isPending);
-    }, [isPending, setIsProcessing]);
+        setIsProcessing(isPending || isRefreshing);
+    }, [isPending, isRefreshing, setIsProcessing]);
 
     const areFiltersActive = useMemo(() => {
         return (
@@ -153,8 +153,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             return;
         }
 
-        startTransition(async () => {
-            setIsRefreshing(true);
+        startRefreshing(async () => {
             setError(null);
             toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
             
@@ -178,7 +177,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             } else {
                 setFilterOptions(optionsResult.data);
             }
-            setIsRefreshing(false);
         });
     }, [dbSheetUrl, selectedYear, categoryFilter, clientFilter, moduleFilter, toast, dateRange]);
 
@@ -212,7 +210,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         <CardDescription className="mt-2 mb-4 max-w-sm">
                             {error}
                         </CardDescription>
-                         <Button onClick={handleRefresh} disabled={isPending}>
+                         <Button onClick={handleRefresh} disabled={isRefreshing}>
                             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                             Try Again
                         </Button>
@@ -230,7 +228,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         <AlertTriangle className="w-16 h-16 text-muted-foreground mb-4" />
                         <CardTitle>No Data Found</CardTitle>
                         <p className="mt-2 text-muted-foreground">The configured Google Sheet might be empty or inaccessible.</p>
-                         <Button onClick={handleRefresh} disabled={isPending} className="mt-4">
+                         <Button onClick={handleRefresh} disabled={isRefreshing} className="mt-4">
                             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
@@ -256,7 +254,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                       <BarChartIcon className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="p-6 pt-2">
-                      <div className="text-2xl font-bold">{stats.totalCases}</div>
+                      <div className="text-2xl font-extrabold">{stats.totalCases}</div>
                     </CardContent>
                   </Card>
                    <Card>
@@ -265,7 +263,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                       <FolderKanban className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="p-6 pt-2">
-                      <div className="text-2xl font-bold truncate">{stats.categoryTrend}</div>
+                      <div className="text-2xl font-extrabold truncate">{stats.categoryTrend}</div>
                     </CardContent>
                   </Card>
                   <Card>
@@ -275,9 +273,9 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </CardHeader>
                     <CardContent className="p-6 pt-2">
                       <div className="flex items-baseline gap-2">
-                        <div className="text-2xl font-bold">{stats.totalSolved}</div>
+                        <div className="text-2xl font-extrabold">{stats.totalSolved}</div>
                         {stats.totalCases > 0 && (
-                            <span className="text-xs font-medium text-green-600 border border-green-200 dark:border-green-800 rounded-full px-2 py-0.5">
+                            <span className="text-xs font-medium text-green-600 bg-card border border-green-300 dark:border-green-700 rounded-full px-2 py-0.5">
                                 {((stats.totalSolved / stats.totalCases) * 100).toFixed(1)}%
                             </span>
                         )}
@@ -290,7 +288,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                       <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="p-6 pt-2">
-                      <div className="text-2xl font-bold">{stats.totalClients}</div>
+                      <div className="text-2xl font-extrabold">{stats.totalClients}</div>
                     </CardContent>
                   </Card>
                 </div>
@@ -385,7 +383,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     Clear Filters
                                 </Button>
                             )}
-                            <Button onClick={handleRefresh} disabled={isPending} size="sm" variant="outline">
+                            <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" variant="outline">
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh Data
                             </Button>
@@ -424,12 +422,14 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
+                                    tickClassName="text-xs"
                                 />
                                 <YAxis
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
                                     tickFormatter={(value) => `${value}`}
+                                    tickClassName="text-xs"
                                 />
                                 <ChartTooltip
                                     cursor={false}

@@ -7,6 +7,18 @@
 
 @layer base {
   :root {
+    /* Typography */
+    --font-sans: 'Plus Jakarta Sans', sans-serif;
+    --font-size-xs: 0.75rem;   /* 12px */
+    --font-size-sm: 0.875rem;  /* 14px */
+    --font-size-base: 1rem;     /* 16px */
+    --font-size-lg: 1.125rem;  /* 18px */
+    --font-size-xl: 1.25rem;   /* 20px */
+    --font-size-2xl: 1.5rem;    /* 24px */
+    --font-size-3xl: 1.875rem;  /* 30px */
+    --font-size-4xl: 2.25rem;   /* 36px */
+
+    /* Theme Colors & Style */
     --background: 240 10% 97%; /* Lighter grey for a cleaner feel */
     --foreground: 240 5% 15%; /* Dark slate */
     --card: 0 0% 100%; /* Pure white */
@@ -31,10 +43,13 @@
     --chart-3: 43 74% 66%; /* Yellow */
     --chart-4: 0 84.2% 60.2%; /* Red */
     --chart-5: 270 90% 60%; /* Purple */
-    --radius: 1.25rem; /* 20px */
+    --radius: 0.75rem; /* 12px */
   }
 
   .dark {
+    /* Typography is inherited */
+    
+    /* Dark Theme Colors & Style */
     --background: 240 6% 10%;
     --foreground: 0 0% 98%;
     --card: 240 6% 12%;
@@ -59,7 +74,7 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --radius: 1.25rem; /* 20px */
+    --radius: 0.75rem; /* 12px */
   }
 }
 
@@ -68,14 +83,14 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
   }
 }
 
 /* Add custom shadow utility */
 @layer utilities {
   .shadow-soft-large {
-    box-shadow: 0 10px 40px -5px rgba(0, 0, 0, 0.07);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
   }
 }
 
@@ -136,5 +151,3 @@
   transform: rotate(45deg) rotateX(-385deg) rotateY(385deg);
  }
 }
-
-    

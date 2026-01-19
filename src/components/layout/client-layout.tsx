@@ -164,7 +164,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <div className={cn(
             "grid w-full",
             isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[260px_1fr]",
-            isProcessing && "pointer-events-none"
         )}>
             {/* --- Desktop Sidebar --- */}
             {!isMobile && (
@@ -245,7 +244,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     )}
 
                     <div className="w-full flex-1">
-                       <h1 className="font-bold">{currentPageTitle}</h1>
+                       <h1 className="text-2xl font-bold">{currentPageTitle}</h1>
                     </div>
                     
                     <ProcessingIndicator />
