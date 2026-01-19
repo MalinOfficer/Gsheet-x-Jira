@@ -83,6 +83,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(initialOptions);
     const [error, setError] = useState<string | null>(initialError || null);
     const [isPending, startTransition] = useTransition();
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
 
     // Filter states
     const [selectedYear, setSelectedYear] = useState<string>('all');
@@ -145,13 +147,14 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dbSheetUrl, toast, initialStats, dateRange]);
 
 
-    const handleRefresh = useCallback(async () => {
+    const handleRefresh = useCallback(() => {
         if (!dbSheetUrl) {
             setError('DB GSheet URL is not configured in Settings.');
             return;
         }
 
         startTransition(async () => {
+            setIsRefreshing(true);
             setError(null);
             toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
             
@@ -175,6 +178,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             } else {
                 setFilterOptions(optionsResult.data);
             }
+            setIsRefreshing(false);
         });
     }, [dbSheetUrl, selectedYear, categoryFilter, clientFilter, moduleFilter, toast, dateRange]);
 
@@ -209,7 +213,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             {error}
                         </CardDescription>
                          <Button onClick={handleRefresh} disabled={isPending}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                             Try Again
                         </Button>
                     </Card>
@@ -227,7 +231,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         <CardTitle>No Data Found</CardTitle>
                         <p className="mt-2 text-muted-foreground">The configured Google Sheet might be empty or inaccessible.</p>
                          <Button onClick={handleRefresh} disabled={isPending} className="mt-4">
-                            <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
                     </Card>
@@ -382,7 +386,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                 </Button>
                             )}
                             <Button onClick={handleRefresh} disabled={isPending} size="sm" variant="outline">
-                                <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
+                                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh Data
                             </Button>
                             <Select value={selectedYear} onValueChange={(value) => setSelectedYear(value)}>

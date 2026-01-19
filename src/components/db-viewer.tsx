@@ -70,6 +70,8 @@ export function DbViewer() {
         error: undefined,
     });
     const [isPending, startTransition] = useTransition();
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
 
     const [progress, setProgress] = useState(0);
     const { toast } = useToast();
@@ -158,8 +160,13 @@ export function DbViewer() {
     
     const fetchData = useCallback(async (isRefresh = false) => {
         startTransition(async () => {
+            if (isRefresh) {
+                setIsRefreshing(true);
+            }
+
             if (!dbSheetUrl) {
                 setState({ data: null, source: 'N/A', error: 'DB GSheet URL is not configured in Settings.' });
+                if (isRefresh) setIsRefreshing(false);
                 return;
             }
 
@@ -182,6 +189,7 @@ export function DbViewer() {
                 } else {
                     toast({ title: "Data Refreshed", description: `Data loaded from ${result.source}.` });
                 }
+                setIsRefreshing(false);
             }
         });
     }, [dbSheetUrl, toast]);
@@ -345,7 +353,7 @@ export function DbViewer() {
                             {state.error}
                         </CardDescription>
                          <Button onClick={() => fetchData(true)} disabled={isPending}>
-                            <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                             Try Again
                         </Button>
                     </Card>
@@ -513,7 +521,7 @@ export function DbViewer() {
                         </div>
                         <div className="flex items-center gap-2">
                             <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={isPending}>
-                                <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
+                                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>
                             <Badge variant={state.source === 'cache' ? 'default' : 'secondary'} className="w-fit">
