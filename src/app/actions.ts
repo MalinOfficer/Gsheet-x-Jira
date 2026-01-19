@@ -1,7 +1,7 @@
 
 "use server";
 
-import { unstable_cache } from 'next/cache';
+import { unstable_cache, revalidateTag } from 'next/cache';
 import { google } from 'googleapis';
 import fs from 'fs';
 import path from 'path';
@@ -1147,76 +1147,78 @@ const isRedisConfigured = () => {
     return !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
 }
     
-async function fetchDashboardDataFromSheet(sheetUrl: string, sheetName: 'All Case') {
-    if (!sheetUrl) {
-        return { error: "URL is empty. Please provide a Google Sheet URL." };
-    }
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
-    const match = sheetUrl.match(sheetIdRegex);
-    if (!match || !match[1]) {
-        return { error: 'Invalid Google Sheets URL format.' };
-    }
-    const spreadsheetId = match[1];
+const fetchDashboardDataFromSheet = unstable_cache(
+    async (sheetUrl: string, sheetName: 'All Case') => {
+        if (!sheetUrl) {
+            return { error: "URL is empty. Please provide a Google Sheet URL." };
+        }
+        const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+        const match = sheetUrl.match(sheetIdRegex);
+        if (!match || !match[1]) {
+            return { error: 'Invalid Google Sheets URL format.' };
+        }
+        const spreadsheetId = match[1];
 
-    const { sheets } = getGoogleApiClients();
+        const { sheets } = getGoogleApiClients();
 
-    const tryFetch = async (name: string) => {
-        // Sheet names with spaces or special characters need to be quoted.
-        const range = `'${name}'!A:Z`;
-        try {
-            const response = await sheets.spreadsheets.values.get({
-                spreadsheetId,
-                range,
-            });
-
-            const rows = response.data.values;
-            if (!rows || rows.length === 0) {
-                return { error: `No data found in the ${name} sheet.` };
-            }
-            const headers = rows.shift();
-            if (!headers) {
-                return { error: `No headers found in the ${name} sheet.` };
-            }
-            const jsonData = rows.map(row => {
-                const rowData: Record<string, string> = {};
-                headers.forEach((header, index) => {
-                    rowData[header] = row[index] || '';
+        const tryFetch = async (name: string) => {
+            const range = `'${name}'!A:Z`;
+            try {
+                const response = await sheets.spreadsheets.values.get({
+                    spreadsheetId,
+                    range,
                 });
-                return rowData;
-            });
-            return { data: jsonData };
-        } catch (error: any) {
-            // Check if it's a "range not found" error, which is expected if the sheet name is wrong.
-            if (error.message && error.message.includes('Unable to parse range')) {
-                return { error: `Sheet '${name}' not found.`, isSheetNotFoundError: true };
+
+                const rows = response.data.values;
+                if (!rows || rows.length === 0) {
+                    return { error: `No data found in the ${name} sheet.` };
+                }
+                const headers = rows.shift();
+                if (!headers) {
+                    return { error: `No headers found in the ${name} sheet.` };
+                }
+                const jsonData = rows.map(row => {
+                    const rowData: Record<string, string> = {};
+                    headers.forEach((header, index) => {
+                        rowData[header] = row[index] || '';
+                    });
+                    return rowData;
+                });
+                return { data: jsonData };
+            } catch (error: any) {
+                if (error.message && error.message.includes('Unable to parse range')) {
+                    return { error: `Sheet '${name}' not found.`, isSheetNotFoundError: true };
+                }
+                throw error;
             }
-            throw error; // Re-throw other errors
-        }
-    };
-    
-    if (sheetName === 'All Case') {
-        const primaryName = 'All Case';
-        const fallbackName = 'CASES';
-
-        let result = await tryFetch(primaryName);
-
-        // If the first attempt fails because the sheet is not found, try the fallback.
-        if (result.error && (result as any).isSheetNotFoundError) {
-            console.log(`Sheet '${primaryName}' not found, trying '${fallbackName}'.`);
-            result = await tryFetch(fallbackName);
-        }
-
-        // If even the fallback fails with a sheet not found error, return a cleaner message.
-        if (result.error && (result as any).isSheetNotFoundError) {
-             return { error: `Could not find sheet '${primaryName}' or '${fallbackName}'.` };
-        }
+        };
         
-        return result;
+        if (sheetName === 'All Case') {
+            const primaryName = 'All Case';
+            const fallbackName = 'CASES';
 
-    } else { // For 'Summary' or other direct names
-        return await tryFetch(sheetName);
+            let result = await tryFetch(primaryName);
+
+            if (result.error && (result as any).isSheetNotFoundError) {
+                console.log(`Sheet '${primaryName}' not found, trying '${fallbackName}'.`);
+                result = await tryFetch(fallbackName);
+            }
+
+            if (result.error && (result as any).isSheetNotFoundError) {
+                 return { error: `Could not find sheet '${primaryName}' or '${fallbackName}'.` };
+            }
+            
+            return result;
+        } else {
+            return await tryFetch(sheetName);
+        }
+    },
+    ['all-case-data-sheet'],
+    {
+        tags: ['all-case-data'],
     }
-}
+);
+
 
 async function syncCache(sheetUrl: string, data: any, cacheKey: string) {
     if (!isRedisConfigured()) {
@@ -1251,6 +1253,8 @@ export async function syncDashboardCache(sheetUrl: string) {
         console.warn(`Cache sync failed: ${error}`);
         return { success: false, error };
     }
+    
+    revalidateTag('all-case-data');
 
     return { success: true, message: "All caches synchronized." };
 }
@@ -1280,16 +1284,16 @@ export async function getAllCaseData(sheetUrl: string) {
 
     return { ...result, source: 'sheet' };
 }
-    
-export async function getDashboardStats(filters: {
+      
+const _calculateDashboardStats = async (filters: {
     sheetUrl: string;
     selectedYear: string;
     categoryFilter: string[];
     clientFilter: string[];
     moduleFilter: string[];
     dateRange?: { from?: Date; to?: Date };
-}) {
-    // 1. Get raw data
+}) => {
+     // 1. Get raw data
     const allCaseResult = await getAllCaseData(filters.sheetUrl);
     if (allCaseResult.error || !allCaseResult.data) {
         return { error: allCaseResult.error || "No data found." };
@@ -1484,9 +1488,40 @@ export async function getDashboardStats(filters: {
         categoryTrend,
         totalSolved,
     };
+};
+
+export async function getDashboardStats(filters: {
+    sheetUrl: string;
+    selectedYear: string;
+    categoryFilter: string[];
+    clientFilter: string[];
+    moduleFilter: string[];
+    dateRange?: { from?: Date; to?: Date };
+}) {
+     const getCacheKey = (f: typeof filters) => [
+        'dashboard-stats',
+        f.sheetUrl,
+        f.selectedYear,
+        ...(f.categoryFilter || []).sort().join(','),
+        ...(f.clientFilter || []).sort().join(','),
+        ...(f.moduleFilter || []).sort().join(','),
+        f.dateRange?.from?.toISOString() || 'null',
+        f.dateRange?.to?.toISOString() || 'null',
+    ];
+
+    const cachedStats = unstable_cache(
+        async () => _calculateDashboardStats(filters),
+        getCacheKey(filters),
+        {
+            tags: ['all-case-data'],
+        }
+    );
+
+    return cachedStats();
 }
 
-export async function getDashboardFilterOptions(sheetUrl: string) {
+
+const _getDashboardFilterOptions = async (sheetUrl: string) => {
     const allCaseResult = await getAllCaseData(sheetUrl);
     if (allCaseResult.error || !allCaseResult.data) {
         return { error: allCaseResult.error || "No data found." };
@@ -1540,6 +1575,20 @@ export async function getDashboardFilterOptions(sheetUrl: string) {
         }
     }
 }
+
+export async function getDashboardFilterOptions(sheetUrl: string) {
+    const getCacheKey = (url: string) => ['dashboard-filter-options', url];
+
+    const cachedOptions = unstable_cache(
+        async () => _getDashboardFilterOptions(sheetUrl),
+        getCacheKey(sheetUrl),
+        {
+            tags: ['all-case-data'],
+        }
+    );
+    
+    return cachedOptions();
+}
       
 
 
@@ -1547,3 +1596,4 @@ export async function getDashboardFilterOptions(sheetUrl: string) {
 
 
     
+
