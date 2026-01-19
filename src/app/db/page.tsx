@@ -1,16 +1,24 @@
-
 'use client';
 
-import { DbViewer } from "@/components/db-viewer";
+import dynamic from 'next/dynamic';
+import { RefreshCw } from 'lucide-react';
+
+const DbViewer = dynamic(
+    () => import('@/components/db-viewer').then(mod => mod.DbViewer),
+    { 
+        ssr: false,
+        loading: () => (
+            <div className="flex items-center justify-center h-[80vh]">
+                <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        )
+    }
+);
 
 export default function DbPage() {
-    // Data is now fetched on the client side within the DbViewer component
-    // using the URL from the global context.
     return (
         <main>
             <DbViewer />
         </main>
     );
 }
-
-    

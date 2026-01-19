@@ -1,4 +1,3 @@
-
 'use client';
 
 import dynamic from 'next/dynamic';
@@ -19,14 +18,7 @@ const MigrasiMurid = dynamic(
 export default function MigrasiMuridPage() {
     return (
         <main className="h-screen w-screen overflow-hidden">
-            <div style={{ 
-                width: '111.11%', 
-                height: '111.11%', 
-                transform: 'scale(0.9)', 
-                transformOrigin: 'top left' 
-            }}>
-                <MigrasiMurid />
-            </div>
+            <MigrasiMurid />
         </main>
     );
 }
