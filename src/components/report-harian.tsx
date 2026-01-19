@@ -23,9 +23,15 @@ import Link from 'next/link';
 const chartConfig = {
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
   unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
-  L1: { label: "L1", color: "hsl(var(--chart-3))" },
-  L2: { label: "L2", color: "hsl(var(--chart-1))" },
-  L3: { label: "L3", color: "hsl(var(--chart-4))" },
+  // For Pie Chart, keys must be uppercase to match data
+  SOLVED: { label: "Solved", color: "hsl(var(--chart-2))" }, // Green
+  L1: { label: "L1", color: "hsl(var(--chart-3))" }, // Orange-ish
+  L2: { label: "L2", color: "hsl(var(--chart-1))" }, // Blue
+  L3: { label: "L3", color: "hsl(var(--destructive))" }, // Red
+  // Add other potential statuses with fallback colors
+  PENDING: { label: "Pending", color: "hsl(var(--chart-4))" },
+  'ON HOLD': { label: 'On Hold', color: 'hsl(var(--chart-5))' },
+  'N/A': { label: 'N/A', color: 'hsl(var(--muted))' }
 } satisfies ChartConfig
 
 // State for this page is now managed locally
@@ -216,10 +222,11 @@ function DashboardChart() {
                                         dataKey="value"
                                         cornerRadius={20}
                                     >
-                                        <Cell fill="hsl(var(--chart-2))" />
-                                        <Cell fill="hsl(var(--chart-3))" />
-                                        <Cell fill="hsl(var(--chart-1))" />
-                                        <Cell fill="hsl(var(--chart-4))" />
+                                        {statusCounts.map((entry, index) => {
+                                            const entryName = entry.name as keyof typeof chartConfig;
+                                            const color = chartConfig[entryName]?.color || `hsl(var(--chart-${(index % 5) + 1}))`;
+                                            return <Cell key={`cell-${index}`} fill={color} />;
+                                        })}
                                     </Pie>
                                     <Tooltip contentStyle={{ fontSize: '12px', padding: '4px 8px' }} formatter={(value, name) => [`${value} (${(Number(value)/totalCases*100).toFixed(0)}%)`, name]} />
                                 </PieChart>
