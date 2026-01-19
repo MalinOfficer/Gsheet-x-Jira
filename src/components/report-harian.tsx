@@ -19,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 import Link from 'next/link';
 
-const StatusCaseChart = ({ data: statusData, totalCases, avgResolutionTime }: { 
+const StatusCaseChart = ({ data, totalCases, avgResolutionTime }: { 
     data: { name: string; value: number; }[], 
     totalCases: number, 
     avgResolutionTime: number 
@@ -27,23 +27,24 @@ const StatusCaseChart = ({ data: statusData, totalCases, avgResolutionTime }: {
     
   const chartData = useMemo(() => {
       const colorMap: Record<string, string> = {
-        'SOLVED': 'hsl(var(--chart-2))', // Emerald Green
-        'L3': 'hsl(var(--chart-4))',     // Red
-        'L2': 'hsl(var(--chart-1))',     // Royal Blue
-        'L1': 'hsl(var(--chart-3))',     // Yellow
+        'SOLVED': 'hsl(var(--chart-2))',
+        'L3': 'hsl(var(--chart-4))',
+        'L2': 'hsl(var(--chart-1))',
+        'L1': 'hsl(var(--chart-3))',
       };
       
-      return statusData.map(item => ({
+      return data.map(item => ({
         ...item,
         name: item.name.toUpperCase(),
         fill: colorMap[item.name.toUpperCase()] || 'hsl(var(--muted))',
+        percentage: totalCases > 0 ? (item.value / totalCases) * 100 : 0,
       })).filter(item => item.value > 0);
-  }, [statusData]);
+  }, [data, totalCases]);
 
   const resolvedItem = chartData.find(d => d.name === 'SOLVED');
   const inProgressItems = chartData.filter(d => d.name !== 'SOLVED');
-  const resolvedValue = resolvedItem ? resolvedItem.value : 0;
-  const inProgressValue = inProgressItems.reduce((sum, item) => sum + item.value, 0);
+  const resolvedValue = resolvedItem ? resolvedItem.percentage : 0;
+  const inProgressValue = inProgressItems.reduce((sum, item) => sum + item.percentage, 0);
 
   return (
     <Card>
@@ -112,17 +113,17 @@ const StatusCaseChart = ({ data: statusData, totalCases, avgResolutionTime }: {
             <div className="mt-6 pt-6 border-t border-border grid grid-cols-3 gap-4 text-center">
                 <div>
                     <div className="text-sm text-muted-foreground">Resolved</div>
-                    <div className="text-xl font-bold text-green-600">{resolvedValue}</div>
+                    <div className="text-xl font-bold text-green-600">{resolvedValue.toFixed(1)}%</div>
                 </div>
                 <div>
                     <div className="text-sm text-muted-foreground">In Progress</div>
                     <div className="text-xl font-bold text-blue-600">
-                        {inProgressValue}
+                        {inProgressValue.toFixed(1)}%
                     </div>
                 </div>
                 <div>
                     <div className="text-sm text-muted-foreground">Avg. Resolution</div>
-                    <div className="text-xl font-bold text-foreground">{avgResolutionTime} jam</div>
+                    <div className="text-xl font-bold text-foreground">{Math.ceil(avgResolutionTime)} jam</div>
                 </div>
             </div>
         </CardContent>
@@ -230,7 +231,7 @@ function DashboardChart() {
 
         const avgResolutionHours =
             resolvedCountWithTime > 0
-                ? Math.ceil((totalResolutionTime / resolvedCountWithTime) / (1000 * 60 * 60))
+                ? (totalResolutionTime / resolvedCountWithTime) / (1000 * 60 * 60)
                 : 0;
 
         return {
@@ -243,7 +244,7 @@ function DashboardChart() {
             topModulesData,
             unsolvedCases,
             clientTrendHistory,
-            avgResolutionTime,
+            avgResolutionTime: avgResolutionHours,
         };
     }, [finalData]);
 
@@ -255,8 +256,8 @@ function DashboardChart() {
     
     return (
         <div className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <Card className="p-6 flex flex-col min-h-[150px]">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+                 <Card className="p-6 flex flex-col min-h-[150px]">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Client Trend</p>
                     <p className="font-bold text-lg mt-2 text-wrap">{clientTrend}</p>
                     <ResponsiveContainer width="100%" height={60}>
@@ -305,17 +306,6 @@ function DashboardChart() {
                             <Bar dataKey="value" barSize={20} fill="url(#colorModule)" />
                         </RechartsBarChart>
                     </ResponsiveContainer>
-                </Card>
-                 <Card className="p-6 bg-green-100 dark:bg-green-900/20">
-                    <p className="text-xs uppercase tracking-wider text-green-900 dark:text-green-200 font-semibold">Solved vs Unsolved</p>
-                    <div className="flex items-baseline gap-2">
-                        <p className="text-3xl font-bold mt-2">{solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0} / {solvedVsUnsolved.find(d => d.name === 'Unsolved')?.value || 0}</p>
-                    </div>
-                    <p className="text-xs text-green-700 dark:text-green-300 font-medium mt-4">
-                        <span className="bg-card border border-green-300 dark:border-green-700 rounded-full px-2 py-0.5">
-                            {totalCases > 0 ? (((solvedVsUnsolved.find(d => d.name === 'Solved')?.value || 0) / totalCases) * 100).toFixed(1) : 0}% Solved
-                        </span>
-                    </p>
                 </Card>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

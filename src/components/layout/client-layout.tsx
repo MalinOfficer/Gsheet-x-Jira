@@ -244,7 +244,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     )}
 
                     <div className="w-full flex-1">
-                       <h1 className="text-2xl font-bold">{currentPageTitle}</h1>
+                       <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">{currentPageTitle}</h1>
                     </div>
                     
                     <ProcessingIndicator />
