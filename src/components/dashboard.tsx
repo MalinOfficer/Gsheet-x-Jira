@@ -9,7 +9,7 @@ import {
     CardTitle,
     CardDescription
 } from "@/components/ui/card";
-import { useContext, useState, useEffect, useTransition, useCallback } from "react";
+import { useContext, useState, useEffect, useTransition, useCallback, useMemo } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Bar, BarChart as RechartsBarChart } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
@@ -88,6 +88,25 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [clientFilter, setClientFilter] = useState<string[]>([]);
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+    const areFiltersActive = useMemo(() => {
+        return (
+            dateRange !== undefined ||
+            selectedYear !== 'all' ||
+            categoryFilter.length > 0 ||
+            clientFilter.length > 0 ||
+            moduleFilter.length > 0
+        );
+    }, [dateRange, selectedYear, categoryFilter, clientFilter, moduleFilter]);
+
+    const handleClearAllFilters = () => {
+        setSelectedYear('all');
+        setCategoryFilter([]);
+        setClientFilter([]);
+        setModuleFilter([]);
+        setDateRange(undefined);
+        toast({ title: "Filters Cleared", description: "All active filters have been reset." });
+    };
 
     // Effect to re-fetch stats when filters change. Initial fetch is done by the server.
     useEffect(() => {
@@ -350,6 +369,12 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     </div>
                                 </PopoverContent>
                             </Popover>
+                            {areFiltersActive && (
+                                <Button onClick={handleClearAllFilters} variant="ghost" size="sm">
+                                    <FilterX className="mr-2 h-4 w-4" />
+                                    Clear Filters
+                                </Button>
+                            )}
                             <Button onClick={handleRefresh} disabled={isLoading} size="sm" variant="outline">
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                                 Refresh Data
