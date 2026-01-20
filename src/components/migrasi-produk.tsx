@@ -97,23 +97,30 @@ function ExcelSheetPreview({ sheet }: { sheet: ExcelSheetData }) {
     const totalWidth = colVirtualizer.getTotalSize();
     
     const ROW_HEADER_WIDTH = 50;
+    const COLUMN_HEADER_HEIGHT = 25;
 
     return (
         <div ref={tableContainerRef} className="w-full h-full overflow-auto rounded-md border bg-card">
-             <div style={{ width: `${totalWidth + ROW_HEADER_WIDTH}px`, height: `${totalHeight + 25}px`, position: 'relative' }}>
+             <div style={{ 
+                 width: `${totalWidth + ROW_HEADER_WIDTH}px`, 
+                 height: `${totalHeight + COLUMN_HEADER_HEIGHT}px`, 
+                 position: 'relative',
+                 minWidth: '100%',
+                 minHeight: '100%'
+                }}>
                 
                 {/* Top-left empty corner */}
                 <div 
                     className="sticky top-0 left-0 z-30 bg-muted border-b border-r"
-                    style={{ width: `${ROW_HEADER_WIDTH}px`, height: `25px`, boxShadow: '2px 2px 3px -1px rgba(0,0,0,0.1)' }}
+                    style={{ width: `${ROW_HEADER_WIDTH}px`, height: `${COLUMN_HEADER_HEIGHT}px`, boxShadow: '2px 2px 3px -1px rgba(0,0,0,0.1)' }}
                 />
                 
                 {/* Column Headers */}
-                <div className="sticky top-0 z-20" style={{ left: `${ROW_HEADER_WIDTH}px`, width: `${totalWidth}px`, height: '25px', boxShadow: '0px 2px 3px -1px rgba(0,0,0,0.1)' }}>
+                <div className="sticky top-0 z-20" style={{ left: `${ROW_HEADER_WIDTH}px`, width: `${totalWidth}px`, minWidth: `calc(100% - ${ROW_HEADER_WIDTH}px)`, height: `${COLUMN_HEADER_HEIGHT}px`, boxShadow: '0px 2px 3px -1px rgba(0,0,0,0.1)' }}>
                     {virtualCols.map(virtualCol => (
                         <div
                             key={virtualCol.key}
-                            className="absolute top-0 left-0 flex h-[25px] items-center justify-center bg-muted border-b border-r text-xs font-semibold text-muted-foreground"
+                            className="absolute top-0 left-0 flex h-full items-center justify-center bg-muted border-b border-r text-xs font-semibold text-muted-foreground"
                             style={{ width: `${virtualCol.size}px`, transform: `translateX(${virtualCol.start}px)` }}
                         >
                             {toColumnName(virtualCol.index + 1)}
@@ -122,7 +129,7 @@ function ExcelSheetPreview({ sheet }: { sheet: ExcelSheetData }) {
                 </div>
 
                 {/* Row Headers */}
-                <div className="sticky left-0 z-20" style={{ top: '25px', width: `${ROW_HEADER_WIDTH}px`, height: `${totalHeight}px`, boxShadow: '2px 0px 3px -1px rgba(0,0,0,0.1)' }}>
+                <div className="sticky left-0 z-20" style={{ top: `${COLUMN_HEADER_HEIGHT}px`, width: `${ROW_HEADER_WIDTH}px`, height: `${totalHeight}px`, minHeight: `calc(100% - ${COLUMN_HEADER_HEIGHT}px)`, boxShadow: '2px 0px 3px -1px rgba(0,0,0,0.1)' }}>
                      {virtualRows.map(virtualRow => (
                         <div
                             key={virtualRow.key}
@@ -135,7 +142,7 @@ function ExcelSheetPreview({ sheet }: { sheet: ExcelSheetData }) {
                 </div>
 
                 {/* Grid Data */}
-                <div className="absolute" style={{ top: '25px', left: `${ROW_HEADER_WIDTH}px`, width: totalWidth, height: totalHeight }}>
+                <div className="absolute" style={{ top: `${COLUMN_HEADER_HEIGHT}px`, left: `${ROW_HEADER_WIDTH}px`, width: totalWidth, height: totalHeight }}>
                     {virtualRows.map(virtualRow => (
                         <div key={virtualRow.key} className="flex absolute top-0 left-0" style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)`}}>
                            {virtualCols.map(virtualCol => {
@@ -367,5 +374,3 @@ export function MigrasiProduk() {
         </div>
     );
 }
-
-    
