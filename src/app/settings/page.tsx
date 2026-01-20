@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { getSpreadsheetTitle, getDriveFileTitle } from '@/app/actions';
+import { getSpreadsheetTitle } from '@/app/actions';
 
 export default function SettingsPage() {
   const { 
@@ -295,4 +295,6 @@ export default function SettingsPage() {
     </div>
   );
 }
+    
+
     
