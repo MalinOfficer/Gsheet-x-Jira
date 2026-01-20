@@ -882,7 +882,14 @@ export function MigrasiMurid() {
                     }}
                 >
                     {/* Header Row (Virtualized) */}
-                    <header className="sticky top-0 z-20 flex bg-secondary" style={{height: `${HEADER_HEIGHT}px`, width: `${totalWidth}px`}}>
+                    <header 
+                        className="sticky top-0 z-20 flex bg-secondary"
+                        style={{
+                            height: `${HEADER_HEIGHT}px`, 
+                            width: `${totalWidth}px`,
+                            minWidth: '100%'
+                        }}
+                    >
                         {virtualCols.map((virtualCol) => {
                             const header = tableHeaders[virtualCol.index];
                             return (
@@ -920,18 +927,20 @@ export function MigrasiMurid() {
                     </header>
                     
                     {/* Data Grid (Virtualized) */}
-                    <div className="relative" style={{ height: `${totalHeight}px` }}>
-                        {virtualRows.map((virtualRow) => (
+                     {virtualRows.map((virtualRow) => {
+                        const row = rows[virtualRow.index];
+                        return (
                             <div
                                 key={virtualRow.key}
-                                className="absolute top-0 left-0 w-full"
+                                className="absolute top-0 left-0 flex"
                                 style={{
                                     height: `${virtualRow.size}px`,
-                                    transform: `translateY(${virtualRow.start}px)`,
+                                    transform: `translateY(${virtualRow.start + HEADER_HEIGHT}px)`,
+                                    width: `${totalWidth}px`,
+                                    minWidth: '100%'
                                 }}
                             >
                                 {virtualCols.map((virtualCol) => {
-                                    const row = rows[virtualRow.index];
                                     const colIndex = virtualCol.index;
                                     const header = tableHeaders[colIndex];
                                     const isSelected = isCellSelected(virtualRow.index, colIndex);
@@ -989,8 +998,8 @@ export function MigrasiMurid() {
                                     );
                                 })}
                             </div>
-                        ))}
-                    </div>
+                        );
+                    })}
                 </div>
             </main>
 
@@ -1017,5 +1026,3 @@ export function MigrasiMurid() {
         </div>
     );
 }
-
-    
