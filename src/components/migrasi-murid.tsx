@@ -867,7 +867,7 @@ export function MigrasiMurid() {
 
             {/* Table Area */}
             <main 
-                className="flex-grow relative overflow-auto" 
+                className="flex-grow relative overflow-auto bg-card border rounded-lg" 
                 ref={tableContainerRef}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
@@ -875,7 +875,9 @@ export function MigrasiMurid() {
                  <div 
                     style={{ 
                         width: `${totalWidth}px`,
+                        minWidth: '100%',
                         height: `${totalHeight + HEADER_HEIGHT}px`,
+                        minHeight: '100%',
                         position: 'relative',
                     }}
                 >
@@ -919,7 +921,7 @@ export function MigrasiMurid() {
                     
                     {/* Data Grid (Virtualized) */}
                     <div className="relative" style={{ height: `${totalHeight}px` }}>
-                        {virtualRows.map(virtualRow => (
+                        {virtualRows.map((virtualRow) => (
                             <div
                                 key={virtualRow.key}
                                 className="absolute top-0 left-0 w-full"
@@ -928,7 +930,7 @@ export function MigrasiMurid() {
                                     transform: `translateY(${virtualRow.start}px)`,
                                 }}
                             >
-                                {virtualCols.map(virtualCol => {
+                                {virtualCols.map((virtualCol) => {
                                     const row = rows[virtualRow.index];
                                     const colIndex = virtualCol.index;
                                     const header = tableHeaders[colIndex];
@@ -952,7 +954,7 @@ export function MigrasiMurid() {
                                     return (
                                         <div
                                             key={virtualCol.key}
-                                            style={{ 
+                                            style={{
                                                 width: `${virtualCol.size}px`,
                                                 transform: `translateX(${virtualCol.start}px)`,
                                             }}
@@ -1015,3 +1017,5 @@ export function MigrasiMurid() {
         </div>
     );
 }
+
+    
