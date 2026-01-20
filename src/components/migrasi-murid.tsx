@@ -879,18 +879,23 @@ export function MigrasiMurid() {
                         minHeight: '100%',
                     }}
                 >
-                    {/* Header Row (Virtualized) */}
-                    <header className="sticky top-0 z-20 bg-secondary" style={{height: `${HEADER_HEIGHT}px`, width: '100%', minWidth: `${totalWidth}px`, position: 'relative'}}>
+                    {/* Header Row */}
+                    <header className="sticky top-0 z-20 bg-secondary" style={{height: `${HEADER_HEIGHT}px`, width: `${totalWidth}px`}}>
                         {virtualCols.map((virtualCol) => {
                             const header = tableHeaders[virtualCol.index];
+                            const isNoColumn = header === "No";
                             return (
                                 <div
                                     key={virtualCol.key}
                                     style={{ 
                                         width: `${virtualCol.size}px`,
-                                        transform: `translateX(${virtualCol.start}px)`,
+                                        transform: isNoColumn ? undefined : `translateX(${virtualCol.start}px)`,
+                                        position: isNoColumn ? 'sticky' : 'absolute',
+                                        left: isNoColumn ? 0 : undefined,
+                                        top: 0,
+                                        zIndex: isNoColumn ? 21 : 'auto',
                                     }}
-                                    className="absolute top-0 left-0 h-full select-none border-r border-b px-2 py-2 flex items-center justify-center font-semibold text-xs text-foreground"
+                                    className="h-full select-none border-r border-b px-2 py-2 flex items-center justify-center font-semibold text-xs text-foreground bg-secondary"
                                 >
                                     <span className="truncate">{header}</span>
                                     {header === "Tanggal Lahir" && (
@@ -910,15 +915,15 @@ export function MigrasiMurid() {
                                     )}
                                     <div
                                         onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
-                                        className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
+                                        className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-30"
                                     />
                                 </div>
                             );
                         })}
                     </header>
                     
-                    
-                    <div className="relative" style={{ height: `${totalHeight}px`, width: '100%', minWidth: `${totalWidth}px`, minHeight: `${totalHeight}px` }}>
+                    {/* Body Rows */}
+                    <div className="relative" style={{ height: `${totalHeight}px`, width: `${totalWidth}px` }}>
                         {virtualRows.map((virtualRow) => (
                            <div
                                 key={virtualRow.key}
@@ -926,8 +931,8 @@ export function MigrasiMurid() {
                                     position: 'absolute',
                                     top: 0,
                                     left: 0,
-                                    width: '100%',
                                     height: `${virtualRow.size}px`,
+                                    width: '100%',
                                     transform: `translateY(${virtualRow.start}px)`,
                                 }}
                             >
@@ -962,12 +967,12 @@ export function MigrasiMurid() {
                                                 left: isNoColumn ? 0 : 'auto',
                                                 height: '100%',
                                                 width: `${virtualCol.size}px`,
-                                                transform: isNoColumn ? 'none' : `translateX(${virtualCol.start}px)`,
-                                                zIndex: isNoColumn ? 20 : 'auto',
+                                                transform: isNoColumn ? undefined : `translateX(${virtualCol.start}px)`,
+                                                zIndex: isNoColumn ? 11 : 'auto',
                                             }}
                                             className={cn(
                                                 "p-0 m-0 border-r border-b relative flex items-center",
-                                                isNoColumn && "bg-muted/30"
+                                                isNoColumn && "bg-background"
                                             )}
                                             onMouseOver={(e: MouseEvent<HTMLDivElement>) => handleMouseOver(e, { row: virtualRow.index, col: colIndex })}
                                         >
