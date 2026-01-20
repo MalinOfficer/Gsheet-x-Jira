@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect, Fragment } from "react";
@@ -698,17 +697,16 @@ export function MigrasiMurid() {
                         const parts = dateStr.split('/');
                         if (parts.length === 3) {
                             const day = parseInt(parts[0], 10);
-                            const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
+                            const month = parseInt(parts[1], 10) - 1;
                             const year = parseInt(parts[2], 10);
-                            // Use Date.UTC to avoid timezone issues
                             const utcDate = new Date(Date.UTC(year, month, day));
                             if (!isNaN(utcDate.getTime())) {
                                 newRow.push(utcDate);
                             } else {
-                                newRow.push(dateStr); // Push original string if invalid
+                                newRow.push(dateStr);
                             }
                         } else {
-                            newRow.push(dateStr); // Push original string if not DD/MM/YYYY
+                            newRow.push(dateStr);
                         }
                     } else {
                         newRow.push(null);
@@ -722,11 +720,10 @@ export function MigrasiMurid() {
 
         const worksheet = XLSX.utils.aoa_to_sheet([tableHeaders, ...dataForSheet], { cellDates: true });
 
-        // Apply date format to the "Tanggal Lahir" column
         const dateColumnIndex = tableHeaders.indexOf("Tanggal Lahir");
         if (dateColumnIndex > -1) {
             const columnLetter = XLSX.utils.encode_col(dateColumnIndex);
-            for (let i = 2; i <= dataForSheet.length + 1; i++) { // Start from row 2 (data starts at A2)
+            for (let i = 2; i <= dataForSheet.length + 1; i++) {
                 const cellAddress = `${columnLetter}${i}`;
                 if (worksheet[cellAddress] && worksheet[cellAddress].t === 'd') {
                     worksheet[cellAddress].z = 'dd/mm/yyyy';
@@ -757,8 +754,9 @@ export function MigrasiMurid() {
     const rowVirtualizer = useVirtualizer({
         count: rows.length,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 28, // Corresponds to h-7
-        overscan: 10,
+        estimateSize: () => 28,
+        overscan: 20,
+        enableSmoothScroll: false,
     });
     
     const colVirtualizer = useVirtualizer({
@@ -766,7 +764,8 @@ export function MigrasiMurid() {
         count: tableHeaders.length,
         getScrollElement: () => tableContainerRef.current,
         estimateSize: (index) => columnWidths[tableHeaders[index]] || 120,
-        overscan: 3,
+        overscan: 10,
+        enableSmoothScroll: false,
     });
 
     const virtualRows = rowVirtualizer.getVirtualItems();
@@ -808,10 +807,9 @@ export function MigrasiMurid() {
 
     return (
         <div 
-            className="flex flex-col h-full p-4 gap-4 bg-background" 
+            className="flex flex-col h-screen p-4 gap-4 bg-background overflow-hidden" 
             onPaste={handlePaste}
         >
-            {/* Header */}
             <header className="flex-shrink-0">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                      <div className="flex items-center gap-4">
@@ -875,21 +873,14 @@ export function MigrasiMurid() {
                  <div 
                     style={{ 
                         width: `${totalWidth}px`,
-                        minWidth: '100%',
                         height: `${totalHeight + HEADER_HEIGHT}px`,
-                        minHeight: '100%',
                         position: 'relative',
+                        minWidth: '100%',
+                        minHeight: '100%',
                     }}
                 >
                     {/* Header Row (Virtualized) */}
-                    <header 
-                        className="sticky top-0 z-20 flex bg-secondary"
-                        style={{
-                            height: `${HEADER_HEIGHT}px`, 
-                            width: `${totalWidth}px`,
-                            minWidth: '100%'
-                        }}
-                    >
+                    <header className="sticky top-0 z-20 bg-secondary" style={{height: `${HEADER_HEIGHT}px`, width: '100%', minWidth: `${totalWidth}px`, position: 'relative'}}>
                         {virtualCols.map((virtualCol) => {
                             const header = tableHeaders[virtualCol.index];
                             return (
@@ -926,26 +917,28 @@ export function MigrasiMurid() {
                         })}
                     </header>
                     
-                    {/* Data Grid (Virtualized) */}
-                     {virtualRows.map((virtualRow) => {
-                        const row = rows[virtualRow.index];
-                        return (
-                            <div
+                    
+                    <div className="relative" style={{ height: `${totalHeight}px`, width: '100%', minWidth: `${totalWidth}px`, minHeight: `${totalHeight}px` }}>
+                        {virtualRows.map((virtualRow) => (
+                           <div
                                 key={virtualRow.key}
-                                className="absolute top-0 left-0 flex"
                                 style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
                                     height: `${virtualRow.size}px`,
-                                    transform: `translateY(${virtualRow.start + HEADER_HEIGHT}px)`,
-                                    width: `${totalWidth}px`,
-                                    minWidth: '100%'
+                                    transform: `translateY(${virtualRow.start}px)`,
                                 }}
                             >
                                 {virtualCols.map((virtualCol) => {
+                                    const row = rows[virtualRow.index];
                                     const colIndex = virtualCol.index;
                                     const header = tableHeaders[colIndex];
                                     const isSelected = isCellSelected(virtualRow.index, colIndex);
                                     const isFillPreviewing = isDraggingFill && isCellInFillRange(virtualRow.index, colIndex) && !isSelected;
                                     const isBottomRightCell = selectedRange.start && normalizedSelectedRange.endRow === virtualRow.index && normalizedSelectedRange.endCol === colIndex;
+                                    const isNoColumn = header === "No";
 
                                     const cellValue = row[header];
                                     let displayValue = "";
@@ -964,10 +957,18 @@ export function MigrasiMurid() {
                                         <div
                                             key={virtualCol.key}
                                             style={{
+                                                position: isNoColumn ? 'sticky' : 'absolute',
+                                                top: 0,
+                                                left: isNoColumn ? 0 : 'auto',
+                                                height: '100%',
                                                 width: `${virtualCol.size}px`,
-                                                transform: `translateX(${virtualCol.start}px)`,
+                                                transform: isNoColumn ? 'none' : `translateX(${virtualCol.start}px)`,
+                                                zIndex: isNoColumn ? 20 : 'auto',
                                             }}
-                                            className="absolute top-0 left-0 h-full p-0 m-0 border-r border-b relative flex items-center"
+                                            className={cn(
+                                                "p-0 m-0 border-r border-b relative flex items-center",
+                                                isNoColumn && "bg-muted/30"
+                                            )}
                                             onMouseOver={(e: MouseEvent<HTMLDivElement>) => handleMouseOver(e, { row: virtualRow.index, col: colIndex })}
                                         >
                                             <Input
@@ -998,13 +999,11 @@ export function MigrasiMurid() {
                                     );
                                 })}
                             </div>
-                        );
-                    })}
+                        ))}
+                    </div>
                 </div>
             </main>
 
-
-            {/* Footer */}
             <footer className="flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <Input
@@ -1026,3 +1025,4 @@ export function MigrasiMurid() {
         </div>
     );
 }
+    
