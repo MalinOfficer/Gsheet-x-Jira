@@ -1,7 +1,7 @@
 
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -87,6 +87,10 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
     const [yearFilter, setYearFilter] = useState<string>('');
+
+    // Pagination state
+    const [pageSize, setPageSize] = useState(50);
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         setIsProcessing(isPending);
@@ -309,15 +313,36 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
 
         return dataToFilter;
     }, [state.data, debouncedSearchTerm, dateRange, columnFilters, yearFilter, dateHeaderKey]);
+
+    // Reset page to 1 when any filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [debouncedSearchTerm, dateRange, columnFilters, yearFilter, pageSize]);
     
+    // Calculate total pages
+    const totalPages = useMemo(() => {
+        if (!filteredData || pageSize === 0) return 1;
+        const pages = Math.ceil(filteredData.length / pageSize);
+        return pages > 0 ? pages : 1;
+    }, [filteredData, pageSize]);
+    
+    // Get data for the current page
+    const paginatedData = useMemo(() => {
+        if (!filteredData) return [];
+        // Clamp currentPage to be valid
+        const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
+        if (pageSize === 0) return filteredData;
+        const startIndex = (validCurrentPage - 1) * pageSize;
+        return filteredData.slice(startIndex, startIndex + pageSize);
+    }, [filteredData, currentPage, pageSize, totalPages]);
     
     const displayData = useMemo(() => {
         if (isPending && !state.data) {
-            return Array.from({ length: 10 }, () => ({}));
+             const skeletonRowCount = pageSize === 0 ? 20 : pageSize;
+            return Array.from({ length: skeletonRowCount }, () => ({}));
         }
-        return filteredData;
-    }, [isPending, state.data, filteredData]);
-    
+        return paginatedData;
+    }, [isPending, state.data, paginatedData, pageSize]);
     
     const rowVirtualizer = useVirtualizer({
         count: displayData.length,
@@ -578,6 +603,9 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
                                </div>
                                {virtualRows.map((virtualRow) => {
                                    const row = displayData[virtualRow.index];
+                                   const rowNumber = pageSize === 0 
+                                     ? virtualRow.index + 1 
+                                     : (currentPage - 1) * pageSize + virtualRow.index + 1;
                                    
                                    return (
                                        <div
@@ -592,15 +620,18 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
                                            }}
                                            className="flex border-b transition-colors hover:bg-muted/50"
                                        >
-                                         {headers.map(header => (
-                                            <div 
-                                                key={header} 
-                                                className="p-4 align-middle truncate" 
-                                                style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
-                                            >
-                                                {row ? row[header] : <Skeleton className="h-4 w-full" />}
-                                            </div>
-                                         ))}
+                                         {headers.map(header => {
+                                            const isNoColumn = header.toLowerCase() === 'no';
+                                            return (
+                                                <div 
+                                                    key={header} 
+                                                    className="p-4 align-middle truncate" 
+                                                    style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
+                                                >
+                                                    {row ? (isNoColumn ? rowNumber : row[header]) : <Skeleton className="h-4 w-full" />}
+                                                </div>
+                                            );
+                                         })}
                                        </div>
                                    );
                                })}
@@ -608,8 +639,77 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
                        )}
                     </div>
                 </CardContent>
-                <CardFooter className="p-2 border-t text-xs text-muted-foreground">
-                    {isPending ? 'Loading...' : `Showing ${displayData.length} of ${state.data?.length || 0} rows.`}
+                <CardFooter className="p-3 border-t text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between w-full">
+                        <div className="flex-1 text-sm text-muted-foreground">
+                            {filteredData.length} row(s) total.
+                        </div>
+
+                        <div className="flex items-center space-x-6 lg:space-x-8">
+                            <div className="flex items-center space-x-2">
+                                <p className="text-sm font-medium">Rows per page</p>
+                                <Select
+                                    value={`${pageSize}`}
+                                    onValueChange={(value) => {
+                                        setPageSize(Number(value));
+                                    }}
+                                >
+                                    <SelectTrigger className="h-8 w-[70px]">
+                                        <SelectValue placeholder={`${pageSize}`} />
+                                    </SelectTrigger>
+                                    <SelectContent side="top">
+                                        {[50, 100, 250, 500].map((size) => (
+                                            <SelectItem key={size} value={`${size}`}>
+                                                {size}
+                                            </SelectItem>
+                                        ))}
+                                        <SelectItem value="0">All</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                                Page {currentPage} of {totalPages}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Button
+                                    variant="outline"
+                                    className="hidden h-8 w-8 p-0 lg:flex"
+                                    onClick={() => setCurrentPage(1)}
+                                    disabled={currentPage === 1}
+                                >
+                                    <span className="sr-only">Go to first page</span>
+                                    <ChevronsLeft className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => setCurrentPage((prev) => prev - 1)}
+                                    disabled={currentPage === 1}
+                                >
+                                    <span className="sr-only">Go to previous page</span>
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => setCurrentPage((prev) => prev + 1)}
+                                    disabled={currentPage >= totalPages}
+                                >
+                                    <span className="sr-only">Go to next page</span>
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="hidden h-8 w-8 p-0 lg:flex"
+                                    onClick={() => setCurrentPage(totalPages)}
+                                    disabled={currentPage >= totalPages}
+                                >
+                                    <span className="sr-only">Go to last page</span>
+                                    <ChevronsRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
                 </CardFooter>
             </Card>
         </div>
