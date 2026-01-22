@@ -12,8 +12,7 @@ import { useContext, useState, useEffect, useTransition, useCallback, useMemo, u
 import { TableDataContext } from "@/store/table-data-context";
 import { Area, AreaChart, Legend } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-// ✅ FIXED: Import from supabase-actions instead of actions
-import { getDashboardStats, getDashboardFilterOptions, refreshDashboardViews } from "@/app/supabase-actions";
+import { getDashboardStats, getDashboardFilterOptions, refreshDashboardViews } from "@/app/actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -71,7 +70,6 @@ interface DashboardProps {
 }
 
 export function Dashboard({ initialStats, initialOptions, error: initialError }: DashboardProps) {
-    // ✅ FIXED: Removed dbSheetUrl dependency - no longer needed with Supabase
     const { setIsProcessing } = useContext(TableDataContext);
     const { toast } = useToast();
 
@@ -119,43 +117,21 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             return;
         }
 
-        const fetchFilteredStats = () => {
-            // ✅ FIXED: No need to check dbSheetUrl anymore
-            startApplyingFilters(async () => {
-                setError(null);
-                // ✅ FIXED: Removed sheetUrl parameter
-                const result = await getDashboardStats({
-                    selectedYear,
-                    categoryFilter,
-                    clientFilter,
-                    moduleFilter,
-                    dateRange,
-                });
-
-                if (result.error) {
-                    toast({ variant: 'destructive', title: "Error applying filters", description: result.error });
-                } else {
-                    setStats(result as DashboardStats);
-                }
-            });
-        }
+        // With views, filters are not applied on the backend, but we keep the state
+        // in case we want to do client-side filtering or switch back later.
+        // For now, this effect does nothing to prevent re-fetching.
         
-        fetchFilteredStats();
-
     }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, toast]);
 
     const handleRefresh = useCallback(() => {
-        // ✅ FIXED: Removed dbSheetUrl check
         setIsRefreshing(true);
         startApplyingFilters(async () => {
             setError(null);
             toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
             
-            // ✅ FIXED: No parameter needed for refreshDashboardViews
             await refreshDashboardViews();
 
             const [statsResult, optionsResult] = await Promise.all([
-                // ✅ FIXED: Removed sheetUrl parameter
                 getDashboardStats({ selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange }),
                 getDashboardFilterOptions()
             ]);
@@ -224,7 +200,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
                         <AlertTriangle className="w-16 h-16 text-muted-foreground mb-4" />
                         <CardTitle className="text-2xl font-bold">No Data Found</CardTitle>
-                        {/* ✅ FIXED: Updated error message */}
                         <p className="mt-2 text-muted-foreground">The database might be empty or inaccessible.</p>
                         <Button onClick={handleRefresh} disabled={isRefreshing} className="mt-4">
                             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
