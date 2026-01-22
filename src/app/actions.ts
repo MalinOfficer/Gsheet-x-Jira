@@ -124,7 +124,7 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
       supabaseAdmin.from('dashboard_summary').select('*').single(),
       supabaseAdmin.from('dashboard_stats_monthly').select('*'),
       supabaseAdmin.from('dashboard_clients_rank').select('name, value'),
-      supabaseAdmin.from('dashboard_modules_rank').select('module, value'),
+      supabaseAdmin.from('dashboard_modules_rank').select('detail_module, total_cases'),
     ]);
 
     if (summaryRes.error) throw new Error(`Database error in dashboard_summary: ${summaryRes.error.message}`);
@@ -146,7 +146,7 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
         categoryTrend: summaryData.trending_category,
         monthlyData: monthlyRes.data || [],
         allClients: clientsRes.data || [],
-        allModules: (modulesRes.data || []).map((m: { module: string, value: number }) => ({ name: m.module, value: m.value })),
+        allModules: (modulesRes.data || []).map((m: { detail_module: string, total_cases: number }) => ({ name: m.detail_module, value: m.total_cases })),
         solvedVsUnsolved: [
           { name: 'Solved', value: summaryData.total_solved },
           { name: 'Unsolved', value: summaryData.total_cases - summaryData.total_solved },
