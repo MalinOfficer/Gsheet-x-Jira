@@ -1,1567 +1,405 @@
-
 "use server";
 
+import { supabaseAdmin } from '@/lib/supabase';
 import { unstable_cache, revalidateTag } from 'next/cache';
-import { google } from 'googleapis';
-import fs from 'fs';
-import path from 'path';
-import { redis } from '@/lib/redis';
-import mammoth from 'mammoth';
+import { 
+  mapDBToFrontend, 
+  mapDBArrayToFrontend, 
+  getSelectColumns, 
+  getDBColumn,
+  type YourDBRow,
+  type FrontendExpectedRow 
+} from '@/lib/db-mapper';
 
-const CACHE_KEY_ALL_CASE = 'all_case_data_cache';
-const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1S9oSokUh8SyWlNObCLdwpn2r2iXA8Gy73OnxsZa728E/edit?gid=0#gid=0';
+// ============================================
+// FETCH ALL CASES DATA
+// ============================================
 
+export async function getAllCaseData() {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('all_cases')
+      .select(getSelectColumns())
+      .order('date', { ascending: false });
 
-// Daftar file yang sama seperti di code-viewer sebelumnya
-const projectFilesForAction = [
-  // File konfigurasi root
-  "README.md",
-  "next.config.js",
-  "package.json",
-  "postcss.config.js",
-  "tailwind.config.ts",
-  "tsconfig.json",
-  "components.json",
-  "next-env.d.ts",
-
-  // Struktur Aplikasi & Halaman Utama
-  "src/app/layout.tsx",
-  "src/app/globals.css",
-  "src/app/page.tsx", // Halaman root untuk Import Flow
-  "src/app/report-harian/page.tsx",
-  "src/app/migrasi-murid/page.tsx",
-  "src/app/cek-duplikasi/page.tsx",
-  "src/app/data-weaver/page.tsx",
-  "src/app/settings/page.tsx",
-  "src/app/code-viewer/page.tsx",
-  "src/app/migrasi-produk/page.tsx",
-  "src/app/dashboard/page.tsx",
-  "src/app/db/page.tsx",
-  "src/app/knowledge-base/page.tsx",
-
-  // Komponen Utama (logika untuk setiap halaman)
-  "src/components/import-flow.tsx",
-  "src/components/report-harian.tsx",
-  "src/components/migrasi-murid.tsx",
-  "src/components/cek-duplikasi.tsx",
-  "src/components/data-weaver.tsx",
-  "src/components/layout/client-layout.tsx",
-  "src/components/migrasi-produk.tsx",
-  "src/components/dashboard.tsx",
-  "src/components/db-viewer.tsx",
-  "src/components/knowledge-base.tsx",
-
-
-  // Aksi & Logika Server
-  "src/app/actions.ts",
-  "src/lib/utils.ts",
-  "src/lib/date-utils.ts",
-  "src/lib/redis.ts",
-
-  // Manajemen State (Konteks & Provider)
-  "src/store/store-provider.tsx",
-  "src/store/table-data-context.tsx",
-  "src/contexts/app-provider.tsx",
-  "src/contexts/settings-provider.tsx",
-
-  // Hooks Kustom
-  "src/hooks/use-toast.ts",
-  "src/hooks/use-theme.ts",
-  "src/hooks/theme-provider.tsx",
-  "src/hooks/use-mobile.tsx",
-
-  // File terkait AI
-  "src/ai/genkit.ts",
-  "src/ai/dev.ts",
-
-  // Komponen UI (ShadCN)
-  "src/components/ui/accordion.tsx",
-  "src/components/ui/alert-dialog.tsx",
-  "src/components/ui/alert.tsx",
-  "src/components/ui/avatar.tsx",
-  "src/components/ui/badge.tsx",
-  "src/components/ui/button.tsx",
-  "src/components/ui/calendar.tsx",
-  "src/components/ui/card.tsx",
-  "src/components/ui/carousel.tsx",
-  "src/components/ui/chart.tsx",
-  "src/components/ui/checkbox.tsx",
-  "src/components/ui/collapsible.tsx",
-  "src/components/ui/command.tsx",
-  "src/components/ui/dialog.tsx",
-  "src/components/ui/dropdown-menu.tsx",
-  "src/components/ui/theme-switch.css",
-  "src/components/ui/form.tsx",
-  "src/components/ui/input.tsx",
-  "src/components/ui/label.tsx",
-  "src/components/ui/menubar.tsx",
-  "src/components/ui/multi-select.tsx",
-  "src/components/ui/navigation-menu.tsx",
-  "src/components/ui/popover.tsx",
-  "src/components/ui/progress.tsx",
-  "src/components/ui/radio-group.tsx",
-  "src/components/ui/scroll-area.tsx",
-  "src/components/ui/select.tsx",
-  "src/components/ui/separator.tsx",
-  "src/components/ui/sheet.tsx",
-  "src/components/ui/skeleton.tsx",
-  "src/components/ui/slider.tsx",
-  "src/components/ui/spinner.tsx",
-  "src/components/ui/switch.tsx",
-  "src/components/ui/table.tsx",
-  "src/components/ui/tabs.tsx",
-  "src/components/ui/textarea.tsx",
-  "src/components/ui/toast.tsx",
-  "src/components/ui/toaster.tsx",
-  "src/components/ui/theme-switch.css",
-  "src/components/ui/theme-switch.tsx",
-];
-
-
-async function getFileContent(filePath: string) {
-    try {
-        const fullPath = path.join(process.cwd(), filePath);
-        const content = await fs.promises.readFile(fullPath, 'utf-8');
-        return content;
-    } catch (error: any) {
-        if (error.code === 'ENOENT') {
-            // Return a specific, machine-readable error string
-            return `// FILE_NOT_FOUND: File tidak ditemukan di path: ${filePath}`;
-        }
-        console.error(`Error reading file at ${filePath}:`, error);
-        return `// ERROR: Tidak dapat membaca file di ${filePath}`;
+    if (error) {
+      console.error('Error fetching all cases:', error);
+      return { error: error.message };
     }
+
+    // Map DB format to Frontend expected format
+    const mappedData = mapDBArrayToFrontend(data as YourDBRow[]);
+
+    return { data: mappedData, source: 'supabase' };
+  } catch (error: any) {
+    console.error('Unexpected error fetching all cases:', error);
+    return { error: error.message || 'Failed to fetch cases data' };
+  }
 }
 
+// ============================================
+// REFRESH DASHBOARD (compatibility function)
+// ============================================
 
-export async function getProjectFileContents() {
-    try {
-        const fileContents = await Promise.all(
-            projectFilesForAction.map(async (filePath) => {
-                const content = await getFileContent(filePath);
-                return { path: filePath, content, name: path.basename(filePath) };
-            })
-        );
-        return { success: true, data: fileContents };
-    } catch (error) {
-        console.error("Failed to get project file contents:", error);
-        return { success: false, error: "Gagal mengambil file proyek. Silakan coba lagi." };
-    }
+export async function refreshDashboardViews() {
+  // Since we don't have materialized views, just revalidate cache
+  revalidateTag('all-case-data');
+  return { success: true, message: 'Cache refreshed successfully' };
 }
 
-const getSheetData = unstable_cache(
-    async (url: string) => {
-        if (!url) {
-            return { error: 'Please provide a Google Sheets URL.' };
-        }
-
-        const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
-        const match = url.match(sheetIdRegex);
-
-        if (!match || !match[1]) {
-            return { error: 'Invalid Google Sheets URL format. Please use a valid share link.' };
-        }
-
-        const sheetId = match[1];
-        const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
-
-        try {
-            const response = await fetch(exportUrl, { next: { revalidate: 3600 } }); // Cache for 1 hour
-            if (!response.ok) {
-                throw new Error(`Failed to fetch sheet. Status: ${response.status}. Make sure the sheet sharing setting is "Anyone with the link".`);
-            }
-            const csvText = await response.text();
-            if (!csvText) {
-                return { error: 'The Google Sheet appears to be empty or could not be read.' };
-            }
-            
-            const lines = csvText.trim().split(/\r\n|\n/);
-            const headersLine = lines.shift() || '';
-            const headers = headersLine.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-            
-            const data = lines.map(line => {
-                const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                const row: Record<string, string> = {};
-                headers.forEach((header, i) => {
-                    row[header] = (values[i] || '').trim().replace(/^"|"$/g, '');
-                });
-                return row;
-            }).filter(row => Object.values(row).some(val => val !== ''));
-
-            if (data.length === 0) {
-                return { error: 'No data found in the sheet (after the header row).' };
-            }
-
-            return { data, headers };
-
-        } catch (error) {
-            console.error(error);
-            return { error: error instanceof Error ? error.message : 'An unknown error occurred while fetching the data.' };
-        }
-    },
-    ['sheet-data'],
-    {
-        tags: ['sheet-data']
-    }
-)
-
-export async function fetchSheetData(url: string) {
-    return getSheetData(url);
+export async function syncDashboardCache() {
+  revalidateTag('all-case-data');
+  return { success: true, message: 'Cache synchronized.' };
 }
 
-const getGoogleApiClients = () => {
-    let credentials;
-    if (process.env.GCP_CREDENTIALS) {
-        try {
-            credentials = JSON.parse(process.env.GCP_CREDENTIALS);
-        } catch (error) {
-            console.error('Error parsing GCP_CREDENTIALS:', error);
-            throw new Error('Could not parse Google Cloud credentials.');
-        }
-    } else {
-        try {
-            const filePath = path.join(process.cwd(), 'src', 'lib', 'gcp-credentials.json');
-            const fileContent = fs.readFileSync(filePath, 'utf-8');
-            credentials = JSON.parse(fileContent);
-        } catch (error) {
-            console.error('Error reading or parsing credentials file:', error);
-            throw new Error('Could not load Google Cloud credentials.');
-        }
-    }
+// ============================================
+// GET DASHBOARD FILTER OPTIONS
+// ============================================
+
+const _getDashboardFilterOptions = async () => {
+  try {
+    // Get all unique categories
+    const { data: categories } = await supabaseAdmin
+      .from('all_cases')
+      .select('category_case')
+      .not('category_case', 'is', null)
+      .not('category_case', 'eq', '');
+
+    // Get all unique clients
+    const { data: clients } = await supabaseAdmin
+      .from('all_cases')
+      .select('client_name')
+      .not('client_name', 'is', null)
+      .not('client_name', 'eq', '');
+
+    // Get all unique modules
+    const { data: modules } = await supabaseAdmin
+      .from('all_cases')
+      .select('module_case')
+      .not('module_case', 'is', null)
+      .not('module_case', 'eq', '');
+
+    // Get all unique years from dates
+    const { data: dates } = await supabaseAdmin
+      .from('all_cases')
+      .select('date')
+      .not('date', 'is', null);
+
+    const uniqueCategories = [...new Set(categories?.map(c => c.category_case))];
+    const uniqueClients = [...new Set(clients?.map(c => c.client_name))];
+    const uniqueModules = [...new Set(modules?.map(m => m.module_case))];
     
-    const auth = new google.auth.GoogleAuth({
-        credentials: {
-            client_email: credentials.client_email,
-            private_key: credentials.private_key.replace(/\\n/g, '\n'),
-        },
-        scopes: [
-            'https://www.googleapis.com/auth/spreadsheets',
-            'https://www.googleapis.com/auth/drive.readonly' 
-        ],
-    });
-
-    const sheets = google.sheets({ version: 'v4', auth });
-    const drive = google.drive({ version: 'v3', auth });
-
-    return { sheets, drive };
-}
-
-export async function getSpreadsheetTitle(fileUrl: string) {
-    if (!fileUrl) {
-        return { error: "URL is empty. Please provide a Google Sheet URL." };
-    }
-
-    const idRegex = /(?:spreadsheets\/d\/)([a-zA-Z0-9-_]+)/;
-    const match = fileUrl.match(idRegex);
-
-    if (!match || !match[1]) {
-        return { error: 'Invalid Google Sheet URL format.' };
-    }
-    const spreadsheetId = match[1];
-
-    try {
-        const { sheets } = getGoogleApiClients();
-        const response = await sheets.spreadsheets.get({
-            spreadsheetId: spreadsheetId,
-            fields: 'properties.title',
-        });
-
-        const title = response.data.properties?.title;
-
-        if (!title) {
-            return { error: "Could not retrieve the spreadsheet title." };
-        }
-
-        return { success: true, title };
-    } catch (error: any) {
-        console.error('Failed to get Google Sheet title:', error.message);
-        const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred while analyzing the URL.';
-        return { error: `Analysis Failed: ${apiError}` };
-    }
-}
-
-async function getSheetRowMap(sheets: any, spreadsheetId: string, sheetName: string) {
-    const rangeToRead = `${sheetName}!G:T`; // Read from Status (G) to Ticket OP (T)
-    const response = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: rangeToRead,
-    });
-
-    const sheetRows = response.data.values;
-    if (!sheetRows || sheetRows.length === 0) {
-        return {};
-    }
-    
-    const rowMap: Record<string, { rowIndex: number, currentStatus: string; currentTicketOp: string; title: string, currentCheckout: string; }> = {};
-    const ticketNumberRegex = /#(\d+)/;
-
-    sheetRows.forEach((row, index) => {
-        const currentStatus = row[0] || ''; // Column G
-        const detailCase = row[6] || ''; // Column M (G is 0, so M is 6)
-        const currentCheckout = row[8] || ''; // Column O (G is 0, so O is 8)
-        const currentTicketOp = row[13] || ''; // Column T (G is 0, so T is 13)
-
-        if (typeof detailCase === 'string' && detailCase.trim() !== '') {
-            const key = detailCase.trim();
-            const match = detailCase.match(ticketNumberRegex);
-            
-            // Primary key: full title string
-            rowMap[key] = {
-                rowIndex: index + 1, // 1-based index
-                currentStatus: currentStatus,
-                currentTicketOp: currentTicketOp,
-                title: detailCase,
-                currentCheckout: currentCheckout
-            };
-            
-            // Secondary key (fallback): ticket number if it exists
-            if (match && match[1]) {
-                const ticketNumberKey = `#${match[1]}`;
-                 if (!rowMap[ticketNumberKey]) { // Avoid overwriting if already set by full title
-                    rowMap[ticketNumberKey] = rowMap[key];
-                 }
-            }
-        }
-    });
-    return rowMap;
-}
-
-const normalizeAndFormatDate = (dateStr: string): string | null => {
-    if (!dateStr || typeof dateStr !== 'string' || dateStr.trim() === '') {
-        return null;
-    }
-    const trimmed = dateStr.trim();
-
-    // Try parsing various formats into a Date object
-    let dateObj: Date | null = null;
-    try {
-        // Try ISO format first (from our app) e.g., "2024-07-31T07:38:15.123Z"
-        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(trimmed)) {
-            dateObj = new Date(trimmed);
-        } else {
-            // Try DD/MM/YYYY HH:mm format (from Google Sheets)
-            const gsheetMatch = trimmed.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2})/);
-            if (gsheetMatch) {
-                const [_, day, month, year, hour, minute] = gsheetMatch;
-                dateObj = new Date(`${year}-${month}-${day}T${hour}:${minute}:00`);
-            }
-        }
-    } catch (e) {
-        return null; // Invalid date string
-    }
-
-    if (!dateObj || isNaN(dateObj.getTime())) {
-        return null;
-    }
-
-    // Format to a consistent YYYY-MM-DD HH:mm string
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const hour = String(dateObj.getHours()).padStart(2, '0');
-    const minute = String(dateObj.getMinutes()).padStart(2, '0');
-
-    return `${year}-${month}-${day} ${hour}:${minute}`;
-};
-
-export async function getUpdatePreview(
-    data: { rows: Record<string, any>[] },
-    sheetUrl: string
-) {
-    if (!data || data.rows.length === 0) {
-        return { error: 'No data provided to preview.' };
-    }
-
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
-    const match = sheetUrl.match(sheetIdRegex);
-    if (!match || !match[1]) {
-        return { error: 'Invalid Google Sheets URL format.' };
-    }
-    const spreadsheetId = match[1];
-    const sheetName = 'All Case';
-
-    try {
-        const { sheets } = getGoogleApiClients();
-        const rowMap = await getSheetRowMap(sheets, spreadsheetId, sheetName);
-        
-        const changesToPreview: { 
-            title: string, 
-            oldStatus: string, newStatus: string, 
-            oldTicketOp: string, newTicketOp: string,
-            oldCheckout: string, newCheckout: string 
-        }[] = [];
-        const ticketNumberRegex = /#(\d+)/;
-
-        for (const appRow of data.rows) {
-            const detailCase = appRow['Title'];
-            const newStatus = appRow['Status'];
-            const newTicketOp = appRow['Ticket OP'] || '';
-            const newCheckoutRaw = appRow['Resolved At'] || '';
-
-            if (typeof detailCase === 'string' && detailCase.trim()) {
-                const match = detailCase.match(ticketNumberRegex);
-                // First, try matching by full title. If not found, try matching by ticket number as a fallback.
-                const sheetRowInfo = rowMap[detailCase.trim()] || (match && match[1] ? rowMap[`#${match[1]}`] : undefined);
-                
-                if (sheetRowInfo) {
-                    const statusChanged = sheetRowInfo.currentStatus !== newStatus;
-                    // Only consider it a change if the new Ticket OP is not empty
-                    const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
-                    
-                    const formattedSheetCheckout = normalizeAndFormatDate(sheetRowInfo.currentCheckout);
-                    const formattedNewCheckout = normalizeAndFormatDate(newCheckoutRaw);
-                    const checkoutChanged = newStatus === 'Solved' && formattedSheetCheckout !== formattedNewCheckout;
-
-                    if (statusChanged || ticketOpChanged || checkoutChanged) {
-                         changesToPreview.push({
-                            title: sheetRowInfo.title,
-                            oldStatus: sheetRowInfo.currentStatus,
-                            newStatus: newStatus,
-                            oldTicketOp: sheetRowInfo.currentTicketOp,
-                            newTicketOp: ticketOpChanged ? newTicketOp : sheetRowInfo.currentTicketOp,
-                            oldCheckout: sheetRowInfo.currentCheckout,
-                            newCheckout: newStatus === 'Solved' ? newCheckoutRaw : sheetRowInfo.currentCheckout,
-                        });
-                    }
-                }
-            }
-        }
-        
-        if (changesToPreview.length === 0) {
-            return { success: true, message: 'No changes detected. Everything is up-to-date.' };
-        }
-
-        return { success: true, changes: changesToPreview };
-
-    } catch (error: any) {
-        console.error('Failed to get update preview:', error.message);
-        const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred during preview generation.';
-        return { error: apiError };
-    }
-}
-
-
-export async function updateSheetStatus(
-    data: { rows: Record<string, any>[] },
-    sheetUrl: string
-) {
-     if (!data || data.rows.length === 0) {
-        return { error: 'No data provided to update.' };
-    }
-    
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
-    const match = sheetUrl.match(sheetIdRegex);
-    if (!match || !match[1]) {
-        return { error: 'Invalid Google Sheets URL format.' };
-    }
-    const spreadsheetId = match[1];
-    const sheetName = 'All Case';
-
-    try {
-        const { sheets } = getGoogleApiClients();
-        const rowMap = await getSheetRowMap(sheets, spreadsheetId, sheetName);
-
-        const updateRequests = [];
-        const updatedRows: { 
-            title: string, 
-            rowIndex: number, 
-            oldStatus: string, newStatus: string, 
-            oldTicketOp: string, newTicketOp: string,
-            oldCheckout: string, newCheckout: string,
-        }[] = [];
-        const ticketNumberRegex = /#(\d+)/;
-        
-        for (const appRow of data.rows) {
-            const detailCase = appRow['Title'];
-            const newStatus = appRow['Status'];
-            const newTicketOp = appRow['Ticket OP'] || '';
-            const newCheckoutRaw = appRow['Resolved At'] || '';
-
-            if (typeof detailCase === 'string' && detailCase.trim()) {
-                const match = detailCase.match(ticketNumberRegex);
-                 // First, try matching by full title. If not found, try matching by ticket number as a fallback.
-                const sheetRowInfo = rowMap[detailCase.trim()] || (match && match[1] ? rowMap[`#${match[1]}`] : undefined);
-                
-                if (sheetRowInfo) {
-                    const statusChanged = sheetRowInfo.currentStatus !== newStatus;
-                    // Only trigger an update if the new Ticket OP from the app is not empty and different.
-                    const ticketOpChanged = newTicketOp && sheetRowInfo.currentTicketOp !== newTicketOp;
-
-                    const formattedSheetCheckout = normalizeAndFormatDate(sheetRowInfo.currentCheckout);
-                    const formattedNewCheckout = normalizeAndFormatDate(newCheckoutRaw);
-                    const checkoutWillChange = newStatus === 'Solved' && formattedSheetCheckout !== formattedNewCheckout;
-                    
-                    if (statusChanged || ticketOpChanged || checkoutWillChange) {
-                        if (statusChanged) {
-                            updateRequests.push({
-                                range: `${sheetName}!G${sheetRowInfo.rowIndex}`,
-                                values: [[newStatus]],
-                            });
-                        }
-                         if (ticketOpChanged) {
-                            updateRequests.push({
-                                range: `${sheetName}!T${sheetRowInfo.rowIndex}`,
-                                values: [[newTicketOp]],
-                            });
-                        }
-                         if (checkoutWillChange) { // Only update checkout if it's changing
-                            updateRequests.push({
-                                range: `${sheetName}!O${sheetRowInfo.rowIndex}`,
-                                values: [[newCheckoutRaw]],
-                            });
-                        }
-
-                        updatedRows.push({ 
-                            title: detailCase, 
-                            rowIndex: sheetRowInfo.rowIndex,
-                            oldStatus: sheetRowInfo.currentStatus, 
-                            newStatus, 
-                            oldTicketOp: sheetRowInfo.currentTicketOp,
-                            newTicketOp: ticketOpChanged ? newTicketOp : sheetRowInfo.currentTicketOp,
-                            oldCheckout: sheetRowInfo.currentCheckout,
-                            newCheckout: newStatus === 'Solved' ? newCheckoutRaw : sheetRowInfo.currentCheckout
-                        });
-                    }
-                }
-            }
-        }
-        
-        if (updateRequests.length === 0) {
-            return { success: true, message: 'No changes detected. Everything is up-to-date.', updatedRows: [] };
-        }
-        
-        await sheets.spreadsheets.values.batchUpdate({
-            spreadsheetId,
-            requestBody: {
-                valueInputOption: 'USER_ENTERED',
-                data: updateRequests,
-            },
-        });
-        
-        // After successful update, trigger cache sync
-        await syncDashboardCache(sheetUrl);
-
-        return { success: true, message: `Successfully updated ${updatedRows.length} rows.`, updatedRows, operationType: 'UPDATE' };
-
-    } catch (error: any) {
-        console.error('Failed to update sheet status:', error.message);
-        const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred during sheet update.';
-        return { error: apiError };
-    }
-}
-
-async function getSheetProperties(sheets: any, spreadsheetId: string, sheetName: string) {
-    const response = await sheets.spreadsheets.get({
-        spreadsheetId,
-        ranges: [sheetName],
-        fields: 'sheets.properties',
-    });
-    const sheet = response.data.sheets?.find(
-        (s: any) => s.properties?.title?.trim().toLowerCase() === sheetName.trim().toLowerCase()
-    );
-    return sheet?.properties ?? null;
-}
-
-export async function importToSheet(
-    data: { headers: string[], rows: Record<string, any>[] },
-    sheetUrl: string
-) {
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
-    const match = sheetUrl.match(sheetIdRegex);
-    if (!match || !match[1]) {
-        return { error: 'Invalid Google Sheets URL format.' };
-    }
-    const spreadsheetId = match[1];
-    const sheetName = 'All Case';
-
-    try {
-        const { sheets } = getGoogleApiClients();
-
-        // 1. Get sheet properties for sheetId and rowCount
-        const sheetProperties = await getSheetProperties(sheets, spreadsheetId, sheetName);
-        if (!sheetProperties || typeof sheetProperties.sheetId !== 'number') {
-            return { error: `The target sheet named "${sheetName}" was not found in the spreadsheet.` };
-        }
-        const sheetId = sheetProperties.sheetId;
-        const currentTotalRows = sheetProperties.gridProperties?.rowCount || 0;
-
-
-        // 2. Get last row data by reading the entire 'No' column (A)
-        const lastRowResponse = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: `${sheetName}!A:A`, // Read the entire 'No' column
-            majorDimension: 'ROWS',
-        });
-        const columnA = lastRowResponse.data.values || [];
-        
-        let lastRowIndex = 0;
-        let lastNo = 0;
-        
-        // Find the last row that has a numerical value in column A.
-        for (let i = columnA.length - 1; i >= 0; i--) {
-            const noValue = columnA[i][0];
-            if (noValue && !isNaN(Number(noValue))) {
-                lastNo = parseInt(noValue, 10);
-                lastRowIndex = i + 1; // 1-based index of the last row with a number
-                break;
-            }
-        }
-        
-        // If the sheet is completely empty or has no numbers in column A, start from row 0.
-        if (lastRowIndex === 0) {
-            lastRowIndex = columnA.length;
-        }
-
-
-        // 3. Find existing titles to avoid duplicates (from column M)
-        const titleRange = `${sheetName}!M:M`;
-        const titleResponse = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: titleRange,
-        });
-        const existingTitles = new Set(titleResponse.data.values ? titleResponse.data.values.flat() : []);
-        
-        const newRows = [];
-        const duplicateRows = [];
-        for (const row of data.rows) {
-            const title = row['Title'];
-            if (title && !existingTitles.has(title)) {
-                newRows.push(row);
-            } else if (title) {
-                duplicateRows.push(title);
-            }
-        }
-        
-        if (newRows.length === 0) {
-            return {
-                success: true,
-                message: 'No new data to import.',
-                importedCount: 0,
-                duplicateCount: duplicateRows.length,
-                duplicates: duplicateRows
-            };
-        }
-        
-        // 4. Check if we need to add more rows to the sheet
-        const requiredRowCount = lastRowIndex + newRows.length;
-        if (requiredRowCount > currentTotalRows) {
-            const rowsToAdd = requiredRowCount - currentTotalRows;
-            await sheets.spreadsheets.batchUpdate({
-                spreadsheetId,
-                requestBody: {
-                    requests: [{
-                        appendDimension: {
-                            sheetId: sheetId,
-                            dimension: 'ROWS',
-                            length: rowsToAdd
-                        }
-                    }]
-                }
-            });
-        }
-
-
-        // 5. Prepare data for the operation.
-        const valuesToAppend = newRows.map((row, index) => {
-            const createdAtStr = row['Created At'];
-            const dateForNewRow = createdAtStr ? new Date(createdAtStr) : new Date();
-
-            if (isNaN(dateForNewRow.getTime())) {
-                console.warn(`Invalid 'Created At' date for row, using current date: ${createdAtStr}`);
-            }
-
-            const day = dateForNewRow.getDate(); // No padding
-            const month = String(dateForNewRow.getMonth() + 1).padStart(2, '0');
-            const year = dateForNewRow.getFullYear();
-            const dateStr = `${day}/${month}/${year}`;
-            
-            const monthStr = dateForNewRow.toLocaleString('id-ID', { month: 'long' });
-            
-            const currentRowNumberInSheet = lastRowIndex + index + 1;
-            const ticketFormula = `=CONCATENATE("TKT-", TEXT(B${currentRowNumberInSheet}, "YYMMDD"), "-", TEXT(ROW()-2, "00000"))`;
-            const statusCase2Formula = `=IF(G${currentRowNumberInSheet}="solved","SOLVED",IF(OR(G${currentRowNumberInSheet}="L1",G${currentRowNumberInSheet}="L2",G${currentRowNumberInSheet}="L3",G${currentRowNumberInSheet}="PM"),"UNSOLVED",""))`;
-            const durationFormula = `=IF(R${currentRowNumberInSheet}="UNSOLVED", TODAY() - B${currentRowNumberInSheet}, "")`;
-
-            const mainDataHeaders = [
-                'Client Name', 'Customer Name', 'Status', 'Kolom kosong1', 
-                'Ticket Category', 'Module', 'Detail Module', 'Created At', 
-                'Title', 'Kolom kosong2', 'Resolved At', 'Ticket OP'
-            ];
-            
-            const mainData = mainDataHeaders.map(header => row[header] || '');
-
-            return [
-                lastNo + index + 1,        // A - NO
-                dateStr,                   // B - DATE
-                monthStr,                  // C - MONTH
-                ticketFormula,             // D - TICKET NUMBER (Formula)
-                ...mainData.slice(0, 9),   // E-M (Client Name to Title)
-                mainData[9],               // N - Kolom kosong2
-                mainData[10],              // O - Resolved At
-                '', '',                    // P-Q - Empty
-                statusCase2Formula,        // R - STATUS CASE 2 (Formula)
-                '',                        // S - Empty
-                mainData[11],              // T - Ticket OP
-                '',                        // U - Empty
-                durationFormula            // V - Umur Case/Hari (Formula)
-            ];
-        });
-
-        // 6. Use `update` instead of `append` to be resistant to filters.
-        const startRowForUpdate = lastRowIndex + 1;
-        const updateRange = `${sheetName}!A${startRowForUpdate}`;
-
-        const updateResult = await sheets.spreadsheets.values.update({
-            spreadsheetId,
-            range: updateRange,
-            valueInputOption: 'USER_ENTERED', // This is crucial for formulas
-            requestBody: {
-                values: valuesToAppend,
-            },
-        });
-
-        // After successful import, trigger cache sync
-        await syncDashboardCache(sheetUrl);
-
-        // 7. Prepare data for the 'Undo' action
-        const updatedRange = updateResult.data.updatedRange;
-        if (!updatedRange) {
-            return {
-                success: true,
-                message: `Import complete, but could not get range for undo action.`,
-                importedCount: newRows.length,
-                duplicateCount: duplicateRows.length,
-                duplicates: duplicateRows,
-            };
-        }
-        
-        const startRowIndex = startRowForUpdate -1; // 0-indexed for API
-
-        const undoData = {
-            operationType: 'IMPORT',
-            spreadsheetId,
-            sheetId,
-            startIndex: startRowIndex,
-            count: newRows.length
-        };
-
-        return {
-            success: true,
-            message: `Import complete.`,
-            importedCount: newRows.length,
-            duplicateCount: duplicateRows.length,
-            duplicates: duplicateRows,
-            undoData
-        };
-
-    } catch (error: any) {
-        console.error('Failed to import to sheet:', error.message);
-        const apiError = error.errors?.[0]?.message || error.message || 'An unknown error occurred during sheet import.';
-        return { error: `Import Error: ${apiError}` };
-    }
-}
-
-
-export async function undoLastAction(
-    undoData: any,
-    sheetUrl: string,
-) {
-    if (!undoData) {
-        return { error: 'No undo data available.' };
-    }
-
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
-    const match = sheetUrl.match(sheetIdRegex);
-    if (!match || !match[1]) {
-        return { error: 'Invalid Google Sheets URL format.' };
-    }
-    const spreadsheetId = match[1];
-    const sheetName = 'All Case';
-
-    try {
-        const { sheets } = getGoogleApiClients();
-
-        if (undoData.operationType === 'IMPORT') {
-            if (typeof undoData.sheetId !== 'number') {
-                return { error: 'Invalid sheet ID for undo operation.' };
-            }
-            await sheets.spreadsheets.batchUpdate({
-                spreadsheetId,
-                requestBody: {
-                    requests: [{
-                        deleteDimension: {
-                            range: {
-                                sheetId: undoData.sheetId,
-                                dimension: 'ROWS',
-                                startIndex: undoData.startIndex,
-                                endIndex: undoData.startIndex + undoData.count
-                            }
-                        }
-                    }]
-                }
-            });
-            await syncDashboardCache(sheetUrl); // Resync cache after undo
-            return { success: true, message: `Successfully undone import of ${undoData.count} rows.` };
-        }
-
-        if (undoData.operationType === 'UPDATE') {
-             const updateRequests = undoData.updatedRows.flatMap((row: { 
-                rowIndex: number, 
-                oldStatus: string, 
-                oldTicketOp: string,
-                oldCheckout: string,
-                newStatus: string, // to check if we need to revert checkout
-                newTicketOp: string,
-             }) => {
-                const requests = [];
-                // Always revert status
-                requests.push({
-                    range: `${sheetName}!G${row.rowIndex}`,
-                    values: [[row.oldStatus]],
-                });
-                
-                // Only revert Ticket OP if it was actually changed
-                if (row.newTicketOp && row.oldTicketOp !== row.newTicketOp) {
-                    requests.push({
-                        range: `${sheetName}!T${row.rowIndex}`,
-                        values: [[row.oldTicketOp]],
-                    });
-                }
-
-                // Only revert checkout if it was changed
-                if (row.newStatus === 'Solved') {
-                    requests.push({
-                         range: `${sheetName}!O${row.rowIndex}`,
-                         values: [[row.oldCheckout]],
-                    });
-                }
-                return requests;
-             });
-
-            if (updateRequests.length > 0) {
-                 await sheets.spreadsheets.values.batchUpdate({
-                    spreadsheetId,
-                    requestBody: {
-                        valueInputOption: 'USER_ENTERED',
-                        data: updateRequests,
-                    },
-                });
-            }
-            await syncDashboardCache(sheetUrl); // Resync cache after undo
-            return { success: true, message: `Successfully undone update of ${undoData.updatedRows.length} rows.` };
-        }
-
-        return { error: 'Unknown operation type for undo.' };
-
-    } catch (error: any) {
-        console.error('Failed to undo last action:', error.message);
-        const apiError = error.errors?.[0]?.message || 'An unknown error occurred during undo operation.';
-        return { error: apiError };
-    }
-}
-
-export async function mergeFilesOnServer(
-    fileAData: any,
-    fileBData: any,
-    editMode: 'nisn' | 'year' | 'nis' | null
-) {
-    if (!fileAData?.rows || !fileBData?.rows || !editMode) {
-        return { error: "Missing file data or edit mode." };
-    }
-
-    const findHeader = (headers: string[] | undefined, keys: string[]) => {
-        if (!headers) return undefined;
-        const lowerKeys = keys.map(k => k.toLowerCase());
-        return headers.find(h => lowerKeys.includes(h.toLowerCase()));
-    };
-
-    const normalizeName = (name: any): string => {
-        if (typeof name !== 'string') return '';
-        return name.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s{2,}/g, " ");
-    };
-
-    const nameHeaderKeys = ['nama', 'name', 'username'];
-    const fileANameKey = findHeader(fileAData.headers, nameHeaderKeys);
-    if (!fileANameKey) return { error: `Required 'Name' column not found in Source File.` };
-    
-    const fileBNameKey = findHeader(fileBData.headers, nameHeaderKeys);
-    if (!fileBNameKey) return { error: `Required 'Name' column not found in ID File.` };
-
-    const eliminationKeys: Record<typeof editMode, string[]> = {
-        nisn: ['nisn'],
-        nis: ['nis'],
-        year: ['year', 'tahun ajaran']
-    };
-    const columnToCheck = findHeader(fileBData.headers, eliminationKeys[editMode]);
-     if (!columnToCheck) {
-         return { error: `Required column for this mode ('${eliminationKeys[editMode].join("' or '")}') not found in ID File.` };
-    }
-    
-    // --- Start of New Logic ---
-
-    // 1. Filter File B to only include rows with a valid name.
-    const validFileBRows = fileBData.rows.filter((row: any) => {
-        const name = row[fileBNameKey];
-        return name && typeof name === 'string' && name.trim() !== '';
-    });
-
-    // 2. Identify rows in File B that already have data and should be eliminated.
-    const namesToEliminate = new Set<string>();
-    validFileBRows.forEach((row: any) => {
-        const valueInB = row[columnToCheck];
-        const hasExistingValue = valueInB !== null && valueInB !== undefined && String(valueInB).trim() !== '';
-        if (hasExistingValue) {
-            namesToEliminate.add(normalizeName(row[fileBNameKey]));
-        }
-    });
-
-    // 3. Create a map of clean File B rows for matching.
-    const fileBMap = new Map<string, any>();
-    validFileBRows.forEach((row: any) => {
-        const normalizedName = normalizeName(row[fileBNameKey]);
-        if (!namesToEliminate.has(normalizedName)) {
-            fileBMap.set(normalizedName, row);
-        }
-    });
-
-    // 4. Iterate through File A and perform matching.
-    const mergedRows: any[] = [];
-    const unmatchedFileA: any[] = [];
-    const usedInMatch_B_Names = new Set<string>();
-
-    let existingCount = 0;
-
-    for (const rowA of fileAData.rows) {
-        const normalizedNameA = normalizeName(rowA[fileANameKey]);
-        if (namesToEliminate.has(normalizedNameA)) {
-            existingCount++;
-            continue; // Skip this row from File A as its match in File B already has data.
-        }
-
-        const matchedRowB = fileBMap.get(normalizedNameA);
-        if (matchedRowB) {
-            mergedRows.push({ ...rowA, ...matchedRowB });
-            usedInMatch_B_Names.add(normalizeName(matchedRowB[fileBNameKey]));
-        } else {
-            unmatchedFileA.push(rowA);
-        }
-    }
-    
-    // 5. Determine unmatched rows from both files.
-    const matchedCount = mergedRows.length;
-    const totalInFileA = fileAData.rows.length;
-    const unmatchedACount = unmatchedFileA.length; // This is the real unmatched count from source
-
-    const unmatchedFileB = Array.from(fileBMap.values()).filter(rowB => {
-        const normalizedNameB = normalizeName(rowB[fileBNameKey]);
-        return !usedInMatch_B_Names.has(normalizedNameB);
+    const years = new Set<string>();
+    dates?.forEach(d => {
+      if (d.date) {
+        const year = new Date(d.date).getFullYear().toString();
+        years.add(year);
+      }
     });
 
     return {
-        mergedRows,
-        unmatchedFileA,
-        unmatchedFileB,
-        summary: {
-            total: totalInFileA,
-            existing: existingCount,
-            matched: matchedCount,
-            unmatched: unmatchedACount,
-        }
+      success: true,
+      data: {
+        categories: uniqueCategories.map(c => ({ label: c, value: c })),
+        clients: uniqueClients.map(c => ({ label: c, value: c })),
+        modules: uniqueModules.map(m => ({ label: m, value: m })),
+        years: Array.from(years).sort((a, b) => parseInt(b) - parseInt(a))
+      }
     };
-}
+  } catch (error: any) {
+    console.error('Error fetching filter options:', error);
+    return { success: false, error: error.message || 'Failed to fetch filter options' };
+  }
+};
 
-export async function fetchL3ReportData(sheetUrl: string) {
-    if (!sheetUrl) {
-        return { error: "URL is empty. Please provide a Google Sheet URL." };
-    }
-    const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
-    const match = sheetUrl.match(sheetIdRegex);
-    if (!match || !match[1]) {
-        return { error: 'Invalid Google Sheets URL format.' };
-    }
-    const spreadsheetId = match[1];
-
-    try {
-        const { sheets } = getGoogleApiClients();
-
-        // More efficient: request multiple specific columns in one batchGet call
-        const ranges = [
-            'All Case!B:B', // DATE
-            'All Case!E:E', // CLIENT NAME
-            'All Case!G:G', // STATUS CASE
-            'All Case!J:J', // MODULE
-            'All Case!M:M', // DETAIL CASE
-            'All Case!T:T', // TICKET OP
-            'All Case!W:W', // URL Jira
-        ];
-
-        const response = await sheets.spreadsheets.values.batchGet({
-            spreadsheetId,
-            ranges,
-        });
-
-        const valueRanges = response.data.valueRanges;
-        if (!valueRanges || valueRanges.length === 0) {
-            return { error: 'No data found in the specified columns.' };
-        }
-
-        const [
-            dateValues, clientValues, statusValues, 
-            moduleValues, titleValues, ticketOpValues, jiraValues
-        ] = valueRanges.map(vr => vr.values || []);
-        
-        const numRows = statusValues.length;
-        const l3CasesWithDuration = [];
-        const today = new Date();
-
-        for (let i = 1; i < numRows; i++) { // Start from 1 to skip header
-            const status = statusValues[i]?.[0];
-            if (status === 'L3') {
-                const dateStr = dateValues[i]?.[0];
-                let duration = -1;
-                if (dateStr) {
-                    const parts = dateStr.split('/');
-                    if (parts.length === 3) {
-                        const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`); // DD/MM/YYYY
-                        if (!isNaN(caseDate.getTime())) {
-                            const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                            const caseDateAtMidnight = new Date(caseDate.getFullYear(), caseDate.getMonth(), caseDate.getDate());
-                            const diffTime = Math.abs(todayAtMidnight.getTime() - caseDateAtMidnight.getTime());
-                            duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        }
-                    }
-                }
-
-                const clientName = clientValues[i]?.[0] || '';
-                const moduleValue = moduleValues[i]?.[0] || '';
-                const title = titleValues[i]?.[0] || '';
-                const ticketOp = ticketOpValues[i]?.[0] || '';
-                const jiraUrl = jiraValues[i]?.[0] || '';
-                
-                let category = 'Akademik';
-                if (['Payment', 'Pintro Pay'].includes(moduleValue)) category = 'Payment';
-                else if (moduleValue === 'Aplikasi/Mobile') category = 'Aplikasi/Mobile';
-                else if (moduleValue === 'Akses Portal') category = 'Akses Portal';
-                
-                const fullTitle = [clientName, title, ticketOp, jiraUrl].filter(Boolean).join(' ');
-
-                l3CasesWithDuration.push({ category, title: fullTitle, duration, date: dateStr });
-            }
-        }
-
-        if (l3CasesWithDuration.length === 0) {
-            return { success: true, report: `*Update cases yang belum solved L3 on hold*\n\nTotal : 0` };
-        }
-
-        const groupedCases: Record<string, typeof l3CasesWithDuration> = {};
-        l3CasesWithDuration.forEach(caseItem => {
-            if (!groupedCases[caseItem.category]) groupedCases[caseItem.category] = [];
-            groupedCases[caseItem.category].push(caseItem);
-        });
-        
-        const minDate = l3CasesWithDuration.reduce((min, item) => {
-            if (!item.date) return min;
-            const parts = item.date.split('/');
-            if (parts.length !== 3) return min;
-            const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-            return !min || caseDate < min ? caseDate : min;
-        }, null as Date | null);
-
-        const maxDate = l3CasesWithDuration.reduce((max, item) => {
-            if (!item.date) return max;
-            const parts = item.date.split('/');
-            if (parts.length !== 3) return max;
-            const caseDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-            return !max || caseDate > max ? caseDate : max;
-        }, null as Date | null);
-
-        const formatDate = (date: Date | null) => {
-            if (!date) return '';
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
-        }
-        
-        let reportText = `*Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})*\n\n`;
-        reportText += `Total : ${l3CasesWithDuration.length}\n`;
-        
-        const categoryCounts = Object.entries(groupedCases).map(([category, cases]) => `${category} > L3 : ${cases.length}`).join('\n');
-        reportText += `${categoryCounts}\n\n`;
-
-        Object.entries(groupedCases).forEach(([category, cases]) => {
-            reportText += `*${category.toUpperCase()} > L3*\n`;
-            cases.forEach((caseItem, index) => {
-                const durationText = caseItem.duration >= 0 ? `(${caseItem.duration} hari)` : '';
-                reportText += `${index + 1}. ${caseItem.title} ${durationText}\n`;
-            });
-            reportText += '\n';
-        });
-
-        return { success: true, report: reportText.trim() };
-
-    } catch (error: any) {
-        console.error('Failed to fetch L3 report data:', error.message);
-        const apiError = error.errors?.[0]?.message || 'An unknown error occurred while fetching L3 report.';
-        return { error: `Report Generation Failed: ${apiError}` };
-    }
-}
-
-
-const isRedisConfigured = () => {
-    return !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
-}
-    
-const fetchDashboardDataFromSheet = unstable_cache(
-    async (sheetUrl: string, sheetName: 'All Case') => {
-        if (!sheetUrl) {
-            return { error: "URL is empty. Please provide a Google Sheet URL." };
-        }
-        const sheetIdRegex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
-        const match = sheetUrl.match(sheetIdRegex);
-        if (!match || !match[1]) {
-            return { error: 'Invalid Google Sheets URL format.' };
-        }
-        const spreadsheetId = match[1];
-
-        const { sheets } = getGoogleApiClients();
-
-        const tryFetch = async (name: string) => {
-            const range = `'${name}'!A:Z`;
-            try {
-                const response = await sheets.spreadsheets.values.get({
-                    spreadsheetId,
-                    range,
-                });
-
-                const rows = response.data.values;
-                if (!rows || rows.length === 0) {
-                    return { error: `No data found in the ${name} sheet.` };
-                }
-                const headers = rows.shift();
-                if (!headers) {
-                    return { error: `No headers found in the ${name} sheet.` };
-                }
-                const jsonData = rows.map(row => {
-                    const rowData: Record<string, string> = {};
-                    headers.forEach((header, index) => {
-                        rowData[header] = row[index] || '';
-                    });
-                    return rowData;
-                });
-                return { data: jsonData };
-            } catch (error: any) {
-                if (error.message && error.message.includes('Unable to parse range')) {
-                    return { error: `Sheet '${name}' not found.`, isSheetNotFoundError: true };
-                }
-                throw error;
-            }
-        };
-        
-        if (sheetName === 'All Case') {
-            const primaryName = 'All Case';
-            const fallbackName = 'CASES';
-
-            let result = await tryFetch(primaryName);
-
-            if (result.error && (result as any).isSheetNotFoundError) {
-                console.log(`Sheet '${primaryName}' not found, trying '${fallbackName}'.`);
-                result = await tryFetch(fallbackName);
-            }
-
-            if (result.error && (result as any).isSheetNotFoundError) {
-                 return { error: `Could not find sheet '${primaryName}' or '${fallbackName}'.` };
-            }
-            
-            return result;
-        } else {
-            return await tryFetch(sheetName);
-        }
-    },
-    ['all-case-data-sheet'],
+export async function getDashboardFilterOptions() {
+  const cachedOptions = unstable_cache(
+    async () => _getDashboardFilterOptions(),
+    ['dashboard-filter-options'],
     {
-        tags: ['all-case-data'],
+      tags: ['all-case-data'],
+      revalidate: 3600 // Cache for 1 hour
     }
-);
-
-
-async function syncCache(sheetUrl: string, data: any, cacheKey: string) {
-    if (!isRedisConfigured()) {
-        console.log(`Skipping cache sync for ${cacheKey}: Redis is not configured.`);
-        return { success: true, message: "Skipped: Redis not configured." };
-    }
-
-    try {
-        if (data) {
-            await redis.set(cacheKey, JSON.stringify(data));
-            console.log(`Successfully synchronized ${cacheKey} to Redis cache.`);
-            return { success: true, message: 'Cache synchronized.' };
-        }
-        return { success: false, error: `No data provided to sync for ${cacheKey}.` };
-    } catch (error: any) {
-        console.error(`An unexpected error occurred during cache synchronization for ${cacheKey}:`, error);
-        return { success: false, error: error.message || `Unknown error during ${cacheKey} sync.` };
-    }
+  );
+  
+  return cachedOptions();
 }
 
-export async function syncDashboardCache(sheetUrl: string) {
-    const allCaseResult = await fetchDashboardDataFromSheet(sheetUrl, "All Case");
-    
-    const allCaseSync = allCaseResult.data 
-        ? syncCache(sheetUrl, allCaseResult.data, CACHE_KEY_ALL_CASE)
-        : Promise.resolve({ success: false, error: allCaseResult.error });
+// ============================================
+// GET DASHBOARD STATS WITH FILTERS
+// ============================================
 
-    const [allCaseSyncResult] = await Promise.all([allCaseSync]);
-
-    if (!allCaseSyncResult.success) {
-        const error = allCaseSyncResult.error || "Unknown sync error";
-        console.warn(`Cache sync failed: ${error}`);
-        return { success: false, error };
-    }
-    
-    revalidateTag('all-case-data');
-
-    return { success: true, message: "All caches synchronized." };
+interface DashboardFilters {
+  selectedYear: string;
+  categoryFilter: string[];
+  clientFilter: string[];
+  moduleFilter: string[];
+  dateRange?: { from?: Date; to?: Date };
 }
 
-export async function getAllCaseData(sheetUrl: string) {
-    if (isRedisConfigured()) {
-        try {
-            const cachedData = await redis.get(CACHE_KEY_ALL_CASE);
-            if (cachedData) {
-                console.log('Cache hit for All Case data.');
-                return { data: JSON.parse(cachedData as string), source: 'cache' };
-            }
-        } catch (error) {
-            console.warn('Could not read All Case from Redis cache. Falling back to Google Sheets.', error);
-        }
-    }
+const _calculateDashboardStats = async (filters: DashboardFilters) => {
+  try {
+    // Build query with filters using your DB column names
+    let query = supabaseAdmin
+      .from('all_cases')
+      .select(getSelectColumns());
 
-    console.log('Cache miss or Redis not configured. Fetching All Case data from Google Sheets.');
-    const result = await fetchDashboardDataFromSheet(sheetUrl, "All Case");
-
-    if (result.data && isRedisConfigured()) {
-        const syncResult = await syncCache(sheetUrl, result.data, CACHE_KEY_ALL_CASE);
-        if (syncResult.success) {
-            console.log("All Case data synced to cache after fetching from sheet.");
-        }
-    }
-
-    return { ...result, source: 'sheet' };
-}
+    // Apply date range filter (highest priority)
+    if (filters.dateRange?.from) {
+      const fromDate = new Date(filters.dateRange.from);
+      fromDate.setHours(0, 0, 0, 0);
       
-const _calculateDashboardStats = async (filters: {
-    sheetUrl: string;
-    selectedYear: string;
-    categoryFilter: string[];
-    clientFilter: string[];
-    moduleFilter: string[];
-    dateRange?: { from?: Date; to?: Date };
-}) => {
-     // 1. Get raw data
-    const allCaseResult = await getAllCaseData(filters.sheetUrl);
-    if (allCaseResult.error || !allCaseResult.data) {
-        return { error: allCaseResult.error || "No data found." };
-    }
-    
-    const rawData = allCaseResult.data;
+      const toDate = filters.dateRange.to 
+        ? new Date(filters.dateRange.to) 
+        : new Date(filters.dateRange.from);
+      toDate.setHours(23, 59, 59, 999);
 
-    // 2. Helper to find header names
-    const findHeader = (possibleNames: string[]): string | undefined => {
-         if (!rawData[0]) return undefined;
-         const actualHeaders = Object.keys(rawData[0]);
-         for (const name of possibleNames) {
-             const found = actualHeaders.find(header => header.toLowerCase() === name.toLowerCase());
-             if (found) return found;
-         }
-         return undefined;
-    };
-
-    const categoryHeader = findHeader(['KATEGORI', 'Ticket Category', 'Category']);
-    const clientHeader = findHeader(['CLIENT NAME', 'Client Name', 'Client']);
-    const moduleHeader = findHeader(['MODULE', 'Module']);
-    const detailModuleHeader = findHeader(['DETAIL MODUL', 'Detail Module']);
-    const dateHeader = findHeader(['DATE', 'Date']);
-    const statusHeader = findHeader(['STATUS CASE', 'Status Case', 'Status']);
-
-    // 3. Filter data based on input filters
-    let filteredData = rawData;
-    const { dateRange, selectedYear, categoryFilter, clientFilter, moduleFilter } = filters;
-    
-    // Prioritize dateRange filter
-    if (dateRange?.from && dateHeader) {
-        const fromDate = new Date(dateRange.from);
-        fromDate.setHours(0, 0, 0, 0);
-
-        const toDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
-        toDate.setHours(23, 59, 59, 999);
-        
-        filteredData = filteredData.filter(row => {
-            const dateStr = row[dateHeader];
-            if (!dateStr || typeof dateStr !== 'string') return false;
-            
-            let rowDate: Date | null = null;
-            // Check for ISO format first (YYYY-MM-DD)
-            if (/\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-                rowDate = new Date(dateStr);
-            } 
-            // Fallback to DD/MM/YYYY
-            else if (dateStr.includes('/')) {
-                const parts = dateStr.split('/');
-                if (parts.length === 3) {
-                    const day = parseInt(parts[0], 10);
-                    const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
-                    const year = parseInt(parts[2], 10);
-                    if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                        rowDate = new Date(year, month, day);
-                    }
-                }
-            }
-
-            if (!rowDate || isNaN(rowDate.getTime())) {
-                return false;
-            }
-
-            return rowDate >= fromDate && rowDate <= toDate;
-        });
-    } else if (selectedYear !== 'all' && dateHeader) {
-        // Keep existing year filter as fallback
-        filteredData = filteredData.filter(row => {
-            const dateStr = row[dateHeader];
-            if (!dateStr || typeof dateStr !== 'string') return false;
-
-            if (dateStr.includes('/')) {
-                return dateStr.endsWith(`/${selectedYear}`);
-            } else {
-                try {
-                    return new Date(dateStr).getFullYear().toString() === selectedYear;
-                } catch (e) {
-                    return false;
-                }
-            }
-        });
+      query = query
+        .gte('date', fromDate.toISOString())
+        .lte('date', toDate.toISOString());
+    } 
+    // Apply year filter as fallback
+    else if (filters.selectedYear !== 'all') {
+      const yearStart = `${filters.selectedYear}-01-01`;
+      const yearEnd = `${filters.selectedYear}-12-31`;
+      query = query.gte('date', yearStart).lte('date', yearEnd);
     }
 
-    if (filters.categoryFilter.length > 0 && categoryHeader) {
-        filteredData = filteredData.filter(row => filters.categoryFilter.includes(row[categoryHeader]));
-    }
-    if (filters.clientFilter.length > 0 && clientHeader) {
-        filteredData = filteredData.filter(row => filters.clientFilter.includes(row[clientHeader]));
-    }
-    if (filters.moduleFilter.length > 0 && moduleHeader) {
-        filteredData = filteredData.filter(row => filters.moduleFilter.includes(row[moduleHeader]));
+    // Apply category filter (using your DB column name)
+    if (filters.categoryFilter.length > 0) {
+      query = query.in('category_case', filters.categoryFilter);
     }
 
-    // 4. Perform aggregations (the heavy lifting)
-    if (filteredData.length === 0) {
-        return {
-            totalCases: 0,
-            allClients: [],
-            allModules: [],
-            statusCounts: [],
-            solvedVsUnsolved: [],
-            monthlyData: [],
-            totalClients: 0,
-            categoryTrend: 'N/A',
-            totalSolved: 0,
-        };
+    // Apply client filter
+    if (filters.clientFilter.length > 0) {
+      query = query.in('client_name', filters.clientFilter);
     }
 
-    const createFrequencyMap = (data: any[], field: string | undefined) => {
-        if (!field) return {};
-        const frequency: Record<string, number> = {};
-        data.forEach(row => {
-            const value = row[field];
-            if (value) {
-                frequency[value] = (frequency[value] || 0) + 1;
-            }
-        });
-        return frequency;
-    };
-    
-    const clientFrequency = createFrequencyMap(filteredData, clientHeader);
+    // Apply module filter (using your DB column name)
+    if (filters.moduleFilter.length > 0) {
+      query = query.in('module_case', filters.moduleFilter);
+    }
+
+    const { data: dbData, error } = await query;
+
+    if (error) {
+      console.error('Error fetching dashboard stats:', error);
+      return { error: error.message };
+    }
+
+    if (!dbData || dbData.length === 0) {
+      return {
+        totalCases: 0,
+        allClients: [],
+        allModules: [],
+        solvedVsUnsolved: [],
+        monthlyData: [],
+        totalClients: 0,
+        categoryTrend: 'N/A',
+        totalSolved: 0,
+      };
+    }
+
+    // Map to frontend format
+    const filteredData = mapDBArrayToFrontend(dbData as YourDBRow[]);
+
+    // Aggregate client counts
+    const clientFrequency: Record<string, number> = {};
+    filteredData.forEach(row => {
+      if (row.client_name) {
+        clientFrequency[row.client_name] = (clientFrequency[row.client_name] || 0) + 1;
+      }
+    });
     const allClients = Object.entries(clientFrequency)
-        .sort(([, a], [, b]) => b - a)
-        .map(([name, value]) => ({ name, value }));
+      .sort(([, a], [, b]) => b - a)
+      .map(([name, value]) => ({ name, value }));
 
-    const totalClients = Object.keys(clientFrequency).length;
-    
-    const detailModuleFrequency = createFrequencyMap(filteredData, detailModuleHeader);
-    const allModules = Object.entries(detailModuleFrequency)
-        .sort(([, a], [, b]) => b - a)
-        .map(([name, value]) => ({ name, value }));
-    
-    const categoryFrequency = createFrequencyMap(filteredData, categoryHeader);
+    // Aggregate module counts
+    const moduleFrequency: Record<string, number> = {};
+    filteredData.forEach(row => {
+      if (row.detail_module) {
+        moduleFrequency[row.detail_module] = (moduleFrequency[row.detail_module] || 0) + 1;
+      }
+    });
+    const allModules = Object.entries(moduleFrequency)
+      .sort(([, a], [, b]) => b - a)
+      .map(([name, value]) => ({ name, value }));
+
+    // Find trending category
+    const categoryFrequency: Record<string, number> = {};
+    filteredData.forEach(row => {
+      if (row.ticket_category) {
+        categoryFrequency[row.ticket_category] = (categoryFrequency[row.ticket_category] || 0) + 1;
+      }
+    });
     const sortedCategories = Object.entries(categoryFrequency).sort(([,a],[,b]) => b-a);
     const categoryTrend = sortedCategories.length > 0 ? sortedCategories[0][0] : 'N/A';
 
-    const statusFrequency: Record<string, number> = {};
-    if (statusHeader) {
-        filteredData.forEach(row => {
-            const status = String(row[statusHeader] || 'N/A').toUpperCase();
-            statusFrequency[status] = (statusFrequency[status] || 0) + 1;
-        });
-    }
-    
-    const statusCounts = Object.entries(statusFrequency).map(([name, value]) => ({ name, value }));
-
-    const totalSolved = statusFrequency['SOLVED'] || 0;
+    // Count solved vs unsolved
+    const totalSolved = filteredData.filter(row => 
+      row.status?.toUpperCase() === 'SOLVED' || row.status?.toUpperCase() === 'RESOLVED'
+    ).length;
     const unsolvedCount = filteredData.length - totalSolved;
 
-    const solvedVsUnsolved = [
-        { name: 'Solved', value: totalSolved },
-        { name: 'Unsolved', value: unsolvedCount }
-    ];
-
+    // Monthly aggregation
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const monthlyAggregation: Record<string, { "2024": number; "2025": number; "2026": number }> = {};
     months.forEach(month => {
-        monthlyAggregation[month] = { "2024": 0, "2025": 0, "2026": 0 };
+      monthlyAggregation[month] = { "2024": 0, "2025": 0, "2026": 0 };
     });
 
-    if (dateHeader) {
-        filteredData.forEach(row => {
-            const dateStr = row[dateHeader];
-            if (dateStr && typeof dateStr === 'string') {
-                const parts = dateStr.split('/');
-                if (parts.length === 3) {
-                    const monthIndex = parseInt(parts[1], 10) - 1;
-                    const year = parts[2];
-                    if (monthIndex >= 0 && monthIndex < 12 && ['2024', '2025', '2026'].includes(year)) {
-                        const monthName = months[monthIndex];
-                        monthlyAggregation[monthName][year as "2024" | "2025" | "2026"] += 1;
-                    }
-                }
-            }
-        });
-    }
+    filteredData.forEach(row => {
+      if (row.date) {
+        const date = new Date(row.date);
+        const year = date.getFullYear().toString();
+        const monthIndex = date.getMonth();
+        
+        if (['2024', '2025', '2026'].includes(year) && monthIndex >= 0 && monthIndex < 12) {
+          const monthName = months[monthIndex];
+          monthlyAggregation[monthName][year as "2024" | "2025" | "2026"] += 1;
+        }
+      }
+    });
 
     const monthlyData = months.map(month => ({
-        month,
-        ...monthlyAggregation[month]
+      month,
+      ...monthlyAggregation[month]
     }));
 
-    // 5. Return the aggregated stats
     return {
-        totalCases: filteredData.length,
-        allClients,
-        allModules,
-        statusCounts,
-        solvedVsUnsolved,
-        monthlyData,
-        totalClients,
-        categoryTrend,
-        totalSolved,
+      totalCases: filteredData.length,
+      allClients,
+      allModules,
+      solvedVsUnsolved: [
+        { name: 'Solved', value: totalSolved },
+        { name: 'Unsolved', value: unsolvedCount }
+      ],
+      monthlyData,
+      totalClients: Object.keys(clientFrequency).length,
+      categoryTrend,
+      totalSolved,
     };
+
+  } catch (error: any) {
+    console.error('Error calculating dashboard stats:', error);
+    return { error: error.message || 'Failed to calculate stats' };
+  }
 };
 
-export async function getDashboardStats(filters: {
-    sheetUrl: string;
-    selectedYear: string;
-    categoryFilter: string[];
-    clientFilter: string[];
-    moduleFilter: string[];
-    dateRange?: { from?: Date; to?: Date };
-}) {
-     const getCacheKey = (f: typeof filters) => [
-        'dashboard-stats',
-        f.sheetUrl,
-        f.selectedYear,
-        ...(f.categoryFilter || []).sort().join(','),
-        ...(f.clientFilter || []).sort().join(','),
-        ...(f.moduleFilter || []).sort().join(','),
-        f.dateRange?.from?.toISOString() || 'null',
-        f.dateRange?.to?.toISOString() || 'null',
-    ];
+export async function getDashboardStats(filters: DashboardFilters) {
+  const getCacheKey = (f: typeof filters) => [
+    'dashboard-stats',
+    f.selectedYear,
+    ...(f.categoryFilter || []).sort().join(','),
+    ...(f.clientFilter || []).sort().join(','),
+    ...(f.moduleFilter || []).sort().join(','),
+    f.dateRange?.from?.toISOString() || 'null',
+    f.dateRange?.to?.toISOString() || 'null',
+  ];
 
-    const cachedStats = unstable_cache(
-        async () => _calculateDashboardStats(filters),
-        getCacheKey(filters),
-        {
-            tags: ['all-case-data'],
-        }
-    );
+  const cachedStats = unstable_cache(
+    async () => _calculateDashboardStats(filters),
+    getCacheKey(filters),
+    {
+      tags: ['all-case-data'],
+      revalidate: 300 // Cache for 5 minutes
+    }
+  );
 
-    return cachedStats();
+  return cachedStats();
 }
 
+// ============================================
+// FETCH L3 REPORT (if needed)
+// ============================================
 
-const _getDashboardFilterOptions = async (sheetUrl: string) => {
-    const allCaseResult = await getAllCaseData(sheetUrl);
-    if (allCaseResult.error || !allCaseResult.data) {
-        return { error: allCaseResult.error || "No data found." };
+export async function fetchL3ReportData() {
+  try {
+    const { data: l3Cases, error } = await supabaseAdmin
+      .from('all_cases')
+      .select('date, client_name, module_case, detail_case, source_link_op, status_case')
+      .eq('status_case', 'L3')
+      .order('date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching L3 report:', error);
+      return { error: error.message };
     }
-    const data = allCaseResult.data;
 
-    const findHeader = (possibleNames: string[]): string | undefined => {
-         if (!data[0]) return undefined;
-         const actualHeaders = Object.keys(data[0]);
-         for (const name of possibleNames) {
-             const found = actualHeaders.find(header => header.toLowerCase() === name.toLowerCase());
-             if (found) return found;
-         }
-         return undefined;
+    if (!l3Cases || l3Cases.length === 0) {
+      return { success: true, report: `*Update cases yang belum solved L3 on hold*\n\nTotal : 0` };
+    }
+
+    const today = new Date();
+    const l3CasesWithDuration = l3Cases.map(row => {
+      let duration = -1;
+      if (row.date) {
+        const caseDate = new Date(row.date);
+        if (!isNaN(caseDate.getTime())) {
+          const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          const caseDateAtMidnight = new Date(caseDate.getFullYear(), caseDate.getMonth(), caseDate.getDate());
+          const diffTime = Math.abs(todayAtMidnight.getTime() - caseDateAtMidnight.getTime());
+          duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+      }
+
+      let category = 'Akademik';
+      if (['Payment', 'Pintro Pay'].includes(row.module_case || '')) category = 'Payment';
+      else if (row.module_case === 'Aplikasi/Mobile') category = 'Aplikasi/Mobile';
+      else if (row.module_case === 'Akses Portal') category = 'Akses Portal';
+
+      const fullTitle = [row.client_name, row.detail_case, row.source_link_op].filter(Boolean).join(' ');
+
+      return { category, title: fullTitle, duration, date: row.date };
+    });
+
+    // Group by category
+    const groupedCases: Record<string, typeof l3CasesWithDuration> = {};
+    l3CasesWithDuration.forEach(caseItem => {
+      if (!groupedCases[caseItem.category]) groupedCases[caseItem.category] = [];
+      groupedCases[caseItem.category].push(caseItem);
+    });
+
+    // Format report
+    const minDate = l3CasesWithDuration.reduce((min, item) => {
+      if (!item.date) return min;
+      const caseDate = new Date(item.date);
+      return !min || caseDate < min ? caseDate : min;
+    }, null as Date | null);
+
+    const maxDate = l3CasesWithDuration.reduce((max, item) => {
+      if (!item.date) return max;
+      const caseDate = new Date(item.date);
+      return !max || caseDate > max ? caseDate : max;
+    }, null as Date | null);
+
+    const formatDate = (date: Date | null) => {
+      if (!date) return '';
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
     };
 
-    const categoryHeader = findHeader(['KATEGORI', 'Ticket Category', 'Category']);
-    const clientHeader = findHeader(['CLIENT NAME', 'Client Name', 'Client']);
-    const moduleHeader = findHeader(['MODULE', 'Module']);
-    const dateHeader = findHeader(['DATE', 'Date']);
+    let reportText = `*Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})*\n\n`;
+    reportText += `Total : ${l3CasesWithDuration.length}\n`;
 
-    const createOptions = (header: string | undefined) => {
-        if (!header || !data) return [];
-        const values = [...new Set(data.map(row => row[header]).filter(Boolean))];
-        return values.map(val => ({ label: val, value: val }));
-    }
+    const categoryCounts = Object.entries(groupedCases).map(([category, cases]) => `${category} > L3 : ${cases.length}`).join('\n');
+    reportText += `${categoryCounts}\n\n`;
 
-    const years = new Set<string>();
-    if (dateHeader) {
-        data.forEach(row => {
-            const dateStr = row[dateHeader];
-            if (dateStr && typeof dateStr === 'string') {
-                let year: string | undefined;
-                if (dateStr.includes('/')) {
-                    year = dateStr.split('/')[2];
-                } else if (/\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-                    year = dateStr.substring(0, 4);
-                }
-                if (year) years.add(year);
-            }
-        });
-    }
+    Object.entries(groupedCases).forEach(([category, cases]) => {
+      reportText += `*${category.toUpperCase()} > L3*\n`;
+      cases.forEach((caseItem, index) => {
+        const durationText = caseItem.duration >= 0 ? `(${caseItem.duration} hari)` : '';
+        reportText += `${index + 1}. ${caseItem.title} ${durationText}\n`;
+      });
+      reportText += '\n';
+    });
 
-    return {
-        success: true,
-        data: {
-            categories: createOptions(categoryHeader),
-            clients: createOptions(clientHeader),
-            modules: createOptions(moduleHeader),
-            years: Array.from(years).sort((a, b) => parseInt(b) - parseInt(a))
-        }
-    }
+    return { success: true, report: reportText.trim() };
+
+  } catch (error: any) {
+    console.error('Failed to fetch L3 report:', error);
+    return { error: error.message || 'Failed to fetch L3 report' };
+  }
 }
-
-export async function getDashboardFilterOptions(sheetUrl: string) {
-    const getCacheKey = (url: string) => ['dashboard-filter-options', url];
-
-    const cachedOptions = unstable_cache(
-        async () => _getDashboardFilterOptions(sheetUrl),
-        getCacheKey(sheetUrl),
-        {
-            tags: ['all-case-data'],
-        }
-    );
-    
-    return cachedOptions();
-}
-      
-
-
-
-
-
-    
-
-
-
-    

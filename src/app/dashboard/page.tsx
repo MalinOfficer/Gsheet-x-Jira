@@ -1,25 +1,27 @@
+// src/app/dashboard/page.tsx
 
-import { cookies } from 'next/headers';
 import { Dashboard } from '@/components/dashboard';
-import { getDashboardStats, getDashboardFilterOptions } from '@/app/actions';
+import { getDashboardStats, getDashboardFilterOptions } from '@/app/supabase-actions';
 
-const DEFAULT_DB_SHEET_URL = 'https://docs.google.com/spreadsheets/d/17IreWvSgn3gr-kUmvI4-nOhqOYm9tJtUkwzPxo2wODU/edit?usp=drive_link';
+// ✅ FIXED: Force dynamic rendering and no caching for real-time data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function DashboardPage() {
-    const cookieStore = cookies();
-    const dbSheetUrl = cookieStore.get('gsheetDashboardDbSheetUrl')?.value || DEFAULT_DB_SHEET_URL;
-
+    // ✅ FIXED: Removed cookie logic and dbSheetUrl - not needed with Supabase
+    
     // Fetch initial data in parallel on the server
     const [statsResult, optionsResult] = await Promise.all([
+        // ✅ FIXED: Removed sheetUrl parameter
         getDashboardStats({ 
-            sheetUrl: dbSheetUrl, 
             selectedYear: 'all', 
             categoryFilter: [], 
             clientFilter: [], 
             moduleFilter: [], 
             dateRange: undefined 
         }),
-        getDashboardFilterOptions(dbSheetUrl)
+        // ✅ FIXED: Removed sheetUrl parameter
+        getDashboardFilterOptions()
     ]);
     
     const error = statsResult.error || optionsResult.error;
