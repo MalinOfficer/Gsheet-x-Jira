@@ -17,10 +17,12 @@ import {
 
 export async function getAllCaseData() {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error, count } = await supabaseAdmin
       .from('all_cases')
-      .select(getSelectColumns())
-      .order('date', { ascending: false });
+      .select(getSelectColumns(), { count: 'exact' })
+      .order('date', { ascending: false })
+      .range(0, 9999); // Fetch up to 10000 rows, adjust if needed
+
 
     if (error) {
       console.error('Error fetching all cases:', error);
@@ -30,7 +32,7 @@ export async function getAllCaseData() {
     // Map DB format to Frontend expected format
     const mappedData = mapDBArrayToFrontend(data as YourDBRow[]);
 
-    return { data: mappedData, source: 'supabase' };
+    return { data: mappedData, source: 'supabase', count: count };
   } catch (error: any) {
     console.error('Unexpected error fetching all cases:', error);
     return { error: error.message || 'Failed to fetch cases data' };
@@ -42,7 +44,11 @@ export async function getAllCaseData() {
 // ============================================
 
 export async function refreshDashboardViews() {
-  // Since we don't have materialized views, just revalidate cache
+  // This function is intended to refresh materialized views if they exist.
+  // For now, it just revalidates the cache.
+  // If you create an RPC function in Supabase (e.g., `refresh_dashboard_views`), you can call it here.
+  // Example: await supabaseAdmin.rpc('refresh_dashboard_views');
+  
   revalidateTag('all-case-data');
   return { success: true, message: 'Cache refreshed successfully' };
 }
@@ -58,53 +64,36 @@ export async function syncDashboardCache() {
 
 const _getDashboardFilterOptions = async () => {
   try {
-    // Get all unique categories
-    const { data: categories } = await supabaseAdmin
-      .from('all_cases')
-      .select('category_case')
-      .not('category_case', 'is', null)
-      .not('category_case', 'eq', '');
+    // Fetch all rows to ensure complete filter options
+    const { data, error } = await supabaseAdmin
+        .from('all_cases')
+        .select('category_case, client_name, module_case, date')
+        .range(0, 20000); // Adjust range if you have more than 20000 cases
 
-    // Get all unique clients
-    const { data: clients } = await supabaseAdmin
-      .from('all_cases')
-      .select('client_name')
-      .not('client_name', 'is', null)
-      .not('client_name', 'eq', '');
+    if (error) {
+        throw error;
+    }
 
-    // Get all unique modules
-    const { data: modules } = await supabaseAdmin
-      .from('all_cases')
-      .select('module_case')
-      .not('module_case', 'is', null)
-      .not('module_case', 'eq', '');
-
-    // Get all unique years from dates
-    const { data: dates } = await supabaseAdmin
-      .from('all_cases')
-      .select('date')
-      .not('date', 'is', null);
-
-    const uniqueCategories = [...new Set(categories?.map(c => c.category_case))];
-    const uniqueClients = [...new Set(clients?.map(c => c.client_name))];
-    const uniqueModules = [...new Set(modules?.map(m => m.module_case))];
+    const uniqueCategories = [...new Set(data.map(c => c.category_case).filter(Boolean))];
+    const uniqueClients = [...new Set(data.map(c => c.client_name).filter(Boolean))];
+    const uniqueModules = [...new Set(data.map(m => m.module_case).filter(Boolean))];
     
     const years = new Set<string>();
-    dates?.forEach(d => {
-      if (d.date) {
-        const year = new Date(d.date).getFullYear().toString();
-        years.add(year);
-      }
+    data.forEach(d => {
+        if (d.date) {
+            const year = new Date(d.date).getFullYear().toString();
+            years.add(year);
+        }
     });
 
     return {
-      success: true,
-      data: {
-        categories: uniqueCategories.map(c => ({ label: c, value: c })),
-        clients: uniqueClients.map(c => ({ label: c, value: c })),
-        modules: uniqueModules.map(m => ({ label: m, value: m })),
-        years: Array.from(years).sort((a, b) => parseInt(b) - parseInt(a))
-      }
+        success: true,
+        data: {
+            categories: uniqueCategories.map(c => ({ label: c, value: c })),
+            clients: uniqueClients.map(c => ({ label: c, value: c })),
+            modules: uniqueModules.map(m => ({ label: m, value: m })),
+            years: Array.from(years).sort((a, b) => parseInt(b) - parseInt(a))
+        }
     };
   } catch (error: any) {
     console.error('Error fetching filter options:', error);
@@ -139,145 +128,44 @@ interface DashboardFilters {
 
 const _calculateDashboardStats = async (filters: DashboardFilters) => {
   try {
-    // Build query with filters using your DB column names
-    let query = supabaseAdmin
-      .from('all_cases')
-      .select(getSelectColumns());
+    // Parallel fetch from all dashboard views. This is much faster.
+    const [summaryRes, monthlyRes, clientsRes, modulesRes] = await Promise.all([
+      supabaseAdmin.from('dashboard_summary').select('*').single(),
+      supabaseAdmin.from('dashboard_stats_monthly').select('*'),
+      supabaseAdmin.from('dashboard_clients_rank').select('name, value'),
+      supabaseAdmin.from('dashboard_modules_rank').select('module, value'),
+    ]);
 
-    // Apply date range filter (highest priority)
-    if (filters.dateRange?.from) {
-      const fromDate = new Date(filters.dateRange.from);
-      fromDate.setHours(0, 0, 0, 0);
-      
-      const toDate = filters.dateRange.to 
-        ? new Date(filters.dateRange.to) 
-        : new Date(filters.dateRange.from);
-      toDate.setHours(23, 59, 59, 999);
+    // Error handling for each request
+    if (summaryRes.error) throw new Error(`Database error in dashboard_summary: ${summaryRes.error.message}`);
+    if (monthlyRes.error) throw new Error(`Database error in dashboard_stats_monthly: ${monthlyRes.error.message}`);
+    if (clientsRes.error) throw new Error(`Database error in dashboard_clients_rank: ${clientsRes.error.message}`);
+    if (modulesRes.error) throw new Error(`Database error in dashboard_modules_rank: ${modulesRes.error.message}`);
 
-      query = query
-        .gte('date', fromDate.toISOString())
-        .lte('date', toDate.toISOString());
-    } 
-    // Apply year filter as fallback
-    else if (filters.selectedYear !== 'all') {
-      const yearStart = `${filters.selectedYear}-01-01`;
-      const yearEnd = `${filters.selectedYear}-12-31`;
-      query = query.gte('date', yearStart).lte('date', yearEnd);
-    }
+    const summaryData = summaryRes.data;
+    const monthlyData = monthlyRes.data || [];
+    const clientsData = clientsRes.data || [];
+    const modulesData = modulesRes.data || [];
 
-    // Apply category filter (using your DB column name)
-    if (filters.categoryFilter.length > 0) {
-      query = query.in('category_case', filters.categoryFilter);
-    }
-
-    // Apply client filter
-    if (filters.clientFilter.length > 0) {
-      query = query.in('client_name', filters.clientFilter);
-    }
-
-    // Apply module filter (using your DB column name)
-    if (filters.moduleFilter.length > 0) {
-      query = query.in('module_case', filters.moduleFilter);
-    }
-
-    const { data: dbData, error } = await query;
-
-    if (error) {
-      console.error('Error fetching dashboard stats:', error);
-      return { error: error.message };
-    }
-
-    if (!dbData || dbData.length === 0) {
-      return {
-        totalCases: 0,
-        allClients: [],
-        allModules: [],
-        solvedVsUnsolved: [],
-        monthlyData: [],
-        totalClients: 0,
-        categoryTrend: 'N/A',
-        totalSolved: 0,
-      };
-    }
-
-    // Map to frontend format
-    const filteredData = mapDBArrayToFrontend(dbData as YourDBRow[]);
-
-    // Aggregate client counts
-    const clientFrequency: Record<string, number> = {};
-    filteredData.forEach(row => {
-      if (row.client_name) {
-        clientFrequency[row.client_name] = (clientFrequency[row.client_name] || 0) + 1;
-      }
-    });
-    const allClients = Object.entries(clientFrequency)
-      .sort(([, a], [, b]) => b - a)
-      .map(([name, value]) => ({ name, value }));
-
-    // Aggregate module counts
-    const moduleFrequency: Record<string, number> = {};
-    filteredData.forEach(row => {
-      if (row.detail_module) {
-        moduleFrequency[row.detail_module] = (moduleFrequency[row.detail_module] || 0) + 1;
-      }
-    });
-    const allModules = Object.entries(moduleFrequency)
-      .sort(([, a], [, b]) => b - a)
-      .map(([name, value]) => ({ name, value }));
-
-    // Find trending category
-    const categoryFrequency: Record<string, number> = {};
-    filteredData.forEach(row => {
-      if (row.ticket_category) {
-        categoryFrequency[row.ticket_category] = (categoryFrequency[row.ticket_category] || 0) + 1;
-      }
-    });
-    const sortedCategories = Object.entries(categoryFrequency).sort(([,a],[,b]) => b-a);
-    const categoryTrend = sortedCategories.length > 0 ? sortedCategories[0][0] : 'N/A';
-
-    // Count solved vs unsolved
-    const totalSolved = filteredData.filter(row => 
-      row.status?.toUpperCase() === 'SOLVED' || row.status?.toUpperCase() === 'RESOLVED'
-    ).length;
-    const unsolvedCount = filteredData.length - totalSolved;
-
-    // Monthly aggregation
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const monthlyAggregation: Record<string, { "2024": number; "2025": number; "2026": number }> = {};
-    months.forEach(month => {
-      monthlyAggregation[month] = { "2024": 0, "2025": 0, "2026": 0 };
-    });
-
-    filteredData.forEach(row => {
-      if (row.date) {
-        const date = new Date(row.date);
-        const year = date.getFullYear().toString();
-        const monthIndex = date.getMonth();
-        
-        if (['2024', '2025', '2026'].includes(year) && monthIndex >= 0 && monthIndex < 12) {
-          const monthName = months[monthIndex];
-          monthlyAggregation[monthName][year as "2024" | "2025" | "2026"] += 1;
-        }
-      }
-    });
-
-    const monthlyData = months.map(month => ({
-      month,
-      ...monthlyAggregation[month]
+    // Map modules data to expected format for the chart
+    const allModules = modulesData.map(item => ({
+      name: item.module,
+      value: item.value
     }));
-
+    
+    // Consolidate data for the frontend
     return {
-      totalCases: filteredData.length,
-      allClients,
-      allModules,
+      totalCases: summaryData?.total_cases ?? 0,
+      totalClients: summaryData?.total_clients ?? 0,
+      totalSolved: summaryData?.total_solved ?? 0,
+      categoryTrend: summaryData?.trending_category ?? 'N/A',
       solvedVsUnsolved: [
-        { name: 'Solved', value: totalSolved },
-        { name: 'Unsolved', value: unsolvedCount }
+        { name: 'Solved', value: summaryData?.total_solved ?? 0 },
+        { name: 'Unsolved', value: (summaryData?.total_cases ?? 0) - (summaryData?.total_solved ?? 0) }
       ],
       monthlyData,
-      totalClients: Object.keys(clientFrequency).length,
-      categoryTrend,
-      totalSolved,
+      allClients: clientsData,
+      allModules,
     };
 
   } catch (error: any) {
@@ -288,7 +176,7 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
 
 export async function getDashboardStats(filters: DashboardFilters) {
   const getCacheKey = (f: typeof filters) => [
-    'dashboard-stats',
+    'dashboard-stats-v3', // Incremented cache key
     f.selectedYear,
     ...(f.categoryFilter || []).sort().join(','),
     ...(f.clientFilter || []).sort().join(','),
