@@ -1,3 +1,4 @@
+
 "use client";
 
 import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon } from "lucide-react";
@@ -10,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { useContext, useState, useEffect, useTransition, useCallback, useMemo, useRef } from "react";
 import { TableDataContext } from "@/store/table-data-context";
-import { Area, AreaChart, Legend } from 'recharts';
+import { Area, AreaChart, Legend, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { getDashboardStats, getDashboardFilterOptions, refreshDashboardViews } from "@/app/actions";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,9 +29,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Separator } from "./ui/separator";
 
 const chartConfig = {
-  "2026": { label: "2026", color: "hsl(var(--chart-1))" },
-  "2025": { label: "2025", color: "hsl(var(--chart-2))" },
-  "2024": { label: "2024", color: "hsl(var(--chart-3))" },
   solved: { label: "Solved", color: "hsl(var(--chart-2))" },
   unsolved: { label: "Unsolved", color: "hsl(var(--chart-5))" },
   L1: { label: "L1", color: "hsl(var(--chart-1))" },
@@ -86,6 +84,25 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [clientFilter, setClientFilter] = useState<string[]>([]);
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+    const { chartKeys, dynamicChartConfig } = useMemo(() => {
+        if (!filterOptions?.years) {
+            return { chartKeys: [], dynamicChartConfig: chartConfig };
+        }
+
+        const years = filterOptions.years.sort((a, b) => parseInt(b) - parseInt(a));
+        const chartColors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+
+        const newConfig: ChartConfig = {};
+        years.forEach((year, index) => {
+            newConfig[year] = {
+                label: year,
+                color: chartColors[index % chartColors.length],
+            };
+        });
+
+        return { chartKeys: years, dynamicChartConfig: { ...chartConfig, ...newConfig } };
+    }, [filterOptions?.years]);
 
     useEffect(() => {
         setIsProcessing(isApplyingFilters);
@@ -371,27 +388,42 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                            <AreaChart data={stats.monthlyData} margin={{ left: 12, right: 20, top: 10, bottom: 10 }}>
+                       <ChartContainer config={dynamicChartConfig} className="h-[250px] w-full">
+                            <AreaChart data={stats.monthlyData} margin={{ left: 0, right: 20, top: 10, bottom: 10 }}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                <XAxis
+                                    dataKey="month"
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickMargin={8}
+                                    tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : ''}
+                                />
+                                <YAxis
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickMargin={8}
+                                    tickCount={5}
+                                />
                                 <defs>
-                                    <linearGradient id="fill2026" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.1} />
-                                    </linearGradient>
-                                    <linearGradient id="fill2025" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0.1} />
-                                    </linearGradient>
-                                    <linearGradient id="fill2024" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0.1} />
-                                    </linearGradient>
+                                    {chartKeys.map((year) => (
+                                        <linearGradient key={year} id={`fill${year}`} x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={dynamicChartConfig[year]?.color} stopOpacity={0.8} />
+                                            <stop offset="95%" stopColor={dynamicChartConfig[year]?.color} stopOpacity={0.1} />
+                                        </linearGradient>
+                                    ))}
                                 </defs>
                                 <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
                                 <Legend />
-                                <Area dataKey="2026" type="monotone" fill="url(#fill2026)" stroke="hsl(var(--chart-1))" strokeWidth={2} />
-                                <Area dataKey="2025" type="monotone" fill="url(#fill2025)" stroke="hsl(var(--chart-2))" strokeWidth={2} />
-                                <Area dataKey="2024" type="monotone" fill="url(#fill2024)" stroke="hsl(var(--chart-3))" strokeWidth={2} />
+                                {chartKeys.map((year) => (
+                                     <Area 
+                                        key={year}
+                                        dataKey={year} 
+                                        type="monotone" 
+                                        fill={`url(#fill${year})`}
+                                        stroke={dynamicChartConfig[year]?.color} 
+                                        strokeWidth={2} 
+                                    />
+                                ))}
                             </AreaChart>
                         </ChartContainer>
                     </CardContent>
@@ -471,3 +503,5 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         </div>
     );
 }
+
+    
