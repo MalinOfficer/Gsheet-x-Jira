@@ -44,14 +44,18 @@ const chartConfig = {
 } satisfies ChartConfig
 
 type DashboardStats = {
-    totalCases: number;
-    allClients: { name: string; value: number }[];
-    allModules: { name: string; value: number }[];
-    solvedVsUnsolved: { name: string; value: number }[];
-    monthlyData: any[];
-    totalClients: number;
-    categoryTrend: string;
-    totalSolved: number;
+    summary: {
+        total_cases: number;
+        total_solved: number;
+        total_clients: number;
+        solved_percentage: number;
+        trending_category: string;
+        top_client: string;
+        top_module: string;
+    };
+    monthly_stats: any[];
+    client_rankings: { name: string; value: number }[];
+    module_rankings: { name: string; value: number }[];
 };
 
 type FilterOptions = {
@@ -86,12 +90,12 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
     const { chartKeys, dynamicChartConfig } = useMemo(() => {
-        if (!stats?.monthlyData || stats.monthlyData.length === 0) {
+        if (!stats?.monthly_stats || stats.monthly_stats.length === 0) {
             return { chartKeys: [], dynamicChartConfig: chartConfig };
         }
         
         const keys = new Set<string>();
-        stats.monthlyData.forEach(monthData => {
+        stats.monthly_stats.forEach(monthData => {
             Object.keys(monthData).forEach(key => {
                 if (/^\d{4}$/.test(key)) { // Find keys that are 4-digit years
                     keys.add(key);
@@ -112,7 +116,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         });
 
         return { chartKeys: sortedKeys, dynamicChartConfig: { ...chartConfig, ...newConfig } };
-    }, [stats?.monthlyData]);
+    }, [stats?.monthly_stats]);
 
     useEffect(() => {
         setIsProcessing(isApplyingFilters || isRefreshing);
@@ -265,9 +269,9 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         );
     }
     
-    const { allClients, allModules } = stats;
-    const maxClientValue = allClients.length > 0 ? allClients[0].value : 1;
-    const maxModuleValue = allModules.length > 0 ? allModules[0].value : 1;
+    const { client_rankings, module_rankings } = stats;
+    const maxClientValue = client_rankings.length > 0 ? client_rankings[0].value : 1;
+    const maxModuleValue = module_rankings.length > 0 ? module_rankings[0].value : 1;
 
     return (
         <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -280,7 +284,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             <BarChartIcon className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold">{stats.totalCases}</div>
+                            <div className="text-3xl font-bold">{stats.summary.total_cases}</div>
                         </CardContent>
                     </Card>
                     <Card>
@@ -289,7 +293,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             <FolderKanban className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold truncate">{stats.categoryTrend}</div>
+                            <div className="text-3xl font-bold truncate">{stats.summary.trending_category}</div>
                         </CardContent>
                     </Card>
                     <Card>
@@ -299,10 +303,10 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-baseline gap-2">
-                                <div className="text-3xl font-bold">{stats.totalSolved}</div>
-                                {stats.totalCases > 0 && (
+                                <div className="text-3xl font-bold">{stats.summary.total_solved}</div>
+                                {stats.summary.total_cases > 0 && (
                                     <span className="text-sm font-medium text-green-600 bg-card border border-green-300 dark:border-green-700 rounded-full px-2 py-0.5">
-                                        {((stats.totalSolved / stats.totalCases) * 100).toFixed(1)}%
+                                        {stats.summary.solved_percentage?.toFixed(1)}%
                                     </span>
                                 )}
                             </div>
@@ -314,7 +318,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold">{stats.totalClients}</div>
+                            <div className="text-3xl font-bold">{stats.summary.total_clients}</div>
                         </CardContent>
                     </Card>
                 </div>
@@ -426,7 +430,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </CardHeader>
                     <CardContent>
                        <ChartContainer config={dynamicChartConfig} className="h-[250px] w-full">
-                            <AreaChart data={stats.monthlyData} margin={{ left: 0, right: 20, top: 10, bottom: 10 }}>
+                            <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 10 }}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                 <XAxis
                                     dataKey="month"
@@ -474,7 +478,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         <CardContent>
                             <ScrollArea className="h-48 pr-4">
                                 <div className="space-y-4">
-                                    {allClients.map((item, index) => (
+                                    {client_rankings.map((item, index) => (
                                         <TooltipProvider key={index} delayDuration={0}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
@@ -508,7 +512,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         <CardContent>
                             <ScrollArea className="h-48 pr-4">
                                 <div className="space-y-4">
-                                    {allModules.map((item, index) => (
+                                    {module_rankings.map((item, index) => (
                                         <TooltipProvider key={index} delayDuration={0}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>

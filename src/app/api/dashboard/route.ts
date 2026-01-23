@@ -48,14 +48,18 @@ export async function GET(request: Request) {
              return NextResponse.json({
                 success: true,
                 data: {
-                    totalCases: 0,
-                    totalSolved: 0,
-                    totalClients: 0,
-                    categoryTrend: 'N/A',
-                    monthlyData: [],
-                    allClients: [],
-                    allModules: [],
-                    solvedVsUnsolved: [{ name: 'Solved', value: 0 }, { name: 'Unsolved', value: 0 }]
+                    summary: {
+                        total_cases: 0,
+                        total_solved: 0,
+                        total_clients: 0,
+                        solved_percentage: 0,
+                        trending_category: 'N/A',
+                        top_client: 'N/A',
+                        top_module: 'N/A'
+                    },
+                    monthly_stats: [],
+                    client_rankings: [],
+                    module_rankings: []
                 }
             });
         }
@@ -63,17 +67,18 @@ export async function GET(request: Request) {
         const result = data[0];
         
         const mappedData = {
-            totalCases: result.total_cases ?? 0,
-            totalSolved: result.total_solved ?? 0,
-            totalClients: result.total_clients ?? 0,
-            categoryTrend: result.trending_category ?? 'N/A',
-            monthlyData: result.monthly_stats ?? [],
-            allClients: (result.client_rankings ?? []).map((c: { name: string; value: number; }) => ({ name: c.name, value: c.value })),
-            allModules: (result.module_rankings ?? []).map((m: { name: string; value: number; }) => ({ name: m.name, value: m.value })),
-            solvedVsUnsolved: [
-              { name: 'Solved', value: result.total_solved ?? 0 },
-              { name: 'Unsolved', value: (result.total_cases ?? 0) - (result.total_solved ?? 0) },
-            ],
+            summary: {
+                total_cases: result.total_cases ?? 0,
+                total_solved: result.total_solved ?? 0,
+                total_clients: result.total_clients ?? 0,
+                solved_percentage: result.solved_percentage ?? 0,
+                trending_category: result.trending_category ?? 'N/A',
+                top_client: result.top_client ?? 'N/A',
+                top_module: result.top_module ?? 'N/A'
+            },
+            monthly_stats: result.monthly_stats ?? [],
+            client_rankings: result.client_rankings ?? [],
+            module_rankings: result.module_rankings ?? [],
         };
 
         return NextResponse.json({
