@@ -40,7 +40,9 @@ export async function GET(request: Request) {
             throw error;
         }
 
-        if (!data || data.length === 0) {
+        const noDataReturned = !data || data.length === 0 || data[0].total_cases === null;
+
+        if (noDataReturned) {
              return NextResponse.json({
                 success: true,
                 data: {
