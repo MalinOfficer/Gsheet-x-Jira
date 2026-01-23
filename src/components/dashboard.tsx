@@ -93,25 +93,20 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         const keys = new Set<string>();
         stats.monthlyData.forEach(monthData => {
             Object.keys(monthData).forEach(key => {
-                if (key.startsWith('year_')) {
+                if (/^\d{4}$/.test(key)) { // Find keys that are 4-digit years
                     keys.add(key);
                 }
             });
         });
         
-        const sortedKeys = Array.from(keys).sort((a, b) => {
-            const numA = parseInt(a.split('_')[1] || '0');
-            const numB = parseInt(b.split('_')[1] || '0');
-            return numA - numB;
-        });
+        const sortedKeys = Array.from(keys).sort((a, b) => parseInt(a) - parseInt(b));
 
         const chartColors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
         const newConfig: ChartConfig = {};
         sortedKeys.forEach((key, index) => {
-            const yearNumber = key.split('_')[1] || '';
             newConfig[key] = {
-                label: `Year ${yearNumber}`,
+                label: key, // The label is the year itself, e.g. "2024"
                 color: chartColors[index % chartColors.length],
             };
         });

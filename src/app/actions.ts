@@ -128,7 +128,7 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
       supabaseAdmin.from('dashboard_modules_rank').select('detail_module, total_cases'),
     ]);
 
-    if (summaryRes.error) throw new Error(`Database error in dashboard_summary: ${summaryRes.error.message}`);
+    if (summaryRes.error) console.warn(`Database error in dashboard_summary: ${summaryRes.error.message}`);
     if (monthlyRes.error) throw new Error(`Database error in dashboard_stats_monthly: ${monthlyRes.error.message}`);
     if (clientsRes.error) throw new Error(`Database error in dashboard_clients_rank: ${clientsRes.error.message}`);
     if (modulesRes.error) throw new Error(`Database error in dashboard_modules_rank: ${modulesRes.error.message}`);
@@ -145,9 +145,9 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
         const monthData: { [key: string]: any } = {
             month: row.month_label || 'Unknown'
         };
-        // Find all columns like 'year_1', 'year_2', etc. and add them
+        // Find all columns that are years (e.g., "2024", "2025")
         for (const key in row) {
-            if (key.startsWith('year_')) {
+            if (/^\d{4}$/.test(key)) { // Checks if the key is a 4-digit string
                 monthData[key] = row[key];
             }
         }
