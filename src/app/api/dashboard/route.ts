@@ -23,19 +23,15 @@ export async function GET(request: Request) {
         const clientFilter = searchParams.get('clientFilter');
         const moduleFilter = searchParams.get('moduleFilter');
 
+        // Pass filter strings directly to the RPC, as the Postgres function likely handles parsing.
         const params: { [key: string]: any } = {
             p_start_date: dateRange?.from ? new Date(dateRange.from).toISOString() : null,
             p_end_date: dateRange?.to ? new Date(dateRange.to).toISOString() : null,
             p_year: (year && year !== 'all') ? parseInt(year, 10) : null,
-            p_category: categoryFilter ? categoryFilter.split(',').filter(i => i) : null,
-            p_client: clientFilter ? clientFilter.split(',').filter(i => i) : null,
-            p_module: moduleFilter ? moduleFilter.split(',').filter(i => i) : null,
+            p_category: categoryFilter || null,
+            p_client: clientFilter || null,
+            p_module: moduleFilter || null,
         };
-        
-        if (params.p_category && params.p_category.length === 0) params.p_category = null;
-        if (params.p_client && params.p_client.length === 0) params.p_client = null;
-        if (params.p_module && params.p_module.length === 0) params.p_module = null;
-
 
         const { data, error } = await supabaseAdmin.rpc('fn_dashboard_filtered', params);
 
