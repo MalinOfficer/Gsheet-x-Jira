@@ -13,7 +13,7 @@ import { useContext, useState, useEffect, useTransition, useCallback, useMemo, u
 import { TableDataContext } from "@/store/table-data-context";
 import { Area, AreaChart, Legend, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { getDashboardStats, getDashboardFilterOptions, refreshDashboardViews } from "@/app/actions";
+import { getDashboardFilterOptions, refreshDashboardViews } from "@/app/actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -136,51 +136,66 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         setDateRange(undefined);
     };
 
-    // Effect to re-fetch stats when filters change
+    const fetcher = useCallback(async (filters: any) => {
+        const params = new URLSearchParams();
+        if (filters.dateRange) params.append('dateRange', JSON.stringify(filters.dateRange));
+        params.append('selectedYear', filters.selectedYear);
+        params.append('categoryFilter', filters.categoryFilter.join(','));
+        params.append('clientFilter', filters.clientFilter.join(','));
+        params.append('moduleFilter', filters.moduleFilter.join(','));
+        
+        const response = await fetch(`/api/dashboard?${params.toString()}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to fetch dashboard data: ${response.status} ${errorText}`);
+        }
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'An unknown error occurred');
+        }
+        return result.data;
+    }, []);
+
+    // Effect to fetch data
     useEffect(() => {
-        if (isInitialMount.current) {
+        if (isInitialMount.current && initialStats) {
             isInitialMount.current = false;
             return;
         }
+        isInitialMount.current = false;
 
         startApplyingFilters(async () => {
             setError(null);
-            const statsResult = await getDashboardStats({ 
-                selectedYear, 
-                categoryFilter, 
-                clientFilter, 
-                moduleFilter, 
-                dateRange 
-            });
-
-            if (statsResult.error) {
-                setError(statsResult.error);
+            try {
+                const data = await fetcher({ selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange });
+                setStats(data);
+            } catch (err: any) {
+                setError(err.message);
                 setStats(null);
-                 toast({
+                toast({
                     variant: "destructive",
-                    title: "Could not apply filters",
-                    description: statsResult.error,
+                    title: "Could not load dashboard data",
+                    description: err.message,
                 });
-            } else {
-                setStats(statsResult as DashboardStats);
             }
         });
-        
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange]);
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, fetcher, initialStats, toast]);
 
     const handleRefresh = useCallback(() => {
         setIsRefreshing(true);
         toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
         
         refreshDashboardViews().then(() => {
-             getDashboardStats({ selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange }).then((statsResult) => {
-                 if (statsResult.error) {
-                    setError(statsResult.error);
+             // Re-fetch data using the current filter state
+             fetcher({ selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange })
+                .then(data => setStats(data))
+                .catch(err => {
+                    setError(err.message);
                     setStats(null);
-                 } else {
-                    setStats(statsResult as DashboardStats);
-                 }
-             });
+                })
+                .finally(() => setIsRefreshing(false));
+                
+             // Also refresh filter options
              getDashboardFilterOptions().then((optionsResult) => {
                 if (optionsResult.error || !optionsResult.data) {
                     console.error("Could not load filter options:", optionsResult.error);
@@ -189,10 +204,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     setFilterOptions(optionsResult.data);
                 }
              });
-        }).finally(() => {
-            setIsRefreshing(false);
         });
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, toast, dateRange]);
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, fetcher, toast]);
 
     if (isApplyingFilters && !stats) {
         return (

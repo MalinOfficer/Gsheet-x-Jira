@@ -1,7 +1,7 @@
 // src/app/dashboard/page.tsx
 
 import { Dashboard } from '@/components/dashboard';
-import { getDashboardStats, getDashboardFilterOptions } from '@/app/actions';
+import { getDashboardFilterOptions } from '@/app/actions';
 
 // ✅ Force dynamic rendering and no caching for real-time data
 export const dynamic = 'force-dynamic';
@@ -9,24 +9,15 @@ export const revalidate = 0;
 
 export default async function DashboardPage() {
     
-    // Fetch initial data in parallel on the server
-    const [statsResult, optionsResult] = await Promise.all([
-        getDashboardStats({ 
-            selectedYear: 'all', 
-            categoryFilter: [], 
-            clientFilter: [], 
-            moduleFilter: [], 
-            dateRange: undefined 
-        }),
-        getDashboardFilterOptions()
-    ]);
+    // Only fetch filter options on the server. Stats will be fetched on the client.
+    const optionsResult = await getDashboardFilterOptions();
     
-    const error = statsResult.error || optionsResult.error;
+    const error = optionsResult.error;
 
     return (
         <main>
             <Dashboard
-                initialStats={statsResult.error ? null : statsResult}
+                initialStats={null} // Pass null, client will fetch.
                 initialOptions={optionsResult.error || !optionsResult.data ? null : optionsResult.data}
                 error={error}
             />
