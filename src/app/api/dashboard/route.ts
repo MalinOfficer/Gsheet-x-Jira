@@ -24,14 +24,21 @@ export async function GET(request: Request) {
         const clientFilter = searchParams.get('clientFilter');
         const moduleFilter = searchParams.get('moduleFilter');
 
-        const params = {
+        const params: { [key: string]: any } = {
             p_start_date: dateRange?.from ? dateRange.from.toISOString().split('T')[0] : null,
             p_end_date: dateRange?.to ? dateRange.to.toISOString().split('T')[0] : null,
-            p_year: (year && year !== 'all') ? parseInt(year, 10) : null,
             p_category: categoryFilter || null,
             p_client: clientFilter || null,
             p_module: moduleFilter || null,
         };
+
+        // Hanya tambahkan p_year jika tahun spesifik dipilih.
+        // Ini mengasumsikan bahwa tidak adanya parameter p_year akan membuat fungsi DB mengembalikan semua tahun.
+        if (year && year !== 'all') {
+            params.p_year = parseInt(year, 10);
+        } else {
+            params.p_year = null;
+        }
 
         const { data, error } = await supabaseAdmin.rpc('fn_dashboard_filtered', params);
 
