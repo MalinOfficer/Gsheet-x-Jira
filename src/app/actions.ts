@@ -59,7 +59,7 @@ const _getDashboardFilterOptions = async () => {
     const { data, error } = await supabaseAdmin
       .from("all_cases")
       .select("category_case, client_name, module_case, date")
-      .range(0, 20000);
+      .range(0, 49999); // Increased range to capture more years
 
     if (error) throw error;
 
@@ -75,7 +75,16 @@ const _getDashboardFilterOptions = async () => {
 
     const years = new Set<string>();
     data.forEach((d) => {
-      if (d.date) years.add(new Date(d.date).getFullYear().toString());
+      if (d.date) {
+        try {
+            const dateObj = new Date(d.date);
+            if(!isNaN(dateObj.getTime())) {
+                years.add(dateObj.getFullYear().toString());
+            }
+        } catch(e) {
+            // Ignore invalid date formats
+        }
+      }
     });
 
     return {
@@ -220,15 +229,17 @@ const calculateStatsWithFilters = async (filters: DashboardFilters) => {
     const monthMap: Record<string, any> = {};
     const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-
     mappedData.forEach((row) => {
         if (row.client_name) clientMap[row.client_name] = (clientMap[row.client_name] || 0) + 1;
         if (row.detail_module) moduleMap[row.detail_module] = (moduleMap[row.detail_module] || 0) + 1;
         if (row.ticket_category) categoryMap[row.ticket_category] = (categoryMap[row.ticket_category] || 0) + 1;
         
-        if (row.month && row.date) {
-            const year = new Date(row.date).getFullYear().toString();
-            const monthName = monthOrder[new Date(row.date).getMonth()];
+        if (row.date) {
+            const dateObj = new Date(row.date);
+            if (isNaN(dateObj.getTime())) return;
+
+            const year = dateObj.getFullYear().toString();
+            const monthName = monthOrder[dateObj.getMonth()];
             if (monthName) {
                  if (!monthMap[monthName]) monthMap[monthName] = { month: monthName };
                  monthMap[monthName][year] = (monthMap[monthName][year] || 0) + 1;
@@ -236,10 +247,28 @@ const calculateStatsWithFilters = async (filters: DashboardFilters) => {
         }
     });
 
+    const allYearsInFilteredData = new Set<string>();
+    Object.values(monthMap).forEach(monthData => {
+        Object.keys(monthData).forEach(key => {
+            if (key !== 'month') {
+                allYearsInFilteredData.add(key);
+            }
+        });
+    });
+
+    const monthlyData = monthOrder.map(monthName => {
+        const monthData = monthMap[monthName] || { month: monthName };
+        allYearsInFilteredData.forEach(year => {
+            if (!monthData[year]) {
+                monthData[year] = 0;
+            }
+        });
+        return monthData;
+    });
+    
     const allClients = Object.entries(clientMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
     const allModules = Object.entries(moduleMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
     const categoryTrend = Object.entries(categoryMap).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
-    const monthlyData = Object.values(monthMap).sort((a,b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
 
     return {
         totalCases,
