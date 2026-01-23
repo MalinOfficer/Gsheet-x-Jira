@@ -59,8 +59,7 @@ const _getDashboardFilterOptions = async () => {
     const { data, error } = await supabaseAdmin
       .from("all_cases")
       .select("category_case, client_name, module_case, date")
-      .order("date", { ascending: false }) // Sort by date to get recent years first
-      .range(0, 49999);
+      .order("date", { ascending: false }); // Sort by date to get recent years first
 
     if (error) throw error;
 
