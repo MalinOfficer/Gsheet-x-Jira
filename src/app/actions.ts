@@ -137,6 +137,17 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
         throw new Error("Could not fetch dashboard summary data. The view might be empty or inaccessible.");
     }
     
+    const monthlyDataFromDB = monthlyRes.data || [];
+
+    // Sort by month_order to ensure chronological order
+    monthlyDataFromDB.sort((a, b) => a.month_order - b.month_order);
+
+    // Transform the data into the "wide" format expected by the chart
+    const monthlyData = monthlyDataFromDB.map(row => ({
+      month: row.month_label,
+      ...row.values
+    }));
+
     return {
       success: true,
       data: {
@@ -144,7 +155,7 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
         totalSolved: summaryData.total_solved,
         totalClients: summaryData.total_clients,
         categoryTrend: summaryData.trending_category,
-        monthlyData: monthlyRes.data || [],
+        monthlyData: monthlyData,
         allClients: clientsRes.data || [],
         allModules: (modulesRes.data || []).map((m: { detail_module: string, total_cases: number }) => ({ name: m.detail_module, value: m.total_cases })),
         solvedVsUnsolved: [
