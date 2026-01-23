@@ -115,8 +115,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     }, [stats?.monthlyData]);
 
     useEffect(() => {
-        setIsProcessing(isApplyingFilters);
-    }, [isApplyingFilters, setIsProcessing]);
+        setIsProcessing(isApplyingFilters || isRefreshing);
+    }, [isApplyingFilters, isRefreshing, setIsProcessing]);
 
     const areFiltersActive = useMemo(() => {
         return (
@@ -134,7 +134,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         setClientFilter([]);
         setModuleFilter([]);
         setDateRange(undefined);
-        toast({ title: "Filters Cleared", description: "All active filters have been reset." });
     };
 
     // Effect to re-fetch stats when filters change
@@ -144,38 +143,53 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             return;
         }
 
-        // With views, filters are not applied on the backend, but we keep the state
-        // in case we want to do client-side filtering or switch back later.
-        // For now, this effect does nothing to prevent re-fetching.
-        
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, toast]);
-
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
         startApplyingFilters(async () => {
             setError(null);
-            toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
-            
-            await refreshDashboardViews();
-
-            const [statsResult, optionsResult] = await Promise.all([
-                getDashboardStats({ selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange }),
-                getDashboardFilterOptions()
-            ]);
+            const statsResult = await getDashboardStats({ 
+                selectedYear, 
+                categoryFilter, 
+                clientFilter, 
+                moduleFilter, 
+                dateRange 
+            });
 
             if (statsResult.error) {
                 setError(statsResult.error);
                 setStats(null);
+                 toast({
+                    variant: "destructive",
+                    title: "Could not apply filters",
+                    description: statsResult.error,
+                });
             } else {
                 setStats(statsResult as DashboardStats);
             }
+        });
+        
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange]);
 
-            if (optionsResult.error || !optionsResult.data) {
-                console.error("Could not load filter options:", optionsResult.error);
-                setFilterOptions({ categories: [], clients: [], modules: [], years: [] });
-            } else {
-                setFilterOptions(optionsResult.data);
-            }
+    const handleRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
+        
+        refreshDashboardViews().then(() => {
+             getDashboardStats({ selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange }).then((statsResult) => {
+                 if (statsResult.error) {
+                    setError(statsResult.error);
+                    setStats(null);
+                 } else {
+                    setStats(statsResult as DashboardStats);
+                 }
+             });
+             getDashboardFilterOptions().then((optionsResult) => {
+                if (optionsResult.error || !optionsResult.data) {
+                    console.error("Could not load filter options:", optionsResult.error);
+                    setFilterOptions({ categories: [], clients: [], modules: [], years: [] });
+                } else {
+                    setFilterOptions(optionsResult.data);
+                }
+             });
+        }).finally(() => {
             setIsRefreshing(false);
         });
     }, [selectedYear, categoryFilter, clientFilter, moduleFilter, toast, dateRange]);

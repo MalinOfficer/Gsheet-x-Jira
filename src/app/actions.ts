@@ -11,7 +11,7 @@ import {
 import { DateRange } from "react-day-picker";
 
 // ============================================
-// FETCH ALL CASES DATA
+// FETCH ALL CASES DATA (Not used by dashboard, for DB viewer)
 // ============================================
 
 export async function getAllCaseData() {
@@ -35,6 +35,7 @@ export async function getAllCaseData() {
   }
 }
 
+
 // ============================================
 // REFRESH DASHBOARD
 // ============================================
@@ -54,6 +55,7 @@ export async function refreshDashboardViews() {
 
 const _getDashboardFilterOptions = async () => {
   try {
+    // This now fetches from the base table to ensure all possible options are available
     const { data, error } = await supabaseAdmin
       .from("all_cases")
       .select("category_case, client_name, module_case, date")
@@ -95,20 +97,22 @@ const _getDashboardFilterOptions = async () => {
 };
 
 export async function getDashboardFilterOptions() {
+  // We still cache the filter options, but revalidate them with the main data tag
   const cachedOptions = unstable_cache(
     async () => _getDashboardFilterOptions(),
     ["dashboard-filter-options"],
     {
       tags: ["all-case-data"],
-      revalidate: 3600,
+      revalidate: 3600, // Revalidate every hour
     }
   );
 
   return cachedOptions();
 }
 
+
 // ============================================
-// GET DASHBOARD STATS FROM VIEWS
+// GET DASHBOARD STATS (LOGIC SWITCH BASED ON FILTERS)
 // ============================================
 
 interface DashboardFilters {
@@ -119,8 +123,16 @@ interface DashboardFilters {
   dateRange?: DateRange;
 }
 
-const _calculateDashboardStats = async (filters: DashboardFilters) => {
-  try {
+const areFiltersActive = (filters: DashboardFilters) => {
+    return filters.selectedYear !== 'all' ||
+           (filters.categoryFilter && filters.categoryFilter.length > 0) ||
+           (filters.clientFilter && filters.clientFilter.length > 0) ||
+           (filters.moduleFilter && filters.moduleFilter.length > 0) ||
+           filters.dateRange !== undefined;
+};
+
+// --- PATH 1: Fast path using DB views when no filters are active ---
+const calculateStatsFromViews = async () => {
     const [summaryRes, monthlyRes, clientsRes, modulesRes] = await Promise.all([
       supabaseAdmin.from('dashboard_summary').select('*').single(),
       supabaseAdmin.from('dashboard_stats_monthly').select('*'),
@@ -128,7 +140,6 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
       supabaseAdmin.from('dashboard_modules_rank').select('detail_module, total_cases'),
     ]);
 
-    if (summaryRes.error) console.warn(`Database error in dashboard_summary: ${summaryRes.error.message}`);
     if (monthlyRes.error) throw new Error(`Database error in dashboard_stats_monthly: ${monthlyRes.error.message}`);
     if (clientsRes.error) throw new Error(`Database error in dashboard_clients_rank: ${clientsRes.error.message}`);
     if (modulesRes.error) throw new Error(`Database error in dashboard_modules_rank: ${modulesRes.error.message}`);
@@ -136,34 +147,16 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
     const summaryData = summaryRes.data;
     
     const monthlyDataFromDB = monthlyRes.data || [];
-
-    // Sort by month_order to ensure chronological order
     monthlyDataFromDB.sort((a, b) => (a.month_order || 0) - (b.month_order || 0));
 
-    // Get the year labels mapping from the first row, if it exists.
     const yearLabels = monthlyDataFromDB[0]?.year_labels;
-
-    // Transform the data into the "wide" format expected by the chart, e.g., { month: 'Jan', '2024': 23, '2025': 40 }
     const monthlyData = monthlyDataFromDB.map(row => {
-        const monthData: { [key: string]: any } = {
-            month: row.month_label || 'Unknown'
-        };
-
+        const monthData: { [key: string]: any } = { month: row.month_label || 'Unknown' };
         if (yearLabels && typeof yearLabels === 'object') {
-            // New structure with year_labels: Iterate over the generic keys like "year_1", "year_2"
             for (const genericYearKey in yearLabels) {
                 if (Object.prototype.hasOwnProperty.call(row, genericYearKey)) {
-                    // Get the actual year string (e.g., "2024") from the mapping
                     const actualYearLabel = yearLabels[genericYearKey];
-                    // Assign the value from the row's generic key (e.g., row['year_1']) to the actual year label
                     monthData[actualYearLabel] = row[genericYearKey];
-                }
-            }
-        } else {
-             // Fallback for old structure or if year_labels is missing. Looks for 4-digit year keys directly.
-             for (const key in row) {
-                if (/^\d{4}$/.test(key)) {
-                    monthData[key] = row[key];
                 }
             }
         }
@@ -171,8 +164,6 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
     });
 
     return {
-      success: true,
-      data: {
         totalCases: summaryData?.total_cases ?? 0,
         totalSolved: summaryData?.total_solved ?? 0,
         totalClients: summaryData?.total_clients ?? 0,
@@ -184,21 +175,109 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
           { name: 'Solved', value: summaryData?.total_solved ?? 0 },
           { name: 'Unsolved', value: (summaryData?.total_cases ?? 0) - (summaryData?.total_solved ?? 0) },
         ],
-      },
+      };
+};
+
+// --- PATH 2: Slower path with direct query when filters ARE active ---
+const calculateStatsWithFilters = async (filters: DashboardFilters) => {
+    let query = supabaseAdmin.from("all_cases").select(getSelectColumns(), { count: "exact" });
+
+    // Apply filters
+    if (filters.dateRange?.from) {
+        query = query.gte("date", filters.dateRange.from.toISOString());
+        if (filters.dateRange.to) {
+            query = query.lte("date", filters.dateRange.to.toISOString());
+        }
+    } else if (filters.selectedYear && filters.selectedYear !== 'all') {
+        const year = parseInt(filters.selectedYear, 10);
+        if (!isNaN(year)) {
+            query = query.gte('date', `${year}-01-01T00:00:00.000Z`);
+            query = query.lte('date', `${year}-12-31T23:59:59.999Z`);
+        }
+    }
+    if (filters.categoryFilter.length > 0) {
+        query = query.in("category_case", filters.categoryFilter);
+    }
+    if (filters.clientFilter.length > 0) {
+        query = query.in("client_name", filters.clientFilter);
+    }
+    if (filters.moduleFilter.length > 0) {
+        query = query.in("module_case", filters.moduleFilter);
+    }
+
+    const { data, count, error } = await query;
+    if (error) throw error;
+    
+    const mappedData = mapDBArrayToFrontend(data as YourDBRow[]);
+
+    // Aggregations
+    const totalCases = count || 0;
+    const solvedCases = mappedData.filter(d => d.status === "RESOLVED" || d.status_case_2 === "SOLVED");
+
+    const clientMap: Record<string, number> = {};
+    const moduleMap: Record<string, number> = {};
+    const categoryMap: Record<string, number> = {};
+    const monthMap: Record<string, any> = {};
+    const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+
+    mappedData.forEach((row) => {
+        if (row.client_name) clientMap[row.client_name] = (clientMap[row.client_name] || 0) + 1;
+        if (row.detail_module) moduleMap[row.detail_module] = (moduleMap[row.detail_module] || 0) + 1;
+        if (row.ticket_category) categoryMap[row.ticket_category] = (categoryMap[row.ticket_category] || 0) + 1;
+        
+        if (row.month && row.date) {
+            const year = new Date(row.date).getFullYear().toString();
+            const monthName = monthOrder[new Date(row.date).getMonth()];
+            if (monthName) {
+                 if (!monthMap[monthName]) monthMap[monthName] = { month: monthName };
+                 monthMap[monthName][year] = (monthMap[monthName][year] || 0) + 1;
+            }
+        }
+    });
+
+    const allClients = Object.entries(clientMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    const allModules = Object.entries(moduleMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    const categoryTrend = Object.entries(categoryMap).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
+    const monthlyData = Object.values(monthMap).sort((a,b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
+
+    return {
+        totalCases,
+        totalSolved: solvedCases.length,
+        totalClients: Object.keys(clientMap).length,
+        categoryTrend,
+        monthlyData,
+        allClients,
+        allModules,
+        solvedVsUnsolved: [
+          { name: 'Solved', value: solvedCases.length },
+          { name: 'Unsolved', value: totalCases - solvedCases.length },
+        ],
     };
+};
+
+const _calculateDashboardStats = async (filters: DashboardFilters) => {
+  try {
+    const useViews = !areFiltersActive(filters);
+    const data = useViews
+      ? await calculateStatsFromViews()
+      : await calculateStatsWithFilters(filters);
+    
+    return { success: true, data };
   } catch (error: any) {
-    console.error('Error calculating dashboard stats from views:', error);
+    console.error('Error calculating dashboard stats:', error);
     return { success: false, error: error.message };
   }
 };
 
+
 export async function getDashboardStats(filters: DashboardFilters) {
   const cachedStats = unstable_cache(
     async () => _calculateDashboardStats(filters),
-    ["dashboard-stats-from-views"],
+    ["dashboard-stats", JSON.stringify(filters)], // Dynamic cache key
     {
       tags: ["all-case-data"],
-      revalidate: 3600,
+      revalidate: 3600, // Cache for an hour
     }
   );
 
