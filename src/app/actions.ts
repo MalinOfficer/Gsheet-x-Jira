@@ -133,34 +133,31 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
     if (modulesRes.error) throw new Error(`Database error in dashboard_modules_rank: ${modulesRes.error.message}`);
 
     const summaryData = summaryRes.data;
-    if (!summaryData) {
-        throw new Error("Could not fetch dashboard summary data. The view might be empty or inaccessible.");
-    }
     
     const monthlyDataFromDB = monthlyRes.data || [];
 
     // Sort by month_order to ensure chronological order
-    monthlyDataFromDB.sort((a, b) => a.month_order - b.month_order);
+    monthlyDataFromDB.sort((a, b) => (a.month_order || 0) - (b.month_order || 0));
 
     // Transform the data into the "wide" format expected by the chart
     const monthlyData = monthlyDataFromDB.map(row => ({
-      month: row.month_label,
-      ...row.values
+      month: row.month_label || 'Unknown',
+      ...(row.values || {})
     }));
 
     return {
       success: true,
       data: {
-        totalCases: summaryData.total_cases,
-        totalSolved: summaryData.total_solved,
-        totalClients: summaryData.total_clients,
-        categoryTrend: summaryData.trending_category,
+        totalCases: summaryData?.total_cases ?? 0,
+        totalSolved: summaryData?.total_solved ?? 0,
+        totalClients: summaryData?.total_clients ?? 0,
+        categoryTrend: summaryData?.trending_category ?? 'N/A',
         monthlyData: monthlyData,
         allClients: clientsRes.data || [],
         allModules: (modulesRes.data || []).map((m: { detail_module: string, total_cases: number }) => ({ name: m.detail_module, value: m.total_cases })),
         solvedVsUnsolved: [
-          { name: 'Solved', value: summaryData.total_solved },
-          { name: 'Unsolved', value: summaryData.total_cases - summaryData.total_solved },
+          { name: 'Solved', value: summaryData?.total_solved ?? 0 },
+          { name: 'Unsolved', value: (summaryData?.total_cases ?? 0) - (summaryData?.total_solved ?? 0) },
         ],
       },
     };
