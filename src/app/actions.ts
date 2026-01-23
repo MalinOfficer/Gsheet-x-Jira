@@ -1,3 +1,4 @@
+
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase";
@@ -140,10 +141,18 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
     monthlyDataFromDB.sort((a, b) => (a.month_order || 0) - (b.month_order || 0));
 
     // Transform the data into the "wide" format expected by the chart
-    const monthlyData = monthlyDataFromDB.map(row => ({
-      month: row.month_label || 'Unknown',
-      ...(row.values || {})
-    }));
+    const monthlyData = monthlyDataFromDB.map(row => {
+        const monthData: { [key: string]: any } = {
+            month: row.month_label || 'Unknown'
+        };
+        // Find all columns like 'year_1', 'year_2', etc. and add them
+        for (const key in row) {
+            if (key.startsWith('year_')) {
+                monthData[key] = row[key];
+            }
+        }
+        return monthData;
+    });
 
     return {
       success: true,

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon } from "lucide-react";
@@ -92,20 +93,25 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         const keys = new Set<string>();
         stats.monthlyData.forEach(monthData => {
             Object.keys(monthData).forEach(key => {
-                if (key !== 'month') {
+                if (key.startsWith('year_')) {
                     keys.add(key);
                 }
             });
         });
         
-        const sortedKeys = Array.from(keys).sort((a, b) => parseInt(b) - parseInt(a));
+        const sortedKeys = Array.from(keys).sort((a, b) => {
+            const numA = parseInt(a.split('_')[1] || '0');
+            const numB = parseInt(b.split('_')[1] || '0');
+            return numA - numB;
+        });
 
         const chartColors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
         const newConfig: ChartConfig = {};
-        sortedKeys.forEach((year, index) => {
-            newConfig[year] = {
-                label: year,
+        sortedKeys.forEach((key, index) => {
+            const yearNumber = key.split('_')[1] || '';
+            newConfig[key] = {
+                label: `Year ${yearNumber}`,
                 color: chartColors[index % chartColors.length],
             };
         });
