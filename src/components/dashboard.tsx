@@ -1,4 +1,3 @@
-
 "use client";
 
 import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon } from "lucide-react";
@@ -86,23 +85,33 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
     const { chartKeys, dynamicChartConfig } = useMemo(() => {
-        if (!filterOptions?.years) {
+        if (!stats?.monthlyData || stats.monthlyData.length === 0) {
             return { chartKeys: [], dynamicChartConfig: chartConfig };
         }
+        
+        const keys = new Set<string>();
+        stats.monthlyData.forEach(monthData => {
+            Object.keys(monthData).forEach(key => {
+                if (key !== 'month') {
+                    keys.add(key);
+                }
+            });
+        });
+        
+        const sortedKeys = Array.from(keys).sort((a, b) => parseInt(b) - parseInt(a));
 
-        const years = filterOptions.years.sort((a, b) => parseInt(b) - parseInt(a));
         const chartColors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
         const newConfig: ChartConfig = {};
-        years.forEach((year, index) => {
+        sortedKeys.forEach((year, index) => {
             newConfig[year] = {
                 label: year,
                 color: chartColors[index % chartColors.length],
             };
         });
 
-        return { chartKeys: years, dynamicChartConfig: { ...chartConfig, ...newConfig } };
-    }, [filterOptions?.years]);
+        return { chartKeys: sortedKeys, dynamicChartConfig: { ...chartConfig, ...newConfig } };
+    }, [stats?.monthlyData]);
 
     useEffect(() => {
         setIsProcessing(isApplyingFilters);
@@ -503,5 +512,3 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         </div>
     );
 }
-
-    
