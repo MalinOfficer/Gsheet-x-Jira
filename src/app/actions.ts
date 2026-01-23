@@ -140,15 +140,31 @@ const _calculateDashboardStats = async (filters: DashboardFilters) => {
     // Sort by month_order to ensure chronological order
     monthlyDataFromDB.sort((a, b) => (a.month_order || 0) - (b.month_order || 0));
 
-    // Transform the data into the "wide" format expected by the chart
+    // Get the year labels mapping from the first row, if it exists.
+    const yearLabels = monthlyDataFromDB[0]?.year_labels;
+
+    // Transform the data into the "wide" format expected by the chart, e.g., { month: 'Jan', '2024': 23, '2025': 40 }
     const monthlyData = monthlyDataFromDB.map(row => {
         const monthData: { [key: string]: any } = {
             month: row.month_label || 'Unknown'
         };
-        // Find all columns that are years (e.g., "2024", "2025")
-        for (const key in row) {
-            if (/^\d{4}$/.test(key)) { // Checks if the key is a 4-digit string
-                monthData[key] = row[key];
+
+        if (yearLabels && typeof yearLabels === 'object') {
+            // New structure with year_labels: Iterate over the generic keys like "year_1", "year_2"
+            for (const genericYearKey in yearLabels) {
+                if (Object.prototype.hasOwnProperty.call(row, genericYearKey)) {
+                    // Get the actual year string (e.g., "2024") from the mapping
+                    const actualYearLabel = yearLabels[genericYearKey];
+                    // Assign the value from the row's generic key (e.g., row['year_1']) to the actual year label
+                    monthData[actualYearLabel] = row[genericYearKey];
+                }
+            }
+        } else {
+             // Fallback for old structure or if year_labels is missing. Looks for 4-digit year keys directly.
+             for (const key in row) {
+                if (/^\d{4}$/.test(key)) {
+                    monthData[key] = row[key];
+                }
             }
         }
         return monthData;
