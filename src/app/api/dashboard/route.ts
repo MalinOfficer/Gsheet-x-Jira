@@ -5,44 +5,40 @@ import { type DateRange } from 'react-day-picker';
 
 export const dynamic = 'force-dynamic';
 
-// Helper function to pivot the monthly stats data
-const pivotMonthlyStats = (dbData: any[] | null | undefined): any[] => {
-    if (!dbData || !Array.isArray(dbData) || dbData.length === 0) {
+// Helper function to ensure monthly stats are ordered and complete
+const ensureOrderedMonthlyStats = (pivotedDbData: any[] | null | undefined): any[] => {
+    if (!pivotedDbData || !Array.isArray(pivotedDbData) || pivotedDbData.length === 0) {
         return [];
     }
 
     const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
-    const pivoted = dbData.reduce((acc, { month, year, cases }) => {
-        // Ensure year is a string, as it will become an object key
-        const yearStr = String(year);
-
-        if (!acc[month]) {
-            acc[month] = { month };
-        }
-        acc[month][yearStr] = cases;
-        return acc;
-    }, {} as Record<string, any>);
-
-    // Get all unique year keys found in the data
-    const allYearKeys = dbData.reduce((keys, { year }) => {
-        if (year) keys.add(String(year));
-        return keys;
-    }, new Set<string>());
-
-    // Ensure all months are present in the final array and have all year keys
-    const result = monthOrder.map(month => {
-        const monthData = pivoted[month] || { month };
-        // Ensure every year key exists for this month, defaulting to 0 if not present
-        allYearKeys.forEach(yearKey => {
-            if (!monthData.hasOwnProperty(yearKey)) {
-                monthData[yearKey] = 0;
+    // Create a map of the data from the DB for quick lookups
+    const dataByMonth = new Map(pivotedDbData.map(item => [item.month, item]));
+    
+    // Get all unique year keys present in the dataset
+    const allYearKeys = new Set<string>();
+    pivotedDbData.forEach(row => {
+        Object.keys(row).forEach(key => {
+            if (/^\d{4}$/.test(key)) { // It's a year
+                allYearKeys.add(key);
             }
         });
-        return monthData;
     });
 
-    return result;
+    // Build the final, ordered, and complete array
+    const orderedStats = monthOrder.map(month => {
+        const existingData = dataByMonth.get(month);
+        const newMonthData: Record<string, any> = { month };
+
+        allYearKeys.forEach(year => {
+            newMonthData[year] = existingData?.[year] ?? 0;
+        });
+
+        return newMonthData;
+    });
+
+    return orderedStats;
 };
 
 
@@ -65,9 +61,9 @@ export async function GET(request: Request) {
         const clientFilter = searchParams.get('clientFilter');
         const moduleFilter = searchParams.get('moduleFilter');
 
-        const categoryValue = categoryFilter ? categoryFilter.split(',')[0] : null;
-        const clientValue = clientFilter ? clientFilter.split(',')[0] : null;
-        const moduleValue = moduleFilter ? moduleFilter.split(',')[0] : null;
+        const categoryValue = categoryFilter || null;
+        const clientValue = clientFilter || null;
+        const moduleValue = moduleFilter || null;
 
         // 🔥 Helper to safely format dates
         const formatDate = (date: any) => {
@@ -141,7 +137,7 @@ export async function GET(request: Request) {
         };
 
         const rawMonthlyStats = parseJSONB(result.out_monthly_stats);
-        const pivotedStats = pivotMonthlyStats(rawMonthlyStats);
+        const finalMonthlyStats = ensureOrderedMonthlyStats(rawMonthlyStats);
         const clientRankings = parseJSONB(result.out_client_rankings);
         const moduleRankings = parseJSONB(result.out_module_rankings);
         
@@ -155,7 +151,7 @@ export async function GET(request: Request) {
                 top_client: result.out_top_client ?? 'N/A',
                 top_module: result.out_top_module ?? 'N/A'
             },
-            monthly_stats: pivotedStats,
+            monthly_stats: finalMonthlyStats,
             client_rankings: clientRankings.map((item: any) => ({
                 name: item.client,
                 value: item.cases
