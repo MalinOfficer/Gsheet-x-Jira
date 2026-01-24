@@ -8,6 +8,7 @@ import {
   getSelectColumns,
   type YourDBRow,
 } from "@/lib/db-mapper";
+import { parse } from "date-fns";
 
 // ============================================
 // FETCH ALL CASES DATA (Not used by dashboard, for DB viewer)
@@ -75,12 +76,28 @@ const _getDashboardFilterOptions = async () => {
     data.forEach((d) => {
       if (d.date) {
         try {
-            const dateObj = new Date(d.date);
-            if(!isNaN(dateObj.getTime())) {
+            let dateObj: Date | null = null;
+            // First, try parsing as ISO string (which new Date handles well)
+            const isoDate = new Date(d.date);
+            if (!isNaN(isoDate.getTime())) {
+                dateObj = isoDate;
+            } else {
+                // Fallback to DD/MM/YYYY if ISO parsing fails
+                try {
+                    const parsed = parse(d.date, 'dd/MM/yyyy', new Date());
+                    if (!isNaN(parsed.getTime())) {
+                        dateObj = parsed;
+                    }
+                } catch(parseErr) {
+                    // Ignore parse error
+                }
+            }
+
+            if (dateObj && !isNaN(dateObj.getTime())) {
                 years.add(dateObj.getFullYear().toString());
             }
         } catch(e) {
-            // Ignore invalid date formats
+            // Ignore any other unexpected errors during date parsing
         }
       }
     });
