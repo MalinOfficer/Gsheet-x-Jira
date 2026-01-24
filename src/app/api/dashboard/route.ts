@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { type DateRange } from 'react-day-picker';
@@ -79,10 +80,13 @@ export async function GET(request: Request) {
             const pivotedData: { [month: string]: { month: string, [year: string]: number } } = {};
         
             stats.forEach(item => {
-                if (!pivotedData[item.month]) {
-                    pivotedData[item.month] = { month: item.month };
+                // Ensure item, month, and year are valid before processing
+                if (item && item.month && item.year) {
+                    if (!pivotedData[item.month]) {
+                        pivotedData[item.month] = { month: item.month };
+                    }
+                    pivotedData[item.month][item.year.toString()] = item.cases;
                 }
-                pivotedData[item.month][item.year.toString()] = item.cases;
             });
         
             // Ensure data is sorted by month and all 12 months are present
