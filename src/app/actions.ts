@@ -77,19 +77,23 @@ const _getDashboardFilterOptions = async () => {
       if (d.date) {
         try {
             let dateObj: Date | null = null;
-            // First, try parsing as ISO string (which new Date handles well)
-            const isoDate = new Date(d.date);
-            if (!isNaN(isoDate.getTime())) {
-                dateObj = isoDate;
-            } else {
-                // Fallback to DD/MM/YYYY if ISO parsing fails
-                try {
-                    const parsed = parse(d.date, 'dd/MM/yyyy', new Date());
-                    if (!isNaN(parsed.getTime())) {
-                        dateObj = parsed;
-                    }
-                } catch(parseErr) {
-                    // Ignore parse error
+            const dateStr = String(d.date);
+
+            // First, try the most likely non-ISO format (e.g., from GSheets)
+            try {
+                const parsed = parse(dateStr, 'dd/MM/yyyy', new Date());
+                if (!isNaN(parsed.getTime())) {
+                    dateObj = parsed;
+                }
+            } catch(parseErr) {
+                // Ignore and fall through
+            }
+            
+            // If that fails, try the more general new Date() for ISO formats etc.
+            if (!dateObj) {
+                const isoDate = new Date(dateStr);
+                if (!isNaN(isoDate.getTime())) {
+                    dateObj = isoDate;
                 }
             }
 
@@ -97,13 +101,10 @@ const _getDashboardFilterOptions = async () => {
                 years.add(dateObj.getFullYear().toString());
             }
         } catch(e) {
-            // Ignore any other unexpected errors during date parsing
+            // This outer catch is for any unexpected errors
         }
       }
     });
-
-    // DEBUG LOG
-    console.log("✅ [DEBUG] Tahun yang ditemukan untuk filter:", Array.from(years));
 
     return {
       success: true,
