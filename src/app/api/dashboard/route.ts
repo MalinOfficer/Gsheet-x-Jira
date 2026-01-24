@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { type DateRange } from 'react-day-picker';
@@ -24,19 +23,17 @@ export async function GET(request: Request) {
         const clientFilter = searchParams.get('clientFilter');
         const moduleFilter = searchParams.get('moduleFilter');
 
-        // Parse filters - ambil nilai pertama untuk single-value filters
-        const categoryValue = categoryFilter ? categoryFilter.split(',')[0] : null;
-        const clientValue = clientFilter ? clientFilter.split(',')[0] : null;
-        const moduleValue = moduleFilter ? moduleFilter.split(',')[0] : null;
-
-        const params = {
+        const params: { [key: string]: any } = {
             p_start_date: dateRange?.from ? dateRange.from.toISOString().split('T')[0] : null,
             p_end_date: dateRange?.to ? dateRange.to.toISOString().split('T')[0] : null,
-            p_year: (year && year !== 'all') ? parseInt(year, 10) : null,
-            p_category: categoryValue,
-            p_client: clientValue,
-            p_module: moduleValue,
+            p_category: categoryFilter || null,
+            p_client: clientFilter || null,
+            p_module: moduleFilter || null,
         };
+        
+        if (year && year !== 'all') {
+            params.p_year = parseInt(year, 10);
+        }
 
         console.log('🔍 Calling fn_dashboard_filtered with params:', params);
 
@@ -71,7 +68,27 @@ export async function GET(request: Request) {
 
         const result = data[0];
 
-        // 🎯 Data sudah pivoted dari database, langsung pakai
+        // --- PIVOT LOGIC ---
+        // Transforms flat array [{month, year, cases}, ...] to pivoted array [{month, '2024': cases, '2025': cases}, ...]
+        const pivotMonthlyStats = (stats: { month: string; year: number; cases: number }[]) => {
+            if (!stats || !Array.isArray(stats)) {
+                return [];
+            }
+        
+            const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const pivotedData: { [month: string]: { month: string, [year: string]: number } } = {};
+        
+            stats.forEach(item => {
+                if (!pivotedData[item.month]) {
+                    pivotedData[item.month] = { month: item.month };
+                }
+                pivotedData[item.month][item.year.toString()] = item.cases;
+            });
+        
+            // Ensure data is sorted by month and all 12 months are present
+            return monthOrder.map(month => pivotedData[month] || { month });
+        };
+
         const mappedData = {
             summary: {
                 total_cases: result.out_total_cases ?? 0,
@@ -82,10 +99,7 @@ export async function GET(request: Request) {
                 top_client: result.out_top_client ?? 'N/A',
                 top_module: result.out_top_module ?? 'N/A'
             },
-            // ✅ Data sudah dalam format: [{month: "Jan", "2024": 24, "2025": 700}, ...]
-            monthly_stats: Array.isArray(result.out_monthly_stats) 
-                ? result.out_monthly_stats 
-                : [],
+            monthly_stats: pivotMonthlyStats(result.out_monthly_stats),
             client_rankings: Array.isArray(result.out_client_rankings)
                 ? result.out_client_rankings.map((item: any) => ({
                     name: item.client,
