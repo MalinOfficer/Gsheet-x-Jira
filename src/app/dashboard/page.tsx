@@ -2,13 +2,13 @@
 
 import { getDashboardFilterOptions } from '@/app/actions';
 import { Skeleton } from '@/components/ui/skeleton';
-import dynamic from 'next/dynamic';
+import dynamicNext from 'next/dynamic';
 
 // ✅ Force dynamic rendering and no caching for real-time data
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const Dashboard = dynamic(
+const Dashboard = dynamicNext(
     () => import('@/components/dashboard').then(mod => mod.Dashboard),
     {
         ssr: false, // The dashboard fetches its own data on the client, so no need for SSR.
