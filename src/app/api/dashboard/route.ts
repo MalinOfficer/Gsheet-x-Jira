@@ -24,21 +24,21 @@ export async function GET(request: Request) {
         const clientFilter = searchParams.get('clientFilter');
         const moduleFilter = searchParams.get('moduleFilter');
 
-        const params: { [key: string]: any } = {
+        // Parse filters - ambil nilai pertama untuk single-value filters
+        const categoryValue = categoryFilter ? categoryFilter.split(',')[0] : null;
+        const clientValue = clientFilter ? clientFilter.split(',')[0] : null;
+        const moduleValue = moduleFilter ? moduleFilter.split(',')[0] : null;
+
+        const params = {
             p_start_date: dateRange?.from ? dateRange.from.toISOString().split('T')[0] : null,
             p_end_date: dateRange?.to ? dateRange.to.toISOString().split('T')[0] : null,
-            p_category: categoryFilter || null,
-            p_client: clientFilter || null,
-            p_module: moduleFilter || null,
+            p_year: (year && year !== 'all') ? parseInt(year, 10) : null,
+            p_category: categoryValue,
+            p_client: clientValue,
+            p_module: moduleValue,
         };
 
-        // Hanya tambahkan p_year jika tahun spesifik dipilih.
-        // Ini mengasumsikan bahwa tidak adanya parameter p_year akan membuat fungsi DB mengembalikan semua tahun.
-        if (year && year !== 'all') {
-            params.p_year = parseInt(year, 10);
-        } else {
-            params.p_year = null;
-        }
+        console.log('🔍 Calling fn_dashboard_filtered with params:', params);
 
         const { data, error } = await supabaseAdmin.rpc('fn_dashboard_filtered', params);
 
@@ -46,6 +46,8 @@ export async function GET(request: Request) {
             console.error('❌ Supabase RPC Error:', error);
             throw error;
         }
+
+        console.log('✅ Raw data from function:', data);
 
         if (!data || data.length === 0 || data[0].out_total_cases === null) {
             return NextResponse.json({
@@ -69,24 +71,7 @@ export async function GET(request: Request) {
 
         const result = data[0];
 
-        // --- Pivot monthly_stats data ---
-        const monthlyStatsRaw = Array.isArray(result.out_monthly_stats) ? result.out_monthly_stats : [];
-        
-        const pivotData = monthlyStatsRaw.reduce((acc, { month, year, cases }) => {
-            if (!acc[month]) {
-                acc[month] = { month };
-            }
-            acc[month][year] = cases;
-            return acc;
-        }, {} as Record<string, any>);
-
-        const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        
-        const pivotedMonthlyStats = Object.values(pivotData).sort((a: any, b: any) => 
-            monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month)
-        );
-        // --- End of Pivot ---
-        
+        // 🎯 Data sudah pivoted dari database, langsung pakai
         const mappedData = {
             summary: {
                 total_cases: result.out_total_cases ?? 0,
@@ -97,7 +82,10 @@ export async function GET(request: Request) {
                 top_client: result.out_top_client ?? 'N/A',
                 top_module: result.out_top_module ?? 'N/A'
             },
-            monthly_stats: pivotedMonthlyStats,
+            // ✅ Data sudah dalam format: [{month: "Jan", "2024": 24, "2025": 700}, ...]
+            monthly_stats: Array.isArray(result.out_monthly_stats) 
+                ? result.out_monthly_stats 
+                : [],
             client_rankings: Array.isArray(result.out_client_rankings)
                 ? result.out_client_rankings.map((item: any) => ({
                     name: item.client,
@@ -111,6 +99,11 @@ export async function GET(request: Request) {
                 }))
                 : [],
         };
+
+        console.log('📊 Final mapped data:', mappedData);
+        if (mappedData.monthly_stats.length > 0) {
+            console.log('📊 Monthly stats sample:', mappedData.monthly_stats[0]);
+        }
 
         return NextResponse.json({
             success: true,
