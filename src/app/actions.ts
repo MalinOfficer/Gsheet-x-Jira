@@ -102,6 +102,9 @@ const _getDashboardFilterOptions = async () => {
       }
     });
 
+    // DEBUG LOG
+    console.log("✅ [DEBUG] Tahun yang ditemukan untuk filter:", Array.from(years));
+
     return {
       success: true,
       data: {
