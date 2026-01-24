@@ -69,28 +69,25 @@ export async function GET(request: Request) {
 
         const result = data[0];
 
-        // --- PIVOT LOGIC ---
-        // Transforms flat array [{month, year, cases}, ...] to pivoted array [{month, '2024': cases, '2025': cases}, ...]
-        const pivotMonthlyStats = (stats: { month: string; year: number; cases: number }[]) => {
+        // --- NORMALIZATION LOGIC ---
+        // Ensures that the pivoted data from the DB is correctly ordered by month
+        // and that all 12 months are present.
+        const normalizeMonthlyStats = (stats: { month: string; [year: string]: any }[]) => {
             if (!stats || !Array.isArray(stats)) {
                 return [];
             }
         
             const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            const pivotedData: { [month: string]: { month: string, [year: string]: number } } = {};
-        
+            const statsMap = new Map<string, any>();
+            
             stats.forEach(item => {
-                // Ensure item, month, and year are valid before processing
-                if (item && item.month && item.year) {
-                    if (!pivotedData[item.month]) {
-                        pivotedData[item.month] = { month: item.month };
-                    }
-                    pivotedData[item.month][item.year.toString()] = item.cases;
+                if (item && item.month) {
+                    statsMap.set(item.month, item);
                 }
             });
         
             // Ensure data is sorted by month and all 12 months are present
-            return monthOrder.map(month => pivotedData[month] || { month });
+            return monthOrder.map(month => statsMap.get(month) || { month });
         };
 
         const mappedData = {
@@ -103,7 +100,7 @@ export async function GET(request: Request) {
                 top_client: result.out_top_client ?? 'N/A',
                 top_module: result.out_top_module ?? 'N/A'
             },
-            monthly_stats: pivotMonthlyStats(result.out_monthly_stats),
+            monthly_stats: normalizeMonthlyStats(result.out_monthly_stats),
             client_rankings: Array.isArray(result.out_client_rankings)
                 ? result.out_client_rankings.map((item: any) => ({
                     name: item.client,
