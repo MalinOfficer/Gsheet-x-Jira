@@ -60,6 +60,8 @@ const _getDashboardFilterOptions = async () => {
       .order("date", { ascending: false });
 
     if (error) throw error;
+    
+    console.log(">>>> [DEBUG] First 5 date strings from DB:", data.slice(0, 5).map(d => d.date));
 
     const uniqueCategories = [
       ...new Set(data.map((c) => c.category_case).filter(Boolean)),
