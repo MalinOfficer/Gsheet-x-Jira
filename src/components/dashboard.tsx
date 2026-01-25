@@ -1,3 +1,4 @@
+
 "use client";
 
 import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon } from "lucide-react";
@@ -147,12 +148,21 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         params.append('clientFilter', filters.clientFilter.join(','));
         params.append('moduleFilter', filters.moduleFilter.join(','));
         
-        const response = await fetch(`/api/dashboard?${params.toString()}`);
+        const url = `/api/dashboard?${params.toString()}`;
+        console.log('🌐 [Fetcher] Fetching URL:', url);
+        
+        const response = await fetch(url);
+        console.log('📡 [Fetcher] Response status:', response.status);
+        
         if (!response.ok) {
             const errorText = await response.text();
+            console.error('❌ [Fetcher] Error response:', errorText);
             throw new Error(`Failed to fetch dashboard data: ${response.status} ${errorText}`);
         }
+        
         const result = await response.json();
+        console.log('📦 [Fetcher] Result:', result);
+        
         if (!result.success) {
             throw new Error(result.error || 'An unknown error occurred');
         }
