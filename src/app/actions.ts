@@ -90,7 +90,9 @@ const _getDashboardFilterOptions = async () => {
             if (!isNaN(parsed.getTime())) {
                 dateObj = parsed;
             }
-        } catch(e) {}
+        } catch(e) {
+            // Fallback will be attempted
+        }
 
         // Fallback to native Date parsing for ISO formats like YYYY-MM-DD
         if (!dateObj) {
@@ -114,7 +116,7 @@ const _getDashboardFilterOptions = async () => {
 
     const sortedYears = Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
     
-    console.log('📅 Years found:', sortedYears);
+    console.log('✅ [DEBUG] Tahun yang ditemukan untuk filter:', sortedYears);
 
     return {
       success: true,
