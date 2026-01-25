@@ -101,6 +101,7 @@ const _getDashboardFilterOptions = async () => {
 
     const sortedYears = Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
     
+    // Final diagnostic log to confirm what years were found
     console.log('✅ [Final Check] Years found for filter:', sortedYears);
 
     return {
