@@ -81,42 +81,25 @@ const _getDashboardFilterOptions = async () => {
       if (!d.date) return;
       
       try {
+        // Since the `date` column is a DATE type in PostgreSQL,
+        // Supabase returns it as a standard 'YYYY-MM-DD' ISO string.
+        // We can safely parse it directly without complex logic.
         const dateStr = String(d.date).trim();
-        let dateObj: Date | null = null;
+        const year = dateStr.split('-')[0];
+        const yearNum = parseInt(year, 10);
         
-        // Prioritize parsing DD/MM/YYYY format as it's common and error-prone for native Date
-        try {
-            const parsed = parse(dateStr, 'dd/MM/yyyy', new Date());
-            if (!isNaN(parsed.getTime())) {
-                dateObj = parsed;
-            }
-        } catch(e) {
-            // Fallback will be attempted
-        }
-
-        // Fallback to native Date parsing for ISO formats like YYYY-MM-DD
-        if (!dateObj) {
-          const isoDate = new Date(dateStr);
-          if (!isNaN(isoDate.getTime())) {
-            dateObj = isoDate;
-          }
-        }
-        
-        if (dateObj && !isNaN(dateObj.getTime())) {
-          const year = dateObj.getFullYear();
-          if (year >= 1900 && year <= 2100) {
-            years.add(year.toString());
-          }
+        if (!isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2100) {
+            years.add(year);
         }
       } catch (e) {
-        // Silent fail for data that is completely invalid
+        // This block is unlikely to be hit with the new logic, but kept for safety.
         console.warn(`Could not parse date: ${d.date}`);
       }
     });
 
     const sortedYears = Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
     
-    console.log('✅ [DEBUG] Tahun yang ditemukan untuk filter:', sortedYears);
+    console.log('✅ Years found for filter:', sortedYears);
 
     return {
       success: true,
