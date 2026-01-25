@@ -83,12 +83,8 @@ export async function GET(request: Request) {
             p_category: categoryValue,
             p_client: clientValue,
             p_module: moduleValue,
+            p_year: (year && year !== 'all') ? parseInt(year, 10) : null,
         };
-        
-        // Only include p_year if a specific year is selected
-        if (year && year !== 'all') {
-            params.p_year = parseInt(year, 10);
-        }
 
         console.log('🔍 [API] Calling fn_dashboard_filtered with params:', params);
 
