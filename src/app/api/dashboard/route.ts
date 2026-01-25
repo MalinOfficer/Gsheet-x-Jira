@@ -61,9 +61,9 @@ export async function GET(request: Request) {
         const clientFilter = searchParams.get('clientFilter');
         const moduleFilter = searchParams.get('moduleFilter');
 
-        const categoryValue = categoryFilter || null;
-        const clientValue = clientFilter || null;
-        const moduleValue = moduleFilter || null;
+        const categoryValue = categoryFilter ? categoryFilter.split(',')[0] : null;
+        const clientValue = clientFilter ? clientFilter.split(',')[0] : null;
+        const moduleValue = moduleFilter ? moduleFilter.split(',')[0] : null;
 
         // 🔥 Helper to safely format dates
         const formatDate = (date: any) => {
