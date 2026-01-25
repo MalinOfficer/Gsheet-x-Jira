@@ -1,4 +1,3 @@
-
 "use client";
 
 import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon } from "lucide-react";
@@ -162,18 +161,37 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
 
     // Effect to fetch data
     useEffect(() => {
-        if (isInitialMount.current && initialStats) {
+        // Skip pada mount pertama jika ada initialStats
+        if (isInitialMount.current) {
             isInitialMount.current = false;
-            return;
+            if (initialStats) {
+                return; // Ada initial data, skip fetch
+            }
         }
-        isInitialMount.current = false;
+
+        console.log('🔄 [Dashboard] useEffect triggered with filters:', {
+            selectedYear,
+            categoryFilter,
+            clientFilter,
+            moduleFilter,
+            dateRange
+        });
 
         startApplyingFilters(async () => {
             setError(null);
             try {
-                const data = await fetcher({ selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange });
+                console.log('📞 [Dashboard] Calling fetcher...');
+                const data = await fetcher({ 
+                    selectedYear, 
+                    categoryFilter, 
+                    clientFilter, 
+                    moduleFilter, 
+                    dateRange 
+                });
+                console.log('✅ [Dashboard] Data received:', data?.summary?.total_cases, 'cases');
                 setStats(data);
             } catch (err: any) {
+                console.error('❌ [Dashboard] Fetch error:', err);
                 setError(err.message);
                 setStats(null);
                 toast({
@@ -183,7 +201,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 });
             }
         });
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, fetcher, initialStats, toast]);
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, fetcher, toast]);
 
     const handleRefresh = useCallback(() => {
         setIsRefreshing(true);

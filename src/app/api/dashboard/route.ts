@@ -1,15 +1,9 @@
-
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { type DateRange } from 'react-day-picker';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Pivots and orders monthly statistics from the database.
- * Assumes the input is in a "long" format like: [{ month: "Jan", year: "2024", cases: 15 }, ...]
- * And transforms it into a "wide" format like: [{ month: "Jan", "2024": 15, "2025": 0 }, ...]
- */
 const pivotAndOrderMonthlyStats = (unpivotedData: any[] | null | undefined): any[] => {
     if (!unpivotedData || !Array.isArray(unpivotedData) || unpivotedData.length === 0) {
         return [];
@@ -18,28 +12,21 @@ const pivotAndOrderMonthlyStats = (unpivotedData: any[] | null | undefined): any
     const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const statsByMonth: { [key: string]: any } = {};
 
-    // Initialize map with all months to ensure correct order
     monthOrder.forEach(month => {
         statsByMonth[month] = { month };
     });
 
     const allYears = new Set<string>();
     
-    // Populate the map with data from the database
     unpivotedData.forEach(item => {
-        // Handle both pivoted and unpivoted formats gracefully
         if (item.month && monthOrder.includes(item.month)) {
             const monthData = statsByMonth[item.month];
             
-            // Case 1: Data is unpivoted { month: "Jan", year: "2024", cases: 10 }
             if (item.year && typeof item.cases !== 'undefined') {
                 const yearStr = String(item.year);
                 monthData[yearStr] = (monthData[yearStr] || 0) + item.cases;
                 allYears.add(yearStr);
-            } 
-            
-            // Case 2: Data is already pivoted { month: "Jan", "2024": 10 }
-            else {
+            } else {
                 Object.keys(item).forEach(key => {
                     if (/^\d{4}$/.test(key)) {
                         monthData[key] = (monthData[key] || 0) + item[key];
@@ -53,7 +40,6 @@ const pivotAndOrderMonthlyStats = (unpivotedData: any[] | null | undefined): any
 
     const sortedYears = Array.from(allYears).sort();
 
-    // Final pass to ensure all months have all year keys, filling with 0 if missing
     return monthOrder.map(month => {
         const monthData = statsByMonth[month];
         sortedYears.forEach(year => {
@@ -65,10 +51,11 @@ const pivotAndOrderMonthlyStats = (unpivotedData: any[] | null | undefined): any
     });
 };
 
-
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
+
+        console.log('🔍 [API] All search params:', Object.fromEntries(searchParams.entries()));
 
         const dateRangeString = searchParams.get('dateRange');
         let dateRange: DateRange | undefined;
@@ -85,11 +72,18 @@ export async function GET(request: Request) {
         const clientFilter = searchParams.get('clientFilter');
         const moduleFilter = searchParams.get('moduleFilter');
 
-        const categoryValue = categoryFilter ? categoryFilter.split(',')[0] : null;
-        const clientValue = clientFilter ? clientFilter.split(',')[0] : null;
-        const moduleValue = moduleFilter ? moduleFilter.split(',')[0] : null;
+        console.log('📥 [API] Raw params from URL:', {
+            year,
+            categoryFilter,
+            clientFilter,
+            moduleFilter,
+            dateRangeString
+        });
 
-        // 🔥 Helper to safely format dates
+        const categoryValue = (categoryFilter && categoryFilter !== '') ? categoryFilter.split(',')[0] : null;
+        const clientValue = (clientFilter && clientFilter !== '') ? clientFilter.split(',')[0] : null;
+        const moduleValue = (moduleFilter && moduleFilter !== '') ? moduleFilter.split(',')[0] : null;
+
         const formatDate = (date: any) => {
             if (!date) return null;
             try {
@@ -101,29 +95,41 @@ export async function GET(request: Request) {
             }
         };
 
+        let yearValue: number | null = null;
+        if (year && year !== 'all' && year !== '') {
+            const parsed = parseInt(year, 10);
+            if (!isNaN(parsed)) {
+                yearValue = parsed;
+                console.log('✅ [API] Year parsed successfully:', yearValue);
+            } else {
+                console.log('⚠️ [API] Failed to parse year:', year);
+            }
+        } else {
+            console.log('ℹ️ [API] Year is null/all/empty:', year);
+        }
+
         const params: Record<string, any> = {
             p_start_date: formatDate(dateRange?.from),
             p_end_date: formatDate(dateRange?.to),
             p_category: categoryValue,
             p_client: clientValue,
             p_module: moduleValue,
-            p_year: (year && year !== 'all') ? parseInt(year, 10) : null,
+            p_year: yearValue,
         };
 
-        console.log('🔍 [API] Calling fn_dashboard_filtered with params:', params);
+        console.log('🚀 [API] Calling fn_dashboard_filtered with params:', JSON.stringify(params, null, 2));
 
         const { data, error } = await supabaseAdmin.rpc('fn_dashboard_filtered', params);
-
-        if (process.env.NODE_ENV === 'development') {
-            console.log('📦 [API] Data received from DB for year:', params.p_year, JSON.stringify(data, null, 2));
-        }
 
         if (error) {
             console.error('❌ [API] Supabase RPC Error:', error);
             throw error;
         }
 
+        console.log('📦 [API] Data received, out_total_cases:', data?.[0]?.out_total_cases);
+
         if (!data || data.length === 0 || data[0].out_total_cases === null) {
+            console.log('⚠️ [API] No data returned from database');
             return NextResponse.json({
                 success: true,
                 data: {
@@ -145,7 +151,6 @@ export async function GET(request: Request) {
 
         const result = data[0];
 
-        // 🔥 Parse JSONB fields
         const parseJSONB = (field: any) => {
             if (!field) return [];
             if (Array.isArray(field)) return field;
@@ -185,6 +190,8 @@ export async function GET(request: Request) {
                 value: item.cases
             })),
         };
+
+        console.log('✅ [API] Returning data with', mappedData.summary.total_cases, 'cases');
 
         return NextResponse.json({
             success: true,
