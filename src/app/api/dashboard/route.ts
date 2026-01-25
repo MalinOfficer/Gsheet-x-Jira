@@ -90,6 +90,10 @@ export async function GET(request: Request) {
 
         const { data, error } = await supabaseAdmin.rpc('fn_dashboard_filtered', params);
 
+        if (process.env.NODE_ENV === 'development') {
+            console.log('📦 [API] Data received from DB for year:', params.p_year, JSON.stringify(data, null, 2));
+        }
+
         if (error) {
             console.error('❌ [API] Supabase RPC Error:', error);
             throw error;
