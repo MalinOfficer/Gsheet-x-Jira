@@ -1,4 +1,3 @@
-
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase";
@@ -8,7 +7,6 @@ import {
   getSelectColumns,
   type YourDBRow,
 } from "@/lib/db-mapper";
-import { parse } from 'date-fns';
 
 // ============================================
 // FETCH ALL CASES DATA (Not used by dashboard, for DB viewer)
@@ -34,7 +32,6 @@ export async function getAllCaseData() {
   }
 }
 
-
 // ============================================
 // REFRESH DASHBOARD
 // ============================================
@@ -54,14 +51,16 @@ export async function refreshDashboardViews() {
 
 const _getDashboardFilterOptions = async () => {
   try {
+    console.log('🔍 Fetching filter options from database...');
+    
     const { data, error } = await supabaseAdmin
       .from("all_cases")
       .select("category_case, client_name, module_case, date")
       .order("date", { ascending: false });
 
     if (error) throw error;
-    
-    console.log(">>>> [DEBUG] First 5 date strings from DB:", data.slice(0, 5).map(d => d.date));
+
+    console.log('📊 Total rows fetched:', data.length);
 
     const uniqueCategories = [
       ...new Set(data.map((c) => c.category_case).filter(Boolean)),
@@ -79,32 +78,28 @@ const _getDashboardFilterOptions = async () => {
       if (!d.date) return;
       
       try {
+        // Karena kolom date bertipe DATE di PostgreSQL,
+        // Supabase akan mengembalikannya sebagai string ISO format: 'YYYY-MM-DD'
         const dateStr = String(d.date).trim();
         
-        // METHOD 1: Safest for YYYY-MM-DD format. Avoids timezone issues.
-        const year = parseInt(dateStr.substring(0, 4), 10);
+        // Langsung parse sebagai ISO date (format: YYYY-MM-DD)
+        const dateObj = new Date(dateStr);
         
-        if (!isNaN(year) && year >= 1900 && year <= 2100) {
-          years.add(year.toString());
-        } else {
-           // METHOD 2: Fallback for other formats that new Date() can parse.
-          const dateObj = new Date(dateStr);
-          if (!isNaN(dateObj.getTime())) {
-            const fallbackYear = dateObj.getFullYear();
-            if (fallbackYear >= 1900 && fallbackYear <= 2100) {
-              years.add(fallbackYear.toString());
-            }
+        if (!isNaN(dateObj.getTime())) {
+          const year = dateObj.getFullYear();
+          if (year >= 1900 && year <= 2100) {
+            years.add(year.toString());
           }
         }
       } catch (e) {
+        // Silent fail untuk data yang invalid
         console.warn(`Could not parse date: ${d.date}`);
       }
     });
 
     const sortedYears = Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
     
-    // Final diagnostic log to confirm what years were found
-    console.log('✅ [Final Check] Years found for filter:', sortedYears);
+    console.log('📅 Years found:', sortedYears);
 
     return {
       success: true,
@@ -131,12 +126,10 @@ export async function getDashboardFilterOptions() {
 
 // Dummy function implementations
 export async function getSpreadsheetTitle(url: string) {
-    // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 500));
     if (!url || !url.includes('docs.google.com/spreadsheets')) {
         return { error: 'Invalid Google Sheet URL' };
     }
-    // Simulate finding a title
     const dummyId = url.split('/d/')[1]?.split('/')[0];
     return { success: true, title: `Dummy Sheet (${dummyId.slice(0, 6)})` };
 }

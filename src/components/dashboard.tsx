@@ -1,4 +1,3 @@
-
 "use client";
 
 import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon } from "lucide-react";
@@ -72,6 +71,9 @@ interface DashboardProps {
 }
 
 export function Dashboard({ initialStats, initialOptions, error: initialError }: DashboardProps) {
+    console.log('🎨 [Dashboard] Component mounted/updated');
+    console.log('🎨 [Dashboard] initialOptions.years:', initialOptions?.years);
+    
     const { setIsProcessing } = useContext(TableDataContext);
     const { toast } = useToast();
 
@@ -89,6 +91,17 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
+    console.log('🎯 [Dashboard] Current state:', {
+        selectedYear,
+        categoryFilter,
+        clientFilter,
+        moduleFilter,
+        dateRange,
+        hasStats: !!stats,
+        isInitialMount: isInitialMount.current,
+        availableYears: filterOptions?.years
+    });
+
     const { chartKeys, dynamicChartConfig } = useMemo(() => {
         if (!stats?.monthly_stats || stats.monthly_stats.length === 0) {
             return { chartKeys: [], dynamicChartConfig: chartConfig };
@@ -97,7 +110,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         const keys = new Set<string>();
         stats.monthly_stats.forEach(monthData => {
             Object.keys(monthData).forEach(key => {
-                if (/^\d{4}$/.test(key)) { // Find keys that are 4-digit years
+                if (/^\d{4}$/.test(key)) {
                     keys.add(key);
                 }
             });
@@ -110,7 +123,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         const newConfig: ChartConfig = {};
         sortedKeys.forEach((key, index) => {
             newConfig[key] = {
-                label: key, // The label is the year itself, e.g. "2024"
+                label: key,
                 color: chartColors[index % chartColors.length],
             };
         });
@@ -133,6 +146,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     }, [dateRange, selectedYear, categoryFilter, clientFilter, moduleFilter]);
 
     const handleClearAllFilters = () => {
+        console.log('🧹 [Dashboard] Clearing all filters');
         setSelectedYear('all');
         setCategoryFilter([]);
         setClientFilter([]);
@@ -140,46 +154,22 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         setDateRange(undefined);
     };
 
-    const fetcher = useCallback(async (filters: any) => {
-        const params = new URLSearchParams();
-        if (filters.dateRange) params.append('dateRange', JSON.stringify(filters.dateRange));
-        params.append('selectedYear', filters.selectedYear);
-        params.append('categoryFilter', filters.categoryFilter.join(','));
-        params.append('clientFilter', filters.clientFilter.join(','));
-        params.append('moduleFilter', filters.moduleFilter.join(','));
-        
-        const url = `/api/dashboard?${params.toString()}`;
-        console.log('🌐 [Fetcher] Fetching URL:', url);
-        
-        const response = await fetch(url);
-        console.log('📡 [Fetcher] Response status:', response.status);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ [Fetcher] Error response:', errorText);
-            throw new Error(`Failed to fetch dashboard data: ${response.status} ${errorText}`);
-        }
-        
-        const result = await response.json();
-        console.log('📦 [Fetcher] Result:', result);
-        
-        if (!result.success) {
-            throw new Error(result.error || 'An unknown error occurred');
-        }
-        return result.data;
-    }, []);
-
     // Effect to fetch data
     useEffect(() => {
+        console.log('⚡ [Dashboard] useEffect TRIGGERED');
+        
         // Skip pada mount pertama jika ada initialStats
         if (isInitialMount.current) {
+            console.log('🏁 [Dashboard] This is initial mount');
             isInitialMount.current = false;
             if (initialStats) {
-                return; // Ada initial data, skip fetch
+                console.log('✋ [Dashboard] Has initialStats, SKIPPING fetch');
+                return;
             }
+            console.log('➡️ [Dashboard] No initialStats, WILL fetch');
         }
 
-        console.log('🔄 [Dashboard] useEffect triggered with filters:', {
+        console.log('🔄 [Dashboard] Filters changed, fetching data:', {
             selectedYear,
             categoryFilter,
             clientFilter,
@@ -190,16 +180,34 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         startApplyingFilters(async () => {
             setError(null);
             try {
-                console.log('📞 [Dashboard] Calling fetcher...');
-                const data = await fetcher({ 
-                    selectedYear, 
-                    categoryFilter, 
-                    clientFilter, 
-                    moduleFilter, 
-                    dateRange 
-                });
-                console.log('✅ [Dashboard] Data received:', data?.summary?.total_cases, 'cases');
-                setStats(data);
+                const params = new URLSearchParams();
+                if (dateRange) params.append('dateRange', JSON.stringify(dateRange));
+                params.append('selectedYear', selectedYear);
+                params.append('categoryFilter', categoryFilter.join(','));
+                params.append('clientFilter', clientFilter.join(','));
+                params.append('moduleFilter', moduleFilter.join(','));
+                
+                const url = `/api/dashboard?${params.toString()}`;
+                console.log('🌐 [Dashboard] Fetching URL:', url);
+                
+                const response = await fetch(url);
+                console.log('📡 [Dashboard] Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to fetch dashboard data: ${response.status} ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log('📦 [Dashboard] Result success:', result.success);
+                console.log('📦 [Dashboard] Result data:', result.data);
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'An unknown error occurred');
+                }
+                
+                console.log('✅ [Dashboard] Setting stats with', result.data?.summary?.total_cases, 'cases');
+                setStats(result.data);
             } catch (err: any) {
                 console.error('❌ [Dashboard] Fetch error:', err);
                 setError(err.message);
@@ -211,33 +219,50 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 });
             }
         });
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, fetcher, toast]);
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, toast, initialStats]);
 
     const handleRefresh = useCallback(() => {
+        console.log('🔄 [Dashboard] Refresh button clicked');
         setIsRefreshing(true);
         toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
         
-        refreshDashboardViews().then(() => {
-             // Re-fetch data using the current filter state
-             fetcher({ selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange })
-                .then(data => setStats(data))
-                .catch(err => {
-                    setError(err.message);
-                    setStats(null);
-                })
-                .finally(() => setIsRefreshing(false));
+        refreshDashboardViews().then(async () => {
+            try {
+                const params = new URLSearchParams();
+                if (dateRange) params.append('dateRange', JSON.stringify(dateRange));
+                params.append('selectedYear', selectedYear);
+                params.append('categoryFilter', categoryFilter.join(','));
+                params.append('clientFilter', clientFilter.join(','));
+                params.append('moduleFilter', moduleFilter.join(','));
                 
-             // Also refresh filter options
-             getDashboardFilterOptions().then((optionsResult) => {
+                const response = await fetch(`/api/dashboard?${params.toString()}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    setStats(result.data);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (err: any) {
+                setError(err.message);
+                setStats(null);
+            } finally {
+                setIsRefreshing(false);
+            }
+                
+            // Refresh filter options
+            getDashboardFilterOptions().then((optionsResult) => {
+                console.log('🔄 [Refresh] Filter options result:', optionsResult);
                 if (optionsResult.error || !optionsResult.data) {
                     console.error("Could not load filter options:", optionsResult.error);
                     setFilterOptions({ categories: [], clients: [], modules: [], years: [] });
                 } else {
+                    console.log('✅ [Refresh] Setting filter options with years:', optionsResult.data.years);
                     setFilterOptions(optionsResult.data);
                 }
-             });
+            });
         });
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, fetcher, toast]);
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, toast]);
 
     if (isApplyingFilters && !stats) {
         return (
@@ -443,15 +468,26 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh Data
                             </Button>
-                            <Select value={selectedYear} onValueChange={(value) => setSelectedYear(value)}>
+                            <Select 
+                                value={selectedYear} 
+                                onValueChange={(value) => {
+                                    console.log('🔄 [Select] Year changing from', selectedYear, 'to', value);
+                                    setSelectedYear(value);
+                                }}
+                            >
                                 <SelectTrigger className="w-full sm:w-[180px]">
                                     <SelectValue placeholder="Select a year" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Years</SelectItem>
-                                    {(filterOptions?.years || []).map(year => (
-                                        <SelectItem key={year} value={year}>{year}</SelectItem>
-                                    ))}
+                                    {(() => {
+                                        const years = filterOptions?.years || [];
+                                        console.log('🎯 [Select Render] Available years:', years);
+                                        return years.map(year => {
+                                            console.log('📅 [Select Render] Rendering year:', year);
+                                            return <SelectItem key={year} value={year}>{year}</SelectItem>;
+                                        });
+                                    })()}
                                 </SelectContent>
                             </Select>
                         </div>
