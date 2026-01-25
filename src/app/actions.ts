@@ -54,8 +54,6 @@ export async function refreshDashboardViews() {
 
 const _getDashboardFilterOptions = async () => {
   try {
-    console.log('>>> EXECUTING LATEST VERSION of _getDashboardFilterOptions <<<');
-
     const { data, error } = await supabaseAdmin
       .from("all_cases")
       .select("category_case, client_name, module_case, date")
@@ -81,12 +79,20 @@ const _getDashboardFilterOptions = async () => {
       try {
         const dateStr = String(d.date).trim();
         
-        // Safest parsing method for 'YYYY-MM-DD' format.
-        // It avoids timezone issues that can occur with `new Date()`.
+        // METHOD 1: Safest for YYYY-MM-DD format. Avoids timezone issues.
         const year = parseInt(dateStr.substring(0, 4), 10);
         
         if (!isNaN(year) && year >= 1900 && year <= 2100) {
           years.add(year.toString());
+        } else {
+           // METHOD 2: Fallback for other formats that new Date() can parse.
+          const dateObj = new Date(dateStr);
+          if (!isNaN(dateObj.getTime())) {
+            const fallbackYear = dateObj.getFullYear();
+            if (fallbackYear >= 1900 && fallbackYear <= 2100) {
+              years.add(fallbackYear.toString());
+            }
+          }
         }
       } catch (e) {
         console.warn(`Could not parse date: ${d.date}`);
@@ -95,7 +101,7 @@ const _getDashboardFilterOptions = async () => {
 
     const sortedYears = Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
     
-    console.log('✅ Years found for filter:', sortedYears);
+    console.log('✅ [Final Check] Years found for filter:', sortedYears);
 
     return {
       success: true,
