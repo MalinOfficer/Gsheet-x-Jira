@@ -54,16 +54,14 @@ export async function refreshDashboardViews() {
 
 const _getDashboardFilterOptions = async () => {
   try {
-    console.log('🔍 Fetching filter options from database...');
-    
+    console.log('>>> EXECUTING LATEST VERSION of _getDashboardFilterOptions <<<');
+
     const { data, error } = await supabaseAdmin
       .from("all_cases")
       .select("category_case, client_name, module_case, date")
       .order("date", { ascending: false });
 
     if (error) throw error;
-
-    console.log('📊 Total rows fetched:', data.length);
 
     const uniqueCategories = [
       ...new Set(data.map((c) => c.category_case).filter(Boolean)),
@@ -81,18 +79,16 @@ const _getDashboardFilterOptions = async () => {
       if (!d.date) return;
       
       try {
-        // Since the `date` column is a DATE type in PostgreSQL,
-        // Supabase returns it as a standard 'YYYY-MM-DD' ISO string.
-        // We can safely parse it directly without complex logic.
         const dateStr = String(d.date).trim();
-        const year = dateStr.split('-')[0];
-        const yearNum = parseInt(year, 10);
         
-        if (!isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2100) {
-            years.add(year);
+        // Safest parsing method for 'YYYY-MM-DD' format.
+        // It avoids timezone issues that can occur with `new Date()`.
+        const year = parseInt(dateStr.substring(0, 4), 10);
+        
+        if (!isNaN(year) && year >= 1900 && year <= 2100) {
+          years.add(year.toString());
         }
       } catch (e) {
-        // This block is unlikely to be hit with the new logic, but kept for safety.
         console.warn(`Could not parse date: ${d.date}`);
       }
     });
