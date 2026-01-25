@@ -8,7 +8,6 @@ import {
   getSelectColumns,
   type YourDBRow,
 } from "@/lib/db-mapper";
-import { parse } from "date-fns";
 
 // ============================================
 // FETCH ALL CASES DATA (Not used by dashboard, for DB viewer)
@@ -54,12 +53,16 @@ export async function refreshDashboardViews() {
 
 const _getDashboardFilterOptions = async () => {
   try {
+    console.log('🔍 Fetching filter options from database...');
+    
     const { data, error } = await supabaseAdmin
       .from("all_cases")
       .select("category_case, client_name, module_case, date")
       .order("date", { ascending: false });
 
     if (error) throw error;
+
+    console.log('📊 Total rows fetched:', data.length);
 
     const uniqueCategories = [
       ...new Set(data.map((c) => c.category_case).filter(Boolean)),
@@ -72,56 +75,33 @@ const _getDashboardFilterOptions = async () => {
     ];
 
     const years = new Set<string>();
-    const parseErrors: string[] = []; // untuk debugging
     
-    data.forEach((d, index) => {
+    data.forEach((d) => {
       if (!d.date) return;
       
       try {
+        // Karena kolom date bertipe DATE di PostgreSQL,
+        // Supabase akan mengembalikannya sebagai string ISO format: 'YYYY-MM-DD'
         const dateStr = String(d.date).trim();
-        let dateObj: Date | null = null;
-
-        // Try multiple date formats
-        const formats = [
-          'dd/MM/yyyy',
-          'yyyy-MM-dd',
-          'MM/dd/yyyy',
-          'd/M/yyyy',
-        ];
-
-        for (const format of formats) {
-          try {
-            const parsed = parse(dateStr, format, new Date());
-            if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1900 && parsed.getFullYear() < 2100) {
-              dateObj = parsed;
-              break;
-            }
-          } catch {}
-        }
-
-        // Fallback to native Date parsing
-        if (!dateObj) {
-          const isoDate = new Date(dateStr);
-          if (!isNaN(isoDate.getTime()) && isoDate.getFullYear() > 1900 && isoDate.getFullYear() < 2100) {
-            dateObj = isoDate;
+        
+        // Langsung parse sebagai ISO date (format: YYYY-MM-DD)
+        const dateObj = new Date(dateStr);
+        
+        if (!isNaN(dateObj.getTime())) {
+          const year = dateObj.getFullYear();
+          if (year >= 1900 && year <= 2100) {
+            years.add(year.toString());
           }
         }
-
-        if (dateObj && !isNaN(dateObj.getTime())) {
-          const year = dateObj.getFullYear().toString();
-          years.add(year);
-        } else {
-          parseErrors.push(`Row ${index}: Could not parse date "${dateStr}"`);
-        }
-      } catch (e: any) {
-        parseErrors.push(`Row ${index}: Error parsing date "${d.date}" - ${e}`);
+      } catch (e) {
+        // Silent fail untuk data yang invalid
+        console.warn(`Could not parse date: ${d.date}`);
       }
     });
 
-    // Log errors untuk debugging (hanya di development)
-    if (process.env.NODE_ENV === 'development' && parseErrors.length > 0) {
-      console.warn('Date parsing errors:', parseErrors.slice(0, 10)); // Show first 10 errors
-    }
+    const sortedYears = Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+    
+    console.log('📅 Years found:', sortedYears);
 
     return {
       success: true,
@@ -129,11 +109,11 @@ const _getDashboardFilterOptions = async () => {
         categories: uniqueCategories.map((c) => ({ label: c, value: c })),
         clients: uniqueClients.map((c) => ({ label: c, value: c })),
         modules: uniqueModules.map((m) => ({ label: m, value: m })),
-        years: Array.from(years).sort((a, b) => parseInt(b) - parseInt(a)),
+        years: sortedYears,
       },
     };
   } catch (error: any) {
-    console.error("Error fetching filter options:", error);
+    console.error("❌ Error fetching filter options:", error);
     return {
       success: false,
       error: error.message || "Failed to fetch filter options",
@@ -145,32 +125,6 @@ export async function getDashboardFilterOptions() {
   // Caching has been removed to ensure fresh data is always fetched.
   return _getDashboardFilterOptions();
 }
-
-// REMOVED FOR DEMO
-// export async function getSpreadsheetTitle(url: string) {
-//     return { success: true, title: 'Dummy Sheet Title' };
-// }
-// export async function importToSheet(data: any, url: string) {
-//     return { success: true, message: 'Dummy import successful', importedCount: 10, duplicateCount: 2, duplicates: ['T-123', 'T-456'], undoData: { operationType: 'IMPORT', importedIds: [1,2,3] } };
-// }
-// export async function updateSheetStatus(data: any, url: string) {
-//     return { success: true, message: 'Dummy update successful', updatedRows: [{ title: 'Case A', newStatus: 'Solved', newTicketOp: 'John' }] };
-// }
-// export async function getUpdatePreview(data: any, url: string) {
-//     return { success: true, changes: [{ title: 'Case A', oldStatus: 'L3', newStatus: 'Solved' }] };
-// }
-// export async function undoLastAction(data: any, url: string) {
-//     return { success: true, message: 'Dummy undo successful' };
-// }
-// export async function fetchL3ReportData(url: string) {
-//     return { success: true, report: 'Dummy L3 report data' };
-// }
-// export async function getProjectFileContents() {
-//     return { success: true, data: [{ path: 'test.js', content: 'hello world', name: 'test.js' }] };
-// }
-// export async function mergeFilesOnServer(fileA: any, fileB: any, mode: any) {
-//     return { success: true, mergedRows: [], unmatchedFileA: [], unmatchedFileB: [], summary: { total: 10, existing: 5, matched: 3, unmatched: 2} };
-// }
 
 // Dummy function implementations
 export async function getSpreadsheetTitle(url: string) {
