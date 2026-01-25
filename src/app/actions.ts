@@ -2,12 +2,13 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase";
-import { unstable_cache, revalidateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 import {
   mapDBArrayToFrontend,
   getSelectColumns,
   type YourDBRow,
 } from "@/lib/db-mapper";
+import { parse } from 'date-fns';
 
 // ============================================
 // FETCH ALL CASES DATA (Not used by dashboard, for DB viewer)
@@ -80,21 +81,33 @@ const _getDashboardFilterOptions = async () => {
       if (!d.date) return;
       
       try {
-        // Karena kolom date bertipe DATE di PostgreSQL,
-        // Supabase akan mengembalikannya sebagai string ISO format: 'YYYY-MM-DD'
         const dateStr = String(d.date).trim();
+        let dateObj: Date | null = null;
         
-        // Langsung parse sebagai ISO date (format: YYYY-MM-DD)
-        const dateObj = new Date(dateStr);
+        // Prioritize parsing DD/MM/YYYY format as it's common and error-prone for native Date
+        try {
+            const parsed = parse(dateStr, 'dd/MM/yyyy', new Date());
+            if (!isNaN(parsed.getTime())) {
+                dateObj = parsed;
+            }
+        } catch(e) {}
+
+        // Fallback to native Date parsing for ISO formats like YYYY-MM-DD
+        if (!dateObj) {
+          const isoDate = new Date(dateStr);
+          if (!isNaN(isoDate.getTime())) {
+            dateObj = isoDate;
+          }
+        }
         
-        if (!isNaN(dateObj.getTime())) {
+        if (dateObj && !isNaN(dateObj.getTime())) {
           const year = dateObj.getFullYear();
           if (year >= 1900 && year <= 2100) {
             years.add(year.toString());
           }
         }
       } catch (e) {
-        // Silent fail untuk data yang invalid
+        // Silent fail for data that is completely invalid
         console.warn(`Could not parse date: ${d.date}`);
       }
     });
