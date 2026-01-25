@@ -1,3 +1,4 @@
+
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase";
@@ -141,15 +142,72 @@ const _getDashboardFilterOptions = async () => {
 };
 
 export async function getDashboardFilterOptions() {
-  // We still cache the filter options, but revalidate them with the main data tag
-  const cachedOptions = unstable_cache(
-    async () => _getDashboardFilterOptions(),
-    ["dashboard-filter-options"],
-    {
-      tags: ["all-case-data"],
-      revalidate: 3600, // Revalidate every hour
-    }
-  );
+  // Caching has been removed to ensure fresh data is always fetched.
+  return _getDashboardFilterOptions();
+}
 
-  return cachedOptions();
+// REMOVED FOR DEMO
+// export async function getSpreadsheetTitle(url: string) {
+//     return { success: true, title: 'Dummy Sheet Title' };
+// }
+// export async function importToSheet(data: any, url: string) {
+//     return { success: true, message: 'Dummy import successful', importedCount: 10, duplicateCount: 2, duplicates: ['T-123', 'T-456'], undoData: { operationType: 'IMPORT', importedIds: [1,2,3] } };
+// }
+// export async function updateSheetStatus(data: any, url: string) {
+//     return { success: true, message: 'Dummy update successful', updatedRows: [{ title: 'Case A', newStatus: 'Solved', newTicketOp: 'John' }] };
+// }
+// export async function getUpdatePreview(data: any, url: string) {
+//     return { success: true, changes: [{ title: 'Case A', oldStatus: 'L3', newStatus: 'Solved' }] };
+// }
+// export async function undoLastAction(data: any, url: string) {
+//     return { success: true, message: 'Dummy undo successful' };
+// }
+// export async function fetchL3ReportData(url: string) {
+//     return { success: true, report: 'Dummy L3 report data' };
+// }
+// export async function getProjectFileContents() {
+//     return { success: true, data: [{ path: 'test.js', content: 'hello world', name: 'test.js' }] };
+// }
+// export async function mergeFilesOnServer(fileA: any, fileB: any, mode: any) {
+//     return { success: true, mergedRows: [], unmatchedFileA: [], unmatchedFileB: [], summary: { total: 10, existing: 5, matched: 3, unmatched: 2} };
+// }
+
+// Dummy function implementations
+export async function getSpreadsheetTitle(url: string) {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    if (!url || !url.includes('docs.google.com/spreadsheets')) {
+        return { error: 'Invalid Google Sheet URL' };
+    }
+    // Simulate finding a title
+    const dummyId = url.split('/d/')[1]?.split('/')[0];
+    return { success: true, title: `Dummy Sheet (${dummyId.slice(0, 6)})` };
+}
+
+export async function getProjectFileContents(): Promise<{ success: boolean; data?: { path: string; content: string; name: string }[]; error?: string }> {
+    return { success: false, error: "This function is not implemented in the live demo." };
+}
+
+export async function importToSheet(data: any, url: string): Promise<any> {
+    return { success: false, error: "This function is not implemented in the live demo." };
+}
+
+export async function updateSheetStatus(data: any, url: string): Promise<any> {
+    return { success: false, error: "This function is not implemented in the live demo." };
+}
+
+export async function getUpdatePreview(data: any, url: string): Promise<any> {
+    return { success: false, error: "This function is not implemented in the live demo." };
+}
+
+export async function undoLastAction(data: any, url: string): Promise<any> {
+     return { success: false, error: "This function is not implemented in the live demo." };
+}
+
+export async function fetchL3ReportData(url: string): Promise<any> {
+    return { success: false, error: "This function is not implemented in the live demo." };
+}
+
+export async function mergeFilesOnServer(fileA: any, fileB: any, editMode: any): Promise<any> {
+    return { success: false, error: "This function is not implemented in the live demo." };
 }
