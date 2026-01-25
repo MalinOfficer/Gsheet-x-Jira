@@ -5,40 +5,64 @@ import { type DateRange } from 'react-day-picker';
 
 export const dynamic = 'force-dynamic';
 
-// Helper function to ensure monthly stats are ordered and complete
-const ensureOrderedMonthlyStats = (pivotedDbData: any[] | null | undefined): any[] => {
-    if (!pivotedDbData || !Array.isArray(pivotedDbData) || pivotedDbData.length === 0) {
+/**
+ * Pivots and orders monthly statistics from the database.
+ * Assumes the input is in a "long" format like: [{ month: "Jan", year: "2024", cases: 15 }, ...]
+ * And transforms it into a "wide" format like: [{ month: "Jan", "2024": 15, "2025": 0 }, ...]
+ */
+const pivotAndOrderMonthlyStats = (unpivotedData: any[] | null | undefined): any[] => {
+    if (!unpivotedData || !Array.isArray(unpivotedData) || unpivotedData.length === 0) {
         return [];
     }
 
     const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const statsByMonth: { [key: string]: any } = {};
+
+    // Initialize map with all months to ensure correct order
+    monthOrder.forEach(month => {
+        statsByMonth[month] = { month };
+    });
+
+    const allYears = new Set<string>();
     
-    // Create a map of the data from the DB for quick lookups
-    const dataByMonth = new Map(pivotedDbData.map(item => [item.month, item]));
-    
-    // Get all unique year keys present in the dataset
-    const allYearKeys = new Set<string>();
-    pivotedDbData.forEach(row => {
-        Object.keys(row).forEach(key => {
-            if (/^\d{4}$/.test(key)) { // It's a year
-                allYearKeys.add(key);
+    // Populate the map with data from the database
+    unpivotedData.forEach(item => {
+        // Handle both pivoted and unpivoted formats gracefully
+        if (item.month && monthOrder.includes(item.month)) {
+            const monthData = statsByMonth[item.month];
+            
+            // Case 1: Data is unpivoted { month: "Jan", year: "2024", cases: 10 }
+            if (item.year && typeof item.cases !== 'undefined') {
+                const yearStr = String(item.year);
+                monthData[yearStr] = (monthData[yearStr] || 0) + item.cases;
+                allYears.add(yearStr);
+            } 
+            
+            // Case 2: Data is already pivoted { month: "Jan", "2024": 10 }
+            else {
+                Object.keys(item).forEach(key => {
+                    if (/^\d{4}$/.test(key)) {
+                        monthData[key] = (monthData[key] || 0) + item[key];
+                        allYears.add(key);
+                    }
+                });
+            }
+            statsByMonth[item.month] = monthData;
+        }
+    });
+
+    const sortedYears = Array.from(allYears).sort();
+
+    // Final pass to ensure all months have all year keys, filling with 0 if missing
+    return monthOrder.map(month => {
+        const monthData = statsByMonth[month];
+        sortedYears.forEach(year => {
+            if (!monthData.hasOwnProperty(year)) {
+                monthData[year] = 0;
             }
         });
+        return monthData;
     });
-
-    // Build the final, ordered, and complete array
-    const orderedStats = monthOrder.map(month => {
-        const existingData = dataByMonth.get(month);
-        const newMonthData: Record<string, any> = { month };
-
-        allYearKeys.forEach(year => {
-            newMonthData[year] = existingData?.[year] ?? 0;
-        });
-
-        return newMonthData;
-    });
-
-    return orderedStats;
 };
 
 
@@ -129,7 +153,7 @@ export async function GET(request: Request) {
                 try {
                     return JSON.parse(field);
                 } catch (e) {
-                    console.error('Failed to parse JSONB:', e);
+                    console.error('Failed to parse JSONB:', field, e);
                     return [];
                 }
             }
@@ -137,7 +161,7 @@ export async function GET(request: Request) {
         };
 
         const rawMonthlyStats = parseJSONB(result.out_monthly_stats);
-        const finalMonthlyStats = ensureOrderedMonthlyStats(rawMonthlyStats);
+        const finalMonthlyStats = pivotAndOrderMonthlyStats(rawMonthlyStats);
         const clientRankings = parseJSONB(result.out_client_rankings);
         const moduleRankings = parseJSONB(result.out_module_rankings);
         
