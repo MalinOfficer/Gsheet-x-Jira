@@ -1,4 +1,3 @@
-
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase";
@@ -54,11 +53,10 @@ export async function refreshDashboardViews() {
 
 const _getDashboardFilterOptions = async () => {
   try {
-    // This now fetches from the base table to ensure all possible options are available
     const { data, error } = await supabaseAdmin
       .from("all_cases")
       .select("category_case, client_name, module_case, date")
-      .order("date", { ascending: false }); // Sort by date to get recent years first
+      .order("date", { ascending: false });
 
     if (error) throw error;
 
@@ -73,38 +71,56 @@ const _getDashboardFilterOptions = async () => {
     ];
 
     const years = new Set<string>();
-    data.forEach((d) => {
-      if (d.date) {
-        try {
-            let dateObj: Date | null = null;
-            const dateStr = String(d.date);
+    const parseErrors: string[] = []; // untuk debugging
+    
+    data.forEach((d, index) => {
+      if (!d.date) return;
+      
+      try {
+        const dateStr = String(d.date).trim();
+        let dateObj: Date | null = null;
 
-            // First, try the most likely non-ISO format (e.g., from GSheets)
-            try {
-                const parsed = parse(dateStr, 'dd/MM/yyyy', new Date());
-                if (!isNaN(parsed.getTime())) {
-                    dateObj = parsed;
-                }
-            } catch(parseErr) {
-                // Ignore and fall through
-            }
-            
-            // If that fails, try the more general new Date() for ISO formats etc.
-            if (!dateObj) {
-                const isoDate = new Date(dateStr);
-                if (!isNaN(isoDate.getTime())) {
-                    dateObj = isoDate;
-                }
-            }
+        // Try multiple date formats
+        const formats = [
+          'dd/MM/yyyy',
+          'yyyy-MM-dd',
+          'MM/dd/yyyy',
+          'd/M/yyyy',
+        ];
 
-            if (dateObj && !isNaN(dateObj.getTime())) {
-                years.add(dateObj.getFullYear().toString());
+        for (const format of formats) {
+          try {
+            const parsed = parse(dateStr, format, new Date());
+            if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1900 && parsed.getFullYear() < 2100) {
+              dateObj = parsed;
+              break;
             }
-        } catch(e) {
-            // This outer catch is for any unexpected errors
+          } catch {}
         }
+
+        // Fallback to native Date parsing
+        if (!dateObj) {
+          const isoDate = new Date(dateStr);
+          if (!isNaN(isoDate.getTime()) && isoDate.getFullYear() > 1900 && isoDate.getFullYear() < 2100) {
+            dateObj = isoDate;
+          }
+        }
+
+        if (dateObj && !isNaN(dateObj.getTime())) {
+          const year = dateObj.getFullYear().toString();
+          years.add(year);
+        } else {
+          parseErrors.push(`Row ${index}: Could not parse date "${dateStr}"`);
+        }
+      } catch (e: any) {
+        parseErrors.push(`Row ${index}: Error parsing date "${d.date}" - ${e}`);
       }
     });
+
+    // Log errors untuk debugging (hanya di development)
+    if (process.env.NODE_ENV === 'development' && parseErrors.length > 0) {
+      console.warn('Date parsing errors:', parseErrors.slice(0, 10)); // Show first 10 errors
+    }
 
     return {
       success: true,
