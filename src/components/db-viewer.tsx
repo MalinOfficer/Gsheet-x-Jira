@@ -48,13 +48,18 @@ interface DbViewerState {
 const parseDate = (dateStr: string): Date | null => {
     if (!dateStr || typeof dateStr !== 'string') return null;
     
-    // Handle ISO 8601 format from Supabase (e.g., "2024-07-29T17:00:00+00:00") or YYYY-MM-DD
+    // Handle YYYY-MM-DD by ensuring it's parsed as local time, not UTC.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        dateStr = `${dateStr}T00:00:00`;
+    }
+
+    // Try standard new Date() which is good for ISO 8601 and our modified YYYY-MM-DD
     try {
         const parsed = new Date(dateStr);
         if (!isNaN(parsed.getTime())) return parsed;
     } catch (e) { /* ignore and fallback */ }
 
-    // Handle DD/MM/YYYY format from GSheets
+    // Fallback for DD/MM/YYYY format
     try {
         const parsed = parse(dateStr, 'dd/MM/yyyy', new Date());
         if (!isNaN(parsed.getTime())) return parsed;
@@ -707,3 +712,5 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
         </div>
     );
 }
+
+    
