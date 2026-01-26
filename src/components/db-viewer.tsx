@@ -35,7 +35,7 @@ interface DbViewerProps {
     initialData: any[] | null;
     initialSource: 'cache' | 'sheet' | 'N/A' | 'supabase';
     initialError?: string | null;
-    availableYears?: string[]; // ✅ Added
+    availableYears?: string[];
 }
 
 interface DbViewerState {
@@ -51,13 +51,16 @@ const parseDate = (dateStr: string): Date | null => {
     const trimmed = dateStr.trim();
     
     // Try ISO format first (YYYY-MM-DD from database)
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-        const [year, month, day] = trimmed.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+        // To prevent timezone issues where new Date('2024-01-01') might become 2023-12-31,
+        // we can parse it as UTC or manually.
+        const [year, month, day] = trimmed.split('T')[0].split('-').map(Number);
+        // Using UTC to avoid timezone shift
+        const date = new Date(Date.UTC(year, month - 1, day));
         if (!isNaN(date.getTime())) return date;
     }
 
-    // Try native Date parsing
+    // Try native Date parsing as a fallback
     try {
         const parsed = new Date(trimmed);
         if (!isNaN(parsed.getTime())) {
@@ -85,7 +88,7 @@ export function DbViewer({
     initialData, 
     initialSource, 
     initialError,
-    availableYears = [] // ✅ Added with default empty array
+    availableYears = []
 }: DbViewerProps) {
     const { dbSheetUrl } = useContext(SettingsContext);
     const { setIsProcessing } = useContext(TableDataContext);
@@ -96,7 +99,7 @@ export function DbViewer({
     });
     const [isPending, startTransition] = useTransition();
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [fetchedYears, setFetchedYears] = useState<string[]>(availableYears); // ✅ Added
+    const [fetchedYears, setFetchedYears] = useState<string[]>(availableYears);
 
     const [progress, setProgress] = useState(0);
     const { toast } = useToast();
@@ -192,7 +195,6 @@ export function DbViewer({
                 setProgress(0);
             }
             
-            // ✅ Fetch both data and years on refresh
             const [dataResult, filterOptionsResult] = await Promise.all([
                 getAllCaseData(),
                 getDashboardFilterOptions()
@@ -204,7 +206,6 @@ export function DbViewer({
                 error: dataResult.error,
             });
 
-            // ✅ Update years from database
             if (filterOptionsResult.data?.years) {
                 setFetchedYears(filterOptionsResult.data.years);
             }
@@ -257,7 +258,6 @@ export function DbViewer({
         return options;
     }, [state.data]);
 
-    // ✅ Updated yearOptions to use fetchedYears from database
     const yearOptions = useMemo(() => {
         // Priority 1: Use years from database function
         if (fetchedYears.length > 0) {
@@ -268,10 +268,12 @@ export function DbViewer({
         if (!state.data || !dateHeaderKey) return [];
         const years = new Set<string>();
         state.data.forEach(row => {
-            const dateValue = row[dateHeaderKey];
-            const dateObj = parseDate(dateValue);
-            if(dateObj) {
-                years.add(dateObj.getFullYear().toString());
+            const dateValue = String(row[dateHeaderKey] || '');
+            if (dateValue.length >= 4) {
+                const year = dateValue.substring(0, 4);
+                if (/^\d{4}$/.test(year)) { // Ensure it's a four-digit number
+                    years.add(year);
+                }
             }
         });
         return Array.from(years).sort((a, b) => b.localeCompare(a));
@@ -329,9 +331,8 @@ export function DbViewer({
         // 4. Year filter
         if (yearFilter && dateHeaderKey) {
             dataToFilter = dataToFilter.filter(row => {
-                const dateValue = row[dateHeaderKey];
-                const dateObj = parseDate(dateValue);
-                return dateObj && dateObj.getFullYear().toString() === yearFilter;
+                const dateValue = String(row[dateHeaderKey] || '');
+                return dateValue.startsWith(yearFilter);
             });
         }
 
