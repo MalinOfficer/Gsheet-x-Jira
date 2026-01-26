@@ -1,18 +1,19 @@
-
 import { DbViewer } from '@/components/db-viewer';
-import { getAllCaseData } from '@/app/actions';
+import { getAllCaseData, getDashboardFilterOptions } from '@/app/actions';
 
 export default async function DbPage() {
-    // Penjelasan: Fungsi getAllCaseData saat ini mengambil data langsung dari Supabase,
-    // bukan dari URL Google Sheet. Kode di bawah ini disederhanakan untuk mencerminkan hal tersebut.
-    const result = await getAllCaseData();
+    const [dataResult, filterOptionsResult] = await Promise.all([
+        getAllCaseData(),
+        getDashboardFilterOptions()
+    ]);
 
     return (
         <main>
             <DbViewer 
-                initialData={result.data ?? null}
-                initialSource={result.source ?? 'N/A'}
-                initialError={result.error ?? undefined}
+                initialData={dataResult.data ?? null}
+                initialSource={dataResult.source ?? 'N/A'}
+                initialError={dataResult.error ?? undefined}
+                availableYears={filterOptionsResult.data?.years ?? []}
             />
         </main>
     );

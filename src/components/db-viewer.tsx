@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
@@ -16,7 +15,7 @@ import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData } from "@/app/actions";
+import { getAllCaseData, getDashboardFilterOptions } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from "@/lib/utils";
@@ -36,6 +35,7 @@ interface DbViewerProps {
     initialData: any[] | null;
     initialSource: 'cache' | 'sheet' | 'N/A' | 'supabase';
     initialError?: string | null;
+    availableYears?: string[]; // ✅ Added
 }
 
 interface DbViewerState {
@@ -44,33 +44,49 @@ interface DbViewerState {
     error?: string | null;
 }
 
-// Helper to parse DD/MM/YYYY strings into Date objects
+// Helper to parse date strings into Date objects
 const parseDate = (dateStr: string): Date | null => {
     if (!dateStr || typeof dateStr !== 'string') return null;
     
-    // Handle YYYY-MM-DD by ensuring it's parsed as local time, not UTC.
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        dateStr = `${dateStr}T00:00:00`;
+    const trimmed = dateStr.trim();
+    
+    // Try ISO format first (YYYY-MM-DD from database)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        const [year, month, day] = trimmed.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (!isNaN(date.getTime())) return date;
     }
 
-    // Try standard new Date() which is good for ISO 8601 and our modified YYYY-MM-DD
+    // Try native Date parsing
     try {
-        const parsed = new Date(dateStr);
-        if (!isNaN(parsed.getTime())) return parsed;
-    } catch (e) { /* ignore and fallback */ }
+        const parsed = new Date(trimmed);
+        if (!isNaN(parsed.getTime())) {
+            const year = parsed.getFullYear();
+            if (year >= 1900 && year <= 2100) {
+                return parsed;
+            }
+        }
+    } catch (e) { /* ignore */ }
 
     // Fallback for DD/MM/YYYY format
-    try {
-        const parsed = parse(dateStr, 'dd/MM/yyyy', new Date());
-        if (!isNaN(parsed.getTime())) return parsed;
-    } catch (e) { /* ignore and fallback */ }
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed)) {
+        try {
+            const parsed = parse(trimmed, 'dd/MM/yyyy', new Date());
+            if (!isNaN(parsed.getTime())) return parsed;
+        } catch (e) { /* ignore */ }
+    }
 
     return null;
 };
 
 let FILTER_COLUMNS: string[] = [];
 
-export function DbViewer({ initialData, initialSource, initialError }: DbViewerProps) {
+export function DbViewer({ 
+    initialData, 
+    initialSource, 
+    initialError,
+    availableYears = [] // ✅ Added with default empty array
+}: DbViewerProps) {
     const { dbSheetUrl } = useContext(SettingsContext);
     const { setIsProcessing } = useContext(TableDataContext);
     const [state, setState] = useState<DbViewerState>({
@@ -80,7 +96,7 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
     });
     const [isPending, startTransition] = useTransition();
     const [isRefreshing, setIsRefreshing] = useState(false);
-
+    const [fetchedYears, setFetchedYears] = useState<string[]>(availableYears); // ✅ Added
 
     const [progress, setProgress] = useState(0);
     const { toast } = useToast();
@@ -101,10 +117,8 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return [];
-        // Dynamically create headers from the first row of data
         const firstRowKeys = Object.keys(state.data[0]);
 
-        // Find potential dynamic filter columns
         const potentialFilterCols = ['client name', 'client_name', 'status case', 'status_case', 'kategori', 'category', 'module', 'detail modul', 'detail_module', 'status case 2', 'status_case_2'];
         FILTER_COLUMNS = firstRowKeys.filter(h => potentialFilterCols.includes(h.toLowerCase()));
 
@@ -151,7 +165,7 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
             const currentWidth = startWidth.current + event.clientX - startX.current;
             setColumnWidths(prev => ({
                 ...prev,
-                [isResizing.current as string]: Math.max(50, currentWidth) // Minimum width 50px
+                [isResizing.current as string]: Math.max(50, currentWidth)
             }));
         };
 
@@ -175,26 +189,32 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
         startTransition(async () => {
             if (isRefresh) {
                 setIsRefreshing(true);
-            }
-            
-            if (isRefresh) {
                 setProgress(0);
             }
             
-            const result = await getAllCaseData();
+            // ✅ Fetch both data and years on refresh
+            const [dataResult, filterOptionsResult] = await Promise.all([
+                getAllCaseData(),
+                getDashboardFilterOptions()
+            ]);
 
             setState({
-                data: result.data || null,
-                source: (result.source as any) || 'N/A',
-                error: result.error,
+                data: dataResult.data || null,
+                source: (dataResult.source as any) || 'N/A',
+                error: dataResult.error,
             });
+
+            // ✅ Update years from database
+            if (filterOptionsResult.data?.years) {
+                setFetchedYears(filterOptionsResult.data.years);
+            }
 
             if (isRefresh) {
                 setProgress(100);
-                if (result.error) {
-                    toast({ variant: 'destructive', title: "Refresh Failed", description: result.error });
+                if (dataResult.error) {
+                    toast({ variant: 'destructive', title: "Refresh Failed", description: dataResult.error });
                 } else {
-                    toast({ title: "Data Refreshed", description: `Data loaded from ${result.source}.` });
+                    toast({ title: "Data Refreshed", description: `Data loaded from ${dataResult.source}.` });
                 }
                 setIsRefreshing(false);
             }
@@ -203,7 +223,7 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
     
     useEffect(() => {
         let timer: NodeJS.Timeout | undefined;
-        if (isPending && !isRefreshing) { // Only show global spinner on navigation, not manual refresh
+        if (isPending && !isRefreshing) {
              setIsProcessing(true);
              setProgress(0);
              timer = setInterval(() => {
@@ -237,7 +257,14 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
         return options;
     }, [state.data]);
 
+    // ✅ Updated yearOptions to use fetchedYears from database
     const yearOptions = useMemo(() => {
+        // Priority 1: Use years from database function
+        if (fetchedYears.length > 0) {
+            return fetchedYears;
+        }
+        
+        // Fallback: Parse from loaded data
         if (!state.data || !dateHeaderKey) return [];
         const years = new Set<string>();
         state.data.forEach(row => {
@@ -248,7 +275,7 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
             }
         });
         return Array.from(years).sort((a, b) => b.localeCompare(a));
-    }, [state.data, dateHeaderKey]);
+    }, [fetchedYears, state.data, dateHeaderKey]);
 
 
     const filteredData = useMemo(() => {
@@ -326,7 +353,6 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
     // Get data for the current page
     const paginatedData = useMemo(() => {
         if (!filteredData) return [];
-        // Clamp currentPage to be valid
         const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
         if (pageSize === 0) return filteredData;
         const startIndex = (validCurrentPage - 1) * pageSize;
@@ -344,7 +370,7 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
     const rowVirtualizer = useVirtualizer({
         count: displayData.length,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 49, // h-12 (48px) + 1px border
+        estimateSize: () => 49,
         overscan: 5,
     });
     
@@ -656,54 +682,10 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
                                     </SelectTrigger>
                                     <SelectContent side="top">
                                         {[50, 100, 250, 500].map((size) => (
-                                            <SelectItem key={size} value={`${size}`}>
-                                                {size}
-                                            </SelectItem>
+                                            <SelectItem key={size} value={`${size}`}>{size}</SelectItem>
                                         ))}
-                                        <SelectItem value="0">All</SelectItem>
                                     </SelectContent>
                                 </Select>
-                            </div>
-                            <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                                Page {currentPage} of {totalPages}
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <Button
-                                    variant="outline"
-                                    className="hidden h-8 w-8 p-0 lg:flex"
-                                    onClick={() => setCurrentPage(1)}
-                                    disabled={currentPage === 1}
-                                >
-                                    <span className="sr-only">Go to first page</span>
-                                    <ChevronsLeft className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => setCurrentPage((prev) => prev - 1)}
-                                    disabled={currentPage === 1}
-                                >
-                                    <span className="sr-only">Go to previous page</span>
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => setCurrentPage((prev) => prev + 1)}
-                                    disabled={currentPage >= totalPages}
-                                >
-                                    <span className="sr-only">Go to next page</span>
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="hidden h-8 w-8 p-0 lg:flex"
-                                    onClick={() => setCurrentPage(totalPages)}
-                                    disabled={currentPage >= totalPages}
-                                >
-                                    <span className="sr-only">Go to last page</span>
-                                    <ChevronsRight className="h-4 w-4" />
-                                </Button>
                             </div>
                         </div>
                     </div>
@@ -712,5 +694,3 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
         </div>
     );
 }
-
-    
