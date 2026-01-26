@@ -37,12 +37,18 @@ export async function getAllCaseData() {
 // ============================================
 
 export async function refreshDashboardViews() {
-  // This function calls the RPC in supabase to refresh the materialized views
-  await supabaseAdmin.rpc('refresh_dashboard_views');
+  try {
+    // This function calls the RPC in supabase to refresh the materialized views
+    await supabaseAdmin.rpc('refresh_dashboard_views');
 
-  // Revalidate the cache tag to force a refetch of stats and options
-  revalidateTag("all-case-data");
-  return { success: true, message: "Views refreshed and cache revalidated." };
+    // Revalidate the cache tag to force a refetch of stats and options
+    revalidateTag("all-case-data");
+    
+    return { success: true, message: "Views refreshed and cache revalidated." };
+  } catch (error: any) {
+    console.error("Error refreshing dashboard views:", error);
+    return { success: false, error: error.message };
+  }
 }
 
 // ============================================
@@ -51,57 +57,61 @@ export async function refreshDashboardViews() {
 
 const _getDashboardFilterOptions = async () => {
   try {
-    console.log('🔍 Fetching filter options from database...');
+    console.log('🔍 [FILTER OPTIONS] Starting fetch...');
     
-    const { data, error } = await supabaseAdmin
-      .from("all_cases")
-      .select("category_case, client_name, module_case, date")
-      .order("date", { ascending: false });
+    // Fetch data menggunakan Promise.all untuk parallel execution
+    const [casesResult, yearsResult] = await Promise.all([
+      supabaseAdmin
+        .from("all_cases")
+        .select("category_case, client_name, module_case"),
+      supabaseAdmin.rpc('get_distinct_years')
+    ]);
 
-    if (error) throw error;
+    console.log('📦 [RAW YEARS RESULT]:', yearsResult);
+    
+    if (casesResult.error) {
+      console.error('❌ Error fetching cases:', casesResult.error);
+      throw casesResult.error;
+    }
+    
+    if (yearsResult.error) {
+      console.error('⚠️ Error fetching years:', yearsResult.error);
+      // Continue with empty years array instead of throwing
+    }
 
-    console.log('📊 Total rows fetched:', data.length);
+    const casesData = casesResult.data || [];
+    const yearsData = yearsResult.data || [];
 
+    console.log('📊 Total cases fetched:', casesData.length);
+    console.log('📅 Years data:', yearsData);
+
+    // Extract unique values
     const uniqueCategories = [
-      ...new Set(data.map((c) => c.category_case).filter(Boolean)),
+      ...new Set(casesData.map((c) => c.category_case).filter(Boolean)),
     ];
     const uniqueClients = [
-      ...new Set(data.map((c) => c.client_name).filter(Boolean)),
+      ...new Set(casesData.map((c) => c.client_name).filter(Boolean)),
     ];
     const uniqueModules = [
-      ...new Set(data.map((m) => m.module_case).filter(Boolean)),
+      ...new Set(casesData.map((m) => m.module_case).filter(Boolean)),
     ];
 
-    const years = new Set<string>();
-    
-    data.forEach((d) => {
-      if (!d.date) return;
-      
-      try {
-        // Karena kolom date bertipe DATE di PostgreSQL,
-        // Supabase akan mengembalikannya sebagai string ISO format: 'YYYY-MM-DD'
-        const dateStr = String(d.date).trim();
-        
-        // Langsung parse sebagai ISO date (format: YYYY-MM-DD)
-        const dateObj = new Date(dateStr);
-        
-        if (!isNaN(dateObj.getTime())) {
-          const year = dateObj.getFullYear();
-          if (year >= 1900 && year <= 2100) {
-            years.add(year.toString());
-          }
-        }
-      } catch (e) {
-        // Silent fail untuk data yang invalid
-        console.warn(`Could not parse date: ${d.date}`);
-      }
-    });
+    // Convert years dari database function
+    // Function returns: [{ year: 2024 }, { year: 2025 }, etc.]
+    const sortedYears = yearsData
+      .map((item: any) => {
+        console.log('🔄 Processing year item:', item);
+        return String(item.year);
+      })
+      .filter((year: string) => {
+        const isValid = year && year !== 'null' && year !== 'undefined' && year !== 'NaN';
+        console.log(`🔍 Year "${year}" is valid?`, isValid);
+        return isValid;
+      });
 
-    const sortedYears = Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
-    
-    console.log('📅 Years found:', sortedYears);
+    console.log('✅ Final years array:', sortedYears);
 
-    return {
+    const result = {
       success: true,
       data: {
         categories: uniqueCategories.map((c) => ({ label: c, value: c })),
@@ -110,6 +120,10 @@ const _getDashboardFilterOptions = async () => {
         years: sortedYears,
       },
     };
+
+    console.log('📤 [RETURNING RESULT]:', JSON.stringify(result, null, 2));
+
+    return result;
   } catch (error: any) {
     console.error("❌ Error fetching filter options:", error);
     return {
@@ -120,44 +134,82 @@ const _getDashboardFilterOptions = async () => {
 };
 
 export async function getDashboardFilterOptions() {
-  // Caching has been removed to ensure fresh data is always fetched.
-  return _getDashboardFilterOptions();
+  console.log('🚀 getDashboardFilterOptions called');
+  const result = await _getDashboardFilterOptions();
+  console.log('📤 getDashboardFilterOptions returning:', result);
+  return result;
 }
 
-// Dummy function implementations
+// ============================================
+// DUMMY FUNCTION IMPLEMENTATIONS
+// ============================================
+
 export async function getSpreadsheetTitle(url: string) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    if (!url || !url.includes('docs.google.com/spreadsheets')) {
-        return { error: 'Invalid Google Sheet URL' };
-    }
-    const dummyId = url.split('/d/')[1]?.split('/')[0];
-    return { success: true, title: `Dummy Sheet (${dummyId.slice(0, 6)})` };
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  if (!url || !url.includes('docs.google.com/spreadsheets')) {
+    return { error: 'Invalid Google Sheet URL' };
+  }
+  
+  // Simulate finding a title
+  const dummyId = url.split('/d/')[1]?.split('/')[0];
+  return { success: true, title: `Dummy Sheet (${dummyId?.slice(0, 6) || 'unknown'})` };
 }
 
-export async function getProjectFileContents(): Promise<{ success: boolean; data?: { path: string; content: string; name: string }[]; error?: string }> {
-    return { success: false, error: "This function is not implemented in the live demo." };
+export async function getProjectFileContents(): Promise<{ 
+  success: boolean; 
+  data?: { path: string; content: string; name: string }[]; 
+  error?: string 
+}> {
+  return { 
+    success: false, 
+    error: "This function is not implemented in the live demo." 
+  };
 }
 
 export async function importToSheet(data: any, url: string): Promise<any> {
-    return { success: false, error: "This function is not implemented in the live demo." };
+  return { 
+    success: false, 
+    error: "This function is not implemented in the live demo." 
+  };
 }
 
 export async function updateSheetStatus(data: any, url: string): Promise<any> {
-    return { success: false, error: "This function is not implemented in the live demo." };
+  return { 
+    success: false, 
+    error: "This function is not implemented in the live demo." 
+  };
 }
 
 export async function getUpdatePreview(data: any, url: string): Promise<any> {
-    return { success: false, error: "This function is not implemented in the live demo." };
+  return { 
+    success: false, 
+    error: "This function is not implemented in the live demo." 
+  };
 }
 
 export async function undoLastAction(data: any, url: string): Promise<any> {
-     return { success: false, error: "This function is not implemented in the live demo." };
+  return { 
+    success: false, 
+    error: "This function is not implemented in the live demo." 
+  };
 }
 
 export async function fetchL3ReportData(url: string): Promise<any> {
-    return { success: false, error: "This function is not implemented in the live demo." };
+  return { 
+    success: false, 
+    error: "This function is not implemented in the live demo." 
+  };
 }
 
-export async function mergeFilesOnServer(fileA: any, fileB: any, editMode: any): Promise<any> {
-    return { success: false, error: "This function is not implemented in the live demo." };
+export async function mergeFilesOnServer(
+  fileA: any, 
+  fileB: any, 
+  editMode: any
+): Promise<any> {
+  return { 
+    success: false, 
+    error: "This function is not implemented in the live demo." 
+  };
 }
