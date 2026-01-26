@@ -34,13 +34,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 
 interface DbViewerProps {
     initialData: any[] | null;
-    initialSource: 'cache' | 'sheet' | 'N/A';
+    initialSource: 'cache' | 'sheet' | 'N/A' | 'supabase';
     initialError?: string | null;
 }
 
 interface DbViewerState {
     data: any[] | null;
-    source: 'cache' | 'sheet' | 'N/A';
+    source: 'cache' | 'sheet' | 'N/A' | 'supabase';
     error?: string | null;
 }
 
@@ -48,13 +48,11 @@ interface DbViewerState {
 const parseDate = (dateStr: string): Date | null => {
     if (!dateStr || typeof dateStr !== 'string') return null;
     
-    // Handle ISO 8601 format from Supabase (e.g., "2024-07-29T17:00:00+00:00")
-    if (dateStr.includes('T')) {
-        try {
-            const parsed = new Date(dateStr);
-            if (!isNaN(parsed.getTime())) return parsed;
-        } catch (e) { /* ignore and fallback */ }
-    }
+    // Handle ISO 8601 format from Supabase (e.g., "2024-07-29T17:00:00+00:00") or YYYY-MM-DD
+    try {
+        const parsed = new Date(dateStr);
+        if (!isNaN(parsed.getTime())) return parsed;
+    } catch (e) { /* ignore and fallback */ }
 
     // Handle DD/MM/YYYY format from GSheets
     try {
@@ -173,22 +171,16 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
             if (isRefresh) {
                 setIsRefreshing(true);
             }
-
-            if (!dbSheetUrl) {
-                setState({ data: null, source: 'N/A', error: 'DB GSheet URL is not configured in Settings.' });
-                if (isRefresh) setIsRefreshing(false);
-                return;
-            }
-
+            
             if (isRefresh) {
                 setProgress(0);
             }
             
-            const result = await getAllCaseData(dbSheetUrl);
+            const result = await getAllCaseData();
 
             setState({
                 data: result.data || null,
-                source: result.source || 'N/A',
+                source: (result.source as any) || 'N/A',
                 error: result.error,
             });
 
@@ -202,7 +194,7 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
                 setIsRefreshing(false);
             }
         });
-    }, [dbSheetUrl, toast]);
+    }, [toast]);
     
     useEffect(() => {
         let timer: NodeJS.Timeout | undefined;
@@ -549,8 +541,8 @@ export function DbViewer({ initialData, initialSource, initialError }: DbViewerP
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>
-                            <Badge variant={state.source === 'cache' ? 'default' : 'secondary'} className="w-fit">
-                                {state.source === 'cache' ? <Database className="mr-2 h-4 w-4"/> : <Cloud className="mr-2 h-4 w-4"/>}
+                            <Badge variant={state.source === 'supabase' ? 'default' : 'secondary'} className="w-fit">
+                                {state.source === 'supabase' ? <Database className="mr-2 h-4 w-4"/> : <Cloud className="mr-2 h-4 w-4"/>}
                                 Data source: {state.source}
                             </Badge>
                         </div>

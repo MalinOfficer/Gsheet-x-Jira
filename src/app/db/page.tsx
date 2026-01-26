@@ -1,15 +1,11 @@
 
-import { cookies } from 'next/headers';
 import { DbViewer } from '@/components/db-viewer';
 import { getAllCaseData } from '@/app/actions';
 
-const DEFAULT_DB_SHEET_URL = 'https://docs.google.com/spreadsheets/d/17IreWvSgn3gr-kUmvI4-nOhqOYm9tJtUkwzPxo2wODU/edit?usp=drive_link';
-
 export default async function DbPage() {
-    const cookieStore = cookies();
-    const dbSheetUrl = cookieStore.get('gsheetDashboardDbSheetUrl')?.value || DEFAULT_DB_SHEET_URL;
-
-    const result = await getAllCaseData(dbSheetUrl);
+    // Penjelasan: Fungsi getAllCaseData saat ini mengambil data langsung dari Supabase,
+    // bukan dari URL Google Sheet. Kode di bawah ini disederhanakan untuk mencerminkan hal tersebut.
+    const result = await getAllCaseData();
 
     return (
         <main>
