@@ -1,8 +1,7 @@
 
-
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -116,6 +115,8 @@ export function DbViewer({
     const [isPending, startTransition] = useTransition();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [fetchedYears, setFetchedYears] = useState<string[]>(availableYears);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [dataBeforeEdit, setDataBeforeEdit] = useState<any[] | null>(null);
 
     const [progress, setProgress] = useState(0);
     const { toast } = useToast();
@@ -436,6 +437,45 @@ export function DbViewer({
         );
     }
     
+    const handleEditClick = () => {
+        setDataBeforeEdit(state.data);
+        setIsEditMode(true);
+    };
+
+    const handleCancelEdit = () => {
+        if (dataBeforeEdit) {
+            setState(prev => ({...prev, data: dataBeforeEdit}));
+        }
+        setIsEditMode(false);
+        setDataBeforeEdit(null);
+    };
+
+    const handleSaveChanges = () => {
+        // Here you would typically call an API to save the changes.
+        // For now, it just exits edit mode, keeping the local changes.
+        setIsEditMode(false);
+        setDataBeforeEdit(null);
+        toast({
+            title: "Changes Saved Locally",
+            description: "Your edits are saved in this session. They are not yet persisted to the database."
+        });
+    };
+
+    const handleCellChange = (id: number, header: string, value: string) => {
+        setState(prevState => {
+            if (!prevState.data) {
+                return prevState;
+            }
+            const newData = prevState.data.map(row => {
+                if (row.id === id) {
+                    return { ...row, [header]: value };
+                }
+                return row;
+            });
+            return { ...prevState, data: newData };
+        });
+    };
+
     const renderHeaderContent = (header: string) => {
         const displayHeader = headerDisplayMapping[header] || header;
         const isFilterable = FILTER_COLUMNS.includes(header);
@@ -445,7 +485,7 @@ export function DbViewer({
         if (header === dateHeaderKey) {
             return (
                 <Popover>
-                    <PopoverTrigger asChild>
+                    <PopoverTrigger asChild disabled={isEditMode}>
                          <Button variant="ghost" className={cn(headerStyle, "p-0 h-auto data-[state=open]:bg-accent/20")}>
                              {displayHeader}
                              <Filter className={cn("ml-2 h-3 w-3", dateRange ? "text-primary" : "text-muted-foreground/50")} />
@@ -499,7 +539,7 @@ export function DbViewer({
         if (isFilterable) {
             return(
                 <Popover>
-                    <PopoverTrigger asChild>
+                    <PopoverTrigger asChild disabled={isEditMode}>
                         <Button variant="ghost" className={cn(headerStyle, "p-0 h-auto hover:bg-transparent data-[state=open]:bg-accent/20")}>
                              {displayHeader}
                              <Filter className={cn("ml-2 h-3 w-3", isFilterActive ? "text-primary" : "text-muted-foreground/50")} />
@@ -568,6 +608,7 @@ export function DbViewer({
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-8 sm:w-[300px]"
+                                    disabled={isEditMode}
                                 />
                             </div>
                             <div className="w-full sm:w-auto">
@@ -576,6 +617,7 @@ export function DbViewer({
                                     onValueChange={(value) => {
                                         setYearFilter(value === 'all' ? '' : value);
                                     }}
+                                    disabled={isEditMode}
                                 >
                                     <SelectTrigger className="w-full sm:w-[180px]">
                                         <SelectValue placeholder="Filter by year..." />
@@ -589,14 +631,29 @@ export function DbViewer({
                                 </Select>
                             </div>
                             {areFiltersActive && (
-                                <Button onClick={handleClearAllFilters} variant="ghost" size="sm">
+                                <Button onClick={handleClearAllFilters} variant="ghost" size="sm" disabled={isEditMode}>
                                 <FilterX className="mr-2 h-4 w-4" />
                                 Clear All Filters
                             </Button>
                             )}
                         </div>
                         <div className="flex items-center gap-2">
-                            <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={isPending || isRefreshing}>
+                             {isEditMode ? (
+                                <div className="flex items-center gap-2">
+                                    <Button onClick={handleCancelEdit} size="sm" variant="destructive">
+                                        <X className="mr-2 h-4 w-4" /> Cancel
+                                    </Button>
+                                    <Button onClick={handleSaveChanges} size="sm">
+                                        <Save className="mr-2 h-4 w-4" /> Save
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Button onClick={handleEditClick} size="sm" variant="outline">
+                                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                                </Button>
+                            )}
+
+                            <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={isPending || isRefreshing || isEditMode}>
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>
@@ -674,6 +731,8 @@ export function DbViewer({
                                          {headers.map(header => {
 
                                             const isNoColumn = header.toLowerCase() === 'no';
+                                            const isEditable = isEditMode && !isNoColumn;
+                                            const rowId = row?.id;
                                             
                                             let cellValue = row ? (isNoColumn ? rowNumber : row[header]) : null;
 
@@ -692,10 +751,22 @@ export function DbViewer({
                                             return (
                                                 <div 
                                                     key={header} 
-                                                    className="p-4 align-middle truncate text-sm" 
+                                                    className="align-middle text-sm" 
                                                     style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
                                                 >
-                                                    {row ? cellValue : <Skeleton className="h-4 w-full" />}
+                                                     {isEditable ? (
+                                                        <Input
+                                                            type="text"
+                                                            value={cellValue ?? ''}
+                                                            onChange={(e) => rowId !== undefined && handleCellChange(rowId, header, e.target.value)}
+                                                            className="h-full w-full rounded-none border-0 bg-transparent p-4 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:bg-transparent"
+                                                            disabled={!row}
+                                                        />
+                                                    ) : (
+                                                        <div className="p-4 truncate">
+                                                            {row ? cellValue : <Skeleton className="h-4 w-full" />}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                          })}
