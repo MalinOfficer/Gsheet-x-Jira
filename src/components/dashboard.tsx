@@ -88,9 +88,25 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
+    // Create a stable color mapping for all years available in the filter options.
+    // This ensures that "2024" always has the same color, regardless of whether "2023" is present.
+    const yearColorConfig = useMemo(() => {
+        const allYears = filterOptions?.years?.sort((a, b) => parseInt(a) - parseInt(b)) || [];
+        const chartColors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+        const config: ChartConfig = {};
+        allYears.forEach((year, index) => {
+            config[year] = {
+                label: year,
+                color: chartColors[index % chartColors.length],
+            };
+        });
+        return config;
+    }, [filterOptions?.years]);
+
     const { chartKeys, dynamicChartConfig } = useMemo(() => {
         if (!stats?.monthly_stats || stats.monthly_stats.length === 0) {
-            return { chartKeys: [], dynamicChartConfig: chartConfig };
+            // Even with no stats, we pass the yearColorConfig to avoid color shifts on first load.
+            return { chartKeys: [], dynamicChartConfig: { ...chartConfig, ...yearColorConfig } };
         }
         
         const keys = new Set<string>();
@@ -104,18 +120,11 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         
         const sortedKeys = Array.from(keys).sort((a, b) => parseInt(a) - parseInt(b));
 
-        const chartColors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+        // Merge the stable yearColorConfig with the base config.
+        const newDynamicConfig = { ...chartConfig, ...yearColorConfig };
 
-        const newConfig: ChartConfig = {};
-        sortedKeys.forEach((key, index) => {
-            newConfig[key] = {
-                label: key,
-                color: chartColors[index % chartColors.length],
-            };
-        });
-
-        return { chartKeys: sortedKeys, dynamicChartConfig: { ...chartConfig, ...newConfig } };
-    }, [stats?.monthly_stats]);
+        return { chartKeys: sortedKeys, dynamicChartConfig: newDynamicConfig };
+    }, [stats?.monthly_stats, yearColorConfig]);
 
     useEffect(() => {
         setIsProcessing(isApplyingFilters || isRefreshing);
