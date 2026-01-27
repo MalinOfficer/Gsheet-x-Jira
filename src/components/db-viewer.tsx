@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
@@ -245,7 +246,7 @@ export function DbViewer({
                 dateRange: dateRange,
                 category: columnFilters['ticket_category']?.[0],
                 client: columnFilters['client_name']?.[0],
-                module: columnFilters['module']?.[0],
+                module: columnFilters['module_case']?.[0],
             });
 
             const filterOptionsResult = await getDashboardFilterOptions();
@@ -627,7 +628,6 @@ export function DbViewer({
                                    className="sticky top-0 z-10 flex"
                                >
                                    {headers.map(header => {
-                                       if (header === 'id') return null;
                                        const lowerHeader = header.toLowerCase();
                                        const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
                                        
@@ -635,7 +635,7 @@ export function DbViewer({
                                            <div
                                                key={header}
                                                className={cn(
-                                                   "h-12 px-4 text-left font-medium text-muted-foreground flex items-center justify-start bg-muted relative",
+                                                   "h-12 px-4 text-left text-sm font-semibold text-muted-foreground flex items-center justify-start bg-muted relative",
                                                    isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
                                                )}
                                                style={{ width: columnWidths[header], flexShrink: 0, borderBottom: '1px solid hsl(var(--border))', borderRight: '1px solid hsl(var(--border))' }}
@@ -689,7 +689,7 @@ export function DbViewer({
                                             return (
                                                 <div 
                                                     key={header} 
-                                                    className="p-4 align-middle truncate" 
+                                                    className="p-4 align-middle truncate text-sm" 
                                                     style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
                                                 >
                                                     {row ? cellValue : <Skeleton className="h-4 w-full" />}
