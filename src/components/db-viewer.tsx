@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
@@ -121,12 +122,21 @@ export function DbViewer({
         const widths: Record<string, number> = {};
         headers.forEach(header => {
             const lowerHeader = header.toLowerCase();
-            if (lowerHeader.includes('detail case') || lowerHeader.includes('penanganan case')) widths[header] = 350;
-            else if (lowerHeader.includes('detail modul')) widths[header] = 250;
-            else if (lowerHeader.includes('client') || lowerHeader.includes('customer name') || lowerHeader.includes('ticket number') || lowerHeader.includes('module')) widths[header] = 180;
-            else if (lowerHeader.includes('status case 2')) widths[header] = 120;
-            else if (lowerHeader === 'no') widths[header] = 60;
-            else widths[header] = 120;
+            if (lowerHeader.includes('date')) {
+                widths[header] = 140;
+            } else if (lowerHeader.includes('detail case') || lowerHeader.includes('penanganan case')) {
+                widths[header] = 350;
+            } else if (lowerHeader.includes('detail modul')) {
+                widths[header] = 250;
+            } else if (lowerHeader.includes('client') || lowerHeader.includes('customer name') || lowerHeader.includes('ticket number') || lowerHeader.includes('module')) {
+                widths[header] = 180;
+            } else if (lowerHeader.includes('status case 2')) {
+                widths[header] = 120;
+            } else if (lowerHeader === 'no') {
+                widths[header] = 60;
+            } else {
+                widths[header] = 120;
+            }
         });
         return widths;
     }, [headers]);
@@ -289,8 +299,9 @@ export function DbViewer({
         
         let dataToFilter = state.data;
 
-        // Year, date range, and column filters are now handled by backend.
-        // Only the general search term is filtered on the client for responsiveness.
+        // Backend handles year, date, and some column filters.
+        // Frontend handles general search and any additional column filters.
+
         if (debouncedSearchTerm) {
             const lowercasedQuery = debouncedSearchTerm.toLowerCase();
             dataToFilter = dataToFilter.filter(row => {
@@ -299,9 +310,21 @@ export function DbViewer({
                 );
             });
         }
+        
+        // This is now redundant if backend handles it, but good for immediate feedback
+        const activeColumnFilters = Object.entries(columnFilters).filter(([, values]) => values.length > 0);
+        if (activeColumnFilters.length > 0) {
+            dataToFilter = dataToFilter.filter(row => {
+                return activeColumnFilters.every(([column, selectedValues]) => {
+                    const cellValue = row[column];
+                    // Handle multi-select; for now assuming single select from popover
+                    return cellValue && selectedValues.includes(cellValue);
+                });
+            });
+        }
 
         return dataToFilter;
-    }, [state.data, debouncedSearchTerm]);
+    }, [state.data, debouncedSearchTerm, columnFilters]);
 
     // Reset page to 1 when any filter changes
     useEffect(() => {
@@ -568,6 +591,7 @@ export function DbViewer({
                                    className="sticky top-0 z-10 flex"
                                >
                                    {headers.map(header => {
+                                       if (header === 'id') return null;
                                        const lowerHeader = header.toLowerCase();
                                        const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
                                        
@@ -609,14 +633,31 @@ export function DbViewer({
                                            className="flex border-b transition-colors hover:bg-muted/50"
                                        >
                                          {headers.map(header => {
+                                            if (header === 'id') return null;
+
                                             const isNoColumn = header.toLowerCase() === 'no';
+                                            
+                                            let cellValue = row ? (isNoColumn ? rowNumber : row[header]) : null;
+
+                                            if (row && header === dateHeaderKey && typeof cellValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(cellValue)) {
+                                                try {
+                                                    const date = new Date(cellValue);
+                                                    const day = String(date.getUTCDate()).padStart(2, '0');
+                                                    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+                                                    const year = date.getUTCFullYear();
+                                                    cellValue = `${day}/${month}/${year}`;
+                                                } catch(e) {
+                                                    // if format fails, just use original value
+                                                }
+                                            }
+                                            
                                             return (
                                                 <div 
                                                     key={header} 
                                                     className="p-4 align-middle truncate" 
                                                     style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
                                                 >
-                                                    {row ? (isNoColumn ? rowNumber : row[header]) : <Skeleton className="h-4 w-full" />}
+                                                    {row ? cellValue : <Skeleton className="h-4 w-full" />}
                                                 </div>
                                             );
                                          })}
@@ -659,3 +700,4 @@ export function DbViewer({
         </div>
     );
 }
+
