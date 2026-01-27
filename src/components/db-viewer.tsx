@@ -110,6 +110,15 @@ const categoryColorMap: Record<string, string> = {
     'default': 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
 };
 
+const ALL_CATEGORIES = [
+    'Adjustment',
+    'Assistance',
+    'Bug Fixing',
+    'Enhancement',
+    'Parameter Setup',
+    'Q & A',
+];
+
 export function DbViewer({ 
     initialData, 
     initialSource, 
@@ -778,10 +787,16 @@ export function DbViewer({
                                                                 disabled={!row}
                                                             >
                                                                 <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
-                                                                    <SelectValue placeholder="Select..." />
+                                                                    {cellValue ? (
+                                                                        <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
+                                                                            {cellValue}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground">Select...</span>
+                                                                    )}
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    {(filterOptions[header] || []).map(option => (
+                                                                    {ALL_CATEGORIES.map(option => (
                                                                         <SelectItem key={option} value={option}>
                                                                             <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', categoryColorMap[option] || categoryColorMap.default)}>
                                                                                 {option}
