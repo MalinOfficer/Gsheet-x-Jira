@@ -38,75 +38,118 @@ const formatDate = (date: any) => {
 // ============================================
 
 // File: actions.ts - Update getAllCaseData function
+// File: app/actions.ts
+
 export async function getAllCaseData(filters?: {
   year?: string;
-  category?: string | string[];
-  client?: string | string[];
-  module?: string | string[];
-  status?: string | string[];
-  detailModule?: string | string[];
+  category?: string[];
+  client?: string[];
+  module?: string[];
+  status?: string[];
+  detailModule?: string[];
   dateRange?: { from?: Date; to?: Date };
+  search?: string;           // 🔥 NEW: Global search
+  page?: number;              // 🔥 NEW: Current page (1-based)
+  pageSize?: number;          // 🔥 NEW: Rows per page
+  sortBy?: string;            // 🔥 NEW: Sort column
+  sortOrder?: 'asc' | 'desc'; // 🔥 NEW: Sort direction
 }) {
   try {
+    // Pagination params with safe defaults
+    const page = Math.max(1, filters?.page || 1);
+    const pageSize = Math.min(filters?.pageSize || 100, 500); // Max 500 rows
+    const offset = (page - 1) * pageSize;
+
+    console.log('📊 Pagination:', { page, pageSize, offset });
+
+    // Build base query
     let query = supabaseAdmin
       .from("all_cases")
-      .select(getSelectColumns(), { count: "exact" })
-      .order("date", { ascending: false });
+      .select(getSelectColumns(), { count: "exact" });
 
-    // Apply year filter
-    if (filters?.year && filters.year !== 'all') {
+    // Apply sorting
+    const sortBy = filters?.sortBy || 'date';
+    const sortOrder = filters?.sortOrder || 'desc';
+    query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+
+    // Apply date range filter OR year filter, with date range taking precedence.
+    if (filters?.dateRange?.from) {
+      const fromDate = formatDate(filters.dateRange.from);
+      const toDate = filters?.dateRange?.to
+        ? formatDate(filters.dateRange.to)
+        : formatDate(filters.dateRange.from);
+
+      query = query.gte('date', fromDate).lte('date', toDate);
+    } else if (filters?.year && filters.year !== 'all') {
       const yearNum = parseInt(filters.year, 10);
       query = query
         .gte('date', `${yearNum}-01-01`)
         .lte('date', `${yearNum}-12-31`);
     }
 
-    if (filters?.dateRange?.from) {
-      const fromDate = formatDate(filters.dateRange.from);
-      
-      const toDate = filters?.dateRange?.to 
-        ? formatDate(filters.dateRange.to)
-        : fromDate;
-      
-      query = query
-        .gte('date', fromDate)
-        .lte('date', toDate);
-      
-      console.log('📅 Date filter applied:', { from: fromDate, to: toDate });
-    }
-
-    // Rest of the filters...
-    if (filters?.category && Array.isArray(filters.category) && filters.category.length > 0) {
+    // Apply multi-select filters
+    if (filters?.category?.length) {
       query = query.in('category_case', filters.category);
     }
 
-    if (filters?.client && Array.isArray(filters.client) && filters.client.length > 0) {
+    if (filters?.client?.length) {
       query = query.in('client_name', filters.client);
     }
 
-    if (filters?.module && Array.isArray(filters.module) && filters.module.length > 0) {
+    if (filters?.module?.length) {
       query = query.in('module_case', filters.module);
     }
 
-    if (filters?.status && Array.isArray(filters.status) && filters.status.length > 0) {
-        query = query.in('status_case', filters.status);
+    if (filters?.status?.length) {
+      query = query.in('status_case', filters.status);
     }
 
-    if (filters?.detailModule && Array.isArray(filters.detailModule) && filters.detailModule.length > 0) {
-        query = query.in('detail_module', filters.detailModule);
+    if (filters?.detailModule?.length) {
+      query = query.in('detail_module', filters.detailModule);
     }
+
+    // 🔥 NEW: Global search (server-side)
+    if (filters?.search && filters.search.trim()) {
+      const searchTerm = `%${filters.search.trim()}%`;
+      query = query.or(
+        `ticket_number.ilike.${searchTerm},` +
+        `client_name.ilike.${searchTerm},` +
+        `status_case.ilike.${searchTerm},` +
+        `category_case.ilike.${searchTerm},` +
+        `module_case.ilike.${searchTerm},` +
+        `detail_module.ilike.${searchTerm},` +
+        `case_title.ilike.${searchTerm}`
+      );
+    }
+
+    // 🔥 Apply pagination (CRITICAL!)
+    query = query.range(offset, offset + pageSize - 1);
 
     const { data, error, count } = await query;
 
     if (error) {
-      console.error("Error fetching all cases:", error);
+      console.error("❌ Error fetching cases:", error);
       return { error: error.message };
     }
 
+    console.log('✅ Fetched:', data?.length, 'rows out of', count, 'total');
+
     const mappedData = mapDBArrayToFrontend(data as YourDBRow[]);
-    return { data: mappedData, source: "supabase", count };
+    
+    return { 
+      data: mappedData, 
+      source: "supabase" as const,
+      pagination: {
+        total: count || 0,
+        page,
+        pageSize,
+        totalPages: count ? Math.ceil(count / pageSize) : 0,
+        hasNextPage: count ? offset + pageSize < count : false,
+        hasPrevPage: page > 1,
+      }
+    };
   } catch (error: any) {
-    console.error("Unexpected error fetching all cases:", error);
+    console.error("❌ Unexpected error fetching cases:", error);
     return { error: error.message || "Failed to fetch cases data" };
   }
 }

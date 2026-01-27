@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save } from "lucide-react";
@@ -18,7 +17,6 @@ import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
-import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -47,7 +45,7 @@ interface DbViewerState {
 
 let FILTER_COLUMNS: string[] = [];
 
-// New: Header mapping and visibility configuration
+// Header mapping and visibility configuration
 const headerDisplayMapping: Record<string, string> = {
     no: 'No',
     date: 'Date',
@@ -70,8 +68,8 @@ const hiddenHeaders = [
     'id',
     'resolved_at',
     'ticket_op',
-    'customer_name', // Redundant with note logic
-    'pic_client', // Is now 'Note', we will hide the original
+    'customer_name',
+    'pic_client',
 ];
 
 const categoryColorMap: Record<string, string> = {
@@ -145,10 +143,11 @@ export function DbViewer({
     const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
     const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(undefined);
 
-
-    // Pagination state
+    // 🔥 Pagination state - SERVER-SIDE
     const [pageSize, setPageSize] = useState(50);
     const [currentPage, setCurrentPage] = useState(1);
+    const [totalRows, setTotalRows] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
 
     useEffect(() => {
         setIsProcessing(isPending);
@@ -157,17 +156,14 @@ export function DbViewer({
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return [];
         const allKeys = Object.keys(state.data[0]);
-        // Filter out hidden headers
         const visibleKeys = allKeys.filter(key => !hiddenHeaders.includes(key));
         
-        // Define a desired order
         const order = [
             'no', 'date', 'month', 'ticket_number', 'client_name', 
             'status', 'ticket_category', 'module', 'detail_module', 'title',
             'created_at', 'checkout', 'status_case_2', 'url_jira', 'note'
         ];
 
-        // Sort keys based on the defined order
         visibleKeys.sort((a, b) => {
             const indexA = order.indexOf(a);
             const indexB = order.indexOf(b);
@@ -177,12 +173,10 @@ export function DbViewer({
             return indexA - indexB;
         });
         
-        // The filterable columns are based on frontend keys now
         FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'status_case_2'];
 
         return visibleKeys;
     }, [state.data]);
-
 
     const initialColumnWidths = useCallback(() => {
         const widths: Record<string, number> = {};
@@ -217,7 +211,6 @@ export function DbViewer({
             setColumnWidths(initialColumnWidths());
         }
     }, [headers, initialColumnWidths]);
-
 
     const isResizing = useRef<string | null>(null);
     const startX = useRef(0);
@@ -255,6 +248,7 @@ export function DbViewer({
 
     const dateHeaderKey = useMemo(() => headers.find(h => h.toLowerCase() === 'date'), [headers]);
     
+    // 🔥 FIXED: fetchData with server-side pagination
     const fetchData = useCallback(async (isRefresh = false) => {
         startTransition(async () => {
             if (isRefresh) {
@@ -262,6 +256,7 @@ export function DbViewer({
                 setProgress(0);
             }
             
+            // Pass pagination params to backend
             const dataResult = await getAllCaseData({
                 year: yearFilter || undefined,
                 dateRange: dateRange,
@@ -270,56 +265,67 @@ export function DbViewer({
                 module: columnFilters['module'],
                 status: columnFilters['status'],
                 detailModule: columnFilters['detail_module'],
+                search: debouncedSearchTerm || undefined,
+                page: currentPage,
+                pageSize: pageSize,
             });
 
             if (dataResult.error) {
-                 setState({ data: null, source: 'N/A', error: dataResult.error });
+                setState({ data: null, source: 'N/A', error: dataResult.error });
+                setTotalRows(0);
+                setTotalPages(0);
             } else {
-                 setState({
+                setState({
                     data: dataResult.data || null,
                     source: (dataResult.source as any) || 'N/A',
                     error: null,
                 });
+                
+                // Update pagination metadata from backend
+                if (dataResult.pagination) {
+                    setTotalRows(dataResult.pagination.total);
+                    setTotalPages(dataResult.pagination.totalPages);
+                }
             }
 
             if (isRefresh) {
-                const filterOptionsResult = await getDashboardFilterOptions();
-                if (filterOptionsResult.data?.years) {
-                    setFetchedYears(filterOptionsResult.data.years);
-                }
                 setProgress(100);
                 if (dataResult.error) {
                     toast({ variant: 'destructive', title: "Refresh Failed", description: dataResult.error });
                 } else {
-                    toast({ title: "Data Refreshed", description: `Data loaded from ${dataResult.source}.` });
+                    toast({ 
+                        title: "Data Refreshed", 
+                        description: `Loaded page ${currentPage} of ${totalPages || 1}` 
+                    });
                 }
                 setIsRefreshing(false);
             }
         });
-    }, [yearFilter, dateRange, columnFilters, toast]);
+    }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, toast]);
 
+    // 🔥 FIXED: Trigger fetch on filter/pagination changes
     useEffect(() => {
         if (isInitialMount.current) {
             isInitialMount.current = false;
             return;
         }
         fetchData();
-    }, [yearFilter, dateRange, columnFilters, fetchData]);
+    }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, fetchData]);
     
     useEffect(() => {
         let timer: NodeJS.Timeout | undefined;
         if (isPending && !isRefreshing) {
-             setIsProcessing(true);
-             setProgress(0);
-             timer = setInterval(() => {
-                 setProgress(oldProgress => {
-                     if (oldProgress >= 95) {
-                         clearInterval(timer);
-                         return oldProgress;
-                     }
-                     return Math.min(oldProgress + 2, 95);
-                 });
-             }, 80);
+            setIsProcessing(true);
+            setProgress(0);
+            timer = setInterval(() => {
+                setProgress(oldProgress => {
+                    if (oldProgress >= 95) {
+                        clearInterval(timer);
+                        return oldProgress;
+                    }
+                    return Math.min(oldProgress + 2, 95);
+                });
+            }, 80);
         } else {
             setIsProcessing(false);
             setProgress(100);
@@ -349,63 +355,19 @@ export function DbViewer({
         return [];
     }, [fetchedYears]);
 
-
-    const filteredData = useMemo(() => {
-        if (!state.data) return [];
-        
-        let dataToFilter = state.data;
-
-        // Frontend search term filtering
-        if (debouncedSearchTerm) {
-            const lowercasedQuery = debouncedSearchTerm.toLowerCase();
-            dataToFilter = dataToFilter.filter(row => {
-                return Object.values(row).some(value =>
-                    String(value).toLowerCase().includes(lowercasedQuery)
-                );
-            });
-        }
-
-        return dataToFilter;
-    }, [state.data, debouncedSearchTerm]);
-
-    // Reset page to 1 when any filter changes
+    // 🔥 FIXED: Reset page when filters change (NOT when page/pageSize changes)
     useEffect(() => {
         setCurrentPage(1);
-    }, [debouncedSearchTerm, dateRange, columnFilters, yearFilter, pageSize]);
+    }, [debouncedSearchTerm, dateRange, columnFilters, yearFilter]);
     
-    // Calculate total pages
-    const totalPages = useMemo(() => {
-        if (!filteredData || pageSize === 0) return 1;
-        const pages = Math.ceil(filteredData.length / pageSize);
-        return pages > 0 ? pages : 1;
-    }, [filteredData, pageSize]);
-    
-    // Get data for the current page
-    const paginatedData = useMemo(() => {
-        if (!filteredData) return [];
-        const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
-        if (pageSize === 0) return filteredData;
-        const startIndex = (validCurrentPage - 1) * pageSize;
-        return filteredData.slice(startIndex, startIndex + pageSize);
-    }, [filteredData, currentPage, pageSize, totalPages]);
-    
+    // 🔥 FIXED: Use data directly from backend (already filtered & paginated)
     const displayData = useMemo(() => {
         if (isPending && !state.data) {
-             const skeletonRowCount = pageSize === 0 ? 20 : pageSize;
+            const skeletonRowCount = pageSize;
             return Array.from({ length: skeletonRowCount }, () => ({}));
         }
-        return paginatedData;
-    }, [isPending, state.data, paginatedData, pageSize]);
-    
-    const rowVirtualizer = useVirtualizer({
-        count: displayData.length,
-        getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 49,
-        overscan: 5,
-    });
-    
-    const virtualRows = rowVirtualizer.getVirtualItems();
-    const totalHeight = rowVirtualizer.getTotalSize();
+        return state.data || [];
+    }, [isPending, state.data, pageSize]);
 
     const handleClearAllFilters = () => {
         setSearchTerm('');
@@ -419,7 +381,6 @@ export function DbViewer({
         return searchTerm || dateRange || yearFilter || Object.values(columnFilters).some(f => f.length > 0);
     }, [searchTerm, dateRange, yearFilter, columnFilters]);
 
-
     if (state.error && !isPending) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -430,7 +391,7 @@ export function DbViewer({
                         <CardDescription className="mt-2 mb-4 max-w-sm">
                             {state.error}
                         </CardDescription>
-                         <Button onClick={() => fetchData(true)} disabled={isPending}>
+                        <Button onClick={() => fetchData(true)} disabled={isPending}>
                             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                             Try Again
                         </Button>
@@ -454,8 +415,6 @@ export function DbViewer({
     };
 
     const handleSaveChanges = () => {
-        // Here you would typically call an API to save the changes.
-        // For now, it just exits edit mode, keeping the local changes.
         setIsEditMode(false);
         setDataBeforeEdit(null);
         toast({
@@ -494,9 +453,9 @@ export function DbViewer({
                     setIsDatePopoverOpen(open);
                 }}>
                     <PopoverTrigger asChild disabled={isEditMode}>
-                         <Button variant="ghost" className={cn(headerStyle, "p-0 h-auto data-[state=open]:bg-accent/20")}>
-                             {displayHeader}
-                             <Filter className={cn("ml-2 h-3 w-3", dateRange ? "text-primary" : "text-muted-foreground/50")} />
+                        <Button variant="ghost" className={cn(headerStyle, "p-0 h-auto data-[state=open]:bg-accent/20")}>
+                            {displayHeader}
+                            <Filter className={cn("ml-2 h-3 w-3", dateRange ? "text-primary" : "text-muted-foreground/50")} />
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -566,8 +525,8 @@ export function DbViewer({
                 <Popover>
                     <PopoverTrigger asChild disabled={isEditMode}>
                         <Button variant="ghost" className={cn(headerStyle, "p-0 h-auto hover:bg-transparent data-[state=open]:bg-accent/20")}>
-                             {displayHeader}
-                             <Filter className={cn("ml-2 h-3 w-3", isFilterActive ? "text-primary" : "text-muted-foreground/50")} />
+                            {displayHeader}
+                            <Filter className={cn("ml-2 h-3 w-3", isFilterActive ? "text-primary" : "text-muted-foreground/50")} />
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[250px] p-0" align="start">
@@ -579,14 +538,14 @@ export function DbViewer({
                                     {options.map(option => {
                                         const isSelected = columnFilters[header]?.includes(option);
                                         return (
-                                             <CommandItem
+                                            <CommandItem
                                                 key={option}
                                                 onSelect={() => {
-                                                     const currentFilters = columnFilters[header] || [];
-                                                     const newFilters = isSelected
-                                                         ? currentFilters.filter(item => item !== option)
-                                                         : [...currentFilters, option];
-                                                     setColumnFilters(prev => ({ ...prev, [header]: newFilters }));
+                                                    const currentFilters = columnFilters[header] || [];
+                                                    const newFilters = isSelected
+                                                        ? currentFilters.filter(item => item !== option)
+                                                        : [...currentFilters, option];
+                                                    setColumnFilters(prev => ({ ...prev, [header]: newFilters }));
                                                 }}
                                             >
                                                 <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
@@ -609,7 +568,7 @@ export function DbViewer({
                                 </CommandGroup>
                             </CommandList>
                             {isFilterActive && (
-                                 <div className="p-1 border-t">
+                                <div className="p-1 border-t">
                                     <Button 
                                         className="w-full justify-center" 
                                         variant="ghost" 
@@ -618,7 +577,7 @@ export function DbViewer({
                                     >
                                         Clear filter
                                     </Button>
-                                 </div>
+                                </div>
                             )}
                         </Command>
                     </PopoverContent>
@@ -632,7 +591,7 @@ export function DbViewer({
     return (
         <div className="flex-1 bg-background text-foreground px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3 md:px-8 md:pb-8 md:pt-4">
             <Card>
-                 <CardHeader>
+                <CardHeader>
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex flex-wrap items-center gap-2">
                             <div className="relative">
@@ -667,13 +626,13 @@ export function DbViewer({
                             </div>
                             {areFiltersActive && (
                                 <Button onClick={handleClearAllFilters} variant="ghost" size="sm" disabled={isEditMode}>
-                                <FilterX className="mr-2 h-4 w-4" />
-                                Clear All Filters
-                            </Button>
+                                    <FilterX className="mr-2 h-4 w-4" />
+                                    Clear All Filters
+                                </Button>
                             )}
                         </div>
                         <div className="flex items-center gap-2">
-                             {isEditMode ? (
+                            {isEditMode ? (
                                 <div className="flex items-center gap-2">
                                     <Button onClick={handleCancelEdit} size="sm" variant="destructive">
                                         <X className="mr-2 h-4 w-4" /> Cancel
@@ -700,17 +659,17 @@ export function DbViewer({
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                     {(isPending && !isRefreshing) && (
-                         <div className="px-4 pb-2 space-y-1">
+                    {(isPending && !isRefreshing) && (
+                        <div className="px-4 pb-2 space-y-1">
                             <div className='flex items-center gap-2'>
                                 <Progress value={progress} className="w-full" />
                                 <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{Math.round(progress)}%</span>
                             </div>
                             <p className="text-xs text-muted-foreground">Loading data...</p>
                         </div>
-                     )}
+                    )}
                     <div ref={tableContainerRef} className="overflow-auto h-[75vh] border-t rounded-b-md">
-                       {(!state.data || state.data.length === 0) && !isPending ? (
+                        {(!state.data || state.data.length === 0) && !isPending ? (
                             <div className="flex items-center justify-center h-full">
                                 <div className="text-center text-muted-foreground">
                                     <Database className="mx-auto h-12 w-12 mb-2" />
@@ -718,184 +677,178 @@ export function DbViewer({
                                 </div>
                             </div>
                         ) : (
-                           <div style={{ height: `${totalHeight}px`, width: `${totalWidth}px`, position: 'relative' }}>
-                               <div
-                                   className="sticky top-0 z-10 flex"
-                               >
-                                   {headers.map(header => {
-                                       const isWrapHeader = false;
-                                       
-                                       return (
-                                           <div
-                                               key={header}
-                                               className={cn(
-                                                   "h-12 px-4 flex items-center justify-center bg-muted relative",
-                                                   isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
-                                               )}
-                                               style={{ width: columnWidths[header], flexShrink: 0, borderBottom: '1px solid hsl(var(--border))', borderRight: '1px solid hsl(var(--border))' }}
-                                           >
-                                              {renderHeaderContent(header)}
-                                              <div
+                            <div style={{ width: `${totalWidth}px` }}>
+                                {/* Header row */}
+                                <div className="sticky top-0 z-10 flex bg-muted">
+                                    {headers.map(header => (
+                                        <div
+                                            key={header}
+                                            className="h-12 px-4 flex items-center justify-center relative"
+                                            style={{ 
+                                                width: columnWidths[header], 
+                                                flexShrink: 0, 
+                                                borderBottom: '1px solid hsl(var(--border))', 
+                                                borderRight: '1px solid hsl(var(--border))' 
+                                            }}
+                                        >
+                                            {renderHeaderContent(header)}
+                                            <div
                                                 onMouseDown={(e) => handleResizeMouseDown(header, e)}
                                                 className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-20"
-                                              />
-                                           </div>
-                                       );
-                                   })}
-                               </div>
-                               {virtualRows.map((virtualRow) => {
-                                   const row = displayData[virtualRow.index];
-                                   const rowNumber = pageSize === 0 
-                                     ? virtualRow.index + 1 
-                                     : (currentPage - 1) * pageSize + virtualRow.index + 1;
-                                   
-                                   return (
-                                       <div
-                                           key={virtualRow.key}
-                                           style={{
-                                               position: 'absolute',
-                                               top: 0,
-                                               left: 0,
-                                               width: '100%',
-                                               height: `${virtualRow.size}px`,
-                                               transform: `translateY(${virtualRow.start + 48}px)`,
-                                           }}
-                                           className="flex border-b transition-colors hover:bg-muted/50"
-                                       >
-                                         {headers.map(header => {
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
 
-                                            const isNoColumn = header.toLowerCase() === 'no';
-                                            const isEditable = isEditMode && !isNoColumn;
-                                            const rowId = row?.id;
-                                            
-                                            let cellValue = row ? (isNoColumn ? rowNumber : row[header]) : null;
+                                {/* Data rows - Simple map, no virtualization */}
+                                {displayData.map((row, index) => {
+                                    const rowNumber = (currentPage - 1) * pageSize + index + 1;
+                                    
+                                    return (
+                                        <div 
+                                            key={row?.id || index} 
+                                            className="flex border-b transition-colors hover:bg-muted/50"
+                                        >
+                                            {headers.map(header => {
+                                                const isNoColumn = header.toLowerCase() === 'no';
+                                                const isEditable = isEditMode && !isNoColumn;
+                                                const rowId = row?.id;
+                                                
+                                                let cellValue = row ? (isNoColumn ? rowNumber : row[header]) : null;
 
-                                            if (row && header === dateHeaderKey && typeof cellValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(cellValue)) {
-                                                try {
-                                                    const date = new Date(cellValue);
-                                                    const day = String(date.getUTCDate()).padStart(2, '0');
-                                                    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-                                                    const year = date.getUTCFullYear();
-                                                    cellValue = `${day}/${month}/${year}`;
-                                                } catch(e) {
-                                                    // if format fails, just use original value
+                                                // Date formatting
+                                                if (row && header === dateHeaderKey && typeof cellValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(cellValue)) {
+                                                    try {
+                                                        const date = new Date(cellValue);
+                                                        const day = String(date.getUTCDate()).padStart(2, '0');
+                                                        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+                                                        const year = date.getUTCFullYear();
+                                                        cellValue = `${day}/${month}/${year}`;
+                                                    } catch(e) {
+                                                        // Keep original value
+                                                    }
                                                 }
-                                            }
 
-                                            const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
-                                            
-                                            return (
-                                                <div 
-                                                    key={header} 
-                                                    className="align-middle" 
-                                                    style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
-                                                >
-                                                     {isDropdownColumn ? (
-                                                        (header === 'ticket_category' || header === 'status') ? (
-                                                            <Select
-                                                                value={(cellValue as string) ?? ''}
-                                                                onValueChange={(newValue) => {
-                                                                    if (rowId !== undefined) {
-                                                                        handleCellChange(rowId, header, newValue);
-                                                                    }
-                                                                }}
+                                                const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
+                                                
+                                                return (
+                                                    <div 
+                                                        key={header} 
+                                                        className="align-middle" 
+                                                        style={{ 
+                                                            width: columnWidths[header], 
+                                                            flexShrink: 0, 
+                                                            borderRight: '1px solid hsl(var(--border))' 
+                                                        }}
+                                                    >
+                                                        {isDropdownColumn ? (
+                                                            (header === 'ticket_category' || header === 'status') ? (
+                                                                <Select
+                                                                    value={(cellValue as string) ?? ''}
+                                                                    onValueChange={(newValue) => {
+                                                                        if (rowId !== undefined) {
+                                                                            handleCellChange(rowId, header, newValue);
+                                                                        }
+                                                                    }}
+                                                                    disabled={!row}
+                                                                >
+                                                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
+                                                                        {cellValue ? (
+                                                                            <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', header === 'status' && 'inline-flex items-center justify-center w-[100px]', header === 'ticket_category' ? (categoryColorMap[cellValue as string] || categoryColorMap.default) : (statusColorMap[cellValue as string] || statusColorMap.default))}>
+                                                                                {cellValue}
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="text-muted-foreground">Select...</span>
+                                                                        )}
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {(header === 'ticket_category' ? ALL_CATEGORIES : ALL_STATUSES).map(option => (
+                                                                            <SelectItem key={option} value={option}>
+                                                                                <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', header === 'ticket_category' ? (categoryColorMap[option] || categoryColorMap.default) : (statusColorMap[option] || statusColorMap.default))}>
+                                                                                    {option}
+                                                                                </span>
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            ) : (
+                                                                <Select
+                                                                    value={(cellValue as string) ?? ''}
+                                                                    onValueChange={(newValue) => {
+                                                                        if (rowId !== undefined) {
+                                                                            handleCellChange(rowId, header, newValue);
+                                                                        }
+                                                                    }}
+                                                                    disabled={!row}
+                                                                >
+                                                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
+                                                                        <SelectValue placeholder="Select..." />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {(filterOptions[header] || []).map(option => (
+                                                                            <SelectItem key={option} value={option}>
+                                                                                {option}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            )
+                                                        ) : isEditable ? (
+                                                            <Input
+                                                                type="text"
+                                                                value={cellValue ?? ''}
+                                                                onChange={(e) => rowId !== undefined && handleCellChange(rowId, header, e.target.value)}
+                                                                className="h-full w-full rounded-none border-0 bg-transparent p-4 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:bg-transparent"
                                                                 disabled={!row}
-                                                            >
-                                                                <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
-                                                                    {cellValue ? (
-                                                                        <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', header === 'status' && 'inline-flex items-center justify-center w-[100px]', header === 'ticket_category' ? (categoryColorMap[cellValue as string] || categoryColorMap.default) : (statusColorMap[cellValue as string] || statusColorMap.default))}>
+                                                            />
+                                                        ) : (
+                                                            <div className="p-4 flex items-center text-sm">
+                                                                {row ? (
+                                                                    (header === 'ticket_category' && cellValue) ? (
+                                                                        <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
+                                                                            {cellValue}
+                                                                        </span>
+                                                                    ) : (header === 'status' && cellValue) ? (
+                                                                        <span className={cn('inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md text-xs font-medium', statusColorMap[cellValue as string] || statusColorMap.default)}>
                                                                             {cellValue}
                                                                         </span>
                                                                     ) : (
-                                                                        <span className="text-muted-foreground">Select...</span>
-                                                                    )}
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {(header === 'ticket_category' ? ALL_CATEGORIES : ALL_STATUSES).map(option => (
-                                                                        <SelectItem key={option} value={option}>
-                                                                            <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', header === 'ticket_category' ? (categoryColorMap[option] || categoryColorMap.default) : (statusColorMap[option] || statusColorMap.default))}>
-                                                                                {option}
-                                                                            </span>
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        ) : (
-                                                            <Select
-                                                                value={(cellValue as string) ?? ''}
-                                                                onValueChange={(newValue) => {
-                                                                    if (rowId !== undefined) {
-                                                                        handleCellChange(rowId, header, newValue);
-                                                                    }
-                                                                }}
-                                                                disabled={!row}
-                                                            >
-                                                                <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
-                                                                    <SelectValue placeholder="Select..." />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {(filterOptions[header] || []).map(option => (
-                                                                        <SelectItem key={option} value={option}>
-                                                                            {option}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        )
-                                                     ) : isEditable ? (
-                                                        <Input
-                                                            type="text"
-                                                            value={cellValue ?? ''}
-                                                            onChange={(e) => rowId !== undefined && handleCellChange(rowId, header, e.target.value)}
-                                                            className="h-full w-full rounded-none border-0 bg-transparent p-4 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:bg-transparent"
-                                                            disabled={!row}
-                                                        />
-                                                    ) : (
-                                                        <div className="p-4 flex items-center text-sm">
-                                                            {row ? (
-                                                                (header === 'ticket_category' && cellValue) ? (
-                                                                    <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
-                                                                        {cellValue}
-                                                                    </span>
-                                                                ) : (header === 'status' && cellValue) ? (
-                                                                    <span className={cn('inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md text-xs font-medium', statusColorMap[cellValue as string] || statusColorMap.default)}>
-                                                                        {cellValue}
-                                                                    </span>
+                                                                        <span className="truncate">{cellValue}</span>
+                                                                    )
                                                                 ) : (
-                                                                    <span className="truncate">{cellValue}</span>
-                                                                )
-                                                            ) : (
-                                                                <Skeleton className="h-4 w-full" />
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                         })}
-                                       </div>
-                                   );
-                               })}
-                           </div>
-                       )}
+                                                                    <Skeleton className="h-4 w-full" />
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </CardContent>
-                <CardFooter className="p-3 border-t text-xs text-muted-foreground">
+                <CardFooter className="p-3 border-t">
                     <div className="flex items-center justify-between w-full">
+                        {/* Left: Row count info */}
                         <div className="flex-1 text-sm text-muted-foreground">
-                            {filteredData.length} row(s) total.
+                            Showing {totalRows > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRows)} of {totalRows.toLocaleString()} rows
                         </div>
 
-                        <div className="flex items-center space-x-6 lg:space-x-8">
+                        {/* Right: Pagination controls */}
+                        <div className="flex items-center space-x-6">
+                            {/* Rows per page selector */}
                             <div className="flex items-center space-x-2">
                                 <p className="text-sm font-medium">Rows per page</p>
                                 <Select
                                     value={`${pageSize}`}
-                                    onValueChange={(value) => {
-                                        setPageSize(Number(value));
-                                    }}
+                                    onValueChange={(value) => setPageSize(Number(value))}
+                                    disabled={isPending || isEditMode}
                                 >
                                     <SelectTrigger className="h-8 w-[70px]">
-                                        <SelectValue placeholder={`${pageSize}`} />
+                                        <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent side="top">
                                         {[50, 100, 250, 500].map((size) => (
@@ -903,6 +856,53 @@ export function DbViewer({
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            {/* Page info */}
+                            <div className="flex items-center space-x-2">
+                                <p className="text-sm font-medium">
+                                    Page {currentPage} of {totalPages || 1}
+                                </p>
+                            </div>
+
+                            {/* Navigation buttons */}
+                            <div className="flex items-center space-x-1">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(1)}
+                                    disabled={currentPage === 1 || isPending || isEditMode}
+                                    title="First page"
+                                >
+                                    <ChevronsLeft className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1 || isPending || isEditMode}
+                                    title="Previous page"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))}
+                                    disabled={currentPage >= (totalPages || 1) || isPending || isEditMode}
+                                    title="Next page"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(totalPages || 1)}
+                                    disabled={currentPage >= (totalPages || 1) || isPending || isEditMode}
+                                    title="Last page"
+                                >
+                                    <ChevronsRight className="h-4 w-4" />
+                                </Button>
                             </div>
                         </div>
                     </div>
