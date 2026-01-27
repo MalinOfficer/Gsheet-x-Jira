@@ -17,14 +17,14 @@ import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, getDashboardFilterOptions } from "@/app/actions";
+import { getAllCaseData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, parse } from 'date-fns';
+import { format } from 'date-fns';
 import { DateRange } from "react-day-picker"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
 import { Check } from 'lucide-react';
@@ -45,31 +45,6 @@ interface DbViewerState {
     source: 'cache' | 'sheet' | 'N/A' | 'supabase';
     error?: string | null;
 }
-
-const extractYearFromDate = (dateStr: string): string | null => {
-    if (!dateStr || typeof dateStr !== 'string') return null;
-    
-    const trimmed = dateStr.trim();
-    
-    // Format: YYYY-MM-DD
-    if (trimmed.length >= 4) {
-        const firstFour = trimmed.substring(0, 4);
-        if (/^\d{4}$/.test(firstFour)) {
-            const year = parseInt(firstFour, 10);
-            if (year >= 2000 && year <= 2100) {
-                return firstFour;
-            }
-        }
-    }
-    
-    // Format: DD/MM/YYYY or other formats with year at the end
-    const match = trimmed.match(/\b(20\d{2})\b/);
-    if (match) {
-        return match[1];
-    }
-    
-    return null;
-};
 
 let FILTER_COLUMNS: string[] = [];
 
@@ -110,6 +85,16 @@ const categoryColorMap: Record<string, string> = {
     'default': 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
 };
 
+const statusColorMap: Record<string, string> = {
+    'Solved': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+    'L3': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+    'L2': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    'L1': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+    'PM': 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
+    'Move to Issue Tracker': 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
+    'default': 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+};
+
 const ALL_CATEGORIES = [
     'Adjustment',
     'Assistance',
@@ -117,6 +102,15 @@ const ALL_CATEGORIES = [
     'Enhancement',
     'Parameter Setup',
     'Q & A',
+];
+
+const ALL_STATUSES = [
+    'Solved',
+    'L3',
+    'L2',
+    'L1',
+    'PM',
+    'Move to Issue Tracker',
 ];
 
 export function DbViewer({ 
@@ -274,19 +268,21 @@ export function DbViewer({
                 detailModule: columnFilters['detail_module'],
             });
 
-            const filterOptionsResult = await getDashboardFilterOptions();
-
-            setState({
-                data: dataResult.data || null,
-                source: (dataResult.source as any) || 'N/A',
-                error: dataResult.error,
-            });
-
-            if (filterOptionsResult.data?.years) {
-                setFetchedYears(filterOptionsResult.data.years);
+            if (dataResult.error) {
+                 setState({ data: null, source: 'N/A', error: dataResult.error });
+            } else {
+                 setState({
+                    data: dataResult.data || null,
+                    source: (dataResult.source as any) || 'N/A',
+                    error: null,
+                });
             }
 
             if (isRefresh) {
+                const filterOptionsResult = await getDashboardFilterOptions();
+                if (filterOptionsResult.data?.years) {
+                    setFetchedYears(filterOptionsResult.data.years);
+                }
                 setProgress(100);
                 if (dataResult.error) {
                     toast({ variant: 'destructive', title: "Refresh Failed", description: dataResult.error });
@@ -301,9 +297,7 @@ export function DbViewer({
     useEffect(() => {
         if (isInitialMount.current) {
             isInitialMount.current = false;
-            if (state.data && state.data.length > 0) {
-                 return;
-            }
+            return;
         }
         fetchData();
     }, [yearFilter, dateRange, columnFilters, fetchData]);
@@ -348,23 +342,8 @@ export function DbViewer({
         if (fetchedYears.length > 0) {
             return fetchedYears.sort((a, b) => b.localeCompare(a));
         }
-        
-        if (!state.data) return [];
-        const years = new Set<string>();
-        const dateColumns = headers.filter(h => 
-            h.toLowerCase().includes('date') || 
-            h.toLowerCase().includes('tanggal')
-        );
-        
-        state.data.forEach(row => {
-            dateColumns.forEach(col => {
-                const year = extractYearFromDate(String(row[col]));
-                if (year) years.add(year);
-            });
-        });
-        
-        return Array.from(years).sort((a, b) => b.localeCompare(a));
-    }, [fetchedYears, state.data, headers]);
+        return [];
+    }, [fetchedYears]);
 
 
     const filteredData = useMemo(() => {
@@ -558,7 +537,8 @@ export function DbViewer({
 
         if (isFilterable) {
             const isCategoryFilter = header === 'ticket_category';
-            const options = isCategoryFilter ? ALL_CATEGORIES : (filterOptions[header] || []);
+            const isStatusFilter = header === 'status';
+            const options = isCategoryFilter ? ALL_CATEGORIES : isStatusFilter ? ALL_STATUSES : (filterOptions[header] || []);
             return(
                 <Popover>
                     <PopoverTrigger asChild disabled={isEditMode}>
@@ -591,6 +571,10 @@ export function DbViewer({
                                                 </div>
                                                 {isCategoryFilter ? (
                                                     <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', categoryColorMap[option] || categoryColorMap.default)}>
+                                                        {option}
+                                                    </span>
+                                                ) : isStatusFilter ? (
+                                                    <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', statusColorMap[option] || statusColorMap.default)}>
                                                         {option}
                                                     </span>
                                                 ) : (
@@ -784,7 +768,7 @@ export function DbViewer({
                                                     style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
                                                 >
                                                      {isDropdownColumn ? (
-                                                        header === 'ticket_category' ? (
+                                                        (header === 'ticket_category' || header === 'status') ? (
                                                             <Select
                                                                 value={(cellValue as string) ?? ''}
                                                                 onValueChange={(newValue) => {
@@ -796,7 +780,7 @@ export function DbViewer({
                                                             >
                                                                 <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
                                                                     {cellValue ? (
-                                                                        <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
+                                                                        <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', header === 'ticket_category' ? (categoryColorMap[cellValue as string] || categoryColorMap.default) : (statusColorMap[cellValue as string] || statusColorMap.default))}>
                                                                             {cellValue}
                                                                         </span>
                                                                     ) : (
@@ -804,9 +788,9 @@ export function DbViewer({
                                                                     )}
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    {ALL_CATEGORIES.map(option => (
+                                                                    {(header === 'ticket_category' ? ALL_CATEGORIES : ALL_STATUSES).map(option => (
                                                                         <SelectItem key={option} value={option}>
-                                                                            <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', categoryColorMap[option] || categoryColorMap.default)}>
+                                                                            <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', header === 'ticket_category' ? (categoryColorMap[option] || categoryColorMap.default) : (statusColorMap[option] || statusColorMap.default))}>
                                                                                 {option}
                                                                             </span>
                                                                         </SelectItem>
@@ -846,8 +830,12 @@ export function DbViewer({
                                                     ) : (
                                                         <div className="p-4 flex items-center text-sm">
                                                             {row ? (
-                                                                header === 'ticket_category' && cellValue ? (
+                                                                (header === 'ticket_category' && cellValue) ? (
                                                                     <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
+                                                                        {cellValue}
+                                                                    </span>
+                                                                ) : (header === 'status' && cellValue) ? (
+                                                                    <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', statusColorMap[cellValue as string] || statusColorMap.default)}>
                                                                         {cellValue}
                                                                     </span>
                                                                 ) : (
