@@ -17,7 +17,11 @@ const formatDate = (date: any) => {
     if (!date) return null;
     try {
         const d = date instanceof Date ? date : new Date(date);
-        return d.toISOString().split('T')[0];
+        // Use local date parts to avoid timezone conversion issues from toISOString()
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     } catch (e) {
         console.error('Invalid date:', date);
         return null;
