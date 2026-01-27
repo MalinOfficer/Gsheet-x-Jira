@@ -108,7 +108,7 @@ export function DbViewer({
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return [];
-        const firstRowKeys = Object.keys(state.data[0]);
+        const firstRowKeys = Object.keys(state.data[0]).filter(key => key.toLowerCase() !== 'id');
 
         const potentialFilterCols = ['client name', 'client_name', 'status case', 'status_case', 'kategori', 'category', 'module', 'detail modul', 'detail_module', 'status case 2', 'status_case_2', 'category_case', 'module_case'];
         FILTER_COLUMNS = firstRowKeys.filter(h => potentialFilterCols.includes(h.toLowerCase()));
