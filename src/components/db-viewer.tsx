@@ -70,7 +70,7 @@ const hiddenHeaders = [
     'id',
     'resolved_at',
     'ticket_op',
-    'customer_name', // Redundant with pic_client logic
+    'customer_name', // Redundant with note logic
     'pic_client', // Is now 'Note', we will hide the original
 ];
 
@@ -140,6 +140,11 @@ export function DbViewer({
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
     const [yearFilter, setYearFilter] = useState<string>('');
     const isInitialMount = useRef(true);
+    
+    // States for date popover
+    const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
+    const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(undefined);
+
 
     // Pagination state
     const [pageSize, setPageSize] = useState(50);
@@ -482,7 +487,12 @@ export function DbViewer({
 
         if (header === dateHeaderKey) {
             return (
-                <Popover>
+                <Popover open={isDatePopoverOpen} onOpenChange={(open) => {
+                    if (open) {
+                        setTempDateRange(dateRange);
+                    }
+                    setIsDatePopoverOpen(open);
+                }}>
                     <PopoverTrigger asChild disabled={isEditMode}>
                          <Button variant="ghost" className={cn(headerStyle, "p-0 h-auto data-[state=open]:bg-accent/20")}>
                              {displayHeader}
@@ -490,44 +500,58 @@ export function DbViewer({
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                         <div className="p-2 border-b">
-                            <div
-                                className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    !dateRange && "text-muted-foreground"
-                                )}
-                            >
-                                {dateRange?.from ? (
-                                    dateRange.to ? (
+                        <div className="p-3 border-b">
+                            <div className="text-sm font-medium">
+                                {tempDateRange?.from ? (
+                                    tempDateRange.to ? (
                                         <>
-                                            {format(dateRange.from, "LLL dd, y")} -{" "}
-                                            {format(dateRange.to, "LLL dd, y")}
+                                            {format(tempDateRange.from, "LLL dd, y")} - {format(tempDateRange.to, "LLL dd, y")}
                                         </>
                                     ) : (
-                                        format(dateRange.from, "LLL dd, y")
+                                        format(tempDateRange.from, "LLL dd, y")
                                     )
                                 ) : (
-                                    <span>Pick a date range</span>
+                                    <span className="text-muted-foreground">Pilih rentang tanggal</span>
                                 )}
                             </div>
-                         </div>
+                        </div>
                         <Calendar
                             initialFocus
                             mode="range"
-                            defaultMonth={dateRange?.from}
-                            selected={dateRange}
-                            onSelect={setDateRange}
+                            defaultMonth={tempDateRange?.from}
+                            selected={tempDateRange}
+                            onSelect={setTempDateRange}
                             numberOfMonths={2}
                         />
-                        <div className="p-2 border-t flex justify-end">
+                        <div className="p-2 border-t flex justify-between items-center">
                             <Button
-                                onClick={() => setDateRange(undefined)}
+                                onClick={() => {
+                                    const today = new Date();
+                                    setTempDateRange({ from: today, to: today });
+                                }}
                                 variant="ghost"
                                 size="sm"
-                                disabled={!dateRange}
                             >
-                                Reset
+                                Today
                             </Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    onClick={() => setTempDateRange(undefined)}
+                                    variant="ghost"
+                                    size="sm"
+                                >
+                                    Reset
+                                </Button>
+                                <Button
+                                    onClick={() => {
+                                        setDateRange(tempDateRange);
+                                        setIsDatePopoverOpen(false);
+                                    }}
+                                    size="sm"
+                                >
+                                    Apply
+                                </Button>
+                            </div>
                         </div>
                     </PopoverContent>
                 </Popover>
@@ -573,7 +597,7 @@ export function DbViewer({
                                                         {option}
                                                     </span>
                                                 ) : isStatusFilter ? (
-                                                    <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', statusColorMap[option] || statusColorMap.default)}>
+                                                    <span className={cn('inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md text-xs font-medium', statusColorMap[option] || statusColorMap.default)}>
                                                         {option}
                                                     </span>
                                                 ) : (
@@ -887,5 +911,3 @@ export function DbViewer({
         </div>
     );
 }
-
-    
