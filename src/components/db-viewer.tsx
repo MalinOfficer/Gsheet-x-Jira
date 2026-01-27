@@ -438,12 +438,13 @@ export function DbViewer({
         const displayHeader = headerDisplayMapping[header] || header;
         const isFilterable = FILTER_COLUMNS.includes(header);
         const isFilterActive = columnFilters[header]?.length > 0;
+        const headerStyle = "text-base font-bold text-muted-foreground";
 
         if (header === dateHeaderKey) {
             return (
                 <Popover>
                     <PopoverTrigger asChild>
-                         <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground data-[state=open]:bg-accent/20">
+                         <Button variant="ghost" className={cn(headerStyle, "p-0 h-auto data-[state=open]:bg-accent/20")}>
                              {displayHeader}
                              <Filter className={cn("ml-2 h-3 w-3", dateRange ? "text-primary" : "text-muted-foreground/50")} />
                         </Button>
@@ -497,7 +498,7 @@ export function DbViewer({
             return(
                 <Popover>
                     <PopoverTrigger asChild>
-                        <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
+                        <Button variant="ghost" className={cn(headerStyle, "p-0 h-auto hover:bg-transparent data-[state=open]:bg-accent/20")}>
                              {displayHeader}
                              <Filter className={cn("ml-2 h-3 w-3", isFilterActive ? "text-primary" : "text-muted-foreground/50")} />
                         </Button>
@@ -548,7 +549,7 @@ export function DbViewer({
             );
         }
 
-        return <span className="truncate">{displayHeader}</span>;
+        return <span className={cn(headerStyle, "truncate")}>{displayHeader}</span>;
     }
 
     return (
@@ -635,7 +636,7 @@ export function DbViewer({
                                            <div
                                                key={header}
                                                className={cn(
-                                                   "h-12 px-4 text-left text-sm font-semibold text-muted-foreground flex items-center justify-start bg-muted relative",
+                                                   "h-12 px-4 text-left flex items-center justify-start bg-muted relative",
                                                    isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
                                                )}
                                                style={{ width: columnWidths[header], flexShrink: 0, borderBottom: '1px solid hsl(var(--border))', borderRight: '1px solid hsl(var(--border))' }}
