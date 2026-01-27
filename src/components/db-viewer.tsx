@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save } from "lucide-react";
@@ -780,7 +779,7 @@ export function DbViewer({
                                                             >
                                                                 <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
                                                                     {cellValue ? (
-                                                                        <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', header === 'ticket_category' ? (categoryColorMap[cellValue as string] || categoryColorMap.default) : (statusColorMap[cellValue as string] || statusColorMap.default))}>
+                                                                        <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', header === 'status' && 'inline-flex items-center justify-center w-[100px]', header === 'ticket_category' ? (categoryColorMap[cellValue as string] || categoryColorMap.default) : (statusColorMap[cellValue as string] || statusColorMap.default))}>
                                                                             {cellValue}
                                                                         </span>
                                                                     ) : (
@@ -835,7 +834,7 @@ export function DbViewer({
                                                                         {cellValue}
                                                                     </span>
                                                                 ) : (header === 'status' && cellValue) ? (
-                                                                    <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', statusColorMap[cellValue as string] || statusColorMap.default)}>
+                                                                    <span className={cn('inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md text-xs font-medium', statusColorMap[cellValue as string] || statusColorMap.default)}>
                                                                         {cellValue}
                                                                     </span>
                                                                 ) : (
@@ -888,3 +887,5 @@ export function DbViewer({
         </div>
     );
 }
+
+    
