@@ -79,8 +79,8 @@ const headerDisplayMapping: Record<string, string> = {
     month: 'Month',
     ticket_number: 'Ticket Number',
     client_name: 'Client',
-    customer_name: 'Customer Name',
     status: 'Status',
+    ticket_category: 'Category',
     module: 'Module',
     detail_module: 'Detail Module',
     created_at: 'Check In',
@@ -88,7 +88,6 @@ const headerDisplayMapping: Record<string, string> = {
     checkout: 'Check Out',
     url_jira: 'Url Jira',
     status_case_2: 'Status Solved',
-    ticket_category: 'Category',
     note: 'Note',
 };
 
@@ -96,7 +95,8 @@ const hiddenHeaders = [
     'id',
     'resolved_at',
     'ticket_op',
-    'pic_client',
+    'customer_name', // Redundant with pic_client logic
+    'pic_client', // Is now 'Note', we will hide the original
 ];
 
 export function DbViewer({ 
@@ -144,7 +144,7 @@ export function DbViewer({
         
         // Define a desired order
         const order = [
-            'no', 'date', 'month', 'ticket_number', 'client_name', 'customer_name', 
+            'no', 'date', 'month', 'ticket_number', 'client_name', 
             'status', 'ticket_category', 'module', 'detail_module', 'title',
             'created_at', 'checkout', 'status_case_2', 'url_jira', 'note'
         ];
@@ -177,7 +177,7 @@ export function DbViewer({
                 widths[header] = 350;
             } else if (displayHeader.includes('detail module')) {
                 widths[header] = 250;
-            } else if (displayHeader.includes('client') || displayHeader.includes('customer name') || displayHeader.includes('ticket number') || displayHeader.includes('module')) {
+            } else if (displayHeader.includes('client') || displayHeader.includes('ticket number') || displayHeader.includes('module')) {
                 widths[header] = 180;
             } else if (displayHeader.includes('status solved')) {
                 widths[header] = 120;
@@ -359,8 +359,6 @@ export function DbViewer({
                 );
             });
         }
-        
-        // All other filtering (year, dateRange, columns) is now handled by the backend.
 
         return dataToFilter;
     }, [state.data, debouncedSearchTerm]);
@@ -688,8 +686,7 @@ export function DbViewer({
                                    className="sticky top-0 z-10 flex"
                                >
                                    {headers.map(header => {
-                                       const lowerHeader = header.toLowerCase();
-                                       const isWrapHeader = lowerHeader.includes('first response') || lowerHeader.includes('status case 2');
+                                       const isWrapHeader = false;
                                        
                                        return (
                                            <div
@@ -747,23 +744,46 @@ export function DbViewer({
                                                     // if format fails, just use original value
                                                 }
                                             }
+
+                                            const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
                                             
                                             return (
                                                 <div 
                                                     key={header} 
-                                                    className="align-middle text-sm" 
+                                                    className="align-middle" 
                                                     style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
                                                 >
-                                                     {isEditable ? (
+                                                     {isDropdownColumn ? (
+                                                        <Select
+                                                            value={(cellValue as string) ?? ''}
+                                                            onValueChange={(newValue) => {
+                                                                if (rowId !== undefined) {
+                                                                    handleCellChange(rowId, header, newValue);
+                                                                }
+                                                            }}
+                                                            disabled={!row}
+                                                        >
+                                                            <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
+                                                                <SelectValue placeholder="Select..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {(filterOptions[header] || []).map(option => (
+                                                                    <SelectItem key={option} value={option}>
+                                                                        {option}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                     ) : isEditable ? (
                                                         <Input
                                                             type="text"
                                                             value={cellValue ?? ''}
                                                             onChange={(e) => rowId !== undefined && handleCellChange(rowId, header, e.target.value)}
-                                                            className="h-full w-full rounded-none border-0 bg-transparent p-4 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:bg-transparent"
+                                                            className="h-full w-full rounded-none border-0 bg-transparent p-4 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:bg-transparent"
                                                             disabled={!row}
                                                         />
                                                     ) : (
-                                                        <div className="p-4 truncate">
+                                                        <div className="p-4 truncate text-sm">
                                                             {row ? cellValue : <Skeleton className="h-4 w-full" />}
                                                         </div>
                                                     )}
