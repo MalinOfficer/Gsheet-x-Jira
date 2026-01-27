@@ -1,3 +1,4 @@
+
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase";
@@ -29,11 +30,11 @@ const formatDate = (date: any) => {
 
 export async function getAllCaseData(filters?: {
   year?: string;
-  category?: string;
-  client?: string;
-  module?: string;
-  status?: string;
-  detailModule?: string;
+  category?: string | string[];
+  client?: string | string[];
+  module?: string | string[];
+  status?: string | string[];
+  detailModule?: string | string[];
   dateRange?: { from?: Date; to?: Date };
 }) {
   try {
@@ -59,28 +60,28 @@ export async function getAllCaseData(filters?: {
     }
 
     // Apply category filter
-    if (filters?.category) {
-      query = query.eq('category_case', filters.category);
+    if (filters?.category && Array.isArray(filters.category) && filters.category.length > 0) {
+      query = query.in('category_case', filters.category);
     }
 
     // Apply client filter  
-    if (filters?.client) {
-      query = query.eq('client_name', filters.client);
+    if (filters?.client && Array.isArray(filters.client) && filters.client.length > 0) {
+      query = query.in('client_name', filters.client);
     }
 
     // Apply module filter
-    if (filters?.module) {
-      query = query.eq('module_case', filters.module);
+    if (filters?.module && Array.isArray(filters.module) && filters.module.length > 0) {
+      query = query.in('module_case', filters.module);
     }
 
     // Apply status filter
-    if (filters?.status) {
-        query = query.eq('status_case', filters.status);
+    if (filters?.status && Array.isArray(filters.status) && filters.status.length > 0) {
+        query = query.in('status_case', filters.status);
     }
 
     // Apply detail module filter
-    if (filters?.detailModule) {
-        query = query.eq('detail_module', filters.detailModule);
+    if (filters?.detailModule && Array.isArray(filters.detailModule) && filters.detailModule.length > 0) {
+        query = query.in('detail_module', filters.detailModule);
     }
 
     const { data, error, count } = await query;

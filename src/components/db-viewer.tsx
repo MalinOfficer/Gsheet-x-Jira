@@ -267,11 +267,11 @@ export function DbViewer({
             const dataResult = await getAllCaseData({
                 year: yearFilter || undefined,
                 dateRange: dateRange,
-                category: columnFilters['ticket_category']?.[0],
-                client: columnFilters['client_name']?.[0],
-                module: columnFilters['module']?.[0],
-                status: columnFilters['status']?.[0],
-                detailModule: columnFilters['detail_module']?.[0],
+                category: columnFilters['ticket_category'],
+                client: columnFilters['client_name'],
+                module: columnFilters['module'],
+                status: columnFilters['status'],
+                detailModule: columnFilters['detail_module'],
             });
 
             const filterOptionsResult = await getDashboardFilterOptions();
@@ -557,6 +557,8 @@ export function DbViewer({
         }
 
         if (isFilterable) {
+            const isCategoryFilter = header === 'ticket_category';
+            const options = isCategoryFilter ? ALL_CATEGORIES : (filterOptions[header] || []);
             return(
                 <Popover>
                     <PopoverTrigger asChild disabled={isEditMode}>
@@ -571,7 +573,7 @@ export function DbViewer({
                             <CommandList>
                                 <CommandEmpty>No results found.</CommandEmpty>
                                 <CommandGroup>
-                                    {(filterOptions[header] || []).map(option => {
+                                    {options.map(option => {
                                         const isSelected = columnFilters[header]?.includes(option);
                                         return (
                                              <CommandItem
@@ -587,7 +589,13 @@ export function DbViewer({
                                                 <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
                                                     <Check className={cn("h-4 w-4")} />
                                                 </div>
-                                                <span>{option}</span>
+                                                {isCategoryFilter ? (
+                                                    <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', categoryColorMap[option] || categoryColorMap.default)}>
+                                                        {option}
+                                                    </span>
+                                                ) : (
+                                                    <span>{option}</span>
+                                                )}
                                             </CommandItem>
                                         );
                                     })}
