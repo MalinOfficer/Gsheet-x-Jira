@@ -16,11 +16,16 @@ import {
 const formatDate = (date: any) => {
     if (!date) return null;
     try {
-        const d = date instanceof Date ? date : new Date(date);
-        // Use local date parts to avoid timezone conversion issues from toISOString()
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
+        const d = new Date(date);
+        // Heuristic to correct for timezone shifts.
+        // If the date from the client is past noon in UTC, it's likely the next day in the user's timezone.
+        // This happens for users in timezones ahead of UTC (e.g., Asia).
+        if (d.getUTCHours() >= 12) {
+          d.setUTCDate(d.getUTCDate() + 1);
+        }
+        const year = d.getUTCFullYear();
+        const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     } catch (e) {
         console.error('Invalid date:', date);
@@ -32,6 +37,7 @@ const formatDate = (date: any) => {
 // FETCH ALL CASES DATA (Not used by dashboard, for DB viewer)
 // ============================================
 
+// File: actions.ts - Update getAllCaseData function
 export async function getAllCaseData(filters?: {
   year?: string;
   category?: string | string[];
@@ -55,35 +61,37 @@ export async function getAllCaseData(filters?: {
         .lte('date', `${yearNum}-12-31`);
     }
 
-    // Apply date range filter
     if (filters?.dateRange?.from) {
-      query = query.gte('date', formatDate(filters.dateRange.from));
-    }
-    if (filters?.dateRange?.to) {
-      query = query.lte('date', formatDate(filters.dateRange.to));
+      const fromDate = formatDate(filters.dateRange.from);
+      
+      const toDate = filters?.dateRange?.to 
+        ? formatDate(filters.dateRange.to)
+        : fromDate;
+      
+      query = query
+        .gte('date', fromDate)
+        .lte('date', toDate);
+      
+      console.log('📅 Date filter applied:', { from: fromDate, to: toDate });
     }
 
-    // Apply category filter
+    // Rest of the filters...
     if (filters?.category && Array.isArray(filters.category) && filters.category.length > 0) {
       query = query.in('category_case', filters.category);
     }
 
-    // Apply client filter  
     if (filters?.client && Array.isArray(filters.client) && filters.client.length > 0) {
       query = query.in('client_name', filters.client);
     }
 
-    // Apply module filter
     if (filters?.module && Array.isArray(filters.module) && filters.module.length > 0) {
       query = query.in('module_case', filters.module);
     }
 
-    // Apply status filter
     if (filters?.status && Array.isArray(filters.status) && filters.status.length > 0) {
         query = query.in('status_case', filters.status);
     }
 
-    // Apply detail module filter
     if (filters?.detailModule && Array.isArray(filters.detailModule) && filters.detailModule.length > 0) {
         query = query.in('detail_module', filters.detailModule);
     }
