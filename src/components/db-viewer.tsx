@@ -636,7 +636,7 @@ export function DbViewer({
                                            <div
                                                key={header}
                                                className={cn(
-                                                   "h-12 px-4 text-left flex items-center justify-start bg-muted relative",
+                                                   "h-12 px-4 flex items-center justify-center bg-muted relative",
                                                    isWrapHeader ? "whitespace-normal text-center" : "whitespace-nowrap"
                                                )}
                                                style={{ width: columnWidths[header], flexShrink: 0, borderBottom: '1px solid hsl(var(--border))', borderRight: '1px solid hsl(var(--border))' }}
