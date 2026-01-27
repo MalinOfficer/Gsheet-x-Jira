@@ -44,41 +44,28 @@ interface DbViewerState {
     error?: string | null;
 }
 
-// Helper to parse date strings into Date objects
-const parseDate = (dateStr: string): Date | null => {
+const extractYearFromDate = (dateStr: string): string | null => {
     if (!dateStr || typeof dateStr !== 'string') return null;
     
     const trimmed = dateStr.trim();
     
-    // Try ISO format first (YYYY-MM-DD from database)
-    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-        // To prevent timezone issues where new Date('2024-01-01') might become 2023-12-31,
-        // we can parse it as UTC or manually.
-        const [year, month, day] = trimmed.split('T')[0].split('-').map(Number);
-        // Using UTC to avoid timezone shift
-        const date = new Date(Date.UTC(year, month - 1, day));
-        if (!isNaN(date.getTime())) return date;
-    }
-
-    // Try native Date parsing as a fallback
-    try {
-        const parsed = new Date(trimmed);
-        if (!isNaN(parsed.getTime())) {
-            const year = parsed.getFullYear();
-            if (year >= 1900 && year <= 2100) {
-                return parsed;
+    // Format: YYYY-MM-DD
+    if (trimmed.length >= 4) {
+        const firstFour = trimmed.substring(0, 4);
+        if (/^\d{4}$/.test(firstFour)) {
+            const year = parseInt(firstFour, 10);
+            if (year >= 2000 && year <= 2100) {
+                return firstFour;
             }
         }
-    } catch (e) { /* ignore */ }
-
-    // Fallback for DD/MM/YYYY format
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed)) {
-        try {
-            const parsed = parse(trimmed, 'dd/MM/yyyy', new Date());
-            if (!isNaN(parsed.getTime())) return parsed;
-        } catch (e) { /* ignore */ }
     }
-
+    
+    // Format: DD/MM/YYYY or other formats with year at the end
+    const match = trimmed.match(/\b(20\d{2})\b/);
+    if (match) {
+        return match[1];
+    }
+    
     return null;
 };
 
@@ -109,6 +96,7 @@ export function DbViewer({
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
     const [yearFilter, setYearFilter] = useState<string>('');
+    const isInitialMount = useRef(true);
 
     // Pagination state
     const [pageSize, setPageSize] = useState(50);
@@ -122,7 +110,7 @@ export function DbViewer({
         if (!state.data || !state.data.length) return [];
         const firstRowKeys = Object.keys(state.data[0]);
 
-        const potentialFilterCols = ['client name', 'client_name', 'status case', 'status_case', 'kategori', 'category', 'module', 'detail modul', 'detail_module', 'status case 2', 'status_case_2'];
+        const potentialFilterCols = ['client name', 'client_name', 'status case', 'status_case', 'kategori', 'category', 'module', 'detail modul', 'detail_module', 'status case 2', 'status_case_2', 'category_case', 'module_case'];
         FILTER_COLUMNS = firstRowKeys.filter(h => potentialFilterCols.includes(h.toLowerCase()));
 
         return firstRowKeys;
@@ -195,10 +183,15 @@ export function DbViewer({
                 setProgress(0);
             }
             
-            const [dataResult, filterOptionsResult] = await Promise.all([
-                getAllCaseData(),
-                getDashboardFilterOptions()
-            ]);
+            const dataResult = await getAllCaseData({
+                year: yearFilter || undefined,
+                dateRange: dateRange,
+                category: columnFilters['category_case']?.[0],
+                client: columnFilters['client_name']?.[0],
+                module: columnFilters['module_case']?.[0],
+            });
+
+            const filterOptionsResult = await getDashboardFilterOptions();
 
             setState({
                 data: dataResult.data || null,
@@ -220,7 +213,17 @@ export function DbViewer({
                 setIsRefreshing(false);
             }
         });
-    }, [toast]);
+    }, [yearFilter, dateRange, columnFilters, toast]);
+
+    useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            if (state.data && state.data.length > 0) {
+                 return;
+            }
+        }
+        fetchData();
+    }, [yearFilter, dateRange, columnFilters, fetchData]);
     
     useEffect(() => {
         let timer: NodeJS.Timeout | undefined;
@@ -259,25 +262,26 @@ export function DbViewer({
     }, [state.data]);
 
     const yearOptions = useMemo(() => {
-        // Priority 1: Use years from database function
         if (fetchedYears.length > 0) {
-            return fetchedYears;
+            return fetchedYears.sort((a, b) => b.localeCompare(a));
         }
         
-        // Fallback: Parse from loaded data
-        if (!state.data || !dateHeaderKey) return [];
+        if (!state.data) return [];
         const years = new Set<string>();
+        const dateColumns = headers.filter(h => 
+            h.toLowerCase().includes('date') || 
+            h.toLowerCase().includes('tanggal')
+        );
+        
         state.data.forEach(row => {
-            const dateValue = String(row[dateHeaderKey] || '');
-            if (dateValue.length >= 4) {
-                const year = dateValue.substring(0, 4);
-                if (/^\d{4}$/.test(year)) { // Ensure it's a four-digit number
-                    years.add(year);
-                }
-            }
+            dateColumns.forEach(col => {
+                const year = extractYearFromDate(String(row[col]));
+                if (year) years.add(year);
+            });
         });
+        
         return Array.from(years).sort((a, b) => b.localeCompare(a));
-    }, [fetchedYears, state.data, dateHeaderKey]);
+    }, [fetchedYears, state.data, headers]);
 
 
     const filteredData = useMemo(() => {
@@ -285,29 +289,8 @@ export function DbViewer({
         
         let dataToFilter = state.data;
 
-        // 1. Date range filter
-        if (dateRange?.from && dateHeaderKey) {
-             dataToFilter = dataToFilter.filter(row => {
-                const dateValue = row[dateHeaderKey];
-                if (!dateValue) return false;
-
-                const rowDate = parseDate(dateValue);
-                if (!rowDate) return false;
-
-                const fromDate = dateRange.from ? new Date(dateRange.from.setHours(0, 0, 0, 0)) : null;
-                const toDate = dateRange.to ? new Date(dateRange.to.setHours(23, 59, 59, 999)) : fromDate;
-
-                if (fromDate && toDate) {
-                    return rowDate >= fromDate && rowDate <= toDate;
-                }
-                if (fromDate) {
-                    return rowDate >= fromDate;
-                }
-                return true;
-            });
-        }
-
-        // 2. General search term filter
+        // Year, date range, and column filters are now handled by backend.
+        // Only the general search term is filtered on the client for responsiveness.
         if (debouncedSearchTerm) {
             const lowercasedQuery = debouncedSearchTerm.toLowerCase();
             dataToFilter = dataToFilter.filter(row => {
@@ -316,28 +299,9 @@ export function DbViewer({
                 );
             });
         }
-        
-        // 3. Column-specific multi-select filters
-        const activeColumnFilters = Object.entries(columnFilters).filter(([, values]) => values.length > 0);
-        if (activeColumnFilters.length > 0) {
-            dataToFilter = dataToFilter.filter(row => {
-                return activeColumnFilters.every(([column, selectedValues]) => {
-                    const cellValue = row[column];
-                    return cellValue && selectedValues.includes(cellValue);
-                });
-            });
-        }
-
-        // 4. Year filter
-        if (yearFilter && dateHeaderKey) {
-            dataToFilter = dataToFilter.filter(row => {
-                const dateValue = String(row[dateHeaderKey] || '');
-                return dateValue.startsWith(yearFilter);
-            });
-        }
 
         return dataToFilter;
-    }, [state.data, debouncedSearchTerm, dateRange, columnFilters, yearFilter, dateHeaderKey]);
+    }, [state.data, debouncedSearchTerm]);
 
     // Reset page to 1 when any filter changes
     useEffect(() => {
@@ -391,7 +355,7 @@ export function DbViewer({
     }, [searchTerm, dateRange, yearFilter, columnFilters]);
 
 
-    if (state.error) {
+    if (state.error && !isPending) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="mx-auto">

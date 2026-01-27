@@ -9,15 +9,69 @@ import {
 } from "@/lib/db-mapper";
 
 // ============================================
+// HELPERS
+// ============================================
+
+const formatDate = (date: any) => {
+    if (!date) return null;
+    try {
+        const d = date instanceof Date ? date : new Date(date);
+        return d.toISOString().split('T')[0];
+    } catch (e) {
+        console.error('Invalid date:', date);
+        return null;
+    }
+};
+
+// ============================================
 // FETCH ALL CASES DATA (Not used by dashboard, for DB viewer)
 // ============================================
 
-export async function getAllCaseData() {
+export async function getAllCaseData(filters?: {
+  year?: string;
+  category?: string;
+  client?: string;
+  module?: string;
+  dateRange?: { from?: Date; to?: Date };
+}) {
   try {
-    const { data, error, count } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("all_cases")
       .select(getSelectColumns(), { count: "exact" })
       .order("date", { ascending: false });
+
+    // Apply year filter
+    if (filters?.year && filters.year !== 'all') {
+      const yearNum = parseInt(filters.year, 10);
+      query = query
+        .gte('date', `${yearNum}-01-01`)
+        .lte('date', `${yearNum}-12-31`);
+    }
+
+    // Apply date range filter
+    if (filters?.dateRange?.from) {
+      query = query.gte('date', formatDate(filters.dateRange.from));
+    }
+    if (filters?.dateRange?.to) {
+      query = query.lte('date', formatDate(filters.dateRange.to));
+    }
+
+    // Apply category filter
+    if (filters?.category) {
+      query = query.eq('category_case', filters.category);
+    }
+
+    // Apply client filter  
+    if (filters?.client) {
+      query = query.eq('client_name', filters.client);
+    }
+
+    // Apply module filter
+    if (filters?.module) {
+      query = query.eq('module_case', filters.module);
+    }
+
+    const { data, error, count } = await query;
 
     if (error) {
       console.error("Error fetching all cases:", error);
