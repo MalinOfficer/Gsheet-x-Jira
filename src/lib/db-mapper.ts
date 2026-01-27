@@ -1,3 +1,4 @@
+
 // src/lib/db-mapper.ts
 // Mapping layer between your DB columns and frontend expectations
 
@@ -41,6 +42,7 @@ export interface YourDBRow {
     status_case_2?: string;
     pic_client?: string;
     checkout?: string;
+    note?: string;
   }
   
   /**
@@ -67,6 +69,7 @@ export interface YourDBRow {
       status_case_2: dbRow.status_case_solved,
       pic_client: dbRow.pic_client,
       checkout: dbRow.check_out,
+      note: dbRow.note,
     };
   }
   

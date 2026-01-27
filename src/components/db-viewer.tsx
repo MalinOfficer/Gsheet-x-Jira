@@ -89,13 +89,14 @@ const headerDisplayMapping: Record<string, string> = {
     url_jira: 'Url Jira',
     status_case_2: 'Status Solved',
     ticket_category: 'Category',
-    pic_client: 'PIC Client',
+    note: 'Note',
 };
 
 const hiddenHeaders = [
     'id',
     'resolved_at',
     'ticket_op',
+    'pic_client',
 ];
 
 export function DbViewer({ 
@@ -143,7 +144,7 @@ export function DbViewer({
         const order = [
             'no', 'date', 'month', 'ticket_number', 'client_name', 'customer_name', 
             'status', 'ticket_category', 'module', 'detail_module', 'title',
-            'created_at', 'checkout', 'status_case_2', 'url_jira', 'pic_client'
+            'created_at', 'checkout', 'status_case_2', 'url_jira', 'note'
         ];
 
         // Sort keys based on the defined order
