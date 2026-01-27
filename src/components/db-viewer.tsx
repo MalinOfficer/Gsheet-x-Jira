@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save } from "lucide-react";
@@ -99,6 +100,16 @@ const hiddenHeaders = [
     'pic_client', // Is now 'Note', we will hide the original
 ];
 
+const categoryColorMap: Record<string, string> = {
+    'Bug Fixing': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+    'Q & A': 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300',
+    'Assistance': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+    'Parameter Setup': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    'Enhancement': 'bg-rose-600 text-white dark:bg-rose-700',
+    'Adjustment': 'bg-blue-600 text-white dark:bg-blue-700',
+    'default': 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+};
+
 export function DbViewer({ 
     initialData, 
     initialSource, 
@@ -171,7 +182,9 @@ export function DbViewer({
         headers.forEach(header => {
             const displayHeader = (headerDisplayMapping[header] || header).toLowerCase();
             
-            if (displayHeader.includes('date') || displayHeader.includes('check in') || displayHeader.includes('check out')) {
+            if (displayHeader.includes('date')) {
+                widths[header] = 140;
+            } else if (displayHeader.includes('check in') || displayHeader.includes('check out')) {
                 widths[header] = 140;
             } else if (displayHeader.includes('case title')) {
                 widths[header] = 350;
@@ -754,26 +767,51 @@ export function DbViewer({
                                                     style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
                                                 >
                                                      {isDropdownColumn ? (
-                                                        <Select
-                                                            value={(cellValue as string) ?? ''}
-                                                            onValueChange={(newValue) => {
-                                                                if (rowId !== undefined) {
-                                                                    handleCellChange(rowId, header, newValue);
-                                                                }
-                                                            }}
-                                                            disabled={!row}
-                                                        >
-                                                            <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
-                                                                <SelectValue placeholder="Select..." />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {(filterOptions[header] || []).map(option => (
-                                                                    <SelectItem key={option} value={option}>
-                                                                        {option}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
+                                                        header === 'ticket_category' ? (
+                                                            <Select
+                                                                value={(cellValue as string) ?? ''}
+                                                                onValueChange={(newValue) => {
+                                                                    if (rowId !== undefined) {
+                                                                        handleCellChange(rowId, header, newValue);
+                                                                    }
+                                                                }}
+                                                                disabled={!row}
+                                                            >
+                                                                <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
+                                                                    <SelectValue placeholder="Select..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {(filterOptions[header] || []).map(option => (
+                                                                        <SelectItem key={option} value={option}>
+                                                                            <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', categoryColorMap[option] || categoryColorMap.default)}>
+                                                                                {option}
+                                                                            </span>
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        ) : (
+                                                            <Select
+                                                                value={(cellValue as string) ?? ''}
+                                                                onValueChange={(newValue) => {
+                                                                    if (rowId !== undefined) {
+                                                                        handleCellChange(rowId, header, newValue);
+                                                                    }
+                                                                }}
+                                                                disabled={!row}
+                                                            >
+                                                                <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
+                                                                    <SelectValue placeholder="Select..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {(filterOptions[header] || []).map(option => (
+                                                                        <SelectItem key={option} value={option}>
+                                                                            {option}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )
                                                      ) : isEditable ? (
                                                         <Input
                                                             type="text"
@@ -783,8 +821,18 @@ export function DbViewer({
                                                             disabled={!row}
                                                         />
                                                     ) : (
-                                                        <div className="p-4 truncate text-sm">
-                                                            {row ? cellValue : <Skeleton className="h-4 w-full" />}
+                                                        <div className="p-4 flex items-center text-sm">
+                                                            {row ? (
+                                                                header === 'ticket_category' && cellValue ? (
+                                                                    <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
+                                                                        {cellValue}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="truncate">{cellValue}</span>
+                                                                )
+                                                            ) : (
+                                                                <Skeleton className="h-4 w-full" />
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
