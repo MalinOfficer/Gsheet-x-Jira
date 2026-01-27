@@ -159,7 +159,7 @@ export function DbViewer({
         });
         
         // The filterable columns are based on frontend keys now
-        FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'status_case_2'];
+        FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'status_case_2'];
 
         return visibleKeys;
     }, [state.data]);
@@ -246,7 +246,9 @@ export function DbViewer({
                 dateRange: dateRange,
                 category: columnFilters['ticket_category']?.[0],
                 client: columnFilters['client_name']?.[0],
-                module: columnFilters['module_case']?.[0],
+                module: columnFilters['module']?.[0],
+                status: columnFilters['status']?.[0],
+                detailModule: columnFilters['detail_module']?.[0],
             });
 
             const filterOptionsResult = await getDashboardFilterOptions();
@@ -347,9 +349,7 @@ export function DbViewer({
         
         let dataToFilter = state.data;
 
-        // Backend handles year, date, and some column filters.
-        // Frontend handles general search and any additional column filters.
-
+        // Frontend search term filtering
         if (debouncedSearchTerm) {
             const lowercasedQuery = debouncedSearchTerm.toLowerCase();
             dataToFilter = dataToFilter.filter(row => {
@@ -359,6 +359,8 @@ export function DbViewer({
             });
         }
         
+        // All other filtering (year, dateRange, columns) is now handled by the backend.
+
         return dataToFilter;
     }, [state.data, debouncedSearchTerm]);
 

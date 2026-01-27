@@ -32,6 +32,8 @@ export async function getAllCaseData(filters?: {
   category?: string;
   client?: string;
   module?: string;
+  status?: string;
+  detailModule?: string;
   dateRange?: { from?: Date; to?: Date };
 }) {
   try {
@@ -69,6 +71,16 @@ export async function getAllCaseData(filters?: {
     // Apply module filter
     if (filters?.module) {
       query = query.eq('module_case', filters.module);
+    }
+
+    // Apply status filter
+    if (filters?.status) {
+        query = query.eq('status_case', filters.status);
+    }
+
+    // Apply detail module filter
+    if (filters?.detailModule) {
+        query = query.eq('detail_module', filters.detailModule);
     }
 
     const { data, error, count } = await query;
