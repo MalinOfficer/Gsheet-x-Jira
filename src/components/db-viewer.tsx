@@ -72,6 +72,32 @@ const extractYearFromDate = (dateStr: string): string | null => {
 
 let FILTER_COLUMNS: string[] = [];
 
+// New: Header mapping and visibility configuration
+const headerDisplayMapping: Record<string, string> = {
+    no: 'No',
+    date: 'Date',
+    month: 'Month',
+    ticket_number: 'Ticket Number',
+    client_name: 'Client',
+    customer_name: 'Customer Name',
+    status: 'Status',
+    module: 'Module',
+    detail_module: 'Detail Module',
+    created_at: 'Check In',
+    title: 'Case Title',
+    checkout: 'Check Out',
+    url_jira: 'Url Jira',
+    status_case_2: 'Status Solved',
+    ticket_category: 'Category',
+    pic_client: 'PIC Client',
+};
+
+const hiddenHeaders = [
+    'id',
+    'resolved_at',
+    'ticket_op',
+];
+
 export function DbViewer({ 
     initialData, 
     initialSource, 
@@ -109,30 +135,50 @@ export function DbViewer({
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return [];
-        const firstRowKeys = Object.keys(state.data[0]).filter(key => key.toLowerCase() !== 'id');
+        const allKeys = Object.keys(state.data[0]);
+        // Filter out hidden headers
+        const visibleKeys = allKeys.filter(key => !hiddenHeaders.includes(key));
+        
+        // Define a desired order
+        const order = [
+            'no', 'date', 'month', 'ticket_number', 'client_name', 'customer_name', 
+            'status', 'ticket_category', 'module', 'detail_module', 'title',
+            'created_at', 'checkout', 'status_case_2', 'url_jira', 'pic_client'
+        ];
 
-        const potentialFilterCols = ['client name', 'client_name', 'status case', 'status_case', 'kategori', 'category', 'module', 'detail modul', 'detail_module', 'status case 2', 'status_case_2', 'category_case', 'module_case'];
-        FILTER_COLUMNS = firstRowKeys.filter(h => potentialFilterCols.includes(h.toLowerCase()));
+        // Sort keys based on the defined order
+        visibleKeys.sort((a, b) => {
+            const indexA = order.indexOf(a);
+            const indexB = order.indexOf(b);
+            if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+        });
+        
+        // The filterable columns are based on frontend keys now
+        FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'status_case_2'];
 
-        return firstRowKeys;
+        return visibleKeys;
     }, [state.data]);
 
 
     const initialColumnWidths = useCallback(() => {
         const widths: Record<string, number> = {};
         headers.forEach(header => {
-            const lowerHeader = header.toLowerCase();
-            if (lowerHeader.includes('date')) {
+            const displayHeader = (headerDisplayMapping[header] || header).toLowerCase();
+            
+            if (displayHeader.includes('date') || displayHeader.includes('check in') || displayHeader.includes('check out')) {
                 widths[header] = 140;
-            } else if (lowerHeader.includes('detail case') || lowerHeader.includes('penanganan case')) {
+            } else if (displayHeader.includes('case title')) {
                 widths[header] = 350;
-            } else if (lowerHeader.includes('detail modul')) {
+            } else if (displayHeader.includes('detail module')) {
                 widths[header] = 250;
-            } else if (lowerHeader.includes('client') || lowerHeader.includes('customer name') || lowerHeader.includes('ticket number') || lowerHeader.includes('module')) {
+            } else if (displayHeader.includes('client') || displayHeader.includes('customer name') || displayHeader.includes('ticket number') || displayHeader.includes('module')) {
                 widths[header] = 180;
-            } else if (lowerHeader.includes('status case 2')) {
+            } else if (displayHeader.includes('status solved')) {
                 widths[header] = 120;
-            } else if (lowerHeader === 'no') {
+            } else if (displayHeader === 'no') {
                 widths[header] = 60;
             } else {
                 widths[header] = 120;
@@ -196,9 +242,9 @@ export function DbViewer({
             const dataResult = await getAllCaseData({
                 year: yearFilter || undefined,
                 dateRange: dateRange,
-                category: columnFilters['category_case']?.[0],
+                category: columnFilters['ticket_category']?.[0],
                 client: columnFilters['client_name']?.[0],
-                module: columnFilters['module_case']?.[0],
+                module: columnFilters['module']?.[0],
             });
 
             const filterOptionsResult = await getDashboardFilterOptions();
@@ -311,20 +357,8 @@ export function DbViewer({
             });
         }
         
-        // This is now redundant if backend handles it, but good for immediate feedback
-        const activeColumnFilters = Object.entries(columnFilters).filter(([, values]) => values.length > 0);
-        if (activeColumnFilters.length > 0) {
-            dataToFilter = dataToFilter.filter(row => {
-                return activeColumnFilters.every(([column, selectedValues]) => {
-                    const cellValue = row[column];
-                    // Handle multi-select; for now assuming single select from popover
-                    return cellValue && selectedValues.includes(cellValue);
-                });
-            });
-        }
-
         return dataToFilter;
-    }, [state.data, debouncedSearchTerm, columnFilters]);
+    }, [state.data, debouncedSearchTerm]);
 
     // Reset page to 1 when any filter changes
     useEffect(() => {
@@ -399,6 +433,7 @@ export function DbViewer({
     }
     
     const renderHeaderContent = (header: string) => {
+        const displayHeader = headerDisplayMapping[header] || header;
         const isFilterable = FILTER_COLUMNS.includes(header);
         const isFilterActive = columnFilters[header]?.length > 0;
 
@@ -407,7 +442,7 @@ export function DbViewer({
                 <Popover>
                     <PopoverTrigger asChild>
                          <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground data-[state=open]:bg-accent/20">
-                             {header}
+                             {displayHeader}
                              <Filter className={cn("ml-2 h-3 w-3", dateRange ? "text-primary" : "text-muted-foreground/50")} />
                         </Button>
                     </PopoverTrigger>
@@ -461,13 +496,13 @@ export function DbViewer({
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button variant="ghost" className="p-0 h-auto font-medium text-muted-foreground hover:bg-transparent data-[state=open]:bg-accent/20">
-                             {header}
+                             {displayHeader}
                              <Filter className={cn("ml-2 h-3 w-3", isFilterActive ? "text-primary" : "text-muted-foreground/50")} />
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[250px] p-0" align="start">
                         <Command>
-                            <CommandInput placeholder={`Filter ${header}...`} />
+                            <CommandInput placeholder={`Filter ${displayHeader}...`} />
                             <CommandList>
                                 <CommandEmpty>No results found.</CommandEmpty>
                                 <CommandGroup>
@@ -511,7 +546,7 @@ export function DbViewer({
             );
         }
 
-        return <span className="truncate">{header}</span>;
+        return <span className="truncate">{displayHeader}</span>;
     }
 
     return (
@@ -633,7 +668,6 @@ export function DbViewer({
                                            className="flex border-b transition-colors hover:bg-muted/50"
                                        >
                                          {headers.map(header => {
-                                            if (header === 'id') return null;
 
                                             const isNoColumn = header.toLowerCase() === 'no';
                                             
@@ -700,4 +734,3 @@ export function DbViewer({
         </div>
     );
 }
-
