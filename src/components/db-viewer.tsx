@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save } from "lucide-react";
@@ -71,7 +69,8 @@ const hiddenHeaders = [
     'id',
     'url_jira',
     'pic_client',
-    'checkout'
+    'checkout',
+    'ticket_number'
 ];
 
 const categoryColorMap: Record<string, string> = {
@@ -204,7 +203,6 @@ export function DbViewer({
             no: 60,
             date: 120,
             month: 90,
-            ticket_number: 150,
             title: 350,
             client_name: 180,
             customer_name: 180,
@@ -883,15 +881,6 @@ export function DbViewer({
                                                                         <span className={cn('inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md font-medium', statusColorMap[cellValue as string] || statusColorMap.default)}>
                                                                             {cellValue}
                                                                         </span>
-                                                                    ) : (header === 'ticket_number' && cellValue && typeof cellValue === 'string' && cellValue.startsWith('IHO')) ? (
-                                                                        <a
-                                                                            href={`https://pintro.atlassian.net/browse/${cellValue}`}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="truncate text-primary underline hover:text-primary/80"
-                                                                        >
-                                                                            {cellValue}
-                                                                        </a>
                                                                     ) : (header === 'title' && cellValue && typeof cellValue === 'string' && cellValue.match(/(IHO-\d+)/)) ? (
                                                                         (() => {
                                                                             const match = cellValue.match(/(IHO-\d+)/);
@@ -1011,5 +1000,3 @@ export function DbViewer({
         </div>
     );
 }
-
-    
