@@ -49,29 +49,29 @@ let FILTER_COLUMNS: string[] = [];
 
 // Header mapping and visibility configuration
 const headerDisplayMapping: Record<string, string> = {
+    no: 'No',
     date: 'Date',
     month: 'Month',
     ticket_number: 'Ticket Number',
     client_name: 'Client Name',
-    pic_client: 'Customer Name',
+    customer_name: 'Customer Name',
     status: 'Status',
     ticket_category: 'Ticket Category',
     module: 'Module',
     detail_module: 'Detail Module',
     created_at: 'Created At',
     title: 'Title',
-    checkout: 'Resolved At',
-    url_jira: 'Ticket OP',
+    resolved_at: 'Resolved At',
+    ticket_op: 'Ticket OP',
     status_case_2: 'Status Solved',
     note: 'Note',
 };
 
 const hiddenHeaders = [
     'id',
-    'resolved_at',
-    'ticket_op',
-    'customer_name',
-    // 'pic_client' is now visible as 'Customer Name'
+    'url_jira',
+    'pic_client',
+    'checkout'
 ];
 
 const categoryColorMap: Record<string, string> = {
@@ -167,20 +167,21 @@ export function DbViewer({
         const visibleKeys = allKeys.filter(key => !hiddenHeaders.includes(key));
         
         const order = [
+            'no',
             'date',
             'month',
             'ticket_number',
             'title',
             'client_name',
-            'pic_client',
+            'customer_name',
             'status',
             'ticket_category',
             'module',
             'detail_module',
             'created_at',
-            'checkout',
+            'resolved_at',
             'status_case_2',
-            'url_jira',
+            'ticket_op',
             'note'
         ];
 
@@ -195,7 +196,7 @@ export function DbViewer({
         
         FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'status_case_2'];
 
-        return ['no', ...visibleKeys];
+        return visibleKeys;
     }, [state.data]);
 
     const initialColumnWidths = useCallback(() => {
@@ -206,15 +207,15 @@ export function DbViewer({
             ticket_number: 150,
             title: 350,
             client_name: 180,
-            pic_client: 180, // Customer Name
+            customer_name: 180,
             status: 140,
             ticket_category: 160,
             module: 150,
             detail_module: 200,
             created_at: 150,
-            checkout: 150, // Resolved At
+            resolved_at: 150,
             status_case_2: 130, // Status Solved
-            url_jira: 150, // Ticket OP
+            ticket_op: 150,
             note: 250,
         };
         
@@ -463,10 +464,6 @@ export function DbViewer({
     };
 
     const renderHeaderContent = (header: string) => {
-        if (header === 'no') {
-            return <span className="font-bold text-muted-foreground">No</span>;
-        }
-
         const displayHeader = headerDisplayMapping[header] || header;
         const isFilterable = FILTER_COLUMNS.includes(header);
         const isFilterActive = columnFilters[header]?.length > 0;
@@ -886,6 +883,15 @@ export function DbViewer({
                                                                         <span className={cn('inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md font-medium', statusColorMap[cellValue as string] || statusColorMap.default)}>
                                                                             {cellValue}
                                                                         </span>
+                                                                    ) : (header === 'ticket_number' && cellValue && typeof cellValue === 'string' && cellValue.startsWith('IHO')) ? (
+                                                                        <a
+                                                                            href={`https://pintro.atlassian.net/browse/${cellValue}`}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="truncate text-primary underline hover:text-primary/80"
+                                                                        >
+                                                                            {cellValue}
+                                                                        </a>
                                                                     ) : (
                                                                         <span className="truncate">{cellValue}</span>
                                                                     )
