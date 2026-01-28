@@ -5,8 +5,9 @@ import { useState, useTransition, useEffect, useContext, useCallback, useRef, Mo
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart, RefreshCw, AlertCircle } from 'lucide-react';
+import { Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart, RefreshCw, AlertCircle, Database } from 'lucide-react';
 import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
+import { importOrUpdateCases } from '@/app/supabase-actions-import';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -87,8 +88,9 @@ export function ImportFlow() {
   const [isPreviewing, startPreviewing] = useTransition();
   const [isUndoing, startUndoing] = useTransition();
   const [isConverting, startConverting] = useTransition();
+  const [isImportingToDb, startImportingToDb] = useTransition();
   
-  const isAnyProcessing = isImporting || isUpdating || isPreviewing || isUndoing || isConverting;
+  const isAnyProcessing = isImporting || isUpdating || isPreviewing || isUndoing || isConverting || isImportingToDb;
 
   useEffect(() => {
     setIsProcessing(isAnyProcessing);
@@ -263,6 +265,62 @@ export function ImportFlow() {
           description: result.message,
         });
         setLastActionUndoData(null);
+      }
+    });
+  };
+
+  const handleImportToDb = () => {
+    if (!tableData) {
+        toast({ variant: "destructive", title: "No Data", description: "There is no data to import." });
+        return;
+    }
+    startImportingToDb(async () => {
+      try {
+        const payload = tableData.rows.map(row => {
+            const createdAt = row['Created At'] ? new Date(row['Created At']) : null;
+            const resolvedAt = row['Resolved At'] ? new Date(row['Resolved At']) : null;
+
+            let date = '';
+            let month = '';
+            if (createdAt && !isNaN(createdAt.getTime())) {
+                date = createdAt.toISOString().split('T')[0]; // YYYY-MM-DD
+                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                month = monthNames[createdAt.getMonth()];
+            }
+            
+            return {
+                date: date,
+                month: month,
+                ticket_number: String(row['TICKET NUMBER'] || ''),
+                client_name: String(row['Client Name'] || ''),
+                customer_name: String(row['Customer Name'] || ''),
+                status: String(row['Status'] || ''),
+                ticket_category: String(row['Ticket Category'] || ''),
+                module: String(row['Module'] || ''),
+                detail_module: String(row['Detail Module'] || ''),
+                title: String(row['Title'] || ''),
+                resolved_at: resolvedAt && !isNaN(resolvedAt.getTime()) ? resolvedAt.toISOString() : undefined,
+                ticket_op: String(row['Ticket OP'] || ''),
+            };
+        });
+
+        const result = await importOrUpdateCases(payload);
+        
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        toast({
+            title: "Database Import Successful",
+            description: `${result.count} rows have been imported or updated in the database.`,
+        });
+
+      } catch(err: any) {
+        toast({
+            variant: "destructive",
+            title: "Database Import Failed",
+            description: err.message,
+        });
       }
     });
   };
@@ -706,6 +764,8 @@ export function ImportFlow() {
               updatePreview={updatePreview}
               handleConfirmUpdate={handleConfirmUpdate}
               isUpdating={isUpdating}
+              handleImportToDb={handleImportToDb}
+              isImportingToDb={isImportingToDb}
           />
         </div>
       )}
@@ -736,6 +796,8 @@ function PreviewTable({
     updatePreview,
     handleConfirmUpdate,
     isUpdating,
+    handleImportToDb,
+    isImportingToDb,
 } : {
     initialData: TableDataContext['tableData'];
     dateFormats: Record<string, DateFormat>;
@@ -758,6 +820,8 @@ function PreviewTable({
     updatePreview: UpdatePreview[];
     handleConfirmUpdate: () => void;
     isUpdating: boolean;
+    handleImportToDb: () => void;
+    isImportingToDb: boolean;
 }) {
     const { tableData, setTableData } = useContext(TableDataContext);
 
@@ -922,7 +986,27 @@ function PreviewTable({
                             </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
-
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="secondary" disabled={isProcessing}>
+                                    {isImportingToDb ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengimpor...</> : <><Database className="mr-2 h-4 w-4" />Import to DB</>}
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirm Database Import</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will insert or update {tableData.rows.length} rows in the 'all_cases' database table. This action cannot be undone through the UI.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleImportToDb} disabled={isImportingToDb}>
+                                        {isImportingToDb ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Importing...</> : "Yes, Import to DB"}
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                         <Button onClick={handleUndo} size="sm" variant="destructive" disabled={!lastActionUndoData || isProcessing || !isVerified}>
                             {isUndoing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Membatalkan...</> : <><Undo className="mr-2 h-4 w-4" />Undo Last Action</>}
                         </Button>

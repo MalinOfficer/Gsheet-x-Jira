@@ -36,7 +36,16 @@ export async function importOrUpdateCases(rows: ImportCasePayload[]) {
   try {
     const payload = rows.map((row) => ({
       ...row,
-      updated_at: new Date().toISOString(),
+      check_in: row.resolved_at ? new Date(row.resolved_at).toISOString() : null, // Assuming created_at maps to check_in
+      detail_case: row.title,
+      // Map other frontend fields to DB fields if names differ
+      module_case: row.module,
+      category_case: row.ticket_category,
+      status_case: row.status,
+      source_link_op: row.ticket_op,
+      pic_client: row.customer_name,
+      check_out: row.resolved_at,
+      // updated_at will be handled by Supabase (or trigger)
     }));
 
     const { error } = await supabase
