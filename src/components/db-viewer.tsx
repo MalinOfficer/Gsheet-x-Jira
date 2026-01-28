@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save } from "lucide-react";
@@ -47,7 +48,6 @@ let FILTER_COLUMNS: string[] = [];
 
 // Header mapping and visibility configuration
 const headerDisplayMapping: Record<string, string> = {
-    no: 'No',
     date: 'Date',
     month: 'Month',
     ticket_number: 'Ticket Number',
@@ -159,7 +159,7 @@ export function DbViewer({
         const visibleKeys = allKeys.filter(key => !hiddenHeaders.includes(key));
         
         const order = [
-            'no', 'date', 'month', 'ticket_number', 'client_name', 
+            'date', 'month', 'ticket_number', 'client_name', 
             'status', 'ticket_category', 'module', 'detail_module', 'title',
             'created_at', 'checkout', 'status_case_2', 'url_jira', 'note'
         ];
@@ -175,7 +175,7 @@ export function DbViewer({
         
         FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'status_case_2'];
 
-        return visibleKeys;
+        return ['no', ...visibleKeys];
     }, [state.data]);
 
     const initialColumnWidths = useCallback(() => {
@@ -195,7 +195,7 @@ export function DbViewer({
                 widths[header] = 180;
             } else if (displayHeader.includes('status solved')) {
                 widths[header] = 120;
-            } else if (displayHeader === 'no') {
+            } else if (header === 'no') {
                 widths[header] = 60;
             } else {
                 widths[header] = 120;
@@ -439,6 +439,10 @@ export function DbViewer({
     };
 
     const renderHeaderContent = (header: string) => {
+        if (header === 'no') {
+            return <span className="text-base font-bold text-muted-foreground">No</span>;
+        }
+
         const displayHeader = headerDisplayMapping[header] || header;
         const isFilterable = FILTER_COLUMNS.includes(header);
         const isFilterActive = columnFilters[header]?.length > 0;

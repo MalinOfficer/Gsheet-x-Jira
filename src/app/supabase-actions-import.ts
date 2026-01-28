@@ -1,3 +1,4 @@
+
 "use server";
 
 import { createClient } from "@supabase/supabase-js";
@@ -10,7 +11,6 @@ const supabase = createClient(
 /* ================= TYPES ================= */
 
 export type ImportCasePayload = {
-  no: number;
   date: string;
   month: string;
   ticket_number: string;

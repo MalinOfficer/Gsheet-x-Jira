@@ -1,3 +1,4 @@
+
 // src/lib/supabase.ts
 
 import { createClient } from '@supabase/supabase-js';
@@ -28,7 +29,6 @@ export interface Database {
       all_cases: {
         Row: {
           id: number;
-          no: number | null;
           date: string | null;
           month: string | null;
           gsheet_ticket: string | null;
@@ -47,7 +47,6 @@ export interface Database {
         };
         Insert: {
           id?: number;
-          no?: number | null;
           date?: string | null;
           month?: string | null;
           gsheet_ticket?: string | null;
@@ -66,7 +65,6 @@ export interface Database {
         };
         Update: {
           id?: number;
-          no?: number | null;
           date?: string | null;
           month?: string | null;
           gsheet_ticket?: string | null;

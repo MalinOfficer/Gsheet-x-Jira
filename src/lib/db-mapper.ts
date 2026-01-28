@@ -4,7 +4,6 @@
 
 export interface YourDBRow {
     id?: number;
-    no?: number;
     date?: string;
     month?: string;
     gsheet_ticket?: string;
@@ -24,7 +23,6 @@ export interface YourDBRow {
   
   export interface FrontendExpectedRow {
     id?: number;
-    no?: number;
     date?: string;
     month?: string;
     ticket_number?: string;
@@ -51,7 +49,6 @@ export interface YourDBRow {
   export function mapDBToFrontend(dbRow: YourDBRow): FrontendExpectedRow {
     return {
       id: dbRow.id,
-      no: dbRow.no,
       date: dbRow.date,
       month: dbRow.month,
       ticket_number: dbRow.gsheet_ticket,
@@ -134,7 +131,6 @@ export interface YourDBRow {
   export function getSelectColumns(): string {
     return `
       id,
-      no,
       date,
       month,
       gsheet_ticket,
