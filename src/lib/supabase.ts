@@ -31,7 +31,7 @@ export interface Database {
           id: number;
           date: string | null;
           month: string | null;
-          gsheet_ticket: string | null;
+          ticket_number: string | null;
           client_name: string | null;
           pic_client: string | null;
           status_case: string | null;
@@ -49,7 +49,7 @@ export interface Database {
           id?: number;
           date?: string | null;
           month?: string | null;
-          gsheet_ticket?: string | null;
+          ticket_number?: string | null;
           client_name?: string | null;
           pic_client?: string | null;
           status_case?: string | null;
@@ -67,7 +67,7 @@ export interface Database {
           id?: number;
           date?: string | null;
           month?: string | null;
-          gsheet_ticket?: string | null;
+          ticket_number?: string | null;
           client_name?: string | null;
           pic_client?: string | null;
           status_case?: string | null;

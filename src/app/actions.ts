@@ -112,7 +112,7 @@ export async function getAllCaseData(filters?: {
     if (filters?.search && filters.search.trim()) {
       const searchTerm = `%${filters.search.trim()}%`;
       query = query.or(
-        `gsheet_ticket.ilike.${searchTerm},` +
+        `ticket_number.ilike.${searchTerm},` +
         `client_name.ilike.${searchTerm},` +
         `status_case.ilike.${searchTerm},` +
         `category_case.ilike.${searchTerm},` +

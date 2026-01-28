@@ -6,7 +6,7 @@ export interface YourDBRow {
     id?: number;
     date?: string;
     month?: string;
-    gsheet_ticket?: string;
+    ticket_number?: string;
     client_name?: string;
     pic_client?: string;
     status_case?: string;
@@ -51,7 +51,7 @@ export interface YourDBRow {
       id: dbRow.id,
       date: dbRow.date,
       month: dbRow.month,
-      ticket_number: dbRow.gsheet_ticket,
+      ticket_number: dbRow.ticket_number,
       client_name: dbRow.client_name,
       customer_name: dbRow.pic_client, // PIC Client → Customer Name
       status: dbRow.status_case,
@@ -104,7 +104,6 @@ export interface YourDBRow {
    */
   export const COLUMN_MAP = {
     // Frontend → DB
-    ticket_number: 'gsheet_ticket',
     customer_name: 'pic_client',
     status: 'status_case',
     ticket_category: 'category_case',
@@ -133,7 +132,7 @@ export interface YourDBRow {
       id,
       date,
       month,
-      gsheet_ticket,
+      ticket_number,
       client_name,
       pic_client,
       status_case,
