@@ -52,15 +52,16 @@ const headerDisplayMapping: Record<string, string> = {
     date: 'Date',
     month: 'Month',
     ticket_number: 'Ticket Number',
-    client_name: 'Client',
+    client_name: 'Client Name',
+    pic_client: 'Customer Name',
     status: 'Status',
-    ticket_category: 'Category',
+    ticket_category: 'Ticket Category',
     module: 'Module',
     detail_module: 'Detail Module',
-    created_at: 'Check In',
-    title: 'Case Title',
-    checkout: 'Check Out',
-    url_jira: 'Url Jira',
+    created_at: 'Created At',
+    title: 'Title',
+    checkout: 'Resolved At',
+    url_jira: 'Ticket OP',
     status_case_2: 'Status Solved',
     note: 'Note',
 };
@@ -70,7 +71,7 @@ const hiddenHeaders = [
     'resolved_at',
     'ticket_op',
     'customer_name',
-    'pic_client',
+    // 'pic_client' is now visible as 'Customer Name'
 ];
 
 const categoryColorMap: Record<string, string> = {
@@ -166,9 +167,21 @@ export function DbViewer({
         const visibleKeys = allKeys.filter(key => !hiddenHeaders.includes(key));
         
         const order = [
-            'date', 'month', 'ticket_number', 'client_name', 
-            'status', 'ticket_category', 'module', 'detail_module', 'title',
-            'created_at', 'checkout', 'status_case_2', 'url_jira', 'note'
+            'date',
+            'month',
+            'ticket_number',
+            'title',
+            'client_name',
+            'pic_client',
+            'status',
+            'ticket_category',
+            'module',
+            'detail_module',
+            'created_at',
+            'checkout',
+            'status_case_2',
+            'url_jira',
+            'note'
         ];
 
         visibleKeys.sort((a, b) => {
@@ -186,28 +199,32 @@ export function DbViewer({
     }, [state.data]);
 
     const initialColumnWidths = useCallback(() => {
-        const widths: Record<string, number> = {};
+        const widths: Record<string, number> = {
+            no: 60,
+            date: 120,
+            month: 90,
+            ticket_number: 150,
+            title: 350,
+            client_name: 180,
+            pic_client: 180, // Customer Name
+            status: 140,
+            ticket_category: 160,
+            module: 150,
+            detail_module: 200,
+            created_at: 150,
+            checkout: 150, // Resolved At
+            status_case_2: 130, // Status Solved
+            url_jira: 150, // Ticket OP
+            note: 250,
+        };
+        
+        // Add any missing headers with a default value
         headers.forEach(header => {
-            const displayHeader = (headerDisplayMapping[header] || header).toLowerCase();
-            
-            if (displayHeader.includes('date')) {
-                widths[header] = 140;
-            } else if (displayHeader.includes('check in') || displayHeader.includes('check out')) {
-                widths[header] = 140;
-            } else if (displayHeader.includes('case title')) {
-                widths[header] = 350;
-            } else if (displayHeader.includes('detail module')) {
-                widths[header] = 250;
-            } else if (displayHeader.includes('client') || displayHeader.includes('ticket number') || displayHeader.includes('module')) {
-                widths[header] = 180;
-            } else if (displayHeader.includes('status solved')) {
-                widths[header] = 120;
-            } else if (header === 'no') {
-                widths[header] = 60;
-            } else {
+            if (!widths[header]) {
                 widths[header] = 120;
             }
         });
+
         return widths;
     }, [headers]);
 
@@ -447,13 +464,13 @@ export function DbViewer({
 
     const renderHeaderContent = (header: string) => {
         if (header === 'no') {
-            return <span className="text-base font-bold text-muted-foreground">No</span>;
+            return <span className="font-bold text-muted-foreground">No</span>;
         }
 
         const displayHeader = headerDisplayMapping[header] || header;
         const isFilterable = FILTER_COLUMNS.includes(header);
         const isFilterActive = columnFilters[header]?.length > 0;
-        const headerStyle = "text-base font-bold text-muted-foreground";
+        const headerStyle = "font-bold text-muted-foreground";
 
         if (header === dateHeaderKey) {
             return (
@@ -811,7 +828,7 @@ export function DbViewer({
                                                                 >
                                                                     <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-xs focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
                                                                         {cellValue ? (
-                                                                            <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', header === 'status' && 'inline-flex items-center justify-center w-[100px]', header === 'ticket_category' ? (categoryColorMap[cellValue as string] || categoryColorMap.default) : (statusColorMap[cellValue as string] || statusColorMap.default))}>
+                                                                            <span className={cn('px-2 py-0.5 rounded-md font-medium', header === 'status' && 'inline-flex items-center justify-center w-[100px]', header === 'ticket_category' ? (categoryColorMap[cellValue as string] || categoryColorMap.default) : (statusColorMap[cellValue as string] || statusColorMap.default))}>
                                                                                 {cellValue}
                                                                             </span>
                                                                         ) : (
@@ -821,7 +838,7 @@ export function DbViewer({
                                                                     <SelectContent>
                                                                         {(header === 'ticket_category' ? ALL_CATEGORIES : ALL_STATUSES).map(option => (
                                                                             <SelectItem key={option} value={option}>
-                                                                                <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', header === 'ticket_category' ? (categoryColorMap[option] || categoryColorMap.default) : (statusColorMap[option] || statusColorMap.default))}>
+                                                                                <span className={cn('px-2 py-0.5 rounded-md font-medium', header === 'ticket_category' ? (categoryColorMap[option] || categoryColorMap.default) : (statusColorMap[option] || statusColorMap.default))}>
                                                                                     {option}
                                                                                 </span>
                                                                             </SelectItem>
@@ -862,11 +879,11 @@ export function DbViewer({
                                                             <div className="p-4 flex items-center text-xs">
                                                                 {row ? (
                                                                     (header === 'ticket_category' && cellValue) ? (
-                                                                        <span className={cn('px-2 py-0.5 rounded-md text-xs font-medium', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
+                                                                        <span className={cn('px-2 py-0.5 rounded-md font-medium', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
                                                                             {cellValue}
                                                                         </span>
                                                                     ) : (header === 'status' && cellValue) ? (
-                                                                        <span className={cn('inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md text-xs font-medium', statusColorMap[cellValue as string] || statusColorMap.default)}>
+                                                                        <span className={cn('inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md font-medium', statusColorMap[cellValue as string] || statusColorMap.default)}>
                                                                             {cellValue}
                                                                         </span>
                                                                     ) : (
