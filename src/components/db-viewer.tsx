@@ -148,6 +148,12 @@ export function DbViewer({
     const [currentPage, setCurrentPage] = useState(1);
     const [totalRows, setTotalRows] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     useEffect(() => {
         setIsProcessing(isPending);
@@ -307,6 +313,10 @@ export function DbViewer({
     useEffect(() => {
         if (isInitialMount.current) {
             isInitialMount.current = false;
+            if (initialData) { // If there's initial data from server, set pagination info from it
+                setTotalRows(initialData.length); // This might be incorrect if initialData is not paginated
+                setTotalPages(Math.ceil(initialData.length / pageSize));
+            }
             return;
         }
         fetchData();
@@ -362,12 +372,8 @@ export function DbViewer({
     
     // 🔥 FIXED: Use data directly from backend (already filtered & paginated)
     const displayData = useMemo(() => {
-        if (isPending && !state.data) {
-            const skeletonRowCount = pageSize;
-            return Array.from({ length: skeletonRowCount }, () => ({}));
-        }
         return state.data || [];
-    }, [isPending, state.data, pageSize]);
+    }, [state.data]);
 
     const handleClearAllFilters = () => {
         setSearchTerm('');
@@ -592,6 +598,52 @@ export function DbViewer({
         return <span className={cn(headerStyle, "truncate")}>{displayHeader}</span>;
     }
 
+    if (!isClient) {
+        return (
+            <div className="flex-1 bg-background text-foreground px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3 md:px-8 md:pb-8 md:pt-4">
+                <Card>
+                    <CardHeader>
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                               <Skeleton className="h-10 w-[300px]" />
+                               <Skeleton className="h-10 w-[180px]" />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Skeleton className="h-9 w-24" />
+                                <Skeleton className="h-9 w-28" />
+                                <Skeleton className="h-6 w-40" />
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="overflow-auto h-[75vh] border-t rounded-b-md">
+                            <div className="p-4 space-y-2">
+                                {Array.from({ length: 15 }).map((_, i) => (
+                                    <Skeleton key={i} className="h-8 w-full" />
+                                ))}
+                            </div>
+                        </div>
+                    </CardContent>
+                    <CardFooter className="p-3 border-t">
+                        <div className="flex items-center justify-between w-full">
+                            <Skeleton className="h-5 w-48" />
+                            <div className="flex items-center space-x-6">
+                                <Skeleton className="h-8 w-40" />
+                                <Skeleton className="h-8 w-24" />
+                                <div className="flex items-center space-x-1">
+                                    <Skeleton className="h-9 w-9" />
+                                    <Skeleton className="h-9 w-9" />
+                                    <Skeleton className="h-9 w-9" />
+                                    <Skeleton className="h-9 w-9" />
+                                </div>
+                            </div>
+                        </div>
+                    </CardFooter>
+                </Card>
+            </div>
+        )
+    }
+
     return (
         <div className="flex-1 bg-background text-foreground px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3 md:px-8 md:pb-8 md:pt-4">
             <Card>
@@ -704,7 +756,7 @@ export function DbViewer({
                                     ))}
                                 </div>
 
-                                {/* Data rows - Simple map, no virtualization */}
+                                {/* Data rows */}
                                 {displayData.map((row, index) => {
                                     const rowNumber = (currentPage - 1) * pageSize + index + 1;
                                     
@@ -915,3 +967,5 @@ export function DbViewer({
         </div>
     );
 }
+
+    
