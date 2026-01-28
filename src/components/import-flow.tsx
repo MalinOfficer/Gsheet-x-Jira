@@ -314,6 +314,8 @@ export function ImportFlow() {
             title: "Database Import Successful",
             description: `${result.count} rows have been imported or updated in the database.`,
         });
+        
+        setLastActionUndoData(null); // This action cannot be undone
 
       } catch(err: any) {
         toast({
