@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { type DateRange } from 'react-day-picker';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const pivotAndOrderMonthlyStats = (unpivotedData: any[] | null | undefined): any[] => {
     if (!unpivotedData || !Array.isArray(unpivotedData) || unpivotedData.length === 0) {
