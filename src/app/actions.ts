@@ -112,13 +112,13 @@ export async function getAllCaseData(filters?: {
     if (filters?.search && filters.search.trim()) {
       const searchTerm = `%${filters.search.trim()}%`;
       query = query.or(
-        `ticket_number.ilike.${searchTerm},` +
+        `gsheet_ticket.ilike.${searchTerm},` +
         `client_name.ilike.${searchTerm},` +
         `status_case.ilike.${searchTerm},` +
         `category_case.ilike.${searchTerm},` +
         `module_case.ilike.${searchTerm},` +
         `detail_module.ilike.${searchTerm},` +
-        `case_title.ilike.${searchTerm}`
+        `detail_case.ilike.${searchTerm}`
       );
     }
 
