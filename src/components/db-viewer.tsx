@@ -892,6 +892,26 @@ export function DbViewer({
                                                                         >
                                                                             {cellValue}
                                                                         </a>
+                                                                    ) : (header === 'title' && cellValue && typeof cellValue === 'string' && cellValue.match(/(IHO-\d+)/)) ? (
+                                                                        (() => {
+                                                                            const match = cellValue.match(/(IHO-\d+)/);
+                                                                            const ticketId = match[0];
+                                                                            const parts = cellValue.split(ticketId);
+                                                                            return (
+                                                                                <span className="truncate">
+                                                                                    {parts[0]}
+                                                                                    <a
+                                                                                        href={`https://pintro.atlassian.net/browse/${ticketId}`}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className="text-primary underline hover:text-primary/80"
+                                                                                    >
+                                                                                        {ticketId}
+                                                                                    </a>
+                                                                                    {parts[1]}
+                                                                                </span>
+                                                                            );
+                                                                        })()
                                                                     ) : (
                                                                         <span className="truncate">{cellValue}</span>
                                                                     )
