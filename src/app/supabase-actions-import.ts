@@ -13,6 +13,7 @@ const supabase = createClient(
 export type ImportCasePayload = {
   date: string;
   month: string;
+  created_at?: string;
   ticket_number: string;
   client_name: string;
   customer_name?: string;
@@ -35,17 +36,20 @@ export type ImportCasePayload = {
 export async function importOrUpdateCases(rows: ImportCasePayload[]) {
   try {
     const payload = rows.map((row) => ({
-      ...row,
-      check_in: row.resolved_at ? new Date(row.resolved_at).toISOString() : null, // Assuming created_at maps to check_in
-      detail_case: row.title,
-      // Map other frontend fields to DB fields if names differ
-      module_case: row.module,
-      category_case: row.ticket_category,
-      status_case: row.status,
-      source_link_op: row.ticket_op,
-      pic_client: row.customer_name,
+      date: row.date,
+      month: row.month,
+      ticket_number: row.ticket_number,
+      client_name: row.client_name,
+      detail_module: row.detail_module,
+      // Mapped fields
+      check_in: row.created_at,
       check_out: row.resolved_at,
-      // updated_at will be handled by Supabase (or trigger)
+      pic_client: row.customer_name,
+      status_case: row.status,
+      category_case: row.ticket_category,
+      module_case: row.module,
+      detail_case: row.title,
+      source_link_op: row.ticket_op,
     }));
 
     const { error } = await supabase

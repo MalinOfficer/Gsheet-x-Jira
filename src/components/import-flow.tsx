@@ -291,6 +291,7 @@ export function ImportFlow() {
             return {
                 date: date,
                 month: month,
+                created_at: createdAt && !isNaN(createdAt.getTime()) ? createdAt.toISOString() : undefined,
                 ticket_number: String(row['TICKET NUMBER'] || ''),
                 client_name: String(row['Client Name'] || ''),
                 customer_name: String(row['Customer Name'] || ''),
