@@ -827,15 +827,15 @@ export function DbViewer({
                                                         try {
                                                             const date = new Date(cellValue);
                                                             if (!isNaN(date.getTime())) { // Check if date is valid
-                                                                const day = String(date.getUTCDate()).padStart(2, '0');
-                                                                const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-                                                                const year = date.getUTCFullYear();
+                                                                const day = String(date.getDate()).padStart(2, '0');
+                                                                const month = String(date.getMonth() + 1).padStart(2, '0');
+                                                                const year = date.getFullYear();
 
                                                                 if (header === 'date') {
                                                                     cellValue = `${day}/${month}/${year}`;
                                                                 } else { // For created_at and resolved_at
-                                                                    const hours = String(date.getUTCHours()).padStart(2, '0');
-                                                                    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+                                                                    const hours = String(date.getHours()).padStart(2, '0');
+                                                                    const minutes = String(date.getMinutes()).padStart(2, '0');
                                                                     cellValue = `${day}/${month}/${year} ${hours}:${minutes}`;
                                                                 }
                                                             }
