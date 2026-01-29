@@ -279,7 +279,7 @@ const _getDashboardFilterOptions = async () => {
       data: {
         categories: uniqueCategories.map((c) => ({ label: c, value: c })),
         clients: uniqueClients.map((c) => ({ label: c, value: c })),
-        modules: uniqueModules.map((m) => ({ label: m, value: m })),
+        modules: uniqueModules.map((m) => ({ label: m, value: c })),
         years: sortedYears,
       },
     };
@@ -335,31 +335,52 @@ export async function getL3ReportFromDB() {
     const header = `*Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})*`;
     const totalCases = data.length;
 
-    const casesByModule: Record<string, any[]> = {};
+    // --- New Grouping Logic ---
+    const getGroupForModule = (moduleName: string | null | undefined): string => {
+        const upperCaseModule = (moduleName || '').toUpperCase();
+        if (upperCaseModule === 'PAYMENT' || upperCaseModule === 'PINTRO PAY') {
+            return 'Payment';
+        }
+        if (upperCaseModule === 'APLIKASI/MOBILE' || upperCaseModule === 'AKSES PORTAL') {
+            return 'Aplikasi/Mobile';
+        }
+        return 'Akademik';
+    };
+
+    const casesByGroup: Record<string, any[]> = {};
     data.forEach(c => {
-      const moduleName = c.module_case?.toUpperCase() || 'UNCATEGORIZED';
-      if (!casesByModule[moduleName]) {
-        casesByModule[moduleName] = [];
+      const groupName = getGroupForModule(c.module_case);
+      if (!casesByGroup[groupName]) {
+        casesByGroup[groupName] = [];
       }
-      casesByModule[moduleName].push(c);
+      casesByGroup[groupName].push(c);
     });
 
-    // Create summary of modules
+    // --- Create summary of groups ---
     const summaryLines = [`Total : ${totalCases}`];
-    // Sort modules alphabetically for consistent order
-    const sortedModules = Object.keys(casesByModule).sort((a, b) => a.localeCompare(b));
     
-    sortedModules.forEach(moduleName => {
-        const cases = casesByModule[moduleName];
-        summaryLines.push(`${moduleName} > L3 : ${cases.length}`);
+    // Custom sort order for groups
+    const groupOrder = ['Akademik', 'Payment', 'Aplikasi/Mobile'];
+    const sortedGroups = Object.keys(casesByGroup).sort((a, b) => {
+        const indexA = groupOrder.indexOf(a);
+        const indexB = groupOrder.indexOf(b);
+        if (indexA === -1 && indexB === -1) return a.localeCompare(b); // Fallback for unexpected groups
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+    });
+
+    sortedGroups.forEach(groupName => {
+        const cases = casesByGroup[groupName];
+        summaryLines.push(`${groupName} > L3 : ${cases.length}`);
     });
     const summary = summaryLines.join('\n');
 
-    // Create detailed list
+    // --- Create detailed list ---
     const detailLines: string[] = [];
-    sortedModules.forEach(moduleName => {
-      detailLines.push(`\n*${moduleName} > L3*`);
-      const cases = casesByModule[moduleName];
+    sortedGroups.forEach(groupName => {
+      detailLines.push(`\n*${groupName.toUpperCase()} > L3*`);
+      const cases = casesByGroup[groupName];
 
       cases.sort((a,b) => (a.client_name || '').localeCompare(b.client_name || '')).forEach((c, index) => {
         const checkInDate = new Date(c.check_in!);
@@ -393,6 +414,7 @@ export async function getL3ReportFromDB() {
     return { success: false, error: err.message };
   }
 }
+
 
 // ============================================
 // DUMMY FUNCTION IMPLEMENTATIONS
@@ -467,5 +489,7 @@ export async function mergeFilesOnServer(
     error: "This function is not implemented in the live demo." 
   };
 }
+
+    
 
     
