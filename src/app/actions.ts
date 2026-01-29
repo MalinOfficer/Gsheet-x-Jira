@@ -279,7 +279,7 @@ const _getDashboardFilterOptions = async () => {
       data: {
         categories: uniqueCategories.map((c) => ({ label: c, value: c })),
         clients: uniqueClients.map((c) => ({ label: c, value: c })),
-        modules: uniqueModules.map((m) => ({ label: m, value: c })),
+        modules: uniqueModules.map((m) => ({ label: m, value: m })),
         years: sortedYears,
       },
     };
