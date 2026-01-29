@@ -32,6 +32,9 @@ import { formatDateTime, type DateFormat } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 import { Spinner } from './ui/spinner';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog";
+import { ScrollArea } from "./ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 
 const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
@@ -56,6 +59,31 @@ type LastActionUndoData = {
 
 declare const XLSX: any;
 
+function ResultList({ items, title }: { items?: { ticket_number: string, title?: string }[], title: string }) {
+    if (!items || items.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-48 text-center text-sm text-muted-foreground">
+                <p>No items in this category.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">{title}</p>
+            <ScrollArea className="h-64 w-full rounded-md border p-2">
+                <ul className="space-y-1">
+                    {items.map((item, index) => (
+                        <li key={index} className="text-xs p-1.5 bg-secondary/50 rounded-md">
+                            <span className="font-semibold">{item.ticket_number}</span> - <span className="text-muted-foreground">{item.title || "No Title"}</span>
+                        </li>
+                    ))}
+                </ul>
+            </ScrollArea>
+        </div>
+    );
+}
+
 export function ImportFlow() {
   const {
     sheetUrl,
@@ -79,6 +107,12 @@ export function ImportFlow() {
     'Resolved At': 'jam',
   });
    const [isCopied, setIsCopied] = useState(false);
+   const [importResult, setImportResult] = useState<{
+        imported: any[];
+        updated: any[];
+        duplicates: any[];
+    } | null>(null);
+    const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
 
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
   const csvFileInputRef = useRef<HTMLInputElement>(null);
@@ -311,10 +345,14 @@ export function ImportFlow() {
             throw new Error(result.error);
         }
 
-        toast({
-            title: "Database Import Successful",
-            description: `${result.count} rows have been imported or updated in the database.`,
-        });
+        if (result.success) {
+            setImportResult({
+                imported: result.imported || [],
+                updated: result.updated || [],
+                duplicates: result.duplicates || [],
+            });
+            setIsResultDialogOpen(true);
+        }
         
         setLastActionUndoData(null); // This action cannot be undone
 
@@ -772,6 +810,43 @@ export function ImportFlow() {
           />
         </div>
       )}
+       <Dialog open={isResultDialogOpen} onOpenChange={setIsResultDialogOpen}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Import to Database Complete</DialogTitle>
+                    <DialogDescription>
+                        The import process has finished. Here's a summary of the results.
+                    </DialogDescription>
+                </DialogHeader>
+                <Tabs defaultValue="imported" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="imported">
+                            Imported ({importResult?.imported.length || 0})
+                        </TabsTrigger>
+                        <TabsTrigger value="updated">
+                            Updated ({importResult?.updated.length || 0})
+                        </TabsTrigger>
+                        <TabsTrigger value="duplicates">
+                            Skipped ({importResult?.duplicates.length || 0})
+                        </TabsTrigger>
+                    </TabsList>
+                    <div className="mt-4">
+                        <TabsContent value="imported">
+                            <ResultList items={importResult?.imported} title="New items added to the database." />
+                        </TabsContent>
+                        <TabsContent value="updated">
+                            <ResultList items={importResult?.updated} title="Existing items that were updated." />
+                        </TabsContent>
+                        <TabsContent value="duplicates">
+                            <ResultList items={importResult?.duplicates} title="Items skipped because of duplicate Ticket Numbers in your source file." />
+                        </TabsContent>
+                    </div>
+                </Tabs>
+                <DialogFooter>
+                    <Button onClick={() => setIsResultDialogOpen(false)}>Close</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }

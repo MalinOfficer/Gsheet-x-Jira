@@ -35,7 +35,58 @@ export type ImportCasePayload = {
 
 export async function importOrUpdateCases(rows: ImportCasePayload[]) {
   try {
-    const payload = rows.map((row) => ({
+    // 1. De-duplicate the source data, keeping the last occurrence.
+    const seenTickets = new Set<string>();
+    const uniqueRows: ImportCasePayload[] = [];
+    const sourceDuplicates: ImportCasePayload[] = [];
+    
+    // Iterate backwards to keep the last one
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const row = rows[i];
+      if (row.ticket_number && seenTickets.has(row.ticket_number)) {
+        sourceDuplicates.push(row);
+      } else if (row.ticket_number) {
+        uniqueRows.unshift(row); // add to the beginning to maintain original order
+        seenTickets.add(row.ticket_number);
+      }
+    }
+    
+    if (uniqueRows.length === 0) {
+      return {
+        success: true,
+        imported: [],
+        updated: [],
+        duplicates: sourceDuplicates.map(r => ({ ticket_number: r.ticket_number, title: r.title })),
+      };
+    }
+
+    const uniqueTicketNumbers = uniqueRows.map(r => r.ticket_number);
+
+    // 2. Find which tickets already exist in the database
+    const { data: existingCases, error: fetchError } = await supabase
+      .from("all_cases")
+      .select("ticket_number")
+      .in("ticket_number", uniqueTicketNumbers);
+
+    if (fetchError) {
+      throw new Error(`Failed to check existing cases: ${fetchError.message}`);
+    }
+
+    const existingTicketNumbers = new Set(existingCases.map(c => c.ticket_number));
+
+    const newCases: ImportCasePayload[] = [];
+    const updatedCases: ImportCasePayload[] = [];
+
+    uniqueRows.forEach(row => {
+      if (existingTicketNumbers.has(row.ticket_number)) {
+        updatedCases.push(row);
+      } else {
+        newCases.push(row);
+      }
+    });
+
+    // 3. Prepare payload for upsert
+    const payload = uniqueRows.map((row) => ({
       date: row.date,
       month: row.month,
       ticket_number: row.ticket_number,
@@ -52,16 +103,24 @@ export async function importOrUpdateCases(rows: ImportCasePayload[]) {
       source_link_op: row.ticket_op,
     }));
 
-    const { error } = await supabase
+    // 4. Perform the upsert. This is now safe because `payload` has no duplicate ticket_numbers.
+    const { error: upsertError } = await supabase
       .from("all_cases")
       .upsert(payload, {
         onConflict: "ticket_number",
       });
 
-    if (error) throw error;
+    if (upsertError) throw upsertError;
 
-    return { success: true, count: payload.length };
+    // 5. Return detailed results
+    return {
+      success: true,
+      imported: newCases.map(r => ({ ticket_number: r.ticket_number, title: r.title })),
+      updated: updatedCases.map(r => ({ ticket_number: r.ticket_number, title: r.title })),
+      duplicates: sourceDuplicates.map(r => ({ ticket_number: r.ticket_number, title: r.title })),
+    };
   } catch (err: any) {
+    console.error("Error in importOrUpdateCases:", err);
     return { error: err.message };
   }
 }
