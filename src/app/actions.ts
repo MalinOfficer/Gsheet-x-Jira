@@ -262,6 +262,60 @@ export async function getDashboardFilterOptions() {
   return result;
 }
 
+export async function getL3ReportFromDB() {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('report_l3')
+      .select('client_name, detail_case, status_case_solved, check_in')
+      .order('check_in', { ascending: false });
+
+    if (error) {
+      console.error("❌ Supabase error fetching report_l3:", error);
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      return { success: true, report: "Tidak ada kasus L3 yang ditemukan." };
+    }
+
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    const todayDate = `${day}/${month}/${year}`;
+    
+    const latestEntry = data[0]?.check_in ? new Date(data[0].check_in) : new Date();
+    const formattedLatestTime = latestEntry.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+    const totalCases = data.length;
+    
+    const unresolvedCases = data
+      .filter(c => c.status_case_solved?.toLowerCase() !== 'solved')
+      .map(c => `${c.client_name || 'N/A'} - ${c.detail_case || 'No Title'}`);
+      
+    const resolvedCases = data
+      .filter(c => c.status_case_solved?.toLowerCase() === 'solved')
+      .map(c => `${c.client_name || 'N/A'} - ${c.detail_case || 'No Title'}`);
+
+    const reportText = `*Laporan Kasus L3 ${todayDate} (update terakhir jam ${formattedLatestTime})*
+
+Total Kasus L3: ${totalCases}
+
+*Kasus Belum Selesai:*
+${unresolvedCases.length > 0 ? unresolvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') : 'Tidak ada kasus L3 yang belum selesai.'}
+
+*Kasus Selesai:*
+${resolvedCases.length > 0 ? resolvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') : 'Tidak ada kasus L3 yang sudah selesai.'}
+`;
+
+    return { success: true, report: reportText.trim() };
+
+  } catch (err: any) {
+    console.error('❌ Error generating L3 report from DB:', err);
+    return { success: false, error: err.message };
+  }
+}
+
 // ============================================
 // DUMMY FUNCTION IMPLEMENTATIONS
 // ============================================

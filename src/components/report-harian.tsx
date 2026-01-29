@@ -8,10 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Copy, Check, BarChart as BarChartIcon, AlertTriangle, RefreshCw, ArrowLeft } from 'lucide-react';
 import { formatDateTime } from '@/lib/date-utils';
 import { TableDataContext } from '@/store/table-data-context';
-import { SettingsContext } from '@/contexts/settings-provider';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { fetchL3ReportData } from '@/app/actions';
+import { getL3ReportFromDB } from '@/app/actions';
 import Link from 'next/link';
 import { Skeleton } from './ui/skeleton';
 
@@ -221,24 +220,19 @@ type ReportData = {
 } | null;
 
 function L3CaseReportCard() {
-    const { sheetUrl } = useContext(SettingsContext);
-    const [l3ReportData, setL3ReportData] = useState<ReportData>(null); // State is now local
+    const [l3ReportData, setL3ReportData] = useState<ReportData>(null);
     const { toast } = useToast();
     const [isCopied, setIsCopied] = useState(false);
     const [isGenerating, startGenerating] = useTransition();
 
     const handleGenerate = () => {
         startGenerating(async () => {
-            if (!sheetUrl) {
-                toast({ variant: 'destructive', title: "URL Not Set", description: "Google Sheet URL is not configured in Settings." });
-                return;
-            }
-            const result = await fetchL3ReportData(sheetUrl);
+            const result = await getL3ReportFromDB();
             setL3ReportData(result);
             if (result.error) {
-                toast({ variant: 'destructive', title: "Generation Failed", description: result.error });
+                toast({ variant: "destructive", title: "Pembuatan Laporan Gagal", description: result.error });
             } else {
-                toast({ title: "L3 Report Generated", description: "The report has been updated with the latest data." });
+                toast({ title: "Laporan L3 Dibuat", description: "Laporan telah diperbarui dengan data terbaru." });
             }
         });
     };
@@ -278,7 +272,7 @@ function L3CaseReportCard() {
                    <div className="flex gap-2 w-full sm:w-auto">
                         <Button onClick={handleGenerate} size="sm" className="w-full sm:w-auto" disabled={isGenerating}>
                             {isGenerating ? <RefreshCw className="text-muted-foreground animate-spin mr-2 h-4 w-4" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                            {isGenerating ? 'Generating...' : 'Generate Report'}
+                            {isGenerating ? 'Membuat...' : 'Generate Report'}
                         </Button>
                         <Button onClick={handleCopy} size="sm" variant="outline" className="w-full sm:w-auto" disabled={!l3ReportData?.report || isGenerating}>
                             {isCopied ? <Check className="text-green-500 mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
@@ -287,7 +281,7 @@ function L3CaseReportCard() {
                   </div>
                 </div>
                 <CardDescription>
-                    This report is generated from the verified Google Sheet and shows 'L3' status.
+                    This report is generated from the 'report_l3' database view.
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-grow">
