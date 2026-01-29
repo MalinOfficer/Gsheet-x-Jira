@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check } from "lucide-react";
@@ -163,7 +162,7 @@ export function DbViewer({
     }, [isPending, isSaving, setIsProcessing]);
 
     const headers = useMemo(() => {
-        if (!state.data || !state.data.length) return [];
+        if (!state.data || !state.data.length) return ['no'];
         const allKeys = Object.keys(state.data[0]);
         const visibleKeys = allKeys.filter(key => !hiddenHeaders.includes(key));
         
@@ -771,10 +770,6 @@ export function DbViewer({
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>
-                            <Badge variant={state.source === 'supabase' ? 'default' : 'secondary'} className="w-fit">
-                                {state.source === 'supabase' ? <Database className="mr-2 h-4 w-4"/> : <Cloud className="mr-2 h-4 w-4"/>}
-                                Data source: {state.source}
-                            </Badge>
                         </div>
                     </div>
                 </CardHeader>
