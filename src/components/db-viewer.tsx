@@ -16,7 +16,7 @@ import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, updateCase } from "@/app/actions";
+import { getAllCaseData, getL3ReportFromDB, updateCase } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -62,7 +62,7 @@ const headerDisplayMapping: Record<string, string> = {
     title: 'Title',
     resolved_at: 'Resolved At',
     ticket_op: 'Ticket OP',
-    status_case_2: 'Status Solved',
+    status_case_2: 'Umur Case',
     note: 'Note',
 };
 
@@ -193,7 +193,7 @@ export function DbViewer({
             return indexA - indexB;
         });
         
-        FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'status_case_2'];
+        FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module'];
 
         return ['no', ...visibleKeys];
     }, [state.data]);
@@ -212,7 +212,7 @@ export function DbViewer({
             detail_module: 200,
             created_at: 150,
             resolved_at: 150,
-            status_case_2: 130, // Status Solved
+            status_case_2: 130, // Umur Case
             ticket_op: 150,
             note: 250,
         };
@@ -381,7 +381,70 @@ export function DbViewer({
     }, [debouncedSearchTerm, dateRange, columnFilters, yearFilter]);
     
     const displayData = useMemo(() => {
-        return state.data || [];
+        if (!state.data) return [];
+        
+        return state.data.map(row => {
+            const newRow = {...row};
+    
+            // Format dates
+            ['created_at', 'resolved_at'].forEach(header => {
+                const cellValue = row[header];
+                if (typeof cellValue === 'string' && cellValue) {
+                    try {
+                        const date = new Date(cellValue);
+                        if (!isNaN(date.getTime())) {
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const year = date.getFullYear();
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            newRow[header] = `${day}/${month}/${year} ${hours}:${minutes}`;
+                        }
+                    } catch(e) { /* keep original */ }
+                }
+            });
+    
+            const dateCellValue = row['date'];
+            if (typeof dateCellValue === 'string' && dateCellValue) {
+                 try {
+                    const date = new Date(dateCellValue);
+                    if (!isNaN(date.getTime())) {
+                        const year = date.getUTCFullYear();
+                        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+                        const day = String(date.getUTCDate()).padStart(2, '0');
+                        newRow['date'] = `${year}-${month}-${day}`;
+                    }
+                } catch(e) { /* keep original */ }
+            }
+    
+            // Calculate 'Umur Case'
+            const status = newRow.status?.toUpperCase();
+            if (['L1', 'L2', 'L3'].includes(status)) {
+                const createdAtStr = row.created_at; // use original row data for calculation
+                if (createdAtStr) {
+                    const createdAt = new Date(createdAtStr);
+                    if (!isNaN(createdAt.getTime())) {
+                        const now = new Date();
+                        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        const startOfCreatedAt = new Date(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate());
+                        
+                        const diffTime = startOfToday.getTime() - startOfCreatedAt.getTime();
+                        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        const age = diffDays + 1;
+                        newRow.status_case_2 = age;
+                    } else {
+                        newRow.status_case_2 = '';
+                    }
+                } else {
+                     newRow.status_case_2 = '';
+                }
+            } else {
+                newRow.status_case_2 = '';
+            }
+            
+            return newRow;
+        });
     }, [state.data]);
 
     const handleClearAllFilters = () => {
@@ -784,7 +847,7 @@ export function DbViewer({
                         </div>
                     )}
                     <div ref={tableContainerRef} className="overflow-auto h-[75vh] border-t rounded-b-md">
-                        {(!state.data || state.data.length === 0) && !isPending ? (
+                        {(!displayData || displayData.length === 0) && !isPending ? (
                             <div className="flex items-center justify-center h-full">
                                 <div className="text-center text-muted-foreground">
                                     <Database className="mx-auto h-12 w-12 mb-2" />
@@ -830,40 +893,14 @@ export function DbViewer({
                                                 const rowId = row?.id;
                                                 
                                                 let cellValue = row ? (isNoColumn ? rowNumber : row[header]) : null;
-
-                                                // Date/Time formatting
-                                                if (row && ['date', 'created_at', 'resolved_at'].includes(header) && typeof cellValue === 'string' && cellValue) {
-                                                    try {
-                                                        const date = new Date(cellValue);
-                                                        if (!isNaN(date.getTime())) {
-                                                            const localDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60000);
-                                                            
-                                                            if (header === 'date') {
-                                                                cellValue = localDate.toISOString().split('T')[0];
-                                                            } else {
-                                                                cellValue = localDate.toISOString().replace('T', ' ').substring(0, 16);
-                                                            }
-                                                        }
-                                                    } catch(e) {
-                                                        // Keep original value on error
-                                                    }
-                                                }
-
+                                                
                                                 const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
                                                 
                                                 const columnsToCenter = [
-    'no',
-    'date',
-    'month',
-    'client_name',
-    'customer_name',
-    'ticket_category',
-    'module',
-    'detail_module',
-    'created_at',
-    'resolved_at',
-    'status_case_2'
-];
+                                                    'no', 'date', 'month', 'client_name', 'customer_name', 
+                                                    'ticket_category', 'module', 'detail_module', 'created_at', 
+                                                    'resolved_at', 'status_case_2'
+                                                ];
 
                                                 return (
                                                     <div 
@@ -938,16 +975,31 @@ export function DbViewer({
                                                         ) : (
                                                             <div className={cn("py-1 px-2 flex items-center h-full", columnsToCenter.includes(header) && 'justify-center')}>
                                                                 {row ? (
-                                                                    (header === 'ticket_category' && cellValue) ? (
-                                                                        <span className={cn('text-xs px-2 py-0.5 rounded-md', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
-                                                                            {cellValue}
-                                                                        </span>
-                                                                    ) : (header === 'status' && cellValue) ? (
-                                                                        <span className={cn('text-xs inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md', statusColorMap[cellValue as string] || statusColorMap.default)}>
-                                                                            {cellValue}
-                                                                        </span>
-                                                                    ) : (header === 'title' && cellValue && typeof cellValue === 'string' && cellValue.match(/(IHO-\d+)/)) ? (
-                                                                        (() => {
+                                                                    (() => {
+                                                                        if (header === 'status_case_2' && cellValue) {
+                                                                            const age = Number(cellValue);
+                                                                            const isOverdue = age > 3;
+                                                                            return (
+                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-md font-mono', isOverdue ? 'bg-destructive text-destructive-foreground font-bold' : '')}>
+                                                                                    {age}
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (header === 'ticket_category' && cellValue) {
+                                                                            return (
+                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-md', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
+                                                                                    {cellValue}
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (header === 'status' && cellValue) {
+                                                                            return (
+                                                                                <span className={cn('text-xs inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md', statusColorMap[cellValue as string] || statusColorMap.default)}>
+                                                                                    {cellValue}
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (header === 'title' && cellValue && typeof cellValue === 'string' && cellValue.match(/(IHO-\d+)/)) {
                                                                             const match = cellValue.match(/(IHO-\d+)/);
                                                                             if (!match) return <span className="truncate text-xs">{cellValue}</span>;
                                                                             const ticketId = match[0];
@@ -955,21 +1007,15 @@ export function DbViewer({
                                                                             return (
                                                                                 <span className="truncate text-xs">
                                                                                     {parts[0]}
-                                                                                    <a
-                                                                                        href={`https://pintro.atlassian.net/browse/${ticketId}`}
-                                                                                        target="_blank"
-                                                                                        rel="noopener noreferrer"
-                                                                                        className="text-primary underline hover:text-primary/80"
-                                                                                    >
+                                                                                    <a href={`https://pintro.atlassian.net/browse/${ticketId}`} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
                                                                                         {ticketId}
                                                                                     </a>
                                                                                     {parts[1]}
                                                                                 </span>
                                                                             );
-                                                                        })()
-                                                                    ) : (
-                                                                        <span className="truncate text-xs">{cellValue}</span>
-                                                                    )
+                                                                        }
+                                                                        return <span className="truncate text-xs">{cellValue}</span>;
+                                                                    })()
                                                                 ) : (
                                                                     <Skeleton className="h-4 w-full" />
                                                                 )}
