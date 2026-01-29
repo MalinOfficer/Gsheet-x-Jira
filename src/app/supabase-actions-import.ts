@@ -1,12 +1,7 @@
 
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from "@/lib/supabase";
 
 /* ================= TYPES ================= */
 
@@ -63,7 +58,7 @@ export async function importOrUpdateCases(rows: ImportCasePayload[]) {
     const uniqueTicketNumbers = uniqueRows.map(r => r.ticket_number);
 
     // 2. Find which tickets already exist in the database
-    const { data: existingCases, error: fetchError } = await supabase
+    const { data: existingCases, error: fetchError } = await supabaseAdmin
       .from("all_cases")
       .select("ticket_number")
       .in("ticket_number", uniqueTicketNumbers);
@@ -104,7 +99,7 @@ export async function importOrUpdateCases(rows: ImportCasePayload[]) {
     }));
 
     // 4. Perform the upsert. This is now safe because `payload` has no duplicate ticket_numbers.
-    const { error: upsertError } = await supabase
+    const { error: upsertError } = await supabaseAdmin
       .from("all_cases")
       .upsert(payload, {
         onConflict: "ticket_number",
@@ -129,7 +124,7 @@ export async function importOrUpdateCases(rows: ImportCasePayload[]) {
 
 export async function truncateAllCases() {
   try {
-    const { error } = await supabase.rpc("truncate_all_cases");
+    const { error } = await supabaseAdmin.rpc("truncate_all_cases");
     if (error) throw error;
     return { success: true };
   } catch (err: any) {
