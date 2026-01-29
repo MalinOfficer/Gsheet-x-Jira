@@ -35,14 +35,22 @@ export async function importOrUpdateCases(rows: ImportCasePayload[]) {
     const uniqueRows: ImportCasePayload[] = [];
     const sourceDuplicates: ImportCasePayload[] = [];
     
-    // Iterate backwards to keep the last one
+    // Iterate backwards to keep the last one found in the file
     for (let i = rows.length - 1; i >= 0; i--) {
       const row = rows[i];
-      if (row.ticket_number && seenTickets.has(row.ticket_number)) {
-        sourceDuplicates.push(row);
-      } else if (row.ticket_number) {
-        uniqueRows.unshift(row); // add to the beginning to maintain original order
-        seenTickets.add(row.ticket_number);
+      // Only perform de-duplication for rows that have a ticket number.
+      if (row.ticket_number) {
+        if (seenTickets.has(row.ticket_number)) {
+          // This is a duplicate within the source file, mark it to be skipped.
+          sourceDuplicates.push(row);
+        } else {
+          // This is the first time we see this ticket number, add it for processing.
+          uniqueRows.unshift(row);
+          seenTickets.add(row.ticket_number);
+        }
+      } else {
+        // If there's no ticket number, it's always a new entry, so add it.
+        uniqueRows.unshift(row);
       }
     }
     
@@ -55,32 +63,38 @@ export async function importOrUpdateCases(rows: ImportCasePayload[]) {
       };
     }
 
-    const uniqueTicketNumbers = uniqueRows.map(r => r.ticket_number);
+    // Identify rows that need to be updated vs. inserted
+    const uniqueTicketNumbers = uniqueRows
+      .map(r => r.ticket_number)
+      .filter(Boolean); // Only check for existing tickets if they have a number
 
-    // 2. Find which tickets already exist in the database
-    const { data: existingCases, error: fetchError } = await supabaseAdmin
-      .from("all_cases")
-      .select("ticket_number")
-      .in("ticket_number", uniqueTicketNumbers);
+    let existingTicketNumbers = new Set<string>();
+    if (uniqueTicketNumbers.length > 0) {
+        const { data: existingCases, error: fetchError } = await supabaseAdmin
+          .from("all_cases")
+          .select("ticket_number")
+          .in("ticket_number", uniqueTicketNumbers);
 
-    if (fetchError) {
-      throw new Error(`Failed to check existing cases: ${fetchError.message}`);
+        if (fetchError) {
+          throw new Error(`Failed to check existing cases: ${fetchError.message}`);
+        }
+        existingTicketNumbers = new Set(existingCases.map(c => c.ticket_number));
     }
-
-    const existingTicketNumbers = new Set(existingCases.map(c => c.ticket_number));
 
     const newCases: ImportCasePayload[] = [];
     const updatedCases: ImportCasePayload[] = [];
 
     uniqueRows.forEach(row => {
-      if (existingTicketNumbers.has(row.ticket_number)) {
+      // A row is considered an "update" only if it has a ticket number AND that number exists in the DB.
+      if (row.ticket_number && existingTicketNumbers.has(row.ticket_number)) {
         updatedCases.push(row);
       } else {
         newCases.push(row);
       }
     });
 
-    // 3. Prepare payload for upsert
+    // Prepare payload for upsert. Rows with ticket_number will update on conflict.
+    // Rows without ticket_number will be inserted as new entries.
     const payload = uniqueRows.map((row) => ({
       date: row.date,
       month: row.month,
@@ -98,16 +112,18 @@ export async function importOrUpdateCases(rows: ImportCasePayload[]) {
       source_link_op: row.ticket_op,
     }));
 
-    // 4. Perform the upsert. This is now safe because `payload` has no duplicate ticket_numbers.
+    // Perform the upsert. This is now safe because `payload` has no duplicate ticket_numbers.
     const { error: upsertError } = await supabaseAdmin
       .from("all_cases")
       .upsert(payload, {
         onConflict: "ticket_number",
+        // Do not update the ticket_number itself on conflict
+        ignoreDuplicates: false
       });
 
     if (upsertError) throw upsertError;
 
-    // 5. Return detailed results
+    // Return detailed results
     return {
       success: true,
       imported: newCases.map(r => ({ ticket_number: r.ticket_number, title: r.title })),
