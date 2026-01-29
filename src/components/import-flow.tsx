@@ -42,14 +42,14 @@ const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
 
 declare const XLSX: any;
 
-function ResultList({ items, title }: { items?: { ticket_number?: string, title?: string, reason?: string }[], title: string }) {
+function ResultList({ items, title }: { items?: { ticket_number?: string, title?: string, reason?: string }[], title?: string }) {
     if (!items || items.length === 0) {
         return null;
     }
 
     return (
         <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">{title}</p>
+            {title && <p className="text-sm text-muted-foreground">{title}</p>}
             <div className="max-h-48 w-full overflow-y-auto rounded-md border bg-muted/30 p-2">
                 <ul className="space-y-1">
                     {items.map((item, index) => (
@@ -696,7 +696,7 @@ export function ImportFlow() {
        <Dialog open={isResultDialogOpen} onOpenChange={setIsResultDialogOpen}>
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>Import to Database Complete</DialogTitle>
+                    <DialogTitle>Import Data</DialogTitle>
                     <DialogDescription>
                         The import process has finished. Here's a summary of the results.
                     </DialogDescription>
@@ -730,7 +730,6 @@ export function ImportFlow() {
                                   )}
                               </div>
                                <div className="mt-2 space-y-2">
-                                  <p className="text-sm text-muted-foreground">These items already exist but have a different status. You can update them individually or all at once.</p>
                                   <div className="max-h-64 overflow-y-auto rounded-md border bg-muted/30 p-2">
                                       <ul className="space-y-1">
                                           {activeConflicts.map((item) => (
@@ -746,7 +745,7 @@ export function ImportFlow() {
                            <div>
                               <h3 className="text-lg font-medium tracking-tight text-muted-foreground">Duplicate ({importResult?.skipped.length})</h3>
                               <div className="mt-2">
-                                  <ResultList items={importResult?.skipped} title="These items were skipped because they are duplicates with the same status, or are missing a ticket number." />
+                                  <ResultList items={importResult?.skipped} />
                               </div>
                           </div>
                       )}
