@@ -393,12 +393,14 @@ export function DbViewer({
                     try {
                         const date = new Date(cellValue);
                         if (!isNaN(date.getTime())) {
-                            const day = String(date.getDate()).padStart(2, '0');
-                            const month = String(date.getMonth() + 1).padStart(2, '0');
-                            const year = date.getFullYear();
-                            const hours = String(date.getHours()).padStart(2, '0');
-                            const minutes = String(date.getMinutes()).padStart(2, '0');
-                            newRow[header] = `${day}/${month}/${year} ${hours}:${minutes}`;
+                            // Using local time formatting
+                            const options: Intl.DateTimeFormatOptions = {
+                                year: 'numeric', month: '2-digit', day: '2-digit',
+                                hour: '2-digit', minute: '2-digit', hour12: false
+                            };
+                            // Use a specific locale that gives DD/MM/YYYY, like 'en-GB'
+                            const formatter = new Intl.DateTimeFormat('en-GB', options);
+                            newRow[header] = formatter.format(date).replace(',', '');
                         }
                     } catch(e) { /* keep original */ }
                 }
@@ -825,9 +827,19 @@ export function DbViewer({
                                     <Pencil className="mr-2 h-4 w-4" /> Edit
                                 </Button>
                             )}
-                             <Button onClick={handleL3FilterToggle} size="sm" variant={isL3FilterActive ? "default" : "outline"} disabled={isPending || isRefreshing || isEditMode || isSaving}>
+                             <Button
+                                onClick={handleL3FilterToggle}
+                                size="sm"
+                                variant="outline"
+                                className={cn(
+                                    isL3FilterActive
+                                    ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 border-transparent'
+                                    : 'text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/50 dark:hover:text-red-300'
+                                )}
+                                disabled={isPending || isRefreshing || isEditMode || isSaving}
+                            >
                                 <Filter className="mr-2 h-4 w-4" />
-                                {isL3FilterActive ? "Clear L3 Filter" : "Filter L3 Cases"}
+                                {isL3FilterActive ? "Clear L3 Filter" : "Filter L3"}
                             </Button>
                             <Button onClick={() => fetchData(true)} size="sm" variant="default" disabled={isPending || isRefreshing || isEditMode || isSaving}>
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
