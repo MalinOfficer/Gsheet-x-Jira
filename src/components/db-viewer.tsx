@@ -820,33 +820,46 @@ export function DbViewer({
 
                                                 // Date/Time formatting
                                                 if (row && ['date', 'created_at', 'resolved_at'].includes(header) && typeof cellValue === 'string' && cellValue) {
-                                                    // Don't format simple time strings like "6:51"
-                                                    if (/^\d{1,2}:\d{2}$/.test(cellValue)) {
-                                                        // keep as is
-                                                    } else {
-                                                        try {
-                                                            const date = new Date(cellValue);
-                                                            if (!isNaN(date.getTime())) { // Check if date is valid
-                                                                const day = String(date.getDate()).padStart(2, '0');
-                                                                const month = String(date.getMonth() + 1).padStart(2, '0');
-                                                                const year = date.getFullYear();
-
-                                                                if (header === 'date') {
-                                                                    cellValue = `${day}/${month}/${year}`;
-                                                                } else { // For created_at and resolved_at
-                                                                    const hours = String(date.getHours()).padStart(2, '0');
-                                                                    const minutes = String(date.getMinutes()).padStart(2, '0');
-                                                                    cellValue = `${day}/${month}/${year} ${hours}:${minutes}`;
-                                                                }
+                                                    try {
+                                                        const date = new Date(cellValue);
+                                                        if (!isNaN(date.getTime())) { // Check if date is valid
+                                                            const options: Intl.DateTimeFormatOptions = {
+                                                                day: '2-digit',
+                                                                month: '2-digit',
+                                                                year: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit',
+                                                                hour12: false
+                                                            };
+                                                            
+                                                            const formatter = new Intl.DateTimeFormat('en-GB', options);
+                                                            const parts = formatter.formatToParts(date).reduce((acc, part) => ({...acc, [part.type]: part.value}), {} as Record<string, string>);
+                                                            
+                                                            if (header === 'date') {
+                                                                cellValue = `${parts.day}/${parts.month}/${parts.year}`;
+                                                            } else { // For created_at and resolved_at
+                                                                cellValue = `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
                                                             }
-                                                        } catch(e) {
-                                                            // Keep original value on error
                                                         }
+                                                    } catch(e) {
+                                                        // Keep original value on error
                                                     }
                                                 }
 
                                                 const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
                                                 
+                                                const columnsToCenter = [
+                                                    'month', 
+                                                    'client_name', 
+                                                    'customer_name', 
+                                                    'ticket_category', 
+                                                    'module', 
+                                                    'detail_module', 
+                                                    'created_at', 
+                                                    'resolved_at', 
+                                                    'status_case_2'
+                                                ];
+
                                                 return (
                                                     <div 
                                                         key={header} 
@@ -918,7 +931,7 @@ export function DbViewer({
                                                                 disabled={!row}
                                                             />
                                                         ) : (
-                                                            <div className={cn("py-1 px-2 flex items-center h-full", header === 'month' && 'justify-center')}>
+                                                            <div className={cn("py-1 px-2 flex items-center h-full", columnsToCenter.includes(header) && 'justify-center')}>
                                                                 {row ? (
                                                                     (header === 'ticket_category' && cellValue) ? (
                                                                         <span className={cn('text-xs px-2 py-0.5 rounded-md', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
