@@ -168,7 +168,6 @@ export function DbViewer({
         const visibleKeys = allKeys.filter(key => !hiddenHeaders.includes(key));
         
         const order = [
-            'no',
             'date',
             'month',
             'ticket_number',
@@ -197,7 +196,7 @@ export function DbViewer({
         
         FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'status_case_2'];
 
-        return visibleKeys;
+        return ['no', ...visibleKeys];
     }, [state.data]);
 
     const initialColumnWidths = useCallback(() => {
@@ -829,7 +828,8 @@ export function DbViewer({
                                                                 year: 'numeric',
                                                                 hour: '2-digit',
                                                                 minute: '2-digit',
-                                                                hour12: false
+                                                                hour12: false,
+                                                                timeZone: 'Asia/Jakarta' // Set to WIB
                                                             };
                                                             
                                                             const formatter = new Intl.DateTimeFormat('en-GB', options);
@@ -849,6 +849,7 @@ export function DbViewer({
                                                 const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
                                                 
                                                 const columnsToCenter = [
+                                                    'no',
                                                     'month', 
                                                     'client_name', 
                                                     'customer_name', 
