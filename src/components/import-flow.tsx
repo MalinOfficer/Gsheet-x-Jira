@@ -459,6 +459,15 @@ export function ImportFlow() {
                 }
             }
 
+            // Remove ticket number from title to avoid redundancy
+            if (newRow['Ticket Number'] && newRow['Title']) {
+                const ticketNumber = String(newRow['Ticket Number']);
+                const title = String(newRow['Title']);
+                if (title.startsWith(ticketNumber)) {
+                    newRow['Title'] = title.substring(ticketNumber.length).trim();
+                }
+            }
+
             return newRow;
         });
 
@@ -692,56 +701,56 @@ export function ImportFlow() {
                         The import process has finished. Here's a summary of the results.
                     </DialogDescription>
                 </DialogHeader>
-                <ScrollArea className="max-h-[60vh] pr-4 -mr-4">
-                    <div className="space-y-6">
-                        {(newlyInserted.length > 0 || updatedItems.length > 0) && (
-                             <div>
-                                <h3 className="text-lg font-medium tracking-tight text-green-600">Processed ({newlyInserted.length + updatedItems.length})</h3>
-                                <div className="mt-2 space-y-3">
-                                    <ResultList items={newlyInserted} title="New items successfully inserted into the database." />
-                                    {updatedItems.length > 0 && <ResultList items={updatedItems.map(i => ({...i, title: `${i.title} (Status updated to ${i.new_status})`}))} title="Items with conflicting status have been updated." />}
-                                </div>
-                            </div>
-                        )}
+                <ScrollArea className="max-h-[60vh] -mr-6 pr-6">
+                  <div className="space-y-6">
+                      {(newlyInserted.length > 0 || updatedItems.length > 0) && (
+                          <div>
+                              <h3 className="text-lg font-medium tracking-tight text-green-600">Processed ({newlyInserted.length + updatedItems.length})</h3>
+                              <div className="mt-2 space-y-3">
+                                  <ResultList items={newlyInserted} title="New items successfully inserted." />
+                                  {updatedItems.length > 0 && <ResultList items={updatedItems.map(i => ({...i, title: `${i.title} (Status updated to ${i.new_status})`}))} title="Items with conflicting status have been updated." />}
+                              </div>
+                          </div>
+                      )}
 
-                        {activeConflicts.length > 0 && (
-                            <div>
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-medium tracking-tight text-amber-600">Update Status ({activeConflicts.length})</h3>
-                                    {activeConflicts.length > 1 && (
-                                        <Button
-                                            size="sm"
-                                            onClick={handleUpdateAll}
-                                            disabled={isUpdatingAll}
-                                            className="bg-amber-400 hover:bg-amber-500 text-amber-900 h-7 px-2"
-                                        >
-                                            {isUpdatingAll && <RefreshCw className="mr-2 h-3 w-3 animate-spin"/>}
-                                            Update All
-                                        </Button>
-                                    )}
-                                </div>
-                                 <div className="mt-2 space-y-2">
-                                    <p className="text-sm text-muted-foreground">These items already exist but have a different status. You can update them individually or all at once.</p>
-                                    <div className="max-h-64 overflow-y-auto rounded-md border bg-muted/30 p-2">
-                                        <ul className="space-y-1">
-                                            {activeConflicts.map((item) => (
-                                                <ConflictItem key={item.ticket_number} item={item} onUpdateSuccess={handleUpdateSuccess} />
-                                            ))}
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                      {activeConflicts.length > 0 && (
+                          <div>
+                              <div className="flex items-center justify-between">
+                                  <h3 className="text-lg font-medium tracking-tight text-amber-600">Update Status ({activeConflicts.length})</h3>
+                                  {activeConflicts.length > 1 && (
+                                      <Button
+                                          size="sm"
+                                          onClick={handleUpdateAll}
+                                          disabled={isUpdatingAll}
+                                          className="bg-amber-400 hover:bg-amber-500 text-amber-900 h-7 px-2"
+                                      >
+                                          {isUpdatingAll && <RefreshCw className="mr-2 h-3 w-3 animate-spin"/>}
+                                          Update All
+                                      </Button>
+                                  )}
+                              </div>
+                               <div className="mt-2 space-y-2">
+                                  <p className="text-sm text-muted-foreground">These items already exist but have a different status. You can update them individually or all at once.</p>
+                                  <div className="max-h-64 overflow-y-auto rounded-md border bg-muted/30 p-2">
+                                      <ul className="space-y-1">
+                                          {activeConflicts.map((item) => (
+                                              <ConflictItem key={item.ticket_number} item={item} onUpdateSuccess={handleUpdateSuccess} />
+                                          ))}
+                                      </ul>
+                                  </div>
+                              </div>
+                          </div>
+                      )}
 
-                        {(importResult?.skipped?.length || 0) > 0 && (
-                             <div>
-                                <h3 className="text-lg font-medium tracking-tight text-muted-foreground">Duplicate ({importResult?.skipped.length})</h3>
-                                <div className="mt-2">
-                                    <ResultList items={importResult?.skipped} title="These items were skipped because they are duplicates with the same status, or are missing a ticket number." />
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                      {(importResult?.skipped?.length || 0) > 0 && (
+                           <div>
+                              <h3 className="text-lg font-medium tracking-tight text-muted-foreground">Duplicate ({importResult?.skipped.length})</h3>
+                              <div className="mt-2">
+                                  <ResultList items={importResult?.skipped} title="These items were skipped because they are duplicates with the same status, or are missing a ticket number." />
+                              </div>
+                          </div>
+                      )}
+                  </div>
                 </ScrollArea>
                 <DialogFooter>
                     <Button onClick={() => setIsResultDialogOpen(false)}>Close</Button>
