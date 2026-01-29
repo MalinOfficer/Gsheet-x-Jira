@@ -266,7 +266,7 @@ export async function getL3ReportFromDB() {
   try {
     const { data, error } = await supabaseAdmin
       .from('report_l3')
-      .select('client_name, detail_case, status_case_solved, check_in')
+      .select('client_name, detail_case, status_case, check_in')
       .order('check_in', { ascending: false });
 
     if (error) {
@@ -290,11 +290,11 @@ export async function getL3ReportFromDB() {
     const totalCases = data.length;
     
     const unresolvedCases = data
-      .filter(c => c.status_case_solved?.toLowerCase() !== 'solved')
+      .filter(c => c.status_case?.toLowerCase() !== 'solved')
       .map(c => `${c.client_name || 'N/A'} - ${c.detail_case || 'No Title'}`);
       
     const resolvedCases = data
-      .filter(c => c.status_case_solved?.toLowerCase() === 'solved')
+      .filter(c => c.status_case?.toLowerCase() === 'solved')
       .map(c => `${c.client_name || 'N/A'} - ${c.detail_case || 'No Title'}`);
 
     const reportText = `*Laporan Kasus L3 ${todayDate} (update terakhir jam ${formattedLatestTime})*
