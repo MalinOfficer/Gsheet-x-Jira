@@ -822,6 +822,12 @@ export function DbViewer({
                                                     try {
                                                         const date = new Date(cellValue);
                                                         if (!isNaN(date.getTime())) { // Check if date is valid
+                                                            // Correct for timezone offset if the time part is 00:00:00.000Z
+                                                            if (date.getUTCHours() === 0 && date.getUTCMinutes() === 0 && date.getUTCSeconds() === 0) {
+                                                                const timeZoneOffset = date.getTimezoneOffset() * 60000;
+                                                                date.setTime(date.getTime() + timeZoneOffset);
+                                                            }
+
                                                             const options: Intl.DateTimeFormatOptions = {
                                                                 day: '2-digit',
                                                                 month: '2-digit',
@@ -829,15 +835,15 @@ export function DbViewer({
                                                                 hour: '2-digit',
                                                                 minute: '2-digit',
                                                                 hour12: false,
-                                                                timeZone: 'Asia/Jakarta' // Set to WIB
+                                                                timeZone: 'Asia/Jakarta'
                                                             };
                                                             
-                                                            const formatter = new Intl.DateTimeFormat('en-GB', options);
-                                                            const parts = formatter.formatToParts(date).reduce((acc, part) => ({...acc, [part.type]: part.value}), {} as Record<string, string>);
-                                                            
                                                             if (header === 'date') {
-                                                                cellValue = `${parts.day}/${parts.month}/${parts.year}`;
+                                                                const formatter = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Jakarta' });
+                                                                cellValue = formatter.format(date);
                                                             } else { // For created_at and resolved_at
+                                                                const formatter = new Intl.DateTimeFormat('en-GB', options);
+                                                                const parts = formatter.formatToParts(date).reduce((acc, part) => ({...acc, [part.type]: part.value}), {} as Record<string, string>);
                                                                 cellValue = `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
                                                             }
                                                         }
@@ -850,6 +856,7 @@ export function DbViewer({
                                                 
                                                 const columnsToCenter = [
                                                     'no',
+                                                    'date',
                                                     'month', 
                                                     'client_name', 
                                                     'customer_name', 
