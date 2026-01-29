@@ -5,8 +5,7 @@ import { useState, useTransition, useEffect, useContext, useCallback, useRef, Mo
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Upload, Import, DatabaseZap, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart, RefreshCw, AlertCircle, Database } from 'lucide-react';
-import { getSpreadsheetTitle, importToSheet, updateSheetStatus, getUpdatePreview, undoLastAction } from '@/app/actions';
+import { Upload, Import, Database, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart, RefreshCw, AlertCircle } from 'lucide-react';
 import { importOrUpdateCases } from '@/app/supabase-actions-import';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
@@ -41,22 +40,6 @@ const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
 const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,TICKET NUMBER,Ticket Category,Module,Detail Module,Created At,Title,Kolom kosong2,Resolved At,Ticket OP';
 const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
 
-
-type UpdatePreview = {
-    title: string;
-    oldStatus: string;
-    newStatus: string;
-    oldTicketOp: string;
-    newTicketOp: string;
-    oldCheckout: string;
-    newCheckout: string;
-};
-
-type LastActionUndoData = {
-    operationType: 'IMPORT' | 'UPDATE';
-    [key: string]: any;
-} | null;
-
 declare const XLSX: any;
 
 function ResultList({ items, title }: { items?: { ticket_number: string, title?: string }[], title: string }) {
@@ -85,20 +68,9 @@ function ResultList({ items, title }: { items?: { ticket_number: string, title?:
 }
 
 export function ImportFlow() {
-  const {
-    sheetUrl,
-    verifiedUrl, setVerifiedUrl,
-    spreadsheetTitle, setSpreadsheetTitle,
-  } = useContext(SettingsContext);
-  const { 
-    tableData, setTableData, 
-    isProcessing, setIsProcessing,
-  } = useContext(TableDataContext);
+  const { tableData, setTableData, isProcessing, setIsProcessing } = useContext(TableDataContext);
   const { toast } = useToast();
 
-  const [updatePreview, setUpdatePreview] = useState<UpdatePreview[]>([]);
-  const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
-  const [lastActionUndoData, setLastActionUndoData] = useState<LastActionUndoData | null>(null);
   const [jsonInput, setJsonInput] = useState('');
   const [templateInput, setTemplateInput] = useState(DEFAULT_TEMPLATE);
   const [jsonError, setJsonError] = useState<string | null>(null);
@@ -117,14 +89,10 @@ export function ImportFlow() {
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
   const csvFileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const [isImporting, startImporting] = useTransition();
-  const [isUpdating, startUpdating] = useTransition();
-  const [isPreviewing, startPreviewing] = useTransition();
-  const [isUndoing, startUndoing] = useTransition();
   const [isConverting, startConverting] = useTransition();
   const [isImportingToDb, startImportingToDb] = useTransition();
   
-  const isAnyProcessing = isImporting || isUpdating || isPreviewing || isUndoing || isConverting || isImportingToDb;
+  const isAnyProcessing = isConverting || isImportingToDb;
 
   useEffect(() => {
     setIsProcessing(isAnyProcessing);
@@ -139,169 +107,6 @@ export function ImportFlow() {
         setJsonInput(savedJson);
     }
   }, []);
-
-  const handleUpdatePreview = async () => {
-    if (!tableData || !sheetUrl) {
-      toast({
-        variant: "destructive",
-        title: "Preview Failed",
-        description: "No data to preview or sheet URL is missing.",
-      });
-      return;
-    }
-
-    startPreviewing(async () => {
-        const result = await getUpdatePreview({ rows: tableData.rows }, sheetUrl);
-        if (result.error) {
-            toast({
-                variant: "destructive",
-                title: "Preview Error",
-                description: `Failed to get update preview: ${result.error}`,
-            });
-            setUpdatePreview([]);
-            setIsUpdateConfirmOpen(false);
-            return;
-        }
-
-        if (result.changes && result.changes.length > 0) {
-            setUpdatePreview(result.changes);
-            setIsUpdateConfirmOpen(true);
-        } else {
-            toast({
-                title: (
-                    <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        Everything is Up-to-Date
-                    </div>
-                ),
-                description: "No changes were detected between your data and the Google Sheet.",
-            });
-            setUpdatePreview([]);
-            setIsUpdateConfirmOpen(false);
-        }
-    });
-  };
-
-  const handleConfirmUpdate = async () => {
-    if (!tableData || !sheetUrl) return;
-    setIsUpdateConfirmOpen(false);
-
-    startUpdating(async () => {
-      const result = await updateSheetStatus({ rows: tableData.rows }, sheetUrl);
-      if (result.error) {
-        toast({
-          variant: "destructive",
-          title: "Update Error",
-          description: `Failed to update sheet status: ${result.error}`,
-        });
-        setLastActionUndoData(null);
-      } else {
-        if (result.updatedRows && result.updatedRows.length > 0) {
-            toast({
-              title: "Update Successful",
-              description: (
-                <div>
-                  <p className="mb-2">{result.message}</p>
-                  <div className="mt-2 text-xs">
-                    <p className="font-bold">Updated Cases:</p>
-                    <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
-                      {result.updatedRows.map((item: { title: string, newStatus: string, newTicketOp: string }, index: number) => (
-                        <li key={index}>{item.title} {'→'} <strong>{item.newStatus} / {item.newTicketOp}</strong></li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              ),
-            });
-            setLastActionUndoData({ operationType: 'UPDATE', updatedRows: result.updatedRows });
-        } else {
-            toast({
-                title: "Everything is Up-to-Date",
-                description: "No changes were detected, so no updates were made.",
-            });
-            setLastActionUndoData(null);
-        }
-      }
-    });
-  };
-
-  const handleImport = async () => {
-    if (!tableData || !sheetUrl) {
-        toast({
-            variant: "destructive",
-            title: "Export Failed",
-            description: "No data to export or sheet URL is missing.",
-        });
-        return;
-    }
-    
-    startImporting(async () => {
-        if (!tableData) return;
-        const result = await importToSheet(tableData, sheetUrl);
-
-        if (result.error) {
-            toast({
-                variant: "destructive",
-                title: "Export Error",
-                description: `Failed to export to sheet: ${result.error}`,
-            });
-            setLastActionUndoData(null);
-        } else {
-            toast({
-                title: "Export Complete",
-                description: (
-                    <div>
-                        {result.importedCount > 0 && <p>{result.importedCount} new rows exported successfully.</p>}
-                        {result.duplicateCount > 0 && (
-                            <div className="mt-2 text-xs">
-                                <p className="font-bold">{result.duplicateCount} duplicate rows found and skipped:</p>
-                                <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
-                                    {(result.duplicates ?? []).map((item, index) => (
-                                        <li key={index}>{item}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                        {(!result.importedCount && !result.duplicateCount) && <p>No new data to export.</p>}
-                    </div>
-                ),
-            });
-            if (result.undoData) {
-                setLastActionUndoData(result.undoData);
-            } else {
-                setLastActionUndoData(null);
-            }
-        }
-    });
-  };
-
-  const handleUndo = async () => {
-    if (!lastActionUndoData || !sheetUrl) {
-      toast({
-        variant: "destructive",
-        title: "Undo Failed",
-        description: "There is no action to undo.",
-      });
-      return;
-    }
-
-    startUndoing(async () => {
-      const result = await undoLastAction(lastActionUndoData, sheetUrl);
-      if (result.error) {
-        toast({
-          variant: "destructive",
-          title: "Undo Error",
-          description: result.error,
-        });
-      } else {
-        toast({
-          title: "Undo Successful",
-          description: result.message,
-        });
-        setLastActionUndoData(null);
-      }
-    });
-  };
 
   const handleImportToDb = () => {
     if (!tableData) {
@@ -353,8 +158,6 @@ export function ImportFlow() {
             });
             setIsResultDialogOpen(true);
         }
-        
-        setLastActionUndoData(null); // This action cannot be undone
 
       } catch(err: any) {
         toast({
@@ -589,8 +392,6 @@ export function ImportFlow() {
         startConverting(async () => {
             setJsonError(null);
             setTableData(null);
-            setSpreadsheetTitle(null);
-            setVerifiedUrl('');
 
             if (!input.trim()) {
                 setJsonError("Input cannot be empty.");
@@ -608,18 +409,6 @@ export function ImportFlow() {
                 
                 setJsonInput(input); // Store the raw input for reference
                 localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, input);
-
-                if (sheetUrl) {
-                    const titleResult = await getSpreadsheetTitle(sheetUrl);
-                    if (titleResult.success) {
-                        setSpreadsheetTitle(titleResult.title);
-                        setVerifiedUrl(sheetUrl);
-                    } else {
-                        setSpreadsheetTitle(null);
-                        setVerifiedUrl('');
-                        toast({ variant: 'destructive', title: 'URL Verification Failed', description: titleResult.error });
-                    }
-                }
 
             } catch (e) {
                 setJsonError(e instanceof Error ? `Invalid ${format.toUpperCase()} format: ${e.message}` : "An unknown error occurred during conversion.");
@@ -657,7 +446,6 @@ export function ImportFlow() {
     localStorage.setItem(LOCAL_STORAGE_KEY_TEMPLATE, templateInput);
     toast({ title: "Template Saved", description: "Header template has been saved." });
   };
-  const isVerified = !!verifiedUrl && verifiedUrl === sheetUrl;
 
    const handleCopyToClipboard = () => {
         if (!tableData) return;
@@ -791,20 +579,6 @@ export function ImportFlow() {
               handleCopyToClipboard={handleCopyToClipboard}
               isCopied={isCopied}
               handleNavigateToReport={handleNavigateToReport}
-              lastActionUndoData={lastActionUndoData}
-              handleImport={handleImport}
-              handleUpdatePreview={handleUpdatePreview}
-              handleUndo={handleUndo}
-              isVerified={isVerified}
-              spreadsheetTitle={spreadsheetTitle}
-              isImporting={isImporting}
-              isPreviewing={isPreviewing}
-              isUndoing={isUndoing}
-              isUpdateConfirmOpen={isUpdateConfirmOpen}
-              setIsUpdateConfirmOpen={setIsUpdateConfirmOpen}
-              updatePreview={updatePreview}
-              handleConfirmUpdate={handleConfirmUpdate}
-              isUpdating={isUpdating}
               handleImportToDb={handleImportToDb}
               isImportingToDb={isImportingToDb}
           />
@@ -860,20 +634,6 @@ function PreviewTable({
     handleCopyToClipboard,
     isCopied,
     handleNavigateToReport,
-    lastActionUndoData,
-    handleImport,
-    handleUpdatePreview,
-    handleUndo,
-    isVerified,
-    spreadsheetTitle,
-    isImporting,
-    isPreviewing,
-    isUndoing,
-    isUpdateConfirmOpen,
-    setIsUpdateConfirmOpen,
-    updatePreview,
-    handleConfirmUpdate,
-    isUpdating,
     handleImportToDb,
     isImportingToDb,
 } : {
@@ -884,20 +644,6 @@ function PreviewTable({
     handleCopyToClipboard: () => void;
     isCopied: boolean;
     handleNavigateToReport: () => void;
-    lastActionUndoData: LastActionUndoData;
-    handleImport: () => void;
-    handleUpdatePreview: () => void;
-    handleUndo: () => void;
-    isVerified: boolean;
-    spreadsheetTitle: string | null;
-    isImporting: boolean;
-    isPreviewing: boolean;
-    isUndoing: boolean;
-    isUpdateConfirmOpen: boolean;
-    setIsUpdateConfirmOpen: (open: boolean) => void;
-    updatePreview: UpdatePreview[];
-    handleConfirmUpdate: () => void;
-    isUpdating: boolean;
     handleImportToDb: () => void;
     isImportingToDb: boolean;
 }) {
@@ -976,98 +722,14 @@ function PreviewTable({
                     <div>
                         <CardTitle className="text-xl">2. Data Preview &amp; Actions</CardTitle>
                         <CardDescription>
-                            Pratinjau data, ubah jika perlu, lalu ekspor atau perbarui ke Google Sheet.
-                             <div className="flex items-center gap-2 mt-1">
-                                {spreadsheetTitle ? (
-                                    <span className="block text-xs font-medium text-green-600">
-                                        Target: {spreadsheetTitle}
-                                    </span>
-                                ) : (
-                                    <span className="block text-xs font-medium text-destructive">
-                                        Target URL belum diatur atau tidak valid.
-                                    </span>
-                                )}
-                                <Popover>
-                                    <PopoverTrigger>
-                                        <AlertCircle className="h-4 w-4 text-muted-foreground cursor-pointer" />
-                                    </PopoverTrigger>
-                                    <PopoverContent className="text-sm w-auto p-2">
-                                        Go to Settings to change the target URL.
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
+                            Preview your converted data. Once ready, you can import it into the database.
                         </CardDescription>
                     </div>
                      <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                          <AlertDialog>
                             <AlertDialogTrigger asChild>
-                            <Button size="sm" disabled={isProcessing || !isVerified}>
-                                {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : <><Upload className="mr-2 h-4 w-4" />Export to GSheet</>}
-                            </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Konfirmasi Ekspor</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                Apakah Anda yakin akan mengekspor {tableData.rows.length} baris ke sheet <span className="font-bold">{spreadsheetTitle || 'target'}</span>?
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleImport} disabled={isImporting}>
-                                {isImporting ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengekspor...</> : "Ya, Lanjutkan Ekspor"}
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                        
-                        <AlertDialog open={isUpdateConfirmOpen} onOpenChange={setIsUpdateConfirmOpen}>
-                            <AlertDialogTrigger asChild>
-                                <Button onClick={handleUpdatePreview} size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950" disabled={isProcessing || !isVerified}>
-                                    {isPreviewing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengecek...</> : <><DatabaseZap className="mr-2 h-4 w-4" />Update Status</>}
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Konfirmasi Pembaruan Status</AlertDialogTitle>
-                                <div className="text-sm text-muted-foreground">
-                                    {isPreviewing ? (
-                                        <div className="flex items-center justify-center p-8">
-                                            <RefreshCw className="mr-2 h-6 w-6 animate-spin" />
-                                            <span>Mencari perubahan...</span>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <p className='mb-2'>Apakah Anda yakin ingin memperbarui {updatePreview.length} kasus di sheet <span className="font-bold">{spreadsheetTitle || 'target'}</span>?</p>
-                                            <div className="mt-2 text-xs max-h-48 overflow-y-auto border bg-muted/50 p-2 rounded-md space-y-1">
-                                                <p className="font-bold">Detail Perubahan:</p>
-                                                <ul className="list-disc pl-5">
-                                                    {updatePreview.map((item, index) => (
-                                                        <li key={index} className='text-foreground'>
-                                                        {item.title}:
-                                                        {item.oldStatus !== item.newStatus && <span> Status: <span className='line-through'>{item.oldStatus || 'Kosong'}</span> {'→'} <strong>{item.newStatus}</strong></span>}
-                                                        {item.oldTicketOp !== item.newTicketOp && <span>, Ticket Op: <span className='line-through'>{item.oldTicketOp || 'Kosong'}</span> {'→'} <strong>{item.newTicketOp}</strong></span>}
-                                                        {item.newStatus === 'Solved' && item.oldCheckout !== item.newCheckout && <span>, Check Out: <strong>{formatDateTime(item.newCheckout, 'jam')}</strong></span>}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel onClick={() => {}}>Batal</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleConfirmUpdate} disabled={isUpdating || isPreviewing || updatePreview.length === 0}>
-                                {isUpdating ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Memperbarui...</> : "Ya, Lanjutkan Update"}
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                         <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button size="sm" variant="secondary" disabled={isProcessing}>
-                                    {isImportingToDb ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengimpor...</> : <><Database className="mr-2 h-4 w-4" />Import to DB</>}
+                                <Button size="sm" disabled={isProcessing}>
+                                    {isImportingToDb ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengimpor...</> : <><Database className="mr-2 h-4 w-4" />Import File</>}
                                 </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -1080,14 +742,11 @@ function PreviewTable({
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                     <AlertDialogAction onClick={handleImportToDb} disabled={isImportingToDb}>
-                                        {isImportingToDb ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Importing...</> : "Yes, Import to DB"}
+                                        {isImportingToDb ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Importing...</> : "Yes, Import"}
                                     </AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
-                        <Button onClick={handleUndo} size="sm" variant="destructive" disabled={!lastActionUndoData || isProcessing || !isVerified}>
-                            {isUndoing ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Membatalkan...</> : <><Undo className="mr-2 h-4 w-4" />Undo Last Action</>}
-                        </Button>
                     </div>
                 </div>
             </CardHeader>
