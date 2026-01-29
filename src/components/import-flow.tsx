@@ -133,6 +133,7 @@ export function ImportFlow() {
     const [activeConflicts, setActiveConflicts] = useState<any[]>([]);
     const [newlyInserted, setNewlyInserted] = useState<any[]>([]);
     const [updatedItems, setUpdatedItems] = useState<any[]>([]);
+    const [isUpdatingAll, startUpdatingAll] = useTransition();
 
     useEffect(() => {
         if (importResult) {
@@ -148,6 +149,39 @@ export function ImportFlow() {
             setActiveConflicts(prev => prev.filter(c => c.ticket_number !== ticketNumber));
             setUpdatedItems(prev => [...prev, item]);
         }
+    };
+
+    const handleUpdateAll = () => {
+        if (activeConflicts.length === 0) return;
+
+        startUpdatingAll(async () => {
+            const updatePromises = activeConflicts.map(item =>
+                updateCaseStatus(item.ticket_number, item.new_status).then(result => ({ ...item, ...result }))
+            );
+
+            const results = await Promise.all(updatePromises);
+            
+            const successfulUpdates = results.filter(r => r.success);
+            const failedUpdates = results.filter(r => !r.success);
+            
+            if (successfulUpdates.length > 0) {
+                toast({
+                    title: `${successfulUpdates.length} Statuses Updated`,
+                    description: `Successfully updated status for ${successfulUpdates.length} items.`
+                });
+                const successfulTicketNumbers = new Set(successfulUpdates.map(item => item.ticket_number));
+                setActiveConflicts(prev => prev.filter(item => !successfulTicketNumbers.has(item.ticket_number)));
+                setUpdatedItems(prev => [...prev, ...successfulUpdates]);
+            }
+            
+            if (failedUpdates.length > 0) {
+                toast({
+                    variant: 'destructive',
+                    title: `${failedUpdates.length} Updates Failed`,
+                    description: 'Some items could not be updated.'
+                });
+            }
+        });
     };
 
 
@@ -672,9 +706,22 @@ export function ImportFlow() {
 
                         {activeConflicts.length > 0 && (
                             <div>
-                                <h3 className="text-lg font-medium tracking-tight text-amber-600">Conflicts ({activeConflicts.length})</h3>
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-medium tracking-tight text-amber-600">Update Status ({activeConflicts.length})</h3>
+                                    {activeConflicts.length > 1 && (
+                                        <Button
+                                            size="sm"
+                                            onClick={handleUpdateAll}
+                                            disabled={isUpdatingAll}
+                                            className="bg-amber-400 hover:bg-amber-500 text-amber-900 h-7 px-2"
+                                        >
+                                            {isUpdatingAll && <RefreshCw className="mr-2 h-3 w-3 animate-spin"/>}
+                                            Update All
+                                        </Button>
+                                    )}
+                                </div>
                                  <div className="mt-2 space-y-2">
-                                    <p className="text-sm text-muted-foreground">These items already exist but have a different status. You can update them individually.</p>
+                                    <p className="text-sm text-muted-foreground">These items already exist but have a different status. You can update them individually or all at once.</p>
                                     <div className="max-h-64 overflow-y-auto rounded-md border bg-muted/30 p-2">
                                         <ul className="space-y-1">
                                             {activeConflicts.map((item) => (
@@ -688,7 +735,7 @@ export function ImportFlow() {
 
                         {(importResult?.skipped?.length || 0) > 0 && (
                              <div>
-                                <h3 className="text-lg font-medium tracking-tight text-muted-foreground">Skipped ({importResult?.skipped.length})</h3>
+                                <h3 className="text-lg font-medium tracking-tight text-muted-foreground">Duplicate ({importResult?.skipped.length})</h3>
                                 <div className="mt-2">
                                     <ResultList items={importResult?.skipped} title="These items were skipped because they are duplicates with the same status, or are missing a ticket number." />
                                 </div>
@@ -950,5 +997,3 @@ function PreviewTable({
         </Card>
     );
 }
-
-    
