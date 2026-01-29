@@ -44,27 +44,23 @@ declare const XLSX: any;
 
 function ResultList({ items, title }: { items?: { ticket_number?: string, title?: string, reason?: string }[], title: string }) {
     if (!items || items.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-48 text-center text-sm text-muted-foreground">
-                <p>No items in this category.</p>
-            </div>
-        );
+        return null;
     }
 
     return (
         <div className="space-y-2">
             <p className="text-sm text-muted-foreground">{title}</p>
-            <ScrollArea className="h-64 w-full rounded-md border p-2">
+            <div className="max-h-48 w-full overflow-y-auto rounded-md border bg-muted/30 p-2">
                 <ul className="space-y-1">
                     {items.map((item, index) => (
-                        <li key={index} className="text-xs p-1.5 bg-secondary/50 rounded-md">
+                        <li key={index} className="text-xs p-1.5 bg-background rounded-md shadow-sm">
                             <span className="font-semibold">{item.ticket_number || item.title || "No Title"}</span>
                             {item.ticket_number && item.title && <span className="text-muted-foreground ml-2">{item.title}</span>}
                              {item.reason && <span className="text-destructive ml-2 text-[10px]">({item.reason})</span>}
                         </li>
                     ))}
                 </ul>
-            </ScrollArea>
+            </div>
         </div>
     );
 }
@@ -662,40 +658,44 @@ export function ImportFlow() {
                         The import process has finished. Here's a summary of the results.
                     </DialogDescription>
                 </DialogHeader>
-                <Tabs defaultValue="processed" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="processed">
-                            Processed ({newlyInserted.length + updatedItems.length})
-                        </TabsTrigger>
-                        <TabsTrigger value="conflicts">
-                            Conflicts ({activeConflicts.length})
-                        </TabsTrigger>
-                        <TabsTrigger value="skipped">
-                            Skipped ({importResult?.skipped.length || 0})
-                        </TabsTrigger>
-                    </TabsList>
-                    <div className="mt-4">
-                        <TabsContent value="processed">
-                            <ResultList items={newlyInserted} title="Items successfully inserted." />
-                            {updatedItems.length > 0 && <ResultList items={updatedItems.map(i => ({...i, title: `${i.title} (Status updated to ${i.new_status})`}))} title="Items with status updated." />}
-                        </TabsContent>
-                        <TabsContent value="conflicts">
-                             <div className="space-y-2">
-                                <p className="text-sm text-muted-foreground">These items already exist but have a different status.</p>
-                                <ScrollArea className="h-64 w-full rounded-md border p-2">
-                                    <ul className="space-y-1">
-                                        {activeConflicts.map((item) => (
-                                            <ConflictItem key={item.ticket_number} item={item} onUpdateSuccess={handleUpdateSuccess} />
-                                        ))}
-                                    </ul>
-                                </ScrollArea>
+                <ScrollArea className="max-h-[60vh] pr-4 -mr-4">
+                    <div className="space-y-6">
+                        {(newlyInserted.length > 0 || updatedItems.length > 0) && (
+                             <div>
+                                <h3 className="text-lg font-medium tracking-tight text-green-600">Processed ({newlyInserted.length + updatedItems.length})</h3>
+                                <div className="mt-2 space-y-3">
+                                    <ResultList items={newlyInserted} title="New items successfully inserted into the database." />
+                                    {updatedItems.length > 0 && <ResultList items={updatedItems.map(i => ({...i, title: `${i.title} (Status updated to ${i.new_status})`}))} title="Items with conflicting status have been updated." />}
+                                </div>
                             </div>
-                        </TabsContent>
-                        <TabsContent value="skipped">
-                            <ResultList items={importResult?.skipped} title="Items skipped due to being duplicates or missing a Ticket Number." />
-                        </TabsContent>
+                        )}
+
+                        {activeConflicts.length > 0 && (
+                            <div>
+                                <h3 className="text-lg font-medium tracking-tight text-amber-600">Conflicts ({activeConflicts.length})</h3>
+                                 <div className="mt-2 space-y-2">
+                                    <p className="text-sm text-muted-foreground">These items already exist but have a different status. You can update them individually.</p>
+                                    <div className="max-h-64 overflow-y-auto rounded-md border bg-muted/30 p-2">
+                                        <ul className="space-y-1">
+                                            {activeConflicts.map((item) => (
+                                                <ConflictItem key={item.ticket_number} item={item} onUpdateSuccess={handleUpdateSuccess} />
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {(importResult?.skipped?.length || 0) > 0 && (
+                             <div>
+                                <h3 className="text-lg font-medium tracking-tight text-muted-foreground">Skipped ({importResult?.skipped.length})</h3>
+                                <div className="mt-2">
+                                    <ResultList items={importResult?.skipped} title="These items were skipped because they are duplicates with the same status, or are missing a ticket number." />
+                                </div>
+                            </div>
+                        )}
                     </div>
-                </Tabs>
+                </ScrollArea>
                 <DialogFooter>
                     <Button onClick={() => setIsResultDialogOpen(false)}>Close</Button>
                 </DialogFooter>
@@ -950,3 +950,5 @@ function PreviewTable({
         </Card>
     );
 }
+
+    
