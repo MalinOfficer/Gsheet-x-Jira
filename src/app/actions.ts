@@ -306,48 +306,64 @@ export async function getDashboardFilterOptions() {
 export async function getL3ReportFromDB() {
   try {
     const { data, error } = await supabaseAdmin
-      .from('report_l3')
-      .select('client_name, detail_case, status_case, check_in')
-      .order('check_in', { ascending: false });
+      .from('all_cases')
+      .select('client_name, detail_case, check_in, module_case, source_link_op, status_case')
+      .in('status_case', ['L3', 'ON HOLD'])
+      .order('check_in', { ascending: true });
 
     if (error) {
-      console.error("❌ Supabase error fetching report_l3:", error);
+      console.error("❌ Supabase error fetching L3/On Hold cases:", error);
       throw new Error(`Database error: ${error.message}`);
     }
 
     if (!data || data.length === 0) {
-      return { success: true, report: "Tidak ada kasus L3 yang ditemukan." };
+      return { success: true, report: "Tidak ada kasus L3 atau On Hold yang ditemukan." };
     }
 
+    const formatDate = (date: Date) => {
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+
+    const minDate = new Date(data[0].check_in!);
+    const maxDate = new Date(data[data.length - 1].check_in!);
     const today = new Date();
-    const day = String(today.getDate()).padStart(2, '0');
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const year = today.getFullYear();
-    const todayDate = `${day}/${month}/${year}`;
-    
-    const latestEntry = data[0]?.check_in ? new Date(data[0].check_in) : new Date();
-    const formattedLatestTime = latestEntry.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
+    const header = `*Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})*`;
     const totalCases = data.length;
-    
-    const unresolvedCases = data
-      .filter(c => c.status_case?.toLowerCase() !== 'solved')
-      .map(c => `${c.client_name || 'N/A'} - ${c.detail_case || 'No Title'}`);
-      
-    const resolvedCases = data
-      .filter(c => c.status_case?.toLowerCase() === 'solved')
-      .map(c => `${c.client_name || 'N/A'} - ${c.detail_case || 'No Title'}`);
 
-    const reportText = `*Laporan Kasus L3 ${todayDate} (update terakhir jam ${formattedLatestTime})*
+    const casesByModule: Record<string, any[]> = {};
+    data.forEach(c => {
+      const moduleName = c.module_case?.toUpperCase() || 'UNCATEGORIZED';
+      if (!casesByModule[moduleName]) {
+        casesByModule[moduleName] = [];
+      }
+      casesByModule[moduleName].push(c);
+    });
 
-Total Kasus L3: ${totalCases}
+    const summaryLines = [`Total : ${totalCases}`];
+    Object.entries(casesByModule).forEach(([moduleName, cases]) => {
+      summaryLines.push(`${moduleName} > L3 : ${cases.length}`);
+    });
+    const summary = summaryLines.join('\n');
 
-*Kasus Belum Selesai:*
-${unresolvedCases.length > 0 ? unresolvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') : 'Tidak ada kasus L3 yang belum selesai.'}
+    const detailLines: string[] = [];
+    Object.entries(casesByModule).forEach(([moduleName, cases]) => {
+      detailLines.push(`\n*${moduleName} > L3*`);
+      cases.sort((a,b) => a.client_name!.localeCompare(b.client_name!)).forEach((c, index) => {
+        const checkInDate = new Date(c.check_in!);
+        const age = Math.ceil((today.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+        const jiraLink = c.source_link_op || '';
+        const caseTitle = `${c.client_name || ''} ${c.detail_case || 'No Title'}`.trim();
 
-*Kasus Selesai:*
-${resolvedCases.length > 0 ? resolvedCases.map((item, i) => `${i + 1}. ${item}`).join('\n') : 'Tidak ada kasus L3 yang sudah selesai.'}
-`;
+        detailLines.push(`${index + 1}. ${caseTitle} ${jiraLink} (${age} hari)`.trim());
+      });
+    });
+    const details = detailLines.join('\n');
+
+    const reportText = `${header}\n\n${summary}${details}`;
 
     return { success: true, report: reportText.trim() };
 

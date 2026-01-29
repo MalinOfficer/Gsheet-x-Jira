@@ -152,14 +152,20 @@ export function DbViewer({
     const [totalPages, setTotalPages] = useState(0);
     
     const [isClient, setIsClient] = useState(false);
+    
+    // Report Dialog State
+    const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+    const [reportContent, setReportContent] = useState('');
+    const [isGeneratingReport, startGeneratingReport] = useTransition();
+    const [isReportCopied, setIsReportCopied] = useState(false);
 
     useEffect(() => {
         setIsClient(true);
     }, []);
 
     useEffect(() => {
-        setIsProcessing(isPending || isSaving);
-    }, [isPending, isSaving, setIsProcessing]);
+        setIsProcessing(isPending || isSaving || isGeneratingReport);
+    }, [isPending, isSaving, isGeneratingReport, setIsProcessing]);
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return ['no'];
@@ -393,12 +399,11 @@ export function DbViewer({
                     try {
                         const date = new Date(cellValue);
                         if (!isNaN(date.getTime())) {
-                            // Using local time formatting
                             const options: Intl.DateTimeFormatOptions = {
                                 year: 'numeric', month: '2-digit', day: '2-digit',
-                                hour: '2-digit', minute: '2-digit', hour12: false
+                                hour: '2-digit', minute: '2-digit', hour12: false,
+                                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                             };
-                            // Use a specific locale that gives DD/MM/YYYY, like 'en-GB'
                             const formatter = new Intl.DateTimeFormat('en-GB', options);
                             newRow[header] = formatter.format(date).replace(',', '');
                         }
@@ -534,6 +539,24 @@ export function DbViewer({
             }
         });
     };
+    
+    const handleGenerateReport = () => {
+        startGeneratingReport(async () => {
+            setIsReportCopied(false);
+            setReportContent('');
+            const result = await getL3ReportFromDB();
+            if (result.error) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Failed to generate report',
+                    description: result.error,
+                });
+            } else {
+                setReportContent(result.report || 'No data found.');
+                setIsReportDialogOpen(true);
+            }
+        });
+    };
 
     const handleCellChange = (id: number, header: string, value: string) => {
         setState(prevState => {
@@ -549,28 +572,6 @@ export function DbViewer({
             return { ...prevState, data: newData };
         });
     };
-
-    const handleL3FilterToggle = () => {
-        const isCurrentlyFilteringL3 = columnFilters.status?.length === 1 && columnFilters.status[0] === 'L3';
-
-        if (isCurrentlyFilteringL3) {
-            // If the only status filter is L3, clear it.
-            const newFilters = { ...columnFilters };
-            delete newFilters.status;
-            setColumnFilters(newFilters);
-            toast({ title: "L3 Filter Cleared", description: "Showing all statuses again." });
-        } else {
-            // Otherwise, set the filter to be *only* L3.
-            setColumnFilters(prev => ({
-                ...prev,
-                status: ['L3']
-            }));
-            toast({ title: "L3 Filter Applied", description: "Showing only L3 status cases." });
-        }
-    };
-    
-    const isL3FilterActive = columnFilters.status?.length === 1 && columnFilters.status[0] === 'L3';
-
 
     const renderHeaderContent = (header: string) => {
         const displayHeader = headerDisplayMapping[header] || header;
@@ -828,18 +829,14 @@ export function DbViewer({
                                 </Button>
                             )}
                              <Button
-                                onClick={handleL3FilterToggle}
+                                onClick={handleGenerateReport}
                                 size="sm"
                                 variant="outline"
-                                className={cn(
-                                    isL3FilterActive
-                                    ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 border-transparent'
-                                    : 'text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/50 dark:hover:text-red-300'
-                                )}
-                                disabled={isPending || isRefreshing || isEditMode || isSaving}
+                                className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/50 dark:hover:text-red-300"
+                                disabled={isPending || isRefreshing || isEditMode || isSaving || isGeneratingReport}
                             >
-                                <Filter className="mr-2 h-4 w-4" />
-                                {isL3FilterActive ? "Clear L3 Filter" : "Filter L3"}
+                                {isGeneratingReport ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Copy className="mr-2 h-4 w-4" />}
+                                {isGeneratingReport ? "Generating..." : "L3 Report"}
                             </Button>
                             <Button onClick={() => fetchData(true)} size="sm" variant="default" disabled={isPending || isRefreshing || isEditMode || isSaving}>
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -1114,6 +1111,37 @@ export function DbViewer({
                 </CardFooter>
             </Card>
 
+            <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+                <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>L3 Case Report</DialogTitle>
+                        <DialogDescription>
+                            This is a snapshot of all active L3 and On Hold cases.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-4 max-h-[60vh] overflow-y-auto rounded-md border bg-muted/50 p-4">
+                        <pre className="text-xs font-mono whitespace-pre-wrap">
+                            {reportContent}
+                        </pre>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            onClick={() => {
+                                navigator.clipboard.writeText(reportContent);
+                                setIsReportCopied(true);
+                                toast({ title: 'Report copied to clipboard' });
+                                setTimeout(() => setIsReportCopied(false), 2000);
+                            }}
+                            size="sm"
+                            variant="outline"
+                        >
+                            {isReportCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                            {isReportCopied ? 'Copied!' : 'Copy Report'}
+                        </Button>
+                        <Button onClick={() => setIsReportDialogOpen(false)}>Close</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
