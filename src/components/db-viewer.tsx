@@ -766,7 +766,7 @@ export function DbViewer({
                                 <Filter className="mr-2 h-4 w-4" />
                                 {isL3FilterActive ? "Clear L3 Filter" : "Filter L3 Cases"}
                             </Button>
-                            <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={isPending || isRefreshing || isEditMode || isSaving}>
+                            <Button onClick={() => fetchData(true)} size="sm" variant="default" disabled={isPending || isRefreshing || isEditMode || isSaving}>
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>
@@ -836,9 +836,8 @@ export function DbViewer({
                                                     try {
                                                         const date = new Date(cellValue);
                                                         if (!isNaN(date.getTime())) {
-                                                            const timeZoneOffset = date.getTimezoneOffset() * 60000;
-                                                            const localDate = new Date(date.getTime() + timeZoneOffset);
-
+                                                            const localDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60000);
+                                                            
                                                             if (header === 'date') {
                                                                 cellValue = localDate.toISOString().split('T')[0];
                                                             } else {
@@ -853,18 +852,18 @@ export function DbViewer({
                                                 const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
                                                 
                                                 const columnsToCenter = [
-                                                    'no',
-                                                    'date',
-                                                    'month', 
-                                                    'client_name', 
-                                                    'customer_name', 
-                                                    'ticket_category', 
-                                                    'module', 
-                                                    'detail_module', 
-                                                    'created_at', 
-                                                    'resolved_at', 
-                                                    'status_case_2'
-                                                ];
+    'no',
+    'date',
+    'month',
+    'client_name',
+    'customer_name',
+    'ticket_category',
+    'module',
+    'detail_module',
+    'created_at',
+    'resolved_at',
+    'status_case_2'
+];
 
                                                 return (
                                                     <div 
