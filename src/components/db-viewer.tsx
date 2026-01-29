@@ -17,7 +17,7 @@ import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, updateCase, getL3ReportFromDB } from "@/app/actions";
+import { getAllCaseData, updateCase } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -153,13 +153,6 @@ export function DbViewer({
     const [totalPages, setTotalPages] = useState(0);
     
     const [isClient, setIsClient] = useState(false);
-
-    // L3 Report State
-    const [l3Report, setL3Report] = useState<string | null>(null);
-    const [isL3ReportOpen, setIsL3ReportOpen] = useState(false);
-    const [isFetchingL3, startFetchingL3] = useTransition();
-    const [isL3Copied, setIsL3Copied] = useState(false);
-
 
     useEffect(() => {
         setIsClient(true);
@@ -493,26 +486,26 @@ export function DbViewer({
         });
     };
 
-    const handleFetchL3Report = () => {
-        startFetchingL3(async () => {
-            const result = await getL3ReportFromDB();
-            if (result.success) {
-                setL3Report(result.report || 'No L3 cases found.');
-                setIsL3ReportOpen(true);
-            } else {
-                toast({ variant: 'destructive', title: 'Failed to get L3 Report', description: result.error });
-            }
-        });
-    };
+    const handleL3FilterToggle = () => {
+        const isCurrentlyFilteringL3 = columnFilters.status?.length === 1 && columnFilters.status[0] === 'L3';
 
-    const handleCopyL3Report = () => {
-        if (!l3Report) return;
-        navigator.clipboard.writeText(l3Report).then(() => {
-            setIsL3Copied(true);
-            toast({ title: 'Report copied to clipboard!' });
-            setTimeout(() => setIsL3Copied(false), 2000);
-        });
+        if (isCurrentlyFilteringL3) {
+            // If the only status filter is L3, clear it.
+            const newFilters = { ...columnFilters };
+            delete newFilters.status;
+            setColumnFilters(newFilters);
+            toast({ title: "L3 Filter Cleared", description: "Showing all statuses again." });
+        } else {
+            // Otherwise, set the filter to be *only* L3.
+            setColumnFilters(prev => ({
+                ...prev,
+                status: ['L3']
+            }));
+            toast({ title: "L3 Filter Applied", description: "Showing only L3 status cases." });
+        }
     };
+    
+    const isL3FilterActive = columnFilters.status?.length === 1 && columnFilters.status[0] === 'L3';
 
 
     const renderHeaderContent = (header: string) => {
@@ -770,9 +763,9 @@ export function DbViewer({
                                     <Pencil className="mr-2 h-4 w-4" /> Edit
                                 </Button>
                             )}
-                             <Button onClick={handleFetchL3Report} size="sm" variant="outline" disabled={isPending || isRefreshing || isEditMode || isSaving || isFetchingL3}>
-                                {isFetchingL3 ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-                                L3 Report
+                             <Button onClick={handleL3FilterToggle} size="sm" variant={isL3FilterActive ? "default" : "outline"} disabled={isPending || isRefreshing || isEditMode || isSaving}>
+                                <Filter className="mr-2 h-4 w-4" />
+                                {isL3FilterActive ? "Clear L3 Filter" : "Filter L3 Cases"}
                             </Button>
                             <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={isPending || isRefreshing || isEditMode || isSaving}>
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -849,7 +842,7 @@ export function DbViewer({
                                                         const date = new Date(cellValue);
                                                         if (!isNaN(date.getTime())) {
                                                             const timeZoneOffset = date.getTimezoneOffset() * 60000;
-                                                            const localDate = new Date(date.getTime() - timeZoneOffset);
+                                                            const localDate = new Date(date.getTime() + timeZoneOffset);
 
                                                             if (header === 'date') {
                                                                 cellValue = localDate.toISOString().split('T')[0];
@@ -899,7 +892,7 @@ export function DbViewer({
                                                                     }}
                                                                     disabled={!row}
                                                                 >
-                                                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
+                                                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
                                                                         {cellValue ? (
                                                                             <span className={cn('px-2 py-0.5 rounded-md text-xs', header === 'status' && 'inline-flex items-center justify-center w-[100px]', header === 'ticket_category' ? (categoryColorMap[cellValue as string] || categoryColorMap.default) : (statusColorMap[cellValue as string] || statusColorMap.default))}>
                                                                                 {cellValue}
@@ -928,7 +921,7 @@ export function DbViewer({
                                                                     }}
                                                                     disabled={!row}
                                                                 >
-                                                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
+                                                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
                                                                         <SelectValue placeholder="Select..." />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
@@ -1068,32 +1061,6 @@ export function DbViewer({
                     </div>
                 </CardFooter>
             </Card>
-
-             <Dialog open={isL3ReportOpen} onOpenChange={setIsL3ReportOpen}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>L3 Case Report</DialogTitle>
-                        <DialogDescription>
-                            This is the latest L3 case report generated from the database.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="h-96 text-xs font-mono bg-muted/20 rounded-md border p-3 overflow-auto whitespace-pre-wrap">
-                        {isFetchingL3 ? 'Generating...' : l3Report}
-                    </div>
-                    <DialogFooter className="sm:justify-between">
-                         <Button
-                            onClick={handleCopyL3Report}
-                            size="sm"
-                            variant="outline"
-                            disabled={!l3Report || isL3Copied}
-                        >
-                            {isL3Copied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                            {isL3Copied ? 'Copied' : 'Copy Report'}
-                        </Button>
-                        <Button onClick={() => setIsL3ReportOpen(false)}>Close</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
         </div>
     );
