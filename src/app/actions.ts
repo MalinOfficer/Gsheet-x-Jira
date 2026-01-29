@@ -307,7 +307,7 @@ export async function getL3ReportFromDB() {
   try {
     const { data, error } = await supabaseAdmin
       .from('all_cases')
-      .select('client_name, detail_case, check_in, module_case, source_link_op, status_case')
+      .select('client_name, detail_case, check_in, module_case, source_link_op, status_case, ticket_number')
       .in('status_case', ['L3', 'ON HOLD'])
       .order('check_in', { ascending: true });
 
@@ -321,6 +321,7 @@ export async function getL3ReportFromDB() {
     }
 
     const formatDate = (date: Date) => {
+      if (!date || isNaN(date.getTime())) return '';
       const day = String(date.getDate()).padStart(2, '0');
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const year = date.getFullYear();
@@ -343,27 +344,47 @@ export async function getL3ReportFromDB() {
       casesByModule[moduleName].push(c);
     });
 
+    // Create summary of modules
     const summaryLines = [`Total : ${totalCases}`];
-    Object.entries(casesByModule).forEach(([moduleName, cases]) => {
-      summaryLines.push(`${moduleName} > L3 : ${cases.length}`);
+    // Sort modules alphabetically for consistent order
+    const sortedModules = Object.keys(casesByModule).sort((a, b) => a.localeCompare(b));
+    
+    sortedModules.forEach(moduleName => {
+        const cases = casesByModule[moduleName];
+        summaryLines.push(`${moduleName} > L3 : ${cases.length}`);
     });
     const summary = summaryLines.join('\n');
 
+    // Create detailed list
     const detailLines: string[] = [];
-    Object.entries(casesByModule).forEach(([moduleName, cases]) => {
+    sortedModules.forEach(moduleName => {
       detailLines.push(`\n*${moduleName} > L3*`);
-      cases.sort((a,b) => a.client_name!.localeCompare(b.client_name!)).forEach((c, index) => {
-        const checkInDate = new Date(c.check_in!);
-        const age = Math.ceil((today.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-        const jiraLink = c.source_link_op || '';
-        const caseTitle = `${c.client_name || ''} ${c.detail_case || 'No Title'}`.trim();
+      const cases = casesByModule[moduleName];
 
-        detailLines.push(`${index + 1}. ${caseTitle} ${jiraLink} (${age} hari)`.trim());
+      cases.sort((a,b) => (a.client_name || '').localeCompare(b.client_name || '')).forEach((c, index) => {
+        const checkInDate = new Date(c.check_in!);
+        
+        let age = 0;
+        if (!isNaN(checkInDate.getTime())) {
+            const ageDiff = Math.ceil((today.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+            age = Math.max(1, ageDiff); // Ensure age is at least 1 day
+        }
+
+        const caseLineParts = [
+            c.client_name,
+            c.ticket_number,
+            c.detail_case,
+            c.source_link_op,
+        ].filter(Boolean); // Filter out any null/undefined/empty parts
+
+        const caseLine = caseLineParts.join(' ').trim();
+        
+        detailLines.push(`${index + 1}. ${caseLine} (${age} hari)`.trim());
       });
     });
     const details = detailLines.join('\n');
 
-    const reportText = `${header}\n\n${summary}${details}`;
+    const reportText = `${header}\n\n${summary}\n${details}`;
 
     return { success: true, report: reportText.trim() };
 
@@ -446,3 +467,5 @@ export async function mergeFilesOnServer(
     error: "This function is not implemented in the live demo." 
   };
 }
+
+    
