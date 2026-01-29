@@ -859,7 +859,7 @@ export function DbViewer({
                                                                 >
                                                                     <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-xs focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
                                                                         {cellValue ? (
-                                                                            <span className={cn('px-2 py-0.5 rounded-md', header === 'status' && 'inline-flex items-center justify-center w-[100px]', header === 'ticket_category' ? (categoryColorMap[cellValue as string] || categoryColorMap.default) : (statusColorMap[cellValue as string] || statusColorMap.default))}>
+                                                                            <span className={cn('px-2 py-0.5 rounded-md text-xs', header === 'status' && 'inline-flex items-center justify-center w-[100px]', header === 'ticket_category' ? (categoryColorMap[cellValue as string] || categoryColorMap.default) : (statusColorMap[cellValue as string] || statusColorMap.default))}>
                                                                                 {cellValue}
                                                                             </span>
                                                                         ) : (
@@ -869,7 +869,7 @@ export function DbViewer({
                                                                     <SelectContent>
                                                                         {(header === 'ticket_category' ? ALL_CATEGORIES : ALL_STATUSES).map(option => (
                                                                             <SelectItem key={option} value={option}>
-                                                                                <span className={cn('px-2 py-0.5 rounded-md', header === 'ticket_category' ? (categoryColorMap[option] || categoryColorMap.default) : (statusColorMap[option] || statusColorMap.default))}>
+                                                                                <span className={cn('px-2 py-0.5 rounded-md text-xs', header === 'ticket_category' ? (categoryColorMap[option] || categoryColorMap.default) : (statusColorMap[option] || statusColorMap.default))}>
                                                                                     {option}
                                                                                 </span>
                                                                             </SelectItem>
@@ -907,14 +907,14 @@ export function DbViewer({
                                                                 disabled={!row}
                                                             />
                                                         ) : (
-                                                            <div className="p-4 flex items-center text-xs">
+                                                            <div className="p-4 flex items-center">
                                                                 {row ? (
                                                                     (header === 'ticket_category' && cellValue) ? (
-                                                                        <span className={cn('px-2 py-0.5 rounded-md', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
+                                                                        <span className={cn('text-xs px-2 py-0.5 rounded-md', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
                                                                             {cellValue}
                                                                         </span>
                                                                     ) : (header === 'status' && cellValue) ? (
-                                                                        <span className={cn('inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md', statusColorMap[cellValue as string] || statusColorMap.default)}>
+                                                                        <span className={cn('text-xs inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md', statusColorMap[cellValue as string] || statusColorMap.default)}>
                                                                             {cellValue}
                                                                         </span>
                                                                     ) : (header === 'title' && cellValue && typeof cellValue === 'string' && cellValue.match(/(IHO-\d+)/)) ? (
@@ -923,7 +923,7 @@ export function DbViewer({
                                                                             const ticketId = match[0];
                                                                             const parts = cellValue.split(ticketId);
                                                                             return (
-                                                                                <span className="truncate">
+                                                                                <span className="truncate text-xs">
                                                                                     {parts[0]}
                                                                                     <a
                                                                                         href={`https://pintro.atlassian.net/browse/${ticketId}`}
@@ -938,7 +938,7 @@ export function DbViewer({
                                                                             );
                                                                         })()
                                                                     ) : (
-                                                                        <span className="truncate">{cellValue}</span>
+                                                                        <span className="truncate text-xs">{cellValue}</span>
                                                                     )
                                                                 ) : (
                                                                     <Skeleton className="h-4 w-full" />
