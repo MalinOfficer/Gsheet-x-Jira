@@ -119,7 +119,6 @@ export function DbViewer({
     initialError,
     availableYears = []
 }: DbViewerProps) {
-    const { dbSheetUrl } = useContext(SettingsContext);
     const { setIsProcessing } = useContext(TableDataContext);
     const [state, setState] = useState<DbViewerState>({
         data: initialData,
@@ -271,8 +270,6 @@ export function DbViewer({
     }, [columnWidths]);
 
     const totalWidth = useMemo(() => Object.values(columnWidths).reduce((acc, width) => acc + width, 0), [columnWidths]);
-
-    const dateHeaderKey = useMemo(() => headers.find(h => h.toLowerCase() === 'date'), [headers]);
     
     // 🔥 FIXED: fetchData with server-side pagination
     const fetchData = useCallback(async (isRefresh = false) => {
@@ -502,7 +499,7 @@ export function DbViewer({
         const isFilterActive = columnFilters[header]?.length > 0;
         const headerStyle = "text-muted-foreground";
 
-        if (header === dateHeaderKey) {
+        if (header === 'date') {
             return (
                 <Popover open={isDatePopoverOpen} onOpenChange={(open) => {
                     if (open) {
@@ -821,16 +818,30 @@ export function DbViewer({
                                                 
                                                 let cellValue = row ? (isNoColumn ? rowNumber : row[header]) : null;
 
-                                                // Date formatting
-                                                if (row && header === dateHeaderKey && typeof cellValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(cellValue)) {
-                                                    try {
-                                                        const date = new Date(cellValue);
-                                                        const day = String(date.getUTCDate()).padStart(2, '0');
-                                                        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-                                                        const year = date.getUTCFullYear();
-                                                        cellValue = `${day}/${month}/${year}`;
-                                                    } catch(e) {
-                                                        // Keep original value
+                                                // Date/Time formatting
+                                                if (row && ['date', 'created_at', 'resolved_at'].includes(header) && typeof cellValue === 'string' && cellValue) {
+                                                    // Don't format simple time strings like "6:51"
+                                                    if (/^\d{1,2}:\d{2}$/.test(cellValue)) {
+                                                        // keep as is
+                                                    } else {
+                                                        try {
+                                                            const date = new Date(cellValue);
+                                                            if (!isNaN(date.getTime())) { // Check if date is valid
+                                                                const day = String(date.getUTCDate()).padStart(2, '0');
+                                                                const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+                                                                const year = date.getUTCFullYear();
+
+                                                                if (header === 'date') {
+                                                                    cellValue = `${day}/${month}/${year}`;
+                                                                } else { // For created_at and resolved_at
+                                                                    const hours = String(date.getUTCHours()).padStart(2, '0');
+                                                                    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+                                                                    cellValue = `${day}/${month}/${year} ${hours}:${minutes}`;
+                                                                }
+                                                            }
+                                                        } catch(e) {
+                                                            // Keep original value on error
+                                                        }
                                                     }
                                                 }
 
