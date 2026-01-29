@@ -123,7 +123,7 @@ export function ImportFlow() {
             let month = '';
             if (createdAt && !isNaN(createdAt.getTime())) {
                 date = createdAt.toISOString().split('T')[0]; // YYYY-MM-DD
-                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
                 month = monthNames[createdAt.getMonth()];
             }
             
@@ -872,3 +872,5 @@ function PreviewTable({
         </Card>
     );
 }
+
+    
