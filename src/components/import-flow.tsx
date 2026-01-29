@@ -37,12 +37,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 
 const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
-const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,TICKET NUMBER,Ticket Category,Module,Detail Module,Created At,Title,Kolom kosong2,Resolved At,Ticket OP';
+const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,Title,Ticket Category,Module,Detail Module,Created At,Kolom kosong2,Resolved At,Ticket OP';
 const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
 
 declare const XLSX: any;
 
-function ResultList({ items, title }: { items?: { ticket_number: string, title?: string }[], title: string }) {
+function ResultList({ items, title }: { items?: { title?: string }[], title: string }) {
     if (!items || items.length === 0) {
         return (
             <div className="flex items-center justify-center h-48 text-center text-sm text-muted-foreground">
@@ -58,7 +58,7 @@ function ResultList({ items, title }: { items?: { ticket_number: string, title?:
                 <ul className="space-y-1">
                     {items.map((item, index) => (
                         <li key={index} className="text-xs p-1.5 bg-secondary/50 rounded-md">
-                            <span className="font-semibold">{item.ticket_number}</span> - <span className="text-muted-foreground">{item.title || "No Title"}</span>
+                            <span className="font-semibold">{item.title || "No Title"}</span>
                         </li>
                     ))}
                 </ul>
@@ -131,7 +131,6 @@ export function ImportFlow() {
                 date: date,
                 month: month,
                 created_at: createdAt && !isNaN(createdAt.getTime()) ? createdAt.toISOString() : undefined,
-                ticket_number: String(row['TICKET NUMBER'] || ''),
                 client_name: String(row['Client Name'] || ''),
                 customer_name: String(row['Customer Name'] || ''),
                 status: String(row['Status'] || ''),
@@ -657,7 +656,6 @@ function PreviewTable({
             if (lowerHeader === 'title') widths[header] = 384;
             else if (lowerHeader.includes('customer name')) widths[header] = 180;
             else if (lowerHeader.includes('client name')) widths[header] = 160;
-            else if (lowerHeader.includes('ticket number')) widths[header] = 150;
             else if (lowerHeader.includes('ticket category')) widths[header] = 150;
             else if (lowerHeader.includes('kolom kosong')) widths[header] = 150;
             else if (lowerHeader === 'status' || lowerHeader === 'ticket op') widths[header] = 100;

@@ -9,7 +9,6 @@ export type ImportCasePayload = {
   date: string;
   month: string;
   created_at?: string;
-  ticket_number: string;
   client_name: string;
   customer_name?: string;
   status: string;
@@ -30,78 +29,16 @@ export type ImportCasePayload = {
 
 export async function importOrUpdateCases(rows: ImportCasePayload[]) {
   try {
-    // 1. De-duplicate the source data, keeping the last occurrence.
-    const seenTickets = new Set<string>();
-    const uniqueRows: ImportCasePayload[] = [];
-    const sourceDuplicates: ImportCasePayload[] = [];
-    
-    // Iterate backwards to keep the last one found in the file
-    for (let i = rows.length - 1; i >= 0; i--) {
-      const row = rows[i];
-      // Only perform de-duplication for rows that have a ticket number.
-      if (row.ticket_number) {
-        if (seenTickets.has(row.ticket_number)) {
-          // This is a duplicate within the source file, mark it to be skipped.
-          sourceDuplicates.push(row);
-        } else {
-          // This is the first time we see this ticket number, add it for processing.
-          uniqueRows.unshift(row);
-          seenTickets.add(row.ticket_number);
-        }
-      } else {
-        // If there's no ticket number, it's always a new entry, so add it.
-        uniqueRows.unshift(row);
-      }
+    if (!rows || rows.length === 0) {
+      return { success: true, imported: [], updated: [], duplicates: [] };
     }
     
-    if (uniqueRows.length === 0) {
-      return {
-        success: true,
-        imported: [],
-        updated: [],
-        duplicates: sourceDuplicates.map(r => ({ ticket_number: r.ticket_number, title: r.title })),
-      };
-    }
-
-    // Identify rows that need to be updated vs. inserted
-    const uniqueTicketNumbers = uniqueRows
-      .map(r => r.ticket_number)
-      .filter(Boolean); // Only check for existing tickets if they have a number
-
-    let existingTicketNumbers = new Set<string>();
-    if (uniqueTicketNumbers.length > 0) {
-        const { data: existingCases, error: fetchError } = await supabaseAdmin
-          .from("all_cases")
-          .select("ticket_number")
-          .in("ticket_number", uniqueTicketNumbers);
-
-        if (fetchError) {
-          throw new Error(`Failed to check existing cases: ${fetchError.message}`);
-        }
-        existingTicketNumbers = new Set(existingCases.map(c => c.ticket_number));
-    }
-
-    const newCases: ImportCasePayload[] = [];
-    const updatedCases: ImportCasePayload[] = [];
-
-    uniqueRows.forEach(row => {
-      // A row is considered an "update" only if it has a ticket number AND that number exists in the DB.
-      if (row.ticket_number && existingTicketNumbers.has(row.ticket_number)) {
-        updatedCases.push(row);
-      } else {
-        newCases.push(row);
-      }
-    });
-
-    // Prepare payload for upsert. Rows with ticket_number will update on conflict.
-    // Rows without ticket_number will be inserted as new entries.
-    const payload = uniqueRows.map((row) => ({
+    // Prepare payload for insert. 
+    const payload = rows.map((row) => ({
       date: row.date,
       month: row.month,
-      ticket_number: row.ticket_number,
       client_name: row.client_name,
       detail_module: row.detail_module,
-      // Mapped fields
       check_in: row.created_at,
       check_out: row.resolved_at,
       pic_client: row.customer_name,
@@ -112,23 +49,18 @@ export async function importOrUpdateCases(rows: ImportCasePayload[]) {
       source_link_op: row.ticket_op,
     }));
 
-    // Perform the upsert. This is now safe because `payload` has no duplicate ticket_numbers.
-    const { error: upsertError } = await supabaseAdmin
+    const { error: insertError } = await supabaseAdmin
       .from("all_cases")
-      .upsert(payload, {
-        onConflict: "ticket_number",
-        // Do not update the ticket_number itself on conflict
-        ignoreDuplicates: false
-      });
+      .insert(payload);
 
-    if (upsertError) throw upsertError;
+    if (insertError) throw insertError;
 
-    // Return detailed results
+    // Since it's a pure insert, all are "imported".
     return {
       success: true,
-      imported: newCases.map(r => ({ ticket_number: r.ticket_number, title: r.title })),
-      updated: updatedCases.map(r => ({ ticket_number: r.ticket_number, title: r.title })),
-      duplicates: sourceDuplicates.map(r => ({ ticket_number: r.ticket_number, title: r.title })),
+      imported: rows.map(r => ({ title: r.title })),
+      updated: [],
+      duplicates: [],
     };
   } catch (err: any) {
     console.error("Error in importOrUpdateCases:", err);
