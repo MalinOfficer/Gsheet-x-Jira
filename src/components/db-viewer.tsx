@@ -907,7 +907,7 @@ export function DbViewer({
                                                                 disabled={!row}
                                                             />
                                                         ) : (
-                                                            <div className="p-2 flex items-center h-full">
+                                                            <div className={cn("py-1 px-2 flex items-center h-full", header === 'month' && 'justify-center')}>
                                                                 {row ? (
                                                                     (header === 'ticket_category' && cellValue) ? (
                                                                         <span className={cn('text-xs px-2 py-0.5 rounded-md', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
@@ -920,6 +920,7 @@ export function DbViewer({
                                                                     ) : (header === 'title' && cellValue && typeof cellValue === 'string' && cellValue.match(/(IHO-\d+)/)) ? (
                                                                         (() => {
                                                                             const match = cellValue.match(/(IHO-\d+)/);
+                                                                            if (!match) return <span className="truncate text-xs">{cellValue}</span>;
                                                                             const ticketId = match[0];
                                                                             const parts = cellValue.split(ticketId);
                                                                             return (
