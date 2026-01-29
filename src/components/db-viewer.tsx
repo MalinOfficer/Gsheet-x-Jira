@@ -2,7 +2,7 @@
 
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -17,7 +17,7 @@ import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, updateCase } from "@/app/actions";
+import { getAllCaseData, updateCase, getL3ReportFromDB } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -26,10 +26,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from 'date-fns';
 import { DateRange } from "react-day-picker"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
-import { Check } from 'lucide-react';
 import { Skeleton } from "./ui/skeleton";
 import { Progress } from "./ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 
 
 interface DbViewerProps {
@@ -146,13 +146,20 @@ export function DbViewer({
     const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
     const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(undefined);
 
-    // 🔥 Pagination state - SERVER-SIDE
+    // Pagination state - SERVER-SIDE
     const [pageSize, setPageSize] = useState(50);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalRows, setTotalRows] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     
     const [isClient, setIsClient] = useState(false);
+
+    // L3 Report State
+    const [l3Report, setL3Report] = useState<string | null>(null);
+    const [isL3ReportOpen, setIsL3ReportOpen] = useState(false);
+    const [isFetchingL3, startFetchingL3] = useTransition();
+    const [isL3Copied, setIsL3Copied] = useState(false);
+
 
     useEffect(() => {
         setIsClient(true);
@@ -270,7 +277,6 @@ export function DbViewer({
 
     const totalWidth = useMemo(() => Object.values(columnWidths).reduce((acc, width) => acc + width, 0), [columnWidths]);
     
-    // 🔥 FIXED: fetchData with server-side pagination
     const fetchData = useCallback(async (isRefresh = false) => {
         startTransition(async () => {
             if (isRefresh) {
@@ -278,7 +284,6 @@ export function DbViewer({
                 setProgress(0);
             }
             
-            // Pass pagination params to backend
             const dataResult = await getAllCaseData({
                 year: yearFilter || undefined,
                 dateRange: dateRange,
@@ -303,7 +308,6 @@ export function DbViewer({
                     error: null,
                 });
                 
-                // Update pagination metadata from backend
                 if (dataResult.pagination) {
                     setTotalRows(dataResult.pagination.total);
                     setTotalPages(dataResult.pagination.totalPages);
@@ -325,12 +329,11 @@ export function DbViewer({
         });
     }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, toast]);
 
-    // 🔥 FIXED: Trigger fetch on filter/pagination changes
     useEffect(() => {
         if (isInitialMount.current) {
             isInitialMount.current = false;
-            if (initialData) { // If there's initial data from server, set pagination info from it
-                setTotalRows(initialData.length); // This might be incorrect if initialData is not paginated
+            if (initialData) {
+                setTotalRows(initialData.length);
                 setTotalPages(Math.ceil(initialData.length / pageSize));
             }
             return;
@@ -381,12 +384,10 @@ export function DbViewer({
         return [];
     }, [fetchedYears]);
 
-    // 🔥 FIXED: Reset page when filters change (NOT when page/pageSize changes)
     useEffect(() => {
         setCurrentPage(1);
     }, [debouncedSearchTerm, dateRange, columnFilters, yearFilter]);
     
-    // 🔥 FIXED: Use data directly from backend (already filtered & paginated)
     const displayData = useMemo(() => {
         return state.data || [];
     }, [state.data]);
@@ -491,6 +492,28 @@ export function DbViewer({
             return { ...prevState, data: newData };
         });
     };
+
+    const handleFetchL3Report = () => {
+        startFetchingL3(async () => {
+            const result = await getL3ReportFromDB();
+            if (result.success) {
+                setL3Report(result.report || 'No L3 cases found.');
+                setIsL3ReportOpen(true);
+            } else {
+                toast({ variant: 'destructive', title: 'Failed to get L3 Report', description: result.error });
+            }
+        });
+    };
+
+    const handleCopyL3Report = () => {
+        if (!l3Report) return;
+        navigator.clipboard.writeText(l3Report).then(() => {
+            setIsL3Copied(true);
+            toast({ title: 'Report copied to clipboard!' });
+            setTimeout(() => setIsL3Copied(false), 2000);
+        });
+    };
+
 
     const renderHeaderContent = (header: string) => {
         const displayHeader = headerDisplayMapping[header] || header;
@@ -743,11 +766,14 @@ export function DbViewer({
                                     </Button>
                                 </div>
                             ) : (
-                                <Button onClick={handleEditClick} size="sm" variant="outline">
+                                <Button onClick={handleEditClick} size="sm" className="bg-yellow-400 text-black hover:bg-yellow-500">
                                     <Pencil className="mr-2 h-4 w-4" /> Edit
                                 </Button>
                             )}
-
+                             <Button onClick={handleFetchL3Report} size="sm" variant="outline" disabled={isPending || isRefreshing || isEditMode || isSaving || isFetchingL3}>
+                                {isFetchingL3 ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                                L3 Report
+                            </Button>
                             <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={isPending || isRefreshing || isEditMode || isSaving}>
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh
@@ -821,30 +847,14 @@ export function DbViewer({
                                                 if (row && ['date', 'created_at', 'resolved_at'].includes(header) && typeof cellValue === 'string' && cellValue) {
                                                     try {
                                                         const date = new Date(cellValue);
-                                                        if (!isNaN(date.getTime())) { // Check if date is valid
-                                                            // Correct for timezone offset if the time part is 00:00:00.000Z
-                                                            if (date.getUTCHours() === 0 && date.getUTCMinutes() === 0 && date.getUTCSeconds() === 0) {
-                                                                const timeZoneOffset = date.getTimezoneOffset() * 60000;
-                                                                date.setTime(date.getTime() + timeZoneOffset);
-                                                            }
+                                                        if (!isNaN(date.getTime())) {
+                                                            const timeZoneOffset = date.getTimezoneOffset() * 60000;
+                                                            const localDate = new Date(date.getTime() - timeZoneOffset);
 
-                                                            const options: Intl.DateTimeFormatOptions = {
-                                                                day: '2-digit',
-                                                                month: '2-digit',
-                                                                year: 'numeric',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit',
-                                                                hour12: false,
-                                                                timeZone: 'Asia/Jakarta'
-                                                            };
-                                                            
                                                             if (header === 'date') {
-                                                                const formatter = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Jakarta' });
-                                                                cellValue = formatter.format(date);
-                                                            } else { // For created_at and resolved_at
-                                                                const formatter = new Intl.DateTimeFormat('en-GB', options);
-                                                                const parts = formatter.formatToParts(date).reduce((acc, part) => ({...acc, [part.type]: part.value}), {} as Record<string, string>);
-                                                                cellValue = `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
+                                                                cellValue = localDate.toISOString().split('T')[0];
+                                                            } else {
+                                                                cellValue = localDate.toISOString().replace('T', ' ').substring(0, 16);
                                                             }
                                                         }
                                                     } catch(e) {
@@ -990,14 +1000,10 @@ export function DbViewer({
                 </CardContent>
                 <CardFooter className="p-3 border-t">
                     <div className="flex items-center justify-between w-full">
-                        {/* Left: Row count info */}
                         <div className="flex-1 text-sm text-muted-foreground">
                             Showing {totalRows > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRows)} of {totalRows.toLocaleString()} rows
                         </div>
-
-                        {/* Right: Pagination controls */}
                         <div className="flex items-center space-x-6">
-                            {/* Rows per page selector */}
                             <div className="flex items-center space-x-2">
                                 <p className="text-sm font-medium">Rows per page</p>
                                 <Select
@@ -1015,15 +1021,11 @@ export function DbViewer({
                                     </SelectContent>
                                 </Select>
                             </div>
-
-                            {/* Page info */}
                             <div className="flex items-center space-x-2">
                                 <p className="text-sm font-medium">
                                     Page {currentPage} of {totalPages || 1}
                                 </p>
                             </div>
-
-                            {/* Navigation buttons */}
                             <div className="flex items-center space-x-1">
                                 <Button
                                     variant="outline"
@@ -1066,6 +1068,33 @@ export function DbViewer({
                     </div>
                 </CardFooter>
             </Card>
+
+             <Dialog open={isL3ReportOpen} onOpenChange={setIsL3ReportOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>L3 Case Report</DialogTitle>
+                        <DialogDescription>
+                            This is the latest L3 case report generated from the database.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="h-96 text-xs font-mono bg-muted/20 rounded-md border p-3 overflow-auto whitespace-pre-wrap">
+                        {isFetchingL3 ? 'Generating...' : l3Report}
+                    </div>
+                    <DialogFooter className="sm:justify-between">
+                         <Button
+                            onClick={handleCopyL3Report}
+                            size="sm"
+                            variant="outline"
+                            disabled={!l3Report || isL3Copied}
+                        >
+                            {isL3Copied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                            {isL3Copied ? 'Copied' : 'Copy Report'}
+                        </Button>
+                        <Button onClick={() => setIsL3ReportOpen(false)}>Close</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
