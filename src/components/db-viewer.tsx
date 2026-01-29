@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save } from "lucide-react";
@@ -15,7 +16,7 @@ import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData } from "@/app/actions";
+import { getAllCaseData, updateCase } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -125,6 +126,7 @@ export function DbViewer({
         error: initialError,
     });
     const [isPending, startTransition] = useTransition();
+    const [isSaving, startSaving] = useTransition();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [fetchedYears, setFetchedYears] = useState<string[]>(availableYears);
     const [isEditMode, setIsEditMode] = useState(false);
@@ -157,8 +159,8 @@ export function DbViewer({
     }, []);
 
     useEffect(() => {
-        setIsProcessing(isPending);
-    }, [isPending, setIsProcessing]);
+        setIsProcessing(isPending || isSaving);
+    }, [isPending, isSaving, setIsProcessing]);
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return [];
@@ -425,7 +427,7 @@ export function DbViewer({
     }
     
     const handleEditClick = () => {
-        setDataBeforeEdit(state.data);
+        setDataBeforeEdit(JSON.parse(JSON.stringify(state.data))); // Deep copy
         setIsEditMode(true);
     };
 
@@ -438,11 +440,43 @@ export function DbViewer({
     };
 
     const handleSaveChanges = () => {
-        setIsEditMode(false);
-        setDataBeforeEdit(null);
-        toast({
-            title: "Changes Saved Locally",
-            description: "Your edits are saved in this session. They are not yet persisted to the database."
+        startSaving(async () => {
+            if (!dataBeforeEdit || !state.data) return;
+
+            const modifiedRows = state.data.filter(currentRow => {
+                const originalRow = dataBeforeEdit.find(o => o.id === currentRow.id);
+                if (!originalRow) return false;
+                return JSON.stringify(currentRow) !== JSON.stringify(originalRow);
+            });
+
+            if (modifiedRows.length === 0) {
+                toast({ title: "No Changes Detected", description: "You haven't made any changes to save." });
+                setIsEditMode(false);
+                return;
+            }
+
+            toast({ title: "Saving...", description: `Updating ${modifiedRows.length} rows.` });
+
+            const updatePromises = modifiedRows.map(row => updateCase(row.id, row));
+            const results = await Promise.all(updatePromises);
+            
+            const failedUpdates = results.filter(r => !r.success);
+
+            if (failedUpdates.length > 0) {
+                toast({
+                    variant: "destructive",
+                    title: "Save Failed",
+                    description: `Could not save ${failedUpdates.length} rows. Error: ${failedUpdates[0].error}`,
+                });
+            } else {
+                toast({
+                    title: "Changes Saved Successfully",
+                    description: `${modifiedRows.length} rows have been updated in the database.`,
+                });
+                setIsEditMode(false);
+                setDataBeforeEdit(null);
+                fetchData(); // Refetch data to confirm changes from DB
+            }
         });
     };
 
@@ -671,7 +705,7 @@ export function DbViewer({
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-8 sm:w-[300px]"
-                                    disabled={isEditMode}
+                                    disabled={isEditMode || isSaving}
                                 />
                             </div>
                             <div className="w-full sm:w-auto">
@@ -680,7 +714,7 @@ export function DbViewer({
                                     onValueChange={(value) => {
                                         setYearFilter(value === 'all' ? '' : value);
                                     }}
-                                    disabled={isEditMode}
+                                    disabled={isEditMode || isSaving}
                                 >
                                     <SelectTrigger className="w-full sm:w-[180px]">
                                         <SelectValue placeholder="Filter by year..." />
@@ -694,7 +728,7 @@ export function DbViewer({
                                 </Select>
                             </div>
                             {areFiltersActive && (
-                                <Button onClick={handleClearAllFilters} variant="ghost" size="sm" disabled={isEditMode}>
+                                <Button onClick={handleClearAllFilters} variant="ghost" size="sm" disabled={isEditMode || isSaving}>
                                     <FilterX className="mr-2 h-4 w-4" />
                                     Clear All Filters
                                 </Button>
@@ -703,11 +737,12 @@ export function DbViewer({
                         <div className="flex items-center gap-2">
                             {isEditMode ? (
                                 <div className="flex items-center gap-2">
-                                    <Button onClick={handleCancelEdit} size="sm" variant="destructive">
+                                    <Button onClick={handleCancelEdit} size="sm" variant="destructive" disabled={isSaving}>
                                         <X className="mr-2 h-4 w-4" /> Cancel
                                     </Button>
-                                    <Button onClick={handleSaveChanges} size="sm">
-                                        <Save className="mr-2 h-4 w-4" /> Save
+                                    <Button onClick={handleSaveChanges} size="sm" disabled={isSaving}>
+                                        {isSaving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                        {isSaving ? "Saving..." : "Save"}
                                     </Button>
                                 </div>
                             ) : (
@@ -716,7 +751,7 @@ export function DbViewer({
                                 </Button>
                             )}
 
-                            <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={isPending || isRefreshing || isEditMode}>
+                            <Button onClick={() => fetchData(true)} size="sm" variant="outline" disabled={isPending || isRefreshing || isEditMode || isSaving}>
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>

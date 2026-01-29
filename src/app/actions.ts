@@ -155,6 +155,47 @@ export async function getAllCaseData(filters?: {
 }
 
 // ============================================
+// UPDATE SINGLE CASE
+// ============================================
+export async function updateCase(caseId: number, data: Record<string, any>) {
+  try {
+    // Map frontend-friendly names back to actual DB column names
+    const dbData = {
+      date: data.date,
+      month: data.month,
+      client_name: data.client_name,
+      pic_client: data.customer_name, // customer_name -> pic_client
+      status_case: data.status, // status -> status_case
+      category_case: data.ticket_category, // ticket_category -> category_case
+      module_case: data.module, // module -> module_case
+      detail_module: data.detail_module,
+      check_in: data.created_at, // created_at -> check_in
+      detail_case: data.title, // title -> detail_case
+      check_out: data.resolved_at, // resolved_at -> check_out
+      status_case_solved: data.status_case_2, // status_case_2 -> status_case_solved
+      source_link_op: data.ticket_op, // ticket_op -> source_link_op
+      note: data.note,
+    };
+
+    const { error } = await supabaseAdmin
+      .from('all_cases')
+      .update(dbData)
+      .eq('id', caseId);
+
+    if (error) {
+      console.error(`Error updating case ${caseId}:`, error);
+      throw error;
+    }
+    
+    revalidateTag("all-case-data"); // Invalidate cache for dashboard
+    return { success: true, id: caseId };
+
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// ============================================
 // REFRESH DASHBOARD
 // ============================================
 
