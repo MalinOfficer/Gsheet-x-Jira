@@ -12,6 +12,7 @@ export type ImportCasePayload = {
   client_name: string;
   customer_name?: string;
   status: string;
+  ticket_number: string; // Re-added ticket_number
   ticket_category: string;
   module: string;
   detail_module?: string;
@@ -30,37 +31,59 @@ export type ImportCasePayload = {
 export async function importOrUpdateCases(rows: ImportCasePayload[]) {
   try {
     if (!rows || rows.length === 0) {
-      return { success: true, imported: [], updated: [], duplicates: [] };
+      return { success: true, processed: [], skipped: [] };
     }
     
-    // Prepare payload for insert. 
-    const payload = rows.map((row) => ({
-      date: row.date,
-      month: row.month,
-      client_name: row.client_name,
-      detail_module: row.detail_module,
-      check_in: row.created_at,
-      check_out: row.resolved_at,
-      pic_client: row.customer_name,
-      status_case: row.status,
-      category_case: row.ticket_category,
-      module_case: row.module,
-      detail_case: row.title,
-      source_link_op: row.ticket_op,
-    }));
+    // Separate rows with and without a ticket number
+    const toProcess: any[] = [];
+    const skipped: any[] = [];
 
-    const { error: insertError } = await supabaseAdmin
+    rows.forEach((row) => {
+      if (row.ticket_number && row.ticket_number.trim() !== '') {
+        toProcess.push({
+          // Map to DB columns
+          date: row.date,
+          month: row.month,
+          client_name: row.client_name,
+          detail_module: row.detail_module,
+          check_in: row.created_at,
+          check_out: row.resolved_at,
+          pic_client: row.customer_name,
+          status_case: row.status,
+          category_case: row.ticket_category,
+          module_case: row.module,
+          detail_case: row.title,
+          source_link_op: row.ticket_op,
+          ticket_number: row.ticket_number, // Ensure this is passed
+        });
+      } else {
+        skipped.push({ title: row.title || 'Unknown row' });
+      }
+    });
+
+    if (toProcess.length === 0) {
+        return { success: true, processed: [], skipped };
+    }
+
+    // Use upsert to insert new rows or update existing ones based on ticket_number
+    const { data, error } = await supabaseAdmin
       .from("all_cases")
-      .insert(payload);
+      .upsert(toProcess, { onConflict: 'ticket_number' })
+      .select();
 
-    if (insertError) throw insertError;
+    if (error) {
+      // Check for specific constraint violations to give a better message
+      if (error.message.includes('violates not-null constraint')) {
+        const column = error.message.match(/column "(\w+)"/);
+        throw new Error(`A required field is missing. Database requires a value for: ${column ? column[1] : 'a required column'}.`);
+      }
+      throw error;
+    }
 
-    // Since it's a pure insert, all are "imported".
     return {
       success: true,
-      imported: rows.map(r => ({ title: r.title })),
-      updated: [],
-      duplicates: [],
+      processed: data?.map(d => ({ ticket_number: d.ticket_number, title: d.detail_case })) || [],
+      skipped,
     };
   } catch (err: any) {
     console.error("Error in importOrUpdateCases:", err);

@@ -37,12 +37,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 
 const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
-const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,Title,Ticket Category,Module,Detail Module,Created At,Kolom kosong2,Resolved At,Ticket OP';
+const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,Ticket Number,Title,Ticket Category,Module,Detail Module,Created At,Kolom kosong2,Resolved At,Ticket OP';
 const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
 
 declare const XLSX: any;
 
-function ResultList({ items, title }: { items?: { title?: string }[], title: string }) {
+function ResultList({ items, title }: { items?: { ticket_number?: string, title?: string }[], title: string }) {
     if (!items || items.length === 0) {
         return (
             <div className="flex items-center justify-center h-48 text-center text-sm text-muted-foreground">
@@ -58,7 +58,8 @@ function ResultList({ items, title }: { items?: { title?: string }[], title: str
                 <ul className="space-y-1">
                     {items.map((item, index) => (
                         <li key={index} className="text-xs p-1.5 bg-secondary/50 rounded-md">
-                            <span className="font-semibold">{item.title || "No Title"}</span>
+                            <span className="font-semibold">{item.ticket_number || item.title || "No Title"}</span>
+                            {item.ticket_number && item.title && <span className="text-muted-foreground ml-2">{item.title}</span>}
                         </li>
                     ))}
                 </ul>
@@ -80,9 +81,8 @@ export function ImportFlow() {
   });
    const [isCopied, setIsCopied] = useState(false);
    const [importResult, setImportResult] = useState<{
-        imported: any[];
-        updated: any[];
-        duplicates: any[];
+        processed: any[];
+        skipped: any[];
     } | null>(null);
     const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
 
@@ -134,6 +134,7 @@ export function ImportFlow() {
                 client_name: String(row['Client Name'] || ''),
                 customer_name: String(row['Customer Name'] || ''),
                 status: String(row['Status'] || ''),
+                ticket_number: String(row['Ticket Number'] || ''),
                 ticket_category: String(row['Ticket Category'] || ''),
                 module: String(row['Module'] || ''),
                 detail_module: String(row['Detail Module'] || ''),
@@ -151,9 +152,8 @@ export function ImportFlow() {
 
         if (result.success) {
             setImportResult({
-                imported: result.imported || [],
-                updated: result.updated || [],
-                duplicates: result.duplicates || [],
+                processed: result.processed || [],
+                skipped: result.skipped || [],
             });
             setIsResultDialogOpen(true);
         }
@@ -270,9 +270,9 @@ export function ImportFlow() {
         let processedData = data;
         if (isCsv) {
              const csvHeaderMapping: Record<string, string> = {
+                'Issue key': 'Ticket Number',
+                'Summary': 'Summary', // Temporary key
                 'Issue Type': 'Ticket Category',
-                'Issue key': 'Title',
-                'Summary': 'Title',
                 'Custom field (Client Name)': 'Client Name',
                 'Custom field (Client Name)_1': 'Client Name',
                 'Custom field (Client Name)_2': 'Client Name',
@@ -297,19 +297,19 @@ export function ImportFlow() {
                     const cleanOriginalKey = originalKey.trim().replace(/^"|"$/g, '');
                     const mappedKey = csvHeaderMapping[cleanOriginalKey];
                     if (mappedKey) {
-                        if (mappedKey === 'Title') {
-                             if (!newRow[mappedKey]) newRow[mappedKey] = '';
-                             newRow[mappedKey] += `${row[originalKey] || ''} `;
-                        } else if (!newRow[mappedKey]) { // Only assign if target is empty to prioritize first match
+                       if (!newRow[mappedKey]) {
                            newRow[mappedKey] = row[originalKey];
                         }
-                    } else if (row.hasOwnProperty(originalKey)) { // Handle keys not in mapping
+                    } else if (row.hasOwnProperty(originalKey)) {
                         newRow[cleanOriginalKey] = row[originalKey];
                     }
                 }
-                 if (newRow.Title) {
-                    newRow.Title = newRow.Title.trim();
+                 if (newRow['Ticket Number'] && newRow['Summary']) {
+                    newRow['Title'] = `${newRow['Ticket Number']} ${newRow['Summary']}`.trim();
+                } else if (newRow['Summary']) {
+                    newRow['Title'] = newRow['Summary'];
                 }
+                delete newRow['Summary'];
                 return newRow;
             });
         }
@@ -358,6 +358,15 @@ export function ImportFlow() {
                 }
                 newRow[header] = value;
             });
+
+            // Fallback to extract Ticket Number from Title
+            if (!newRow['Ticket Number'] && newRow['Title']) {
+                const match = String(newRow['Title']).match(/(IHO-\d+)/);
+                if (match) {
+                    newRow['Ticket Number'] = match[0];
+                }
+            }
+
             return newRow;
         });
 
@@ -591,27 +600,21 @@ export function ImportFlow() {
                         The import process has finished. Here's a summary of the results.
                     </DialogDescription>
                 </DialogHeader>
-                <Tabs defaultValue="imported" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="imported">
-                            Imported ({importResult?.imported.length || 0})
+                <Tabs defaultValue="processed" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="processed">
+                            Processed ({importResult?.processed.length || 0})
                         </TabsTrigger>
-                        <TabsTrigger value="updated">
-                            Updated ({importResult?.updated.length || 0})
-                        </TabsTrigger>
-                        <TabsTrigger value="duplicates">
-                            Skipped ({importResult?.duplicates.length || 0})
+                        <TabsTrigger value="skipped">
+                            Skipped ({importResult?.skipped.length || 0})
                         </TabsTrigger>
                     </TabsList>
                     <div className="mt-4">
-                        <TabsContent value="imported">
-                            <ResultList items={importResult?.imported} title="New items added to the database." />
+                        <TabsContent value="processed">
+                            <ResultList items={importResult?.processed} title="Items successfully inserted or updated." />
                         </TabsContent>
-                        <TabsContent value="updated">
-                            <ResultList items={importResult?.updated} title="Existing items that were updated." />
-                        </TabsContent>
-                        <TabsContent value="duplicates">
-                            <ResultList items={importResult?.duplicates} title="Items skipped because of duplicate Ticket Numbers in your source file." />
+                        <TabsContent value="skipped">
+                            <ResultList items={importResult?.skipped} title="Items skipped because they were missing a Ticket Number." />
                         </TabsContent>
                     </div>
                 </Tabs>
@@ -654,6 +657,7 @@ function PreviewTable({
         initialData.headers.forEach(header => {
             const lowerHeader = header.toLowerCase();
             if (lowerHeader === 'title') widths[header] = 384;
+            else if (lowerHeader.includes('ticket number')) widths[header] = 150;
             else if (lowerHeader.includes('customer name')) widths[header] = 180;
             else if (lowerHeader.includes('client name')) widths[header] = 160;
             else if (lowerHeader.includes('ticket category')) widths[header] = 150;
