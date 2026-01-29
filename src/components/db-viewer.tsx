@@ -857,7 +857,7 @@ export function DbViewer({
                                                                     }}
                                                                     disabled={!row}
                                                                 >
-                                                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-xs focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
+                                                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
                                                                         {cellValue ? (
                                                                             <span className={cn('px-2 py-0.5 rounded-md text-xs', header === 'status' && 'inline-flex items-center justify-center w-[100px]', header === 'ticket_category' ? (categoryColorMap[cellValue as string] || categoryColorMap.default) : (statusColorMap[cellValue as string] || statusColorMap.default))}>
                                                                                 {cellValue}
@@ -886,7 +886,7 @@ export function DbViewer({
                                                                     }}
                                                                     disabled={!row}
                                                                 >
-                                                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-4 focus:ring-0 focus:ring-offset-0 text-xs focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
+                                                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
                                                                         <SelectValue placeholder="Select..." />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
@@ -903,11 +903,11 @@ export function DbViewer({
                                                                 type="text"
                                                                 value={cellValue ?? ''}
                                                                 onChange={(e) => rowId !== undefined && handleCellChange(rowId, header, e.target.value)}
-                                                                className="h-full w-full rounded-none border-0 bg-transparent p-4 text-xs focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:bg-transparent"
+                                                                className="h-full w-full rounded-none border-0 bg-transparent p-2 text-xs focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:bg-transparent"
                                                                 disabled={!row}
                                                             />
                                                         ) : (
-                                                            <div className="p-4 flex items-center">
+                                                            <div className="p-2 flex items-center h-full">
                                                                 {row ? (
                                                                     (header === 'ticket_category' && cellValue) ? (
                                                                         <span className={cn('text-xs px-2 py-0.5 rounded-md', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
