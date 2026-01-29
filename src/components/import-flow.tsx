@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Upload, Import, Database, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart, RefreshCw, AlertCircle } from 'lucide-react';
-import { importOrUpdateCases } from '@/app/supabase-actions-import';
+import { importOrUpdateCases, updateCaseStatus } from '@/app/supabase-actions-import';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -42,7 +42,7 @@ const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
 
 declare const XLSX: any;
 
-function ResultList({ items, title }: { items?: { ticket_number?: string, title?: string }[], title: string }) {
+function ResultList({ items, title }: { items?: { ticket_number?: string, title?: string, reason?: string }[], title: string }) {
     if (!items || items.length === 0) {
         return (
             <div className="flex items-center justify-center h-48 text-center text-sm text-muted-foreground">
@@ -60,12 +60,50 @@ function ResultList({ items, title }: { items?: { ticket_number?: string, title?
                         <li key={index} className="text-xs p-1.5 bg-secondary/50 rounded-md">
                             <span className="font-semibold">{item.ticket_number || item.title || "No Title"}</span>
                             {item.ticket_number && item.title && <span className="text-muted-foreground ml-2">{item.title}</span>}
+                             {item.reason && <span className="text-destructive ml-2 text-[10px]">({item.reason})</span>}
                         </li>
                     ))}
                 </ul>
             </ScrollArea>
         </div>
     );
+}
+
+function ConflictItem({ item, onUpdateSuccess }: { item: any, onUpdateSuccess: (ticketNumber: string) => void }) {
+  const [isUpdating, startUpdating] = useTransition();
+  const { toast } = useToast();
+
+  const handleUpdate = () => {
+    startUpdating(async () => {
+      const result = await updateCaseStatus(item.ticket_number, item.new_status);
+      if (result.success) {
+        toast({ title: "Status Updated", description: `Ticket ${item.ticket_number} updated to ${item.new_status}`});
+        onUpdateSuccess(item.ticket_number);
+      } else {
+        toast({ variant: "destructive", title: "Update Failed", description: result.error });
+      }
+    });
+  }
+
+  return (
+    <li className="text-xs p-1.5 bg-amber-100/50 dark:bg-amber-900/20 rounded-md flex justify-between items-center gap-2">
+      <div className="flex-grow overflow-hidden">
+        <span className="font-semibold">{item.ticket_number}</span>
+        <span className="text-muted-foreground ml-2 truncate">{item.title}</span>
+        <div className="text-muted-foreground ml-2 text-[10px] mt-0.5">
+          Status: <span className="font-semibold line-through">{item.old_status}</span> -> <span className="font-semibold text-amber-600">{item.new_status}</span>
+        </div>
+      </div>
+      <Button 
+        size="sm"
+        onClick={handleUpdate}
+        disabled={isUpdating}
+        className="bg-amber-400 hover:bg-amber-500 text-amber-900 h-7 px-2 flex-shrink-0"
+      >
+        {isUpdating ? <RefreshCw className="h-3 w-3 animate-spin"/> : 'Update Status'}
+      </Button>
+    </li>
+  );
 }
 
 export function ImportFlow() {
@@ -81,8 +119,9 @@ export function ImportFlow() {
   });
    const [isCopied, setIsCopied] = useState(false);
    const [importResult, setImportResult] = useState<{
-        processed: any[];
+        inserted: any[];
         skipped: any[];
+        conflicts: any[];
     } | null>(null);
     const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
 
@@ -93,6 +132,28 @@ export function ImportFlow() {
   const [isImportingToDb, startImportingToDb] = useTransition();
   
   const isAnyProcessing = isConverting || isImportingToDb;
+
+    // States for result dialog
+    const [activeConflicts, setActiveConflicts] = useState<any[]>([]);
+    const [newlyInserted, setNewlyInserted] = useState<any[]>([]);
+    const [updatedItems, setUpdatedItems] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (importResult) {
+            setActiveConflicts(importResult.conflicts);
+            setNewlyInserted(importResult.inserted);
+            setUpdatedItems([]); // Reset on new import
+        }
+    }, [importResult]);
+
+    const handleUpdateSuccess = (ticketNumber: string) => {
+        const item = activeConflicts.find(c => c.ticket_number === ticketNumber);
+        if (item) {
+            setActiveConflicts(prev => prev.filter(c => c.ticket_number !== ticketNumber));
+            setUpdatedItems(prev => [...prev, item]);
+        }
+    };
+
 
   useEffect(() => {
     setIsProcessing(isAnyProcessing);
@@ -152,8 +213,9 @@ export function ImportFlow() {
 
         if (result.success) {
             setImportResult({
-                processed: result.processed || [],
+                inserted: result.inserted || [],
                 skipped: result.skipped || [],
+                conflicts: result.conflicts || [],
             });
             setIsResultDialogOpen(true);
         }
@@ -601,9 +663,12 @@ export function ImportFlow() {
                     </DialogDescription>
                 </DialogHeader>
                 <Tabs defaultValue="processed" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="processed">
-                            Processed ({importResult?.processed.length || 0})
+                            Processed ({newlyInserted.length + updatedItems.length})
+                        </TabsTrigger>
+                        <TabsTrigger value="conflicts">
+                            Conflicts ({activeConflicts.length})
                         </TabsTrigger>
                         <TabsTrigger value="skipped">
                             Skipped ({importResult?.skipped.length || 0})
@@ -611,10 +676,23 @@ export function ImportFlow() {
                     </TabsList>
                     <div className="mt-4">
                         <TabsContent value="processed">
-                            <ResultList items={importResult?.processed} title="Items successfully inserted or updated." />
+                            <ResultList items={newlyInserted} title="Items successfully inserted." />
+                            {updatedItems.length > 0 && <ResultList items={updatedItems.map(i => ({...i, title: `${i.title} (Status updated to ${i.new_status})`}))} title="Items with status updated." />}
+                        </TabsContent>
+                        <TabsContent value="conflicts">
+                             <div className="space-y-2">
+                                <p className="text-sm text-muted-foreground">These items already exist but have a different status.</p>
+                                <ScrollArea className="h-64 w-full rounded-md border p-2">
+                                    <ul className="space-y-1">
+                                        {activeConflicts.map((item) => (
+                                            <ConflictItem key={item.ticket_number} item={item} onUpdateSuccess={handleUpdateSuccess} />
+                                        ))}
+                                    </ul>
+                                </ScrollArea>
+                            </div>
                         </TabsContent>
                         <TabsContent value="skipped">
-                            <ResultList items={importResult?.skipped} title="Items skipped because they were missing a Ticket Number." />
+                            <ResultList items={importResult?.skipped} title="Items skipped due to being duplicates or missing a Ticket Number." />
                         </TabsContent>
                     </div>
                 </Tabs>
@@ -872,5 +950,3 @@ function PreviewTable({
         </Card>
     );
 }
-
-    
