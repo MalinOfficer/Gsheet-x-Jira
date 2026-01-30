@@ -10,13 +10,12 @@ import {
     CardTitle,
     CardFooter
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, getL3ReportFromDB, updateCase } from "@/app/actions";
+import { getAllCaseData, updateCase } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -554,23 +553,29 @@ export function DbViewer({
         });
     };
     
-    const handleGenerateReport = () => {
-        startGeneratingReport(async () => {
-            setIsReportCopied(false);
-            setReportContent('');
-            const result = await getL3ReportFromDB();
-            if (result.error) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Failed to generate report',
-                    description: result.error,
-                });
-            } else {
-                setReportContent(result.report || 'No data found.');
-                setIsReportDialogOpen(true);
-            }
-        });
+    const unsolvedStatuses = ['L1', 'L2', 'L3'];
+    const isUnsolvedFilterActive = useMemo(() => 
+        JSON.stringify(columnFilters.status?.sort()) === JSON.stringify(unsolvedStatuses.sort()),
+        [columnFilters.status]
+    );
+
+    const handleUnsolvedFilterClick = () => {
+        if (isUnsolvedFilterActive) {
+            // Filter is active, turn it off by removing the status filter
+            setColumnFilters(prev => {
+                const { status, ...rest } = prev; // Keep other filters
+                return rest;
+            });
+        } else {
+            // Filter is inactive, turn it on
+            // Apply a clean slate of filters for this view
+            setColumnFilters({ status: unsolvedStatuses });
+            setYearFilter('all'); // See all years
+            setDateRange(undefined);
+            setSearchTerm('');
+        }
     };
+
 
     const handleCellChange = (id: number, header: string, value: string) => {
         setState(prevState => {
@@ -843,14 +848,14 @@ export function DbViewer({
                                 </Button>
                             )}
                              <Button
-                                onClick={handleGenerateReport}
+                                onClick={handleUnsolvedFilterClick}
                                 size="sm"
-                                variant="outline"
-                                className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/50 dark:hover:text-red-300"
-                                disabled={isPending || isRefreshing || isEditMode || isSaving || isGeneratingReport}
+                                variant="secondary"
+                                className="bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                                disabled={isPending || isRefreshing || isEditMode || isSaving}
                             >
-                                {isGeneratingReport ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Copy className="mr-2 h-4 w-4" />}
-                                {isGeneratingReport ? "Generating..." : "L3 Report"}
+                                <Filter className="mr-2 h-4 w-4" />
+                                {isUnsolvedFilterActive ? "Clear Unsolved" : "Unsolved Filter"}
                             </Button>
                             <Button onClick={() => fetchData(true)} size="sm" variant="default" className="bg-blue-500 hover:bg-blue-600" disabled={isPending || isRefreshing || isEditMode || isSaving}>
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
