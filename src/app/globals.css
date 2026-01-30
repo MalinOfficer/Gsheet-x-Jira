@@ -19,37 +19,45 @@
     --font-size-4xl: 2.25rem;   /* 36px */
 
     /* Theme Colors & Style */
-    --background: 240 10% 97%; /* Lighter grey for a cleaner feel */
-    --foreground: 240 5% 15%; /* Dark slate */
-    --card: 0 0% 100%; /* Pure white */
+    --background: 210 17% 98%; /* #f8f9fa */
+    --foreground: 240 5% 15%; 
+    
+    --card: 0 0% 100%;
     --card-foreground: 240 5% 15%;
+
     --popover: 0 0% 100%;
     --popover-foreground: 240 5% 15%;
-    --primary: 221 83% 53%; /* Royal Blue */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 5% 96%; /* Slate-100 */
+
+    --primary: 222.2 84% 59.4%; /* #2563eb */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 15% 96%;
     --secondary-foreground: 240 6% 10%;
-    --muted: 240 6% 92%;
+
+    --muted: 210 15% 94%;
     --muted-foreground: 240 5% 25%;
-    --accent: 240 5% 96%;
+
+    --accent: 210 15% 96%;
     --accent-foreground: 240 6% 10%;
+    
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 6% 94%;
-    --input: 240 6% 90%;
-    --ring: 221 83% 53%;
-    --chart-1: 221 83% 53%; /* Royal Blue */
-    --chart-2: 142 71% 45%; /* Emerald Green */
-    --chart-3: 43 74% 66%; /* Yellow */
-    --chart-4: 0 84.2% 60.2%; /* Red */
-    --chart-5: 270 90% 60%; /* Purple */
-    --radius: 0.75rem; /* 12px */
+    
+    --border: 210 14% 89%;
+    --input: 210 14% 89%;
+    --ring: 222.2 84% 59.4%;
+
+    --chart-1: 222.2 84% 59.4%;
+    --chart-2: 142 71% 45%;
+    --chart-3: 43 74% 66%;
+    --chart-4: 0 84.2% 60.2%;
+    --chart-5: 270 90% 60%;
+
+    --radius: 0.75rem;
   }
 
   .dark {
-    /* Typography is inherited */
-    
-    /* Dark Theme Colors & Style */
+    /* Dark Theme is kept as is */
     --background: 240 6% 10%;
     --foreground: 0 0% 98%;
     --card: 240 6% 12%;
@@ -74,7 +82,7 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --radius: 0.75rem; /* 12px */
+    --radius: 0.75rem;
   }
 }
 
@@ -90,7 +98,7 @@
 /* Add custom shadow utility */
 @layer utilities {
   .shadow-soft-large {
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 }
 
