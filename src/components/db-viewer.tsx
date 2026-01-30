@@ -761,8 +761,16 @@ export function DbViewer({
             const newData = prevState.data.map(row => {
                 if (row.id === id) {
                     const updatedRow = { ...row, [header]: value };
-                    if (header === 'status' && (value === 'Solved' || value === 'RESOLVED') && !updatedRow.resolved_at) {
-                        updatedRow.resolved_at = new Date().toISOString();
+                    
+                    if (header === 'status') {
+                        const isNowSolved = value === 'Solved' || value === 'RESOLVED';
+                        const wasSolved = row.status === 'Solved' || row.status === 'RESOLVED';
+
+                        if (isNowSolved && !wasSolved) {
+                            updatedRow.resolved_at = new Date().toISOString();
+                        } else if (!isNowSolved && wasSolved) {
+                            updatedRow.resolved_at = '';
+                        }
                     }
                     return updatedRow;
                 }
@@ -1089,7 +1097,8 @@ export function DbViewer({
                                 size="sm"
                                 variant={isUnsolvedView ? "default": "secondary"}
                                 className={cn(
-                                    "bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                                    "bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700",
+                                    isUnsolvedView && "bg-orange-500 text-white hover:bg-orange-600"
                                 )}
                                 disabled={isPending || isRefreshing || isEditMode || isSaving}
                             >
@@ -1155,7 +1164,7 @@ export function DbViewer({
                                             className="flex border-b transition-colors hover:bg-muted/50"
                                         >
                                             {headers.map(header => {
-                                                const isEditable = isEditMode || (isUnsolvedView && isEditMode);
+                                                const isEditable = (isEditMode || (isUnsolvedView && isEditMode));
                                                 const rowId = row?.id;
                                                 
                                                 let cellValue = row ? row[header] : null;
@@ -1476,3 +1485,4 @@ export function DbViewer({
         </div>
     );
 }
+
