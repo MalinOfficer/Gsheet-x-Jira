@@ -127,6 +127,49 @@ const ALL_MODULES = [
     'Akses Portal',
 ];
 
+const ALL_DETAIL_MODULES = [
+    'Payment - Angsuran',
+    'Payment - Daftar Ulang',
+    'Payment - Diskon',
+    'Payment - Double Bayar / Refund',
+    'Payment - Gagal Transaksi',
+    'Payment - Laporan / Selisih',
+    'Payment - Pintro Cash',
+    'Payment - SPPK',
+    'Payment - Tagihan tidak terupdate',
+    'Payment - Tambah Tagihan',
+    'Payment - Hapus Data',
+    'Payment - Update Tagihan',
+    'PPDB - Setup PPDB',
+    'PPDB - Jadwal PPDB',
+    'PPDB - Form Pendaftar',
+    'PPDB - Data Pendaftar',
+    'PPDB - Status Pendaftar',
+    'PPDB - Proses Kelulusan',
+    'PPDB - Ujian Online',
+    'PPDB - Laporan',
+    'LMS - Materi',
+    'LMS - Tugas',
+    'LMS - Ujian / Quiz',
+    'LMS - Absensi',
+    'LMS - Forum Diskusi',
+    'Akademik - Kalender Akademik',
+    'Akademik - Kurikulum',
+    'Akademik - Jadwal Pelajaran',
+    'Akademik - Data Siswa',
+    'Akademik - Data Guru',
+    'CBT - Bank Soal',
+    'CBT - Jadwal Ujian',
+    'CBT - Pelaksanaan Ujian',
+    'CBT - Hasil Ujian',
+    'Penilaian - Input Nilai',
+    'Penilaian - Proses Rapor',
+    'Penilaian - Cetak Rapor',
+    'Penilaian - Leger Nilai',
+    'Mobile - Notifikasi',
+    'Mobile - Login/Logout',
+];
+
 const moduleColorMap: Record<string, string> = {
     'Payment': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
     'Perpustakaan': 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
@@ -701,12 +744,15 @@ export function DbViewer({
             const isCategoryFilter = header === 'ticket_category';
             const isStatusFilter = header === 'status';
             const isModuleFilter = header === 'module';
+            const isDetailModuleFilter = header === 'detail_module';
             const options = isCategoryFilter
                 ? ALL_CATEGORIES
                 : isStatusFilter
                 ? ALL_STATUSES
                 : isModuleFilter
                 ? ALL_MODULES
+                : isDetailModuleFilter
+                ? ALL_DETAIL_MODULES
                 : (filterOptions[header] || []);
             return(
                 <Popover>
@@ -1031,7 +1077,7 @@ export function DbViewer({
                                                                         )}
                                                                     </SelectTrigger>
                                                                     <SelectContent>
-                                                                        {(header === 'module' ? ALL_MODULES : (filterOptions[header] || [])).map(option => (
+                                                                        {(header === 'module' ? ALL_MODULES : header === 'detail_module' ? ALL_DETAIL_MODULES : (filterOptions[header] || [])).map(option => (
                                                                             <SelectItem key={option} value={option}>
                                                                                 {header === 'module' ? (
                                                                                     <span className={cn('px-2 py-0.5 rounded-md text-xs', moduleColorMap[option] || moduleColorMap.default)}>
