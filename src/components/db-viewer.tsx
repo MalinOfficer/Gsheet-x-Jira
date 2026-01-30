@@ -71,7 +71,6 @@ const hiddenHeaders = [
     'url_jira',
     'pic_client',
     'checkout',
-    'ticket_number'
 ];
 
 const categoryColorMap: Record<string, string> = {
@@ -1141,7 +1140,7 @@ export function DbViewer({
                                                                 disabled={!row}
                                                             />
                                                         ) : (
-                                                            <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note'].includes(header) && 'justify-center')}>
+                                                            <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note', 'ticket_number'].includes(header) && 'justify-center')}>
                                                                 {row ? (
                                                                     (() => {
                                                                         if (header === 'status_case_2' && cellValue) {
@@ -1175,16 +1174,15 @@ export function DbViewer({
                                                                             );
                                                                         }
                                                                         if (header === 'title' && cellValue) {
-                                                                            // Regex to find the ticket number pattern (e.g., IHO-1234)
-                                                                            const ticketNumberMatch = String(cellValue).match(/(IHO-\d+)/);
-                                                                        
-                                                                            // If a ticket number is found in the title and a corresponding URL exists in ticket_op
-                                                                            if (ticketNumberMatch && row.ticket_op) {
+                                                                            const ticketNumberMatch = String(cellValue).match(/^(IHO-\d+)/);
+
+                                                                            if (ticketNumberMatch) {
                                                                                 const ticketNumber = ticketNumberMatch[0];
-                                                                                const restOfTitle = String(cellValue).replace(ticketNumber, '').trim();
+                                                                                const restOfTitle = String(cellValue).substring(ticketNumber.length).trim();
+                                                                                const jiraUrl = `https://pintro.atlassian.net/browse/${ticketNumber}`;
                                                                                 return (
                                                                                     <span className="truncate text-xs">
-                                                                                        <a href={row.ticket_op} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                                                                        <a href={jiraUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                                                                                             {ticketNumber}
                                                                                         </a>
                                                                                         {' '}{restOfTitle}
