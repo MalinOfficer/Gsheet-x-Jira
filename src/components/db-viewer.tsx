@@ -984,7 +984,7 @@ export function DbViewer({
                         ) : (
                             <div style={{ width: `${totalWidth}px` }}>
                                 {/* Header row */}
-                                <div className="sticky top-0 z-10 flex bg-background">
+                                <div className="sticky top-0 z-10 flex bg-muted">
                                     {headers.map(header => (
                                         <div
                                             key={header}
