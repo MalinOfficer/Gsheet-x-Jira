@@ -16,7 +16,7 @@ import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, updateCase, deleteCase } from "@/app/actions";
+import { getAllCaseData, updateCase, deleteCases } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -29,7 +29,8 @@ import { Skeleton } from "./ui/skeleton";
 import { Progress } from "./ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
+import { Checkbox } from "./ui/checkbox";
 
 
 interface DbViewerProps {
@@ -65,7 +66,6 @@ const headerDisplayMapping: Record<string, string> = {
     ticket_op: 'Ticket OP',
     status_case_2: 'Umur Case',
     note: 'Note',
-    actions: 'Actions',
 };
 
 const hiddenHeaders = [
@@ -214,7 +214,7 @@ export function DbViewer({
     });
     const [isPending, startTransition] = useTransition();
     const [isSaving, startSaving] = useTransition();
-    const [isDeleting, startDeleting] = useTransition();
+    const [isBulkDeleting, startBulkDeleting] = useTransition();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [fetchedYears, setFetchedYears] = useState<string[]>(availableYears);
     const [isEditMode, setIsEditMode] = useState(false);
@@ -253,8 +253,8 @@ export function DbViewer({
     const [preUnsolvedState, setPreUnsolvedState] = useState<any>(null);
 
     // Delete confirmation state
-    const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
-    const [rowToDelete, setRowToDelete] = useState<any | null>(null);
+    const [selectedRowIds, setSelectedRowIds] = useState(new Set<number>());
+
 
     const columnsToCenter = [
         'no', 'date', 'month',
@@ -268,8 +268,8 @@ export function DbViewer({
     }, []);
 
     useEffect(() => {
-        setIsProcessing(isPending || isSaving || isGeneratingReport || isDeleting);
-    }, [isPending, isSaving, isGeneratingReport, isDeleting, setIsProcessing]);
+        setIsProcessing(isPending || isSaving || isGeneratingReport || isBulkDeleting);
+    }, [isPending, isSaving, isGeneratingReport, isBulkDeleting, setIsProcessing]);
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return ['no'];
@@ -294,9 +294,6 @@ export function DbViewer({
 
         FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'month'];
         const baseHeaders = ['no', ...visibleKeys];
-        if (isEditMode) {
-            return [...baseHeaders, 'actions'];
-        }
         return baseHeaders;
     }, [state.data, isEditMode]);
 
@@ -317,7 +314,6 @@ export function DbViewer({
             status_case_2: 130, // Umur Case
             ticket_op: 150,
             note: 250,
-            actions: 80,
         };
         
         // Add any missing headers with a default value
@@ -621,6 +617,7 @@ export function DbViewer({
         }
         setIsEditMode(false);
         setDataBeforeEdit(null);
+        setSelectedRowIds(new Set());
     };
 
     const handleSaveChanges = () => {
@@ -663,28 +660,23 @@ export function DbViewer({
             }
         });
     };
-
-    const handleDeleteRow = (row: any) => {
-        setRowToDelete(row);
-        setDeleteAlertOpen(true);
-    };
     
-    const confirmDelete = () => {
-        if (!rowToDelete) return;
-        startDeleting(async () => {
-            const result = await deleteCase(rowToDelete.id);
+    const confirmBulkDelete = () => {
+        if (selectedRowIds.size === 0) return;
+        startBulkDeleting(async () => {
+            const ids = Array.from(selectedRowIds);
+            const result = await deleteCases(ids);
             if (result.success) {
-                toast({ title: "Case Deleted", description: `Case "${rowToDelete.title || rowToDelete.id}" has been removed.` });
+                toast({ title: "Cases Deleted", description: `${result.count} case(s) have been removed.` });
                 setState(prevState => ({
                     ...prevState,
-                    data: prevState.data?.filter(r => r.id !== rowToDelete.id) || null,
+                    data: prevState.data?.filter(r => !selectedRowIds.has(r.id)) || null,
                 }));
-                setTotalRows(prev => prev - 1);
+                setTotalRows(prev => prev - ids.length);
+                setSelectedRowIds(new Set());
             } else {
                 toast({ variant: 'destructive', title: "Delete Failed", description: result.error });
             }
-            setDeleteAlertOpen(false);
-            setRowToDelete(null);
         });
     };
 
@@ -735,6 +727,27 @@ export function DbViewer({
         const isFilterActive = columnFilters[header]?.length > 0;
         const headerStyle = "text-muted-foreground";
 
+        if (header === 'no' && isEditMode) {
+            const isAllSelected = displayData.length > 0 && displayData.every(row => selectedRowIds.has(row.id));
+            const isSomeSelected = displayData.length > 0 && displayData.some(row => selectedRowIds.has(row.id));
+            return (
+                <Checkbox
+                    checked={isAllSelected ? true : isSomeSelected ? 'indeterminate' : false}
+                    onCheckedChange={(checked) => {
+                        const newSelectedRowIds = new Set(selectedRowIds);
+                        if (checked === true) {
+                            displayData.forEach(row => row.id && newSelectedRowIds.add(row.id));
+                        } else {
+                            displayData.forEach(row => newSelectedRowIds.delete(row.id));
+                        }
+                        setSelectedRowIds(newSelectedRowIds);
+                    }}
+                    aria-label="Select all rows"
+                    disabled={isBulkDeleting}
+                />
+            );
+        }
+        
         if (header === 'date') {
             return (
                 <Popover open={isDatePopoverOpen} onOpenChange={(open) => {
@@ -985,10 +998,32 @@ export function DbViewer({
                         <div className="flex items-center gap-2">
                             {isEditMode ? (
                                 <div className="flex items-center gap-2">
-                                    <Button onClick={handleCancelEdit} size="sm" variant="destructive" disabled={isSaving}>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button size="sm" variant="destructive" disabled={selectedRowIds.size === 0 || isBulkDeleting}>
+                                                {isBulkDeleting ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                                Delete ({selectedRowIds.size})
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will permanently delete {selectedRowIds.size} selected case(s). This action cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={confirmBulkDelete} className={cn(buttonVariants({ variant: "destructive" }))}>
+                                                    Delete
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                    <Button onClick={handleCancelEdit} size="sm" variant="outline" disabled={isSaving || isBulkDeleting}>
                                         <X className="mr-2 h-4 w-4" /> Cancel
                                     </Button>
-                                    <Button onClick={handleSaveChanges} size="sm" disabled={isSaving}>
+                                    <Button onClick={handleSaveChanges} size="sm" disabled={isSaving || isBulkDeleting}>
                                         {isSaving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                         {isSaving ? "Saving..." : "Save"}
                                     </Button>
@@ -1070,13 +1105,45 @@ export function DbViewer({
                                             className="flex border-b transition-colors hover:bg-muted/50"
                                         >
                                             {headers.map(header => {
-                                                const isNoColumn = header.toLowerCase() === 'no';
                                                 const isEditable = isEditMode;
                                                 const rowId = row?.id;
                                                 
-                                                let cellValue = row ? (isNoColumn ? rowNumber : row[header]) : null;
+                                                let cellValue = row ? row[header] : null;
                                                 
                                                 const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
+
+                                                if (header === 'no') {
+                                                    return (
+                                                        <div 
+                                                            key={header}
+                                                            className="align-middle flex items-center justify-center"
+                                                            style={{ 
+                                                                width: columnWidths[header], 
+                                                                flexShrink: 0, 
+                                                                borderRight: '1px solid hsl(var(--border))' 
+                                                            }}
+                                                        >
+                                                            {isEditMode ? (
+                                                                <Checkbox
+                                                                    checked={selectedRowIds.has(rowId)}
+                                                                    onCheckedChange={(checked) => {
+                                                                        const newSelectedRowIds = new Set(selectedRowIds);
+                                                                        if (checked) {
+                                                                            newSelectedRowIds.add(rowId);
+                                                                        } else {
+                                                                            newSelectedRowIds.delete(rowId);
+                                                                        }
+                                                                        setSelectedRowIds(newSelectedRowIds);
+                                                                    }}
+                                                                    aria-label={`Select row ${rowNumber}`}
+                                                                    disabled={!row || isBulkDeleting}
+                                                                />
+                                                            ) : (
+                                                                <span className="truncate text-xs">{rowNumber}</span>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                }
 
                                                 return (
                                                     <div 
@@ -1088,22 +1155,7 @@ export function DbViewer({
                                                             borderRight: '1px solid hsl(var(--border))' 
                                                         }}
                                                     >
-                                                        {header === 'actions' ? (
-                                                            <div className="flex items-center justify-center h-full">
-                                                                {isEditMode && (
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        onClick={() => handleDeleteRow(row)}
-                                                                        className="text-destructive hover:bg-destructive/10 h-7 w-7"
-                                                                        disabled={isSaving || isDeleting}
-                                                                        title={`Delete row ${rowNumber}`}
-                                                                    >
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                    </Button>
-                                                                )}
-                                                            </div>
-                                                        ) : isDropdownColumn ? (
+                                                        {isDropdownColumn ? (
                                                             (header === 'ticket_category' || header === 'status') ? (
                                                                 <Select
                                                                     value={(cellValue as string) ?? ''}
@@ -1364,24 +1416,6 @@ export function DbViewer({
                 </DialogContent>
             </Dialog>
 
-            <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the case titled{' '}
-                            <span className="font-semibold text-foreground">"{rowToDelete?.title || rowToDelete?.id}"</span>.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmDelete} disabled={isDeleting} className={cn(buttonVariants({ variant: "destructive" }))}>
-                            {isDeleting && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                            Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </div>
     );
 }

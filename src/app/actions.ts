@@ -224,6 +224,33 @@ export async function deleteCase(caseId: number) {
 }
 
 // ============================================
+// DELETE MULTIPLE CASES
+// ============================================
+export async function deleteCases(caseIds: number[]) {
+  try {
+    if (caseIds.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    const { error } = await supabaseAdmin
+      .from('all_cases')
+      .delete()
+      .in('id', caseIds);
+
+    if (error) {
+      console.error(`Error deleting cases:`, error);
+      throw error;
+    }
+    
+    revalidateTag("all-case-data"); // Invalidate cache for dashboard
+    return { success: true, count: caseIds.length };
+
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// ============================================
 // REFRESH DASHBOARD
 // ============================================
 
