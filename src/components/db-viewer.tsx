@@ -74,6 +74,7 @@ const hiddenHeaders = [
     'url_jira',
     'pic_client',
     'checkout',
+    'ticket_number',
 ];
 
 const categoryColorMap: Record<string, string> = {
@@ -275,7 +276,7 @@ export function DbViewer({
         if (!state.data || !state.data.length) return ['no'];
         // Use a predefined order but accommodate for missing columns from views
         const predefinedOrder = [
-            'date', 'month', 'ticket_number', 'title', 'client_name', 'customer_name',
+            'date', 'month', 'title', 'client_name', 'customer_name',
             'status', 'ticket_category', 'module', 'detail_module', 'created_at',
             'resolved_at', 'status_case_2', 'duration', 'ticket_op', 'note'
         ];
@@ -318,7 +319,6 @@ export function DbViewer({
             duration: 130,
             ticket_op: 150,
             note: 250,
-            ticket_number: 150
         };
         
         // Add any missing headers with a default value
@@ -1294,7 +1294,7 @@ export function DbViewer({
                                                                 disabled={!row}
                                                             />
                                                         ) : (
-                                                            <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note', 'ticket_number'].includes(header) && 'justify-center')}>
+                                                            <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note'].includes(header) && 'justify-center')}>
                                                                 {row ? (
                                                                     (() => {
                                                                         if (header === 'status_case_2' && cellValue) {
@@ -1348,15 +1348,6 @@ export function DbViewer({
                                                                                         </a>
                                                                                         {' '}{restOfTitle}
                                                                                     </span>
-                                                                                );
-                                                                            }
-                                                                        }
-                                                                        if (header === 'ticket_number') {
-                                                                            if (row['ticket_op']) {
-                                                                                return (
-                                                                                    <a href={row['ticket_op']} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
-                                                                                        {cellValue}
-                                                                                    </a>
                                                                                 );
                                                                             }
                                                                         }
