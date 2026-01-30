@@ -201,6 +201,29 @@ export async function updateCase(caseId: number, data: Record<string, any>) {
 }
 
 // ============================================
+// DELETE SINGLE CASE
+// ============================================
+export async function deleteCase(caseId: number) {
+  try {
+    const { error } = await supabaseAdmin
+      .from('all_cases')
+      .delete()
+      .eq('id', caseId);
+
+    if (error) {
+      console.error(`Error deleting case ${caseId}:`, error);
+      throw error;
+    }
+    
+    revalidateTag("all-case-data"); // Invalidate cache for dashboard
+    return { success: true, id: caseId };
+
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// ============================================
 // REFRESH DASHBOARD
 // ============================================
 

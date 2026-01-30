@@ -2,7 +2,7 @@
 
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check, ArrowLeft, ChevronDown } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check, ArrowLeft, ChevronDown, Trash2 } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -11,12 +11,12 @@ import {
     CardTitle,
     CardFooter
 } from "@/components/ui/card";
-import { Button } from "./ui/button";
+import { Button, buttonVariants } from "./ui/button";
 import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, updateCase } from "@/app/actions";
+import { getAllCaseData, updateCase, deleteCase } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -29,6 +29,7 @@ import { Skeleton } from "./ui/skeleton";
 import { Progress } from "./ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 
 
 interface DbViewerProps {
@@ -64,14 +65,15 @@ const headerDisplayMapping: Record<string, string> = {
     ticket_op: 'Ticket OP',
     status_case_2: 'Umur Case',
     note: 'Note',
+    actions: 'Actions',
 };
 
 const hiddenHeaders = [
     'id',
-    'ticket_number',
     'url_jira',
     'pic_client',
     'checkout',
+    'ticket_number',
 ];
 
 const categoryColorMap: Record<string, string> = {
@@ -212,6 +214,7 @@ export function DbViewer({
     });
     const [isPending, startTransition] = useTransition();
     const [isSaving, startSaving] = useTransition();
+    const [isDeleting, startDeleting] = useTransition();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [fetchedYears, setFetchedYears] = useState<string[]>(availableYears);
     const [isEditMode, setIsEditMode] = useState(false);
@@ -249,6 +252,10 @@ export function DbViewer({
     const [isUnsolvedView, setIsUnsolvedView] = useState(false);
     const [preUnsolvedState, setPreUnsolvedState] = useState<any>(null);
 
+    // Delete confirmation state
+    const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
+    const [rowToDelete, setRowToDelete] = useState<any | null>(null);
+
     const columnsToCenter = [
         'no', 'date', 'month',
         'ticket_category', 'module', 'detail_module', 'created_at', 
@@ -261,8 +268,8 @@ export function DbViewer({
     }, []);
 
     useEffect(() => {
-        setIsProcessing(isPending || isSaving || isGeneratingReport);
-    }, [isPending, isSaving, isGeneratingReport, setIsProcessing]);
+        setIsProcessing(isPending || isSaving || isGeneratingReport || isDeleting);
+    }, [isPending, isSaving, isGeneratingReport, isDeleting, setIsProcessing]);
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return ['no'];
@@ -286,8 +293,12 @@ export function DbViewer({
         });
 
         FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'month'];
-        return ['no', ...visibleKeys];
-    }, [state.data]);
+        const baseHeaders = ['no', ...visibleKeys];
+        if (isEditMode) {
+            return [...baseHeaders, 'actions'];
+        }
+        return baseHeaders;
+    }, [state.data, isEditMode]);
 
     const initialColumnWidths = useCallback(() => {
         const widths: Record<string, number> = {
@@ -306,6 +317,7 @@ export function DbViewer({
             status_case_2: 130, // Umur Case
             ticket_op: 150,
             note: 250,
+            actions: 80,
         };
         
         // Add any missing headers with a default value
@@ -649,6 +661,30 @@ export function DbViewer({
                 setDataBeforeEdit(null);
                 fetchData(); // Refetch data to confirm changes from DB
             }
+        });
+    };
+
+    const handleDeleteRow = (row: any) => {
+        setRowToDelete(row);
+        setDeleteAlertOpen(true);
+    };
+    
+    const confirmDelete = () => {
+        if (!rowToDelete) return;
+        startDeleting(async () => {
+            const result = await deleteCase(rowToDelete.id);
+            if (result.success) {
+                toast({ title: "Case Deleted", description: `Case "${rowToDelete.title || rowToDelete.id}" has been removed.` });
+                setState(prevState => ({
+                    ...prevState,
+                    data: prevState.data?.filter(r => r.id !== rowToDelete.id) || null,
+                }));
+                setTotalRows(prev => prev - 1);
+            } else {
+                toast({ variant: 'destructive', title: "Delete Failed", description: result.error });
+            }
+            setDeleteAlertOpen(false);
+            setRowToDelete(null);
         });
     };
 
@@ -1052,7 +1088,22 @@ export function DbViewer({
                                                             borderRight: '1px solid hsl(var(--border))' 
                                                         }}
                                                     >
-                                                        {isDropdownColumn ? (
+                                                        {header === 'actions' ? (
+                                                            <div className="flex items-center justify-center h-full">
+                                                                {isEditMode && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleDeleteRow(row)}
+                                                                        className="text-destructive hover:bg-destructive/10 h-7 w-7"
+                                                                        disabled={isSaving || isDeleting}
+                                                                        title={`Delete row ${rowNumber}`}
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        ) : isDropdownColumn ? (
                                                             (header === 'ticket_category' || header === 'status') ? (
                                                                 <Select
                                                                     value={(cellValue as string) ?? ''}
@@ -1312,6 +1363,25 @@ export function DbViewer({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the case titled{' '}
+                            <span className="font-semibold text-foreground">"{rowToDelete?.title || rowToDelete?.id}"</span>.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete} disabled={isDeleting} className={cn(buttonVariants({ variant: "destructive" }))}>
+                            {isDeleting && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
