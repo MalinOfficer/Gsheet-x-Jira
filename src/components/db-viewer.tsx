@@ -570,7 +570,7 @@ export function DbViewer({
                         const year = date.getUTCFullYear();
                         const month = String(date.getUTCMonth() + 1).padStart(2, '0');
                         const day = String(date.getUTCDate()).padStart(2, '0');
-                        newRow['date'] = `${year}-${month}-${day}`;
+                        newRow['date'] = `${day}/${month}/${year}`;
                     }
                 } catch(e) { /* keep original */ }
             }
@@ -669,7 +669,17 @@ export function DbViewer({
 
             toast({ title: "Saving...", description: `Updating ${modifiedRows.length} rows.` });
 
-            const updatePromises = modifiedRows.map(row => updateCase(row.id, row));
+            const updatePromises = modifiedRows.map(row => {
+                const rowForDb = { ...row };
+                if (rowForDb.date && typeof rowForDb.date === 'string' && rowForDb.date.includes('/')) {
+                    const parts = rowForDb.date.split('/');
+                    if (parts.length === 3) {
+                        const [day, month, year] = parts;
+                        rowForDb.date = `${year}-${month}-${day}`;
+                    }
+                }
+                return updateCase(row.id, rowForDb);
+            });
             const results = await Promise.all(updatePromises);
             
             const failedUpdates = results.filter(r => !r.success);
@@ -1485,4 +1495,5 @@ export function DbViewer({
         </div>
     );
 }
+
 
