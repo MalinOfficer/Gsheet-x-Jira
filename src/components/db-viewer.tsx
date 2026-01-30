@@ -16,7 +16,7 @@ import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, updateCase, deleteCases } from "@/app/actions";
+import { getAllCaseData, updateCase, deleteCase, deleteCases } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -661,6 +661,22 @@ export function DbViewer({
         });
     };
     
+    const handleConfirmDelete = (caseId: number) => {
+        startSaving(async () => {
+            const result = await deleteCase(caseId);
+            if (result.success) {
+                toast({ title: "Case Deleted", description: `Case #${caseId} has been removed.` });
+                setState(prevState => ({
+                    ...prevState,
+                    data: prevState.data?.filter(r => r.id !== caseId) || null,
+                }));
+                 setTotalRows(prev => prev - 1);
+            } else {
+                toast({ variant: 'destructive', title: "Delete Failed", description: result.error });
+            }
+        });
+    }
+    
     const confirmBulkDelete = () => {
         if (selectedRowIds.size === 0) return;
         startBulkDeleting(async () => {
@@ -1038,8 +1054,7 @@ export function DbViewer({
                                 size="sm"
                                 variant={isUnsolvedView ? "default": "secondary"}
                                 className={cn(
-                                    !isUnsolvedView && "bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700",
-                                    isUnsolvedView && "bg-blue-500 hover:bg-blue-600"
+                                    "bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
                                 )}
                                 disabled={isPending || isRefreshing || isEditMode || isSaving}
                             >
@@ -1105,7 +1120,7 @@ export function DbViewer({
                                             className="flex border-b transition-colors hover:bg-muted/50"
                                         >
                                             {headers.map(header => {
-                                                const isEditable = isEditMode;
+                                                const isEditable = isEditMode || (isUnsolvedView && isEditMode);
                                                 const rowId = row?.id;
                                                 
                                                 let cellValue = row ? row[header] : null;
