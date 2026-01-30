@@ -1,7 +1,7 @@
 
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check, ArrowLeft } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -15,7 +15,7 @@ import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, updateCase } from "@/app/actions";
+import { getAllCaseData, updateCase, getUnsolvedCases } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -39,7 +39,7 @@ interface DbViewerProps {
 
 interface DbViewerState {
     data: any[] | null;
-    source: 'cache' | 'sheet' | 'N/A' | 'supabase';
+    source: 'cache' | 'sheet' | 'N/A' | 'supabase' | 'view';
     error?: string | null;
 }
 
@@ -87,7 +87,7 @@ const statusColorMap: Record<string, string> = {
     'Solved': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
     'L3': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
     'L2': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-    'L1': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+    'L1': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
     'PM': 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
     'Move to Issue Tracker': 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
     'default': 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
@@ -226,6 +226,11 @@ export function DbViewer({
     const [reportContent, setReportContent] = useState('');
     const [isGeneratingReport, startGeneratingReport] = useTransition();
     const [isReportCopied, setIsReportCopied] = useState(false);
+    
+    // Unsolved view state
+    const [isUnsolvedView, setIsUnsolvedView] = useState(false);
+    const [preUnsolvedState, setPreUnsolvedState] = useState<any>(null);
+
 
     useEffect(() => {
         setIsClient(true);
@@ -237,38 +242,26 @@ export function DbViewer({
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return ['no'];
-        const allKeys = Object.keys(state.data[0]);
-        const visibleKeys = allKeys.filter(key => !hiddenHeaders.includes(key));
-        
-        const order = [
-            'date',
-            'month',
-            'ticket_number',
-            'title',
-            'client_name',
-            'customer_name',
-            'status',
-            'ticket_category',
-            'module',
-            'detail_module',
-            'created_at',
-            'resolved_at',
-            'status_case_2',
-            'ticket_op',
-            'note'
+        // Use a predefined order but accommodate for missing columns from views
+        const predefinedOrder = [
+            'date', 'month', 'ticket_number', 'title', 'client_name', 'customer_name',
+            'status', 'ticket_category', 'module', 'detail_module', 'created_at',
+            'resolved_at', 'status_case_2', 'ticket_op', 'note'
         ];
-
+        
+        const allKeys = Object.keys(state.data[0]);
+        const visibleKeys = allKeys.filter(key => !hiddenHeaders.includes(key) && key !== 'id');
+        
         visibleKeys.sort((a, b) => {
-            const indexA = order.indexOf(a);
-            const indexB = order.indexOf(b);
+            const indexA = predefinedOrder.indexOf(a);
+            const indexB = predefinedOrder.indexOf(b);
             if (indexA === -1 && indexB === -1) return a.localeCompare(b);
             if (indexA === -1) return 1;
             if (indexB === -1) return -1;
             return indexA - indexB;
         });
-        
-        FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'month'];
 
+        FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'month'];
         return ['no', ...visibleKeys];
     }, [state.data]);
 
@@ -343,26 +336,34 @@ export function DbViewer({
 
     const totalWidth = useMemo(() => Object.values(columnWidths).reduce((acc, width) => acc + width, 0), [columnWidths]);
     
-    const fetchData = useCallback(async (isRefresh = false) => {
+    const fetchData = useCallback(async (isRefresh = false, forceSource?: 'all_cases' | 'unsolved') => {
         startTransition(async () => {
             if (isRefresh) {
                 setIsRefreshing(true);
                 setProgress(0);
             }
             
-            const dataResult = await getAllCaseData({
-                year: yearFilter || undefined,
-                dateRange: dateRange,
-                category: columnFilters['ticket_category'],
-                client: columnFilters['client_name'],
-                module: columnFilters['module'],
-                status: columnFilters['status'],
-                detailModule: columnFilters['detail_module'],
-                month: columnFilters['month'],
-                search: debouncedSearchTerm || undefined,
-                page: currentPage,
-                pageSize: pageSize,
-            });
+            const sourceToFetch = forceSource ?? (isUnsolvedView ? 'unsolved' : 'all_cases');
+            
+            let dataResult;
+
+            if (sourceToFetch === 'unsolved') {
+                dataResult = await getUnsolvedCases();
+            } else {
+                 dataResult = await getAllCaseData({
+                    year: yearFilter || undefined,
+                    dateRange: dateRange,
+                    category: columnFilters['ticket_category'],
+                    client: columnFilters['client_name'],
+                    module: columnFilters['module'],
+                    status: columnFilters['status'],
+                    detailModule: columnFilters['detail_module'],
+                    month: columnFilters['month'],
+                    search: debouncedSearchTerm || undefined,
+                    page: currentPage,
+                    pageSize: pageSize,
+                });
+            }
 
             if (dataResult.error) {
                 setState({ data: null, source: 'N/A', error: dataResult.error });
@@ -378,6 +379,12 @@ export function DbViewer({
                 if (dataResult.pagination) {
                     setTotalRows(dataResult.pagination.total);
                     setTotalPages(dataResult.pagination.totalPages);
+                } else {
+                    // For views without pagination
+                    const dataLength = dataResult.data?.length || 0;
+                    setTotalRows(dataLength);
+                    setTotalPages(dataLength > 0 ? 1 : 0);
+                    setCurrentPage(1);
                 }
             }
 
@@ -388,13 +395,13 @@ export function DbViewer({
                 } else {
                     toast({ 
                         title: "Data Refreshed", 
-                        description: `Loaded page ${currentPage} of ${totalPages || 1}` 
+                        description: `Loaded ${dataResult.data?.length || 0} rows.` 
                     });
                 }
                 setIsRefreshing(false);
             }
         });
-    }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, toast]);
+    }, [isUnsolvedView, yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, toast]);
 
     useEffect(() => {
         if (isInitialMount.current) {
@@ -405,8 +412,10 @@ export function DbViewer({
             }
             return;
         }
-        fetchData();
-    }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, fetchData]);
+        if (!isUnsolvedView) { // Only trigger on filter changes if not in special view
+            fetchData();
+        }
+    }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, fetchData, isUnsolvedView]);
     
     useEffect(() => {
         let timer: NodeJS.Timeout | undefined;
@@ -621,30 +630,32 @@ export function DbViewer({
             }
         });
     };
-    
-    const unsolvedStatuses = ['L1', 'L2', 'L3'];
-    const isUnsolvedFilterActive = useMemo(() => 
-        JSON.stringify(columnFilters.status?.sort()) === JSON.stringify(unsolvedStatuses.sort()),
-        [columnFilters.status]
-    );
 
     const handleUnsolvedFilterClick = () => {
-        if (isUnsolvedFilterActive) {
-            // Filter is active, turn it off by removing the status filter
-            setColumnFilters(prev => {
-                const { status, ...rest } = prev; // Keep other filters
-                return rest;
-            });
+        if (isUnsolvedView) {
+            // Restore previous state and re-fetch
+            setIsUnsolvedView(false);
+            if(preUnsolvedState) {
+                setSearchTerm(preUnsolvedState.searchTerm);
+                setDateRange(preUnsolvedState.dateRange);
+                setColumnFilters(preUnsolvedState.columnFilters);
+                setYearFilter(preUnsolvedState.yearFilter);
+                setCurrentPage(preUnsolvedState.currentPage);
+                setPageSize(preUnsolvedState.pageSize);
+            }
+            // fetchData will be triggered by useEffect
         } else {
-            // Filter is inactive, turn it on
-            // Apply a clean slate of filters for this view
-            setColumnFilters({ status: unsolvedStatuses });
-            setYearFilter('all'); // See all years
-            setDateRange(undefined);
-            setSearchTerm('');
+            // Save current state
+            setPreUnsolvedState({
+                searchTerm, dateRange, columnFilters, yearFilter, currentPage, pageSize
+            });
+            // Clear filters for the view
+            handleClearAllFilters();
+            setIsUnsolvedView(true);
+            fetchData(false, 'unsolved');
         }
     };
-
+    
 
     const handleCellChange = (id: number, header: string, value: string) => {
         setState(prevState => {
@@ -675,7 +686,7 @@ export function DbViewer({
                     }
                     setIsDatePopoverOpen(open);
                 }}>
-                    <PopoverTrigger asChild disabled={isEditMode}>
+                    <PopoverTrigger asChild disabled={isEditMode || isUnsolvedView}>
                         <Button variant="ghost" className={cn(headerStyle, "p-0 h-auto data-[state=open]:bg-accent/20")}>
                             {displayHeader}
                             <Filter className={cn("ml-2 h-3 w-3", dateRange ? "text-primary" : "text-muted-foreground/50")} />
@@ -756,7 +767,7 @@ export function DbViewer({
                 : (filterOptions[header] || []);
             return(
                 <Popover>
-                    <PopoverTrigger asChild disabled={isEditMode}>
+                    <PopoverTrigger asChild disabled={isEditMode || isUnsolvedView}>
                         <Button variant="ghost" className={cn(headerStyle, "p-0 h-auto hover:bg-transparent data-[state=open]:bg-accent/20")}>
                             {displayHeader}
                             <Filter className={cn("ml-2 h-3 w-3", isFilterActive ? "text-primary" : "text-muted-foreground/50")} />
@@ -785,15 +796,15 @@ export function DbViewer({
                                                     <Check className={cn("h-4 w-4")} />
                                                 </div>
                                                 {isCategoryFilter ? (
-                                                    <span className={cn('px-2 py-0.5 rounded-md text-xs', categoryColorMap[option] || categoryColorMap.default)}>
+                                                    <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[option] || categoryColorMap.default)}>
                                                         {option}
                                                     </span>
                                                 ) : isStatusFilter ? (
-                                                    <span className={cn('inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md text-xs', statusColorMap[option] || statusColorMap.default)}>
+                                                    <span className={cn('inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[option] || statusColorMap.default)}>
                                                         {option}
                                                     </span>
                                                 ) : isModuleFilter ? (
-                                                    <span className={cn('px-2 py-0.5 rounded-md text-xs', moduleColorMap[option] || moduleColorMap.default)}>
+                                                    <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>
                                                         {option}
                                                     </span>
                                                 ) : (
@@ -885,7 +896,7 @@ export function DbViewer({
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-8 sm:w-[300px]"
-                                    disabled={isEditMode || isSaving}
+                                    disabled={isEditMode || isSaving || isUnsolvedView}
                                 />
                             </div>
                             <div className="w-full sm:w-auto">
@@ -894,7 +905,7 @@ export function DbViewer({
                                     onValueChange={(value) => {
                                         setYearFilter(value === 'all' ? '' : value);
                                     }}
-                                    disabled={isEditMode || isSaving}
+                                    disabled={isEditMode || isSaving || isUnsolvedView}
                                 >
                                     <SelectTrigger className="w-full sm:w-[180px]">
                                         <SelectValue placeholder="Filter by year..." />
@@ -907,7 +918,7 @@ export function DbViewer({
                                     </SelectContent>
                                 </Select>
                             </div>
-                            {areFiltersActive && (
+                            {areFiltersActive && !isUnsolvedView && (
                                 <Button onClick={handleClearAllFilters} variant="ghost" size="sm" disabled={isEditMode || isSaving}>
                                     <FilterX className="mr-2 h-4 w-4" />
                                     Clear All Filters
@@ -926,19 +937,24 @@ export function DbViewer({
                                     </Button>
                                 </div>
                             ) : (
-                                <Button onClick={handleEditClick} size="sm" className="bg-yellow-400 text-black hover:bg-yellow-500">
-                                    <Pencil className="mr-2 h-4 w-4" /> Edit
-                                </Button>
+                                state.source !== 'view' && (
+                                    <Button onClick={handleEditClick} size="sm" className="bg-yellow-400 text-black hover:bg-yellow-500">
+                                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                                    </Button>
+                                )
                             )}
                              <Button
                                 onClick={handleUnsolvedFilterClick}
                                 size="sm"
-                                variant="secondary"
-                                className="bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                                variant={isUnsolvedView ? "default": "secondary"}
+                                className={cn(
+                                    !isUnsolvedView && "bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700",
+                                    isUnsolvedView && "bg-blue-500 hover:bg-blue-600"
+                                )}
                                 disabled={isPending || isRefreshing || isEditMode || isSaving}
                             >
-                                <Filter className="mr-2 h-4 w-4" />
-                                {isUnsolvedFilterActive ? "Clear Unsolved" : "Unsolved Filter"}
+                                {isUnsolvedView ? <ArrowLeft className="mr-2 h-4 w-4" /> : <Filter className="mr-2 h-4 w-4" />}
+                                {isUnsolvedView ? "Show All Cases" : "Unsolved Filter"}
                             </Button>
                             <Button onClick={() => fetchData(true)} size="sm" variant="default" className="bg-blue-500 hover:bg-blue-600" disabled={isPending || isRefreshing || isEditMode || isSaving}>
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -968,7 +984,7 @@ export function DbViewer({
                         ) : (
                             <div style={{ width: `${totalWidth}px` }}>
                                 {/* Header row */}
-                                <div className="sticky top-0 z-10 flex bg-muted">
+                                <div className="sticky top-0 z-10 flex bg-background">
                                     {headers.map(header => (
                                         <div
                                             key={header}
@@ -1000,7 +1016,7 @@ export function DbViewer({
                                         >
                                             {headers.map(header => {
                                                 const isNoColumn = header.toLowerCase() === 'no';
-                                                const isEditable = isEditMode && !isNoColumn;
+                                                const isEditable = isEditMode && !isNoColumn && state.source !== 'view';
                                                 const rowId = row?.id;
                                                 
                                                 let cellValue = row ? (isNoColumn ? rowNumber : row[header]) : null;
@@ -1008,7 +1024,7 @@ export function DbViewer({
                                                 const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
                                                 
                                                 const columnsToCenter = [
-                                                    'no', 'date', 'month', 'client_name', 'customer_name', 
+                                                    'no', 'date', 'month',
                                                     'ticket_category', 'module', 'detail_module', 'created_at', 
                                                     'resolved_at', 'status_case_2'
                                                 ];
@@ -1036,9 +1052,15 @@ export function DbViewer({
                                                                 >
                                                                     <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
                                                                         {cellValue ? (
-                                                                            <span className={cn('px-2 py-0.5 rounded-md text-xs', header === 'status' && 'inline-flex items-center justify-center w-[100px]', header === 'ticket_category' ? (categoryColorMap[cellValue as string] || categoryColorMap.default) : (statusColorMap[cellValue as string] || statusColorMap.default))}>
-                                                                                {cellValue}
-                                                                            </span>
+                                                                             header === 'status' ? (
+                                                                                <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[cellValue as string] || statusColorMap.default)}>
+                                                                                    {cellValue}
+                                                                                </span>
+                                                                             ) : (
+                                                                                <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
+                                                                                    {cellValue}
+                                                                                </span>
+                                                                             )
                                                                         ) : (
                                                                             <span className="text-muted-foreground">Select...</span>
                                                                         )}
@@ -1046,9 +1068,15 @@ export function DbViewer({
                                                                     <SelectContent>
                                                                         {(header === 'ticket_category' ? ALL_CATEGORIES : ALL_STATUSES).map(option => (
                                                                             <SelectItem key={option} value={option}>
-                                                                                <span className={cn('px-2 py-0.5 rounded-md text-xs', header === 'ticket_category' ? (categoryColorMap[option] || categoryColorMap.default) : (statusColorMap[option] || statusColorMap.default))}>
-                                                                                    {option}
-                                                                                </span>
+                                                                                {header === 'status' ? (
+                                                                                    <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[option] || statusColorMap.default)}>
+                                                                                        {option}
+                                                                                    </span>
+                                                                                ) : (
+                                                                                     <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[option] || categoryColorMap.default)}>
+                                                                                        {option}
+                                                                                    </span>
+                                                                                )}
                                                                             </SelectItem>
                                                                         ))}
                                                                     </SelectContent>
@@ -1066,7 +1094,7 @@ export function DbViewer({
                                                                     <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
                                                                         {cellValue ? (
                                                                             header === 'module' ? (
-                                                                                <span className={cn('px-2 py-0.5 rounded-md text-xs', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
+                                                                                <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
                                                                                     {cellValue}
                                                                                 </span>
                                                                             ) : (
@@ -1080,7 +1108,7 @@ export function DbViewer({
                                                                         {(header === 'module' ? ALL_MODULES : header === 'detail_module' ? ALL_DETAIL_MODULES : (filterOptions[header] || [])).map(option => (
                                                                             <SelectItem key={option} value={option}>
                                                                                 {header === 'module' ? (
-                                                                                    <span className={cn('px-2 py-0.5 rounded-md text-xs', moduleColorMap[option] || moduleColorMap.default)}>
+                                                                                    <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>
                                                                                         {option}
                                                                                     </span>
                                                                                 ) : (
@@ -1107,44 +1135,29 @@ export function DbViewer({
                                                                             const age = Number(cellValue);
                                                                             const isOverdue = age > 3;
                                                                             return (
-                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-md font-mono', isOverdue ? 'bg-destructive text-destructive-foreground font-bold' : '')}>
+                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-full font-mono', isOverdue ? 'bg-destructive text-destructive-foreground font-bold' : '')}>
                                                                                     {age}
                                                                                 </span>
                                                                             );
                                                                         }
                                                                         if (header === 'ticket_category' && cellValue) {
                                                                             return (
-                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-md', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
+                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-full', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
                                                                                     {cellValue}
                                                                                 </span>
                                                                             );
                                                                         }
                                                                         if (header === 'status' && cellValue) {
                                                                             return (
-                                                                                <span className={cn('text-xs inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md', statusColorMap[cellValue as string] || statusColorMap.default)}>
+                                                                                <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[cellValue as string] || statusColorMap.default)}>
                                                                                     {cellValue}
                                                                                 </span>
                                                                             );
                                                                         }
                                                                         if (header === 'module' && cellValue) {
                                                                             return (
-                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-md', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
+                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-full', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
                                                                                     {cellValue}
-                                                                                </span>
-                                                                            );
-                                                                        }
-                                                                        if (header === 'title' && cellValue && typeof cellValue === 'string' && cellValue.match(/(IHO-\d+)/)) {
-                                                                            const match = cellValue.match(/(IHO-\d+)/);
-                                                                            if (!match) return <span className="truncate text-xs">{cellValue}</span>;
-                                                                            const ticketId = match[0];
-                                                                            const parts = cellValue.split(ticketId);
-                                                                            return (
-                                                                                <span className="truncate text-xs">
-                                                                                    {parts[0]}
-                                                                                    <a href={`https://pintro.atlassian.net/browse/${ticketId}`} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
-                                                                                        {ticketId}
-                                                                                    </a>
-                                                                                    {parts[1]}
                                                                                 </span>
                                                                             );
                                                                         }
@@ -1165,75 +1178,77 @@ export function DbViewer({
                         )}
                     </div>
                 </CardContent>
-                <CardFooter className="p-3 border-t">
-                    <div className="flex items-center justify-between w-full">
-                        <div className="flex-1 text-sm text-muted-foreground">
-                            Showing {totalRows > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRows)} of {totalRows.toLocaleString()} rows
+                 {!isUnsolvedView && (
+                    <CardFooter className="p-3 border-t">
+                        <div className="flex items-center justify-between w-full">
+                            <div className="flex-1 text-sm text-muted-foreground">
+                                Showing {totalRows > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRows)} of {totalRows.toLocaleString()} rows
+                            </div>
+                            <div className="flex items-center space-x-6">
+                                <div className="flex items-center space-x-2">
+                                    <p className="text-sm font-medium">Rows per page</p>
+                                    <Select
+                                        value={`${pageSize}`}
+                                        onValueChange={(value) => setPageSize(Number(value))}
+                                        disabled={isPending || isEditMode}
+                                    >
+                                        <SelectTrigger className="h-8 w-[70px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent side="top">
+                                            {[50, 100, 250, 500].map((size) => (
+                                                <SelectItem key={size} value={`${size}`}>{size}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <p className="text-sm font-medium">
+                                        Page {currentPage} of {totalPages || 1}
+                                    </p>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(1)}
+                                        disabled={currentPage === 1 || isPending || isEditMode}
+                                        title="First page"
+                                    >
+                                        <ChevronsLeft className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1 || isPending || isEditMode}
+                                        title="Previous page"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))}
+                                        disabled={currentPage >= (totalPages || 1) || isPending || isEditMode}
+                                        title="Next page"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(totalPages || 1)}
+                                        disabled={currentPage >= (totalPages || 1) || isPending || isEditMode}
+                                        title="Last page"
+                                    >
+                                        <ChevronsRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex items-center space-x-6">
-                            <div className="flex items-center space-x-2">
-                                <p className="text-sm font-medium">Rows per page</p>
-                                <Select
-                                    value={`${pageSize}`}
-                                    onValueChange={(value) => setPageSize(Number(value))}
-                                    disabled={isPending || isEditMode}
-                                >
-                                    <SelectTrigger className="h-8 w-[70px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent side="top">
-                                        {[50, 100, 250, 500].map((size) => (
-                                            <SelectItem key={size} value={`${size}`}>{size}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <p className="text-sm font-medium">
-                                    Page {currentPage} of {totalPages || 1}
-                                </p>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(1)}
-                                    disabled={currentPage === 1 || isPending || isEditMode}
-                                    title="First page"
-                                >
-                                    <ChevronsLeft className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                    disabled={currentPage === 1 || isPending || isEditMode}
-                                    title="Previous page"
-                                >
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))}
-                                    disabled={currentPage >= (totalPages || 1) || isPending || isEditMode}
-                                    title="Next page"
-                                >
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(totalPages || 1)}
-                                    disabled={currentPage >= (totalPages || 1) || isPending || isEditMode}
-                                    title="Last page"
-                                >
-                                    <ChevronsRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                </CardFooter>
+                    </CardFooter>
+                 )}
             </Card>
 
             <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
