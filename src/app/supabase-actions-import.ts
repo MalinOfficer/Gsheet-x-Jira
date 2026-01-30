@@ -29,10 +29,19 @@ export type ImportCasePayload = {
 // New action to update just status
 export async function updateCaseStatus(ticket_number: string, status: string) {
     try {
+      const updateData: { status_case: string; check_out?: string } = {
+        status_case: status,
+      };
+
+      if (status.toLowerCase() === 'solved') {
+        updateData.check_out = new Date().toISOString();
+      }
+
       const { error } = await supabaseAdmin
         .from('all_cases')
-        .update({ status_case: status })
+        .update(updateData)
         .eq('ticket_number', ticket_number);
+        
       if (error) throw error;
       return { success: true };
     } catch (err: any) {
