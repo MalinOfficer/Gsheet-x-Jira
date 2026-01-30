@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check, ArrowLeft } from "lucide-react";
@@ -15,7 +16,7 @@ import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, updateCase, getUnsolvedCases } from "@/app/actions";
+import { getAllCaseData, updateCase } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -180,6 +181,23 @@ const moduleColorMap: Record<string, string> = {
     'default': 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
 };
 
+const getUnsolvedCases = async () => {
+    // This is a placeholder. In a real scenario, you would fetch from a specific view/endpoint.
+    const { data, error, count } = await getAllCaseData({
+        status: ['L1', 'L2', 'L3', 'ON HOLD']
+    });
+
+    if (error) {
+        return { error };
+    }
+
+    // Since this is a view, there's no separate pagination data source.
+    // The pagination will be handled client-side for this view if needed,
+    // or we can assume the view returns a manageable number of rows.
+    return { data, source: 'view' as const, pagination: null };
+};
+
+
 export function DbViewer({ 
     initialData, 
     initialSource, 
@@ -230,6 +248,12 @@ export function DbViewer({
     // Unsolved view state
     const [isUnsolvedView, setIsUnsolvedView] = useState(false);
     const [preUnsolvedState, setPreUnsolvedState] = useState<any>(null);
+
+    const columnsToCenter = [
+        'no', 'date', 'month',
+        'ticket_category', 'module', 'detail_module', 'created_at', 
+        'resolved_at', 'status_case_2', 'client_name', 'customer_name', 'status'
+    ];
 
 
     useEffect(() => {
@@ -336,18 +360,15 @@ export function DbViewer({
 
     const totalWidth = useMemo(() => Object.values(columnWidths).reduce((acc, width) => acc + width, 0), [columnWidths]);
     
-    const fetchData = useCallback(async (isRefresh = false, forceSource?: 'all_cases' | 'unsolved') => {
+    const fetchData = useCallback(async (isRefresh = false, forceSource?: 'unsolved') => {
         startTransition(async () => {
             if (isRefresh) {
                 setIsRefreshing(true);
                 setProgress(0);
             }
             
-            const sourceToFetch = forceSource ?? (isUnsolvedView ? 'unsolved' : 'all_cases');
-            
             let dataResult;
-
-            if (sourceToFetch === 'unsolved') {
+            if (forceSource === 'unsolved' || isUnsolvedView) {
                 dataResult = await getUnsolvedCases();
             } else {
                  dataResult = await getAllCaseData({
@@ -1022,12 +1043,6 @@ export function DbViewer({
                                                 let cellValue = row ? (isNoColumn ? rowNumber : row[header]) : null;
                                                 
                                                 const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
-                                                
-                                                const columnsToCenter = [
-                                                    'no', 'date', 'month',
-                                                    'ticket_category', 'module', 'detail_module', 'created_at', 
-                                                    'resolved_at', 'status_case_2'
-                                                ];
 
                                                 return (
                                                     <div 
