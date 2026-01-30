@@ -1035,7 +1035,7 @@ export function DbViewer({
                                         >
                                             {headers.map(header => {
                                                 const isNoColumn = header.toLowerCase() === 'no';
-                                                const isEditable = isEditMode && !isNoColumn && state.source !== 'view';
+                                                const isEditable = isEditMode;
                                                 const rowId = row?.id;
                                                 
                                                 let cellValue = row ? (isNoColumn ? rowNumber : row[header]) : null;
@@ -1141,7 +1141,7 @@ export function DbViewer({
                                                                 disabled={!row}
                                                             />
                                                         ) : (
-                                                            <div className={cn("py-1 px-2 flex items-center h-full", columnsToCenter.includes(header) && 'justify-center')}>
+                                                            <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note'].includes(header) && 'justify-center')}>
                                                                 {row ? (
                                                                     (() => {
                                                                         if (header === 'status_case_2' && cellValue) {
@@ -1173,6 +1173,24 @@ export function DbViewer({
                                                                                     {cellValue}
                                                                                 </span>
                                                                             );
+                                                                        }
+                                                                        if (header === 'title' && cellValue) {
+                                                                            // Regex to find the ticket number pattern (e.g., IHO-1234)
+                                                                            const ticketNumberMatch = String(cellValue).match(/(IHO-\d+)/);
+                                                                        
+                                                                            // If a ticket number is found in the title and a corresponding URL exists in ticket_op
+                                                                            if (ticketNumberMatch && row.ticket_op) {
+                                                                                const ticketNumber = ticketNumberMatch[0];
+                                                                                const restOfTitle = String(cellValue).replace(ticketNumber, '').trim();
+                                                                                return (
+                                                                                    <span className="truncate text-xs">
+                                                                                        <a href={row.ticket_op} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                                                                            {ticketNumber}
+                                                                                        </a>
+                                                                                        {' '}{restOfTitle}
+                                                                                    </span>
+                                                                                );
+                                                                            }
                                                                         }
                                                                         return <span className="truncate text-xs">{cellValue}</span>;
                                                                     })()
