@@ -111,6 +111,32 @@ const ALL_STATUSES = [
     'Move to Issue Tracker',
 ];
 
+const ALL_MODULES = [
+    'PPDP/PMB',
+    'LMS/KBM',
+    'Administrasi Akademik',
+    'CBT',
+    'Penilaian/Raport',
+    'Payment',
+    'Perpustakaan',
+    'Pesantren',
+    'Pintro Pay',
+    'Boarding',
+    'Migrasi Data',
+    'Aplikasi/Mobile',
+    'Akses Portal',
+];
+
+const moduleColorMap: Record<string, string> = {
+    'Payment': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+    'Perpustakaan': 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
+    'Pesantren': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    'Pintro Pay': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    'Boarding': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+    'Migrasi Data': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+    'default': 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+};
+
 export function DbViewer({ 
     initialData, 
     initialSource, 
@@ -674,7 +700,14 @@ export function DbViewer({
         if (isFilterable) {
             const isCategoryFilter = header === 'ticket_category';
             const isStatusFilter = header === 'status';
-            const options = isCategoryFilter ? ALL_CATEGORIES : isStatusFilter ? ALL_STATUSES : (filterOptions[header] || []);
+            const isModuleFilter = header === 'module';
+            const options = isCategoryFilter
+                ? ALL_CATEGORIES
+                : isStatusFilter
+                ? ALL_STATUSES
+                : isModuleFilter
+                ? ALL_MODULES
+                : (filterOptions[header] || []);
             return(
                 <Popover>
                     <PopoverTrigger asChild disabled={isEditMode}>
@@ -711,6 +744,10 @@ export function DbViewer({
                                                     </span>
                                                 ) : isStatusFilter ? (
                                                     <span className={cn('inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md text-xs', statusColorMap[option] || statusColorMap.default)}>
+                                                        {option}
+                                                    </span>
+                                                ) : isModuleFilter ? (
+                                                    <span className={cn('px-2 py-0.5 rounded-md text-xs', moduleColorMap[option] || moduleColorMap.default)}>
                                                         {option}
                                                     </span>
                                                 ) : (
@@ -981,12 +1018,28 @@ export function DbViewer({
                                                                     disabled={!row}
                                                                 >
                                                                     <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
-                                                                        <SelectValue placeholder="Select..." />
+                                                                        {cellValue ? (
+                                                                            header === 'module' ? (
+                                                                                <span className={cn('px-2 py-0.5 rounded-md text-xs', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
+                                                                                    {cellValue}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-xs">{cellValue}</span>
+                                                                            )
+                                                                        ) : (
+                                                                            <span className="text-muted-foreground">Select...</span>
+                                                                        )}
                                                                     </SelectTrigger>
                                                                     <SelectContent>
-                                                                        {(filterOptions[header] || []).map(option => (
+                                                                        {(header === 'module' ? ALL_MODULES : (filterOptions[header] || [])).map(option => (
                                                                             <SelectItem key={option} value={option}>
-                                                                                {option}
+                                                                                {header === 'module' ? (
+                                                                                    <span className={cn('px-2 py-0.5 rounded-md text-xs', moduleColorMap[option] || moduleColorMap.default)}>
+                                                                                        {option}
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    option
+                                                                                )}
                                                                             </SelectItem>
                                                                         ))}
                                                                     </SelectContent>
@@ -1023,6 +1076,13 @@ export function DbViewer({
                                                                         if (header === 'status' && cellValue) {
                                                                             return (
                                                                                 <span className={cn('text-xs inline-flex items-center justify-center w-[100px] px-2 py-0.5 rounded-md', statusColorMap[cellValue as string] || statusColorMap.default)}>
+                                                                                    {cellValue}
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (header === 'module' && cellValue) {
+                                                                            return (
+                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-md', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
                                                                                     {cellValue}
                                                                                 </span>
                                                                             );
