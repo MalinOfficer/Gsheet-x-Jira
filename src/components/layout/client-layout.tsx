@@ -51,7 +51,6 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
     };
 
     const handleHeavyLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        // Prevent premature navigation if the current page is the same
         if (e.currentTarget.pathname === pathname) {
             e.preventDefault();
             return;
@@ -62,18 +61,19 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
     const Wrapper = isMobile ? SheetClose : 'div';
 
     return (
-        <nav className="grid items-start gap-0 text-sm font-medium">
+        <nav className="grid items-start gap-0">
             {(Object.keys(navItems) as NavCategory[]).map(category => {
                 const visibleItems = navItems[category].filter(isVisible);
                 if (visibleItems.length === 0) return null;
 
                 return (
-                    <div key={category}>
-                        <h2 className="mb-2 mt-4 ml-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    <div key={category} className="py-5">
+                        <h2 className="px-5 pb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                             {category}
                         </h2>
                         {visibleItems.map((item) => {
                             const isHeavy = item.href === '/dashboard' || item.href === '/db';
+                            const isActive = pathname === item.href;
 
                             return (
                                 <Wrapper key={item.label} asChild>
@@ -81,11 +81,11 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                                         href={item.href}
                                         onClick={isHeavy ? handleHeavyLinkClick : undefined}
                                         className={cn(
-                                            "flex items-center gap-3 py-2.5 pr-4 text-muted-foreground transition-colors border-l-4",
-                                            "text-sm font-medium",
-                                            pathname === item.href
-                                                ? "border-primary bg-primary/10 text-primary font-semibold pl-3"
-                                                : "border-transparent hover:text-primary pl-4",
+                                            "flex items-center gap-3 px-5 py-2.5 text-sm font-medium transition-all duration-200",
+                                            "border-r-[3px]",
+                                            isActive
+                                                ? "border-primary bg-primary/10 text-primary font-semibold"
+                                                : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                                             item.disabled && "pointer-events-none opacity-50"
                                         )}
                                     >
@@ -123,7 +123,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     const pageTitles: Record<string, string> = {
         "/": "Import Data",
         "/dashboard": "Dashboard",
-        "/db": "All Case Database",
+        "/db": "All Cases",
         "/knowledge-base": "Knowledge Base",
         "/report-harian": "Daily Report",
         "/migrasi-murid": "Migrasi Murid",
@@ -163,31 +163,35 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className={cn(
             "grid w-full",
-            isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[260px_1fr]",
+            isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[220px_1fr]",
         )}>
             {/* --- Desktop Sidebar --- */}
             {!isMobile && (
                 <div className="hidden border-r bg-card md:flex flex-col h-screen sticky top-0">
-                    <div className="flex h-16 items-center border-b px-6 flex-shrink-0">
-                        <Link href="/" className="flex items-center gap-2.5 font-semibold text-primary">
-                            <GanttChartSquare className="h-6 w-6" strokeWidth={1.5} />
-                            <span className="text-lg">Gsheet Case</span>
+                    {/* Sidebar Header */}
+                    <div className="flex h-auto items-center px-5 py-5 border-b flex-shrink-0">
+                        <Link href="/" className="flex items-center gap-2 font-bold text-primary text-base">
+                            <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-primary-foreground text-sm">
+                                📊
+                            </div>
+                            <span>Gsheet Case</span>
                         </Link>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto py-2">
+                    {/* Navigation Links */}
+                    <div className="flex-1 overflow-y-auto">
                         <NavLinks />
                     </div>
                     
-                    <div className="mt-auto flex-shrink-0 border-t py-2">
+                    {/* Sidebar Footer */}
+                    <div className="mt-auto flex-shrink-0 border-t p-5">
                         <Link
                             href="/settings"
                             className={cn(
-                                "flex items-center gap-3 py-2.5 pr-4 text-muted-foreground transition-colors border-l-4",
-                                "text-sm font-medium",
+                                "flex items-center gap-3 px-2.5 py-2.5 rounded-md text-sm font-medium transition-all duration-200",
                                 pathname === "/settings" 
-                                    ? "border-primary bg-primary/10 text-primary font-semibold pl-3" 
-                                    : "border-transparent hover:text-primary pl-4"
+                                    ? "bg-muted text-foreground" 
+                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                             )}
                         >
                             <Settings className="h-5 w-5" strokeWidth={1.5} />
@@ -210,31 +214,32 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                     <span className="sr-only">Open navigation menu</span>
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent side="left" className="flex flex-col p-0">
-                                <SheetHeader className="h-16 flex items-center border-b px-6">
+                            <SheetContent side="left" className="flex flex-col p-0 w-[220px]">
+                                <SheetHeader className="h-auto flex items-center border-b px-5 py-5">
                                     <SheetTitle asChild>
-                                        <Link href="/" className="flex items-center gap-2.5 font-semibold text-primary">
-                                            <GanttChartSquare className="h-6 w-6" strokeWidth={1.5} />
-                                            <span className="text-lg">Gsheet Case</span>
+                                        <Link href="/" className="flex items-center gap-2 font-bold text-primary text-base">
+                                            <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-primary-foreground text-sm">
+                                                📊
+                                            </div>
+                                            <span>Gsheet Case</span>
                                         </Link>
                                     </SheetTitle>
                                 </SheetHeader>
-                                <div className="flex-1 overflow-y-auto py-2">
+                                <div className="flex-1 overflow-y-auto">
                                   <NavLinks isMobile={true}/>
                                 </div>
-                                <div className="mt-auto p-4 space-y-2 border-t">
+                                <div className="mt-auto p-5 border-t">
                                     <SheetClose asChild>
                                         <Link
                                             href="/settings"
                                             className={cn(
-                                                "flex items-center gap-3 py-2.5 pr-4 text-muted-foreground transition-colors border-l-4",
-                                                "text-sm font-medium",
+                                                "flex items-center gap-3 px-2.5 py-2.5 rounded-md text-sm font-medium transition-all duration-200",
                                                 pathname === "/settings" 
-                                                    ? "border-primary bg-primary/10 text-primary font-semibold pl-3" 
-                                                    : "border-transparent hover:text-primary pl-4"
+                                                    ? "bg-muted text-foreground" 
+                                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                             )}
                                         >
-                                            <Settings className="mr-3 h-5 w-5" strokeWidth={1.5} />
+                                            <Settings className="h-5 w-5" strokeWidth={1.5} />
                                             Settings
                                         </Link>
                                     </SheetClose>
@@ -244,7 +249,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     )}
 
                     <div className="w-full flex-1">
-                       <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">{currentPageTitle}</h1>
+                       <h1 className="text-2xl font-bold tracking-tight text-foreground">{currentPageTitle}</h1>
                     </div>
                     
                     <ProcessingIndicator />
