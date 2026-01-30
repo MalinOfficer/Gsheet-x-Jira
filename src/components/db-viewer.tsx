@@ -2,7 +2,7 @@
 
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check, ArrowLeft } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check, ArrowLeft, ChevronDown } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -68,6 +68,7 @@ const headerDisplayMapping: Record<string, string> = {
 
 const hiddenHeaders = [
     'id',
+    'ticket_number',
     'url_jira',
     'pic_client',
     'checkout',
@@ -709,7 +710,7 @@ export function DbViewer({
                     <PopoverTrigger asChild disabled={isEditMode || isUnsolvedView}>
                         <Button variant="ghost" className={cn(headerStyle, "p-0 h-auto data-[state=open]:bg-accent/20")}>
                             {displayHeader}
-                            <Filter className={cn("ml-2 h-3 w-3", dateRange ? "text-primary" : "text-muted-foreground/50")} />
+                            <ChevronDown className={cn("ml-2 h-4 w-4 transition-transform", dateRange ? "text-primary" : "text-muted-foreground/50", isDatePopoverOpen && "rotate-180")} />
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -790,7 +791,7 @@ export function DbViewer({
                     <PopoverTrigger asChild disabled={isEditMode || isUnsolvedView}>
                         <Button variant="ghost" className={cn(headerStyle, "p-0 h-auto hover:bg-transparent data-[state=open]:bg-accent/20")}>
                             {displayHeader}
-                            <Filter className={cn("ml-2 h-3 w-3", isFilterActive ? "text-primary" : "text-muted-foreground/50")} />
+                            <ChevronDown className={cn("ml-2 h-4 w-4 transition-transform", isFilterActive ? "text-primary" : "text-muted-foreground/50")} />
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[250px] p-0" align="start">
