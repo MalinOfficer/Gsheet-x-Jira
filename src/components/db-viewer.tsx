@@ -65,6 +65,7 @@ const headerDisplayMapping: Record<string, string> = {
     resolved_at: 'Resolved At',
     ticket_op: 'Ticket OP',
     status_case_2: 'Umur Case',
+    duration: 'Duration',
     note: 'Note',
 };
 
@@ -259,7 +260,7 @@ export function DbViewer({
     const columnsToCenter = [
         'no', 'date', 'month',
         'ticket_category', 'module', 'detail_module', 'created_at', 
-        'resolved_at', 'status_case_2', 'client_name', 'customer_name', 'status'
+        'resolved_at', 'status_case_2', 'duration', 'client_name', 'customer_name', 'status'
     ];
 
 
@@ -277,7 +278,7 @@ export function DbViewer({
         const predefinedOrder = [
             'date', 'month', 'ticket_number', 'title', 'client_name', 'customer_name',
             'status', 'ticket_category', 'module', 'detail_module', 'created_at',
-            'resolved_at', 'status_case_2', 'ticket_op', 'note'
+            'resolved_at', 'status_case_2', 'duration', 'ticket_op', 'note'
         ];
         
         const allKeys = Object.keys(state.data[0]);
@@ -312,6 +313,7 @@ export function DbViewer({
             created_at: 150,
             resolved_at: 150,
             status_case_2: 130, // Umur Case
+            duration: 130,
             ticket_op: 150,
             note: 250,
         };
@@ -512,6 +514,32 @@ export function DbViewer({
         return state.data.map(row => {
             const newRow = {...row};
     
+            // --- DURATION CALCULATION ---
+            const createdAtDate = row.created_at ? new Date(row.created_at) : null;
+            const resolvedAtDate = row.resolved_at ? new Date(row.resolved_at) : null;
+            
+            if (createdAtDate && !isNaN(createdAtDate.getTime()) && resolvedAtDate && !isNaN(resolvedAtDate.getTime()) && resolvedAtDate > createdAtDate) {
+                let diffMs = resolvedAtDate.getTime() - createdAtDate.getTime();
+                
+                const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                diffMs -= days * (1000 * 60 * 60 * 24);
+                
+                const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                diffMs -= hours * (1000 * 60 * 60);
+                
+                const minutes = Math.floor(diffMs / (1000 * 60));
+                
+                let durationString = '';
+                if (days > 0) durationString += `${days}d `;
+                if (hours > 0) durationString += `${hours}h `;
+                if (minutes >= 0) durationString += `${minutes}m`;
+                
+                newRow.duration = durationString.trim();
+            } else {
+                newRow.duration = '';
+            }
+            // --- END DURATION CALCULATION ---
+
             // Format dates
             ['created_at', 'resolved_at'].forEach(header => {
                 const cellValue = row[header];
@@ -546,7 +574,7 @@ export function DbViewer({
     
             // Calculate 'Umur Case'
             const status = newRow.status?.toUpperCase();
-            if (['L1', 'L2', 'L3'].includes(status)) {
+            if (['L1', 'L2', 'L3', 'ON HOLD'].includes(status)) {
                 const createdAtStr = row.created_at; // use original row data for calculation
                 if (createdAtStr) {
                     const createdAt = new Date(createdAtStr);
@@ -729,7 +757,11 @@ export function DbViewer({
             }
             const newData = prevState.data.map(row => {
                 if (row.id === id) {
-                    return { ...row, [header]: value };
+                    const updatedRow = { ...row, [header]: value };
+                    if (header === 'status' && (value === 'Solved' || value === 'RESOLVED') && !updatedRow.resolved_at) {
+                        updatedRow.resolved_at = new Date().toISOString();
+                    }
+                    return updatedRow;
                 }
                 return row;
             });
@@ -1268,6 +1300,13 @@ export function DbViewer({
                                                                             return (
                                                                                 <span className={cn('text-xs px-2 py-0.5 rounded-full font-mono', isOverdue ? 'bg-destructive text-destructive-foreground font-bold' : '')}>
                                                                                     {age}
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (header === 'duration' && cellValue) {
+                                                                            return (
+                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-full font-mono')}>
+                                                                                    {cellValue}
                                                                                 </span>
                                                                             );
                                                                         }
