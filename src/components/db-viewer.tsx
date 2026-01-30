@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Button, buttonVariants } from "./ui/button";
 import { Input } from "./ui/input";
-import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition, memo } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
 import { getAllCaseData, updateCase, deleteCase, deleteCases } from "@/app/actions";
@@ -53,7 +53,6 @@ const headerDisplayMapping: Record<string, string> = {
     no: 'No',
     date: 'Date',
     month: 'Month',
-    ticket_number: 'Ticket Number',
     client_name: 'Client Name',
     customer_name: 'Customer Name',
     status: 'Status',
@@ -200,6 +199,234 @@ const getUnsolvedCases = async () => {
     return { data, source: 'view' as const, pagination: null };
 };
 
+const MemoizedRow = memo(({
+    row,
+    headers,
+    columnWidths,
+    isEditMode,
+    rowNumber,
+    handleCellChange,
+    filterOptions,
+    isRowSelected,
+    onRowSelectionChange,
+    isBulkDeleting,
+}: {
+    row: any;
+    headers: string[];
+    columnWidths: Record<string, number>;
+    isEditMode: boolean;
+    rowNumber: number;
+    handleCellChange: (id: number, header: string, value: string) => void;
+    filterOptions: Record<string, string[]>;
+    isRowSelected: boolean;
+    onRowSelectionChange: (rowId: number, checked: boolean) => void;
+    isBulkDeleting: boolean;
+}) => {
+    return (
+        <div className="flex border-b transition-colors hover:bg-muted/50">
+            {headers.map(header => {
+                const isEditable = isEditMode;
+                const rowId = row?.id;
+
+                if (header === 'no') {
+                    return (
+                        <div
+                            key={header}
+                            className="align-middle flex items-center justify-center"
+                            style={{
+                                width: columnWidths[header],
+                                flexShrink: 0,
+                                borderRight: '1px solid hsl(var(--border))'
+                            }}
+                        >
+                            {isEditMode ? (
+                                <Checkbox
+                                    checked={isRowSelected}
+                                    onCheckedChange={(checked) => onRowSelectionChange(rowId, checked === true)}
+                                    aria-label={`Select row ${rowNumber}`}
+                                    disabled={!row || isBulkDeleting}
+                                />
+                            ) : (
+                                <span className="truncate text-xs">{rowNumber}</span>
+                            )}
+                        </div>
+                    );
+                }
+
+                const cellValue = row ? row[header] : null;
+                const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
+
+                return (
+                    <div
+                        key={header}
+                        className="align-middle"
+                        style={{
+                            width: columnWidths[header],
+                            flexShrink: 0,
+                            borderRight: '1px solid hsl(var(--border))'
+                        }}
+                    >
+                        {isDropdownColumn ? (
+                            (header === 'ticket_category' || header === 'status') ? (
+                                <Select
+                                    value={(cellValue as string) ?? ''}
+                                    onValueChange={(newValue) => {
+                                        if (rowId !== undefined) {
+                                            handleCellChange(rowId, header, newValue);
+                                        }
+                                    }}
+                                    disabled={!row}
+                                >
+                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
+                                        {cellValue ? (
+                                                header === 'status' ? (
+                                                <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[cellValue as string] || statusColorMap.default)}>
+                                                    {cellValue}
+                                                </span>
+                                                ) : (
+                                                <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
+                                                    {cellValue}
+                                                </span>
+                                                )
+                                        ) : (
+                                            <span className="text-muted-foreground">Select...</span>
+                                        )}
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(header === 'ticket_category' ? ALL_CATEGORIES : ALL_STATUSES).map(option => (
+                                            <SelectItem key={option} value={option}>
+                                                {header === 'status' ? (
+                                                    <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[option] || statusColorMap.default)}>
+                                                        {option}
+                                                    </span>
+                                                ) : (
+                                                        <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[option] || categoryColorMap.default)}>
+                                                        {option}
+                                                    </span>
+                                                )}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <Select
+                                    value={(cellValue as string) ?? ''}
+                                    onValueChange={(newValue) => {
+                                        if (rowId !== undefined) {
+                                            handleCellChange(rowId, header, newValue);
+                                        }
+                                    }}
+                                    disabled={!row}
+                                >
+                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
+                                        {cellValue ? (
+                                            header === 'module' ? (
+                                                <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
+                                                    {cellValue}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs">{cellValue}</span>
+                                            )
+                                        ) : (
+                                            <span className="text-muted-foreground">Select...</span>
+                                        )}
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(header === 'module' ? ALL_MODULES : header === 'detail_module' ? ALL_DETAIL_MODULES : (filterOptions[header] || [])).map(option => (
+                                            <SelectItem key={option} value={option}>
+                                                {header === 'module' ? (
+                                                    <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>
+                                                        {option}
+                                                    </span>
+                                                ) : (
+                                                    option
+                                                )}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )
+                        ) : isEditable ? (
+                            <Input
+                                type="text"
+                                value={cellValue ?? ''}
+                                onChange={(e) => rowId !== undefined && handleCellChange(rowId, header, e.target.value)}
+                                className="h-full w-full rounded-none border-0 bg-transparent p-2 text-xs focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:bg-transparent"
+                                disabled={!row}
+                            />
+                        ) : (
+                            <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note'].includes(header) && 'justify-center')}>
+                                {row ? (
+                                    (() => {
+                                        if (header === 'status_case_2' && cellValue) {
+                                            const age = Number(cellValue);
+                                            const isOverdue = age > 3;
+                                            return (
+                                                <span className={cn('text-xs px-2 py-0.5 rounded-full font-mono', isOverdue ? 'bg-destructive text-destructive-foreground font-bold' : '')}>
+                                                    {age}
+                                                </span>
+                                            );
+                                        }
+                                        if (header === 'duration' && cellValue) {
+                                            return (
+                                                <span className={cn('text-xs px-2 py-0.5 rounded-full font-mono')}>
+                                                    {cellValue}
+                                                </span>
+                                            );
+                                        }
+                                        if (header === 'ticket_category' && cellValue) {
+                                            return (
+                                                <span className={cn('text-xs px-2 py-0.5 rounded-full', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
+                                                    {cellValue}
+                                                </span>
+                                            );
+                                        }
+                                        if (header === 'status' && cellValue) {
+                                            return (
+                                                <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[cellValue as string] || statusColorMap.default)}>
+                                                    {cellValue}
+                                                </span>
+                                            );
+                                        }
+                                        if (header === 'module' && cellValue) {
+                                            return (
+                                                <span className={cn('text-xs px-2 py-0.5 rounded-full', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
+                                                    {cellValue}
+                                                </span>
+                                            );
+                                        }
+                                        if (header === 'title' && cellValue) {
+                                            const ticketNumberMatch = String(cellValue).match(/^(IHO-\d+)/);
+
+                                            if (ticketNumberMatch) {
+                                                const ticketNumber = ticketNumberMatch[0];
+                                                const restOfTitle = String(cellValue).substring(ticketNumber.length).trim();
+                                                const jiraUrl = `https://pintro.atlassian.net/browse/${ticketNumber}`;
+                                                return (
+                                                    <span className="truncate text-xs">
+                                                        <a href={jiraUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                                            {ticketNumber}
+                                                        </a>
+                                                        {' '}{restOfTitle}
+                                                    </span>
+                                                );
+                                            }
+                                        }
+                                        return <span className="truncate text-xs">{cellValue}</span>;
+                                    })()
+                                ) : (
+                                    <Skeleton className="h-4 w-full" />
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+});
+MemoizedRow.displayName = "MemoizedRow";
+
 
 export function DbViewer({ 
     initialData, 
@@ -274,7 +501,6 @@ export function DbViewer({
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return ['no'];
-        // Use a predefined order but accommodate for missing columns from views
         const predefinedOrder = [
             'date', 'month', 'title', 'client_name', 'customer_name',
             'status', 'ticket_category', 'module', 'detail_module', 'created_at',
@@ -282,7 +508,6 @@ export function DbViewer({
         ];
         
         const existingKeys = Object.keys(state.data[0]);
-        // Add 'duration' to the keys so it can be sorted and displayed, even though it's calculated
         const allConsideredKeys = [...new Set([...existingKeys, 'duration'])];
 
         const visibleKeys = allConsideredKeys.filter(key => !hiddenHeaders.includes(key) && key !== 'id');
@@ -321,7 +546,6 @@ export function DbViewer({
             note: 250,
         };
         
-        // Add any missing headers with a default value
         headers.forEach(header => {
             if (!widths[header]) {
                 widths[header] = 120;
@@ -414,7 +638,6 @@ export function DbViewer({
                     setTotalRows(dataResult.pagination.total);
                     setTotalPages(dataResult.pagination.totalPages);
                 } else {
-                    // For views without pagination
                     const dataLength = dataResult.data?.length || 0;
                     setTotalRows(dataLength);
                     setTotalPages(dataLength > 0 ? 1 : 0);
@@ -517,7 +740,6 @@ export function DbViewer({
         return state.data.map(row => {
             const newRow = {...row};
     
-            // --- DURATION CALCULATION ---
             const createdAtDate = row.created_at ? new Date(row.created_at) : null;
             const resolvedAtDate = row.resolved_at ? new Date(row.resolved_at) : null;
             
@@ -541,9 +763,7 @@ export function DbViewer({
             } else {
                 newRow.duration = '';
             }
-            // --- END DURATION CALCULATION ---
 
-            // Format dates
             ['created_at', 'resolved_at'].forEach(header => {
                 const cellValue = row[header];
                 if (typeof cellValue === 'string' && cellValue) {
@@ -575,7 +795,6 @@ export function DbViewer({
                 } catch(e) { /* keep original */ }
             }
     
-            // Calculate 'Umur Case'
             const status = newRow.status?.toUpperCase();
             if (['L1', 'L2', 'L3', 'ON HOLD'].includes(status)) {
                 const createdAtStr = row.created_at; // use original row data for calculation
@@ -762,8 +981,28 @@ export function DbViewer({
         }
     };
     
+    const handleRowSelectionChange = useCallback((rowId: number, checked: boolean) => {
+        setSelectedRowIds(prev => {
+            const newSelectedRowIds = new Set(prev);
+            if (checked) {
+                newSelectedRowIds.add(rowId);
+            } else {
+                newSelectedRowIds.delete(rowId);
+            }
+            return newSelectedRowIds;
+        });
+    }, []);
 
-    const handleCellChange = (id: number, header: string, value: string) => {
+    const handleAllRowsSelectionChange = useCallback((checked: boolean) => {
+        if (checked) {
+            const allIds = new Set(displayData.map(row => row.id).filter(Boolean));
+            setSelectedRowIds(allIds);
+        } else {
+            setSelectedRowIds(new Set());
+        }
+    }, [displayData]);
+
+    const handleCellChange = useCallback((id: number, header: string, value: string) => {
         setState(prevState => {
             if (!prevState.data) {
                 return prevState;
@@ -788,7 +1027,7 @@ export function DbViewer({
             });
             return { ...prevState, data: newData };
         });
-    };
+    }, []);
 
     const renderHeaderContent = (header: string) => {
         const displayHeader = headerDisplayMapping[header] || header;
@@ -802,15 +1041,7 @@ export function DbViewer({
             return (
                 <Checkbox
                     checked={isAllSelected ? true : isSomeSelected ? 'indeterminate' : false}
-                    onCheckedChange={(checked) => {
-                        const newSelectedRowIds = new Set(selectedRowIds);
-                        if (checked === true) {
-                            displayData.forEach(row => row.id && newSelectedRowIds.add(row.id));
-                        } else {
-                            displayData.forEach(row => newSelectedRowIds.delete(row.id));
-                        }
-                        setSelectedRowIds(newSelectedRowIds);
-                    }}
+                    onCheckedChange={handleAllRowsSelectionChange}
                     aria-label="Select all rows"
                     disabled={isBulkDeleting}
                 />
@@ -1167,220 +1398,20 @@ export function DbViewer({
                                 {/* Data rows */}
                                 {displayData.map((row, index) => {
                                     const rowNumber = (currentPage - 1) * pageSize + index + 1;
-                                    
                                     return (
-                                        <div 
-                                            key={row?.id || index} 
-                                            className="flex border-b transition-colors hover:bg-muted/50"
-                                        >
-                                            {headers.map(header => {
-                                                const isEditable = (isEditMode || (isUnsolvedView && isEditMode));
-                                                const rowId = row?.id;
-                                                
-                                                let cellValue = row ? row[header] : null;
-                                                
-                                                const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
-
-                                                if (header === 'no') {
-                                                    return (
-                                                        <div 
-                                                            key={header}
-                                                            className="align-middle flex items-center justify-center"
-                                                            style={{ 
-                                                                width: columnWidths[header], 
-                                                                flexShrink: 0, 
-                                                                borderRight: '1px solid hsl(var(--border))' 
-                                                            }}
-                                                        >
-                                                            {isEditMode ? (
-                                                                <Checkbox
-                                                                    checked={selectedRowIds.has(rowId)}
-                                                                    onCheckedChange={(checked) => {
-                                                                        const newSelectedRowIds = new Set(selectedRowIds);
-                                                                        if (checked) {
-                                                                            newSelectedRowIds.add(rowId);
-                                                                        } else {
-                                                                            newSelectedRowIds.delete(rowId);
-                                                                        }
-                                                                        setSelectedRowIds(newSelectedRowIds);
-                                                                    }}
-                                                                    aria-label={`Select row ${rowNumber}`}
-                                                                    disabled={!row || isBulkDeleting}
-                                                                />
-                                                            ) : (
-                                                                <span className="truncate text-xs">{rowNumber}</span>
-                                                            )}
-                                                        </div>
-                                                    )
-                                                }
-
-                                                return (
-                                                    <div 
-                                                        key={header} 
-                                                        className="align-middle" 
-                                                        style={{ 
-                                                            width: columnWidths[header], 
-                                                            flexShrink: 0, 
-                                                            borderRight: '1px solid hsl(var(--border))' 
-                                                        }}
-                                                    >
-                                                        {isDropdownColumn ? (
-                                                            (header === 'ticket_category' || header === 'status') ? (
-                                                                <Select
-                                                                    value={(cellValue as string) ?? ''}
-                                                                    onValueChange={(newValue) => {
-                                                                        if (rowId !== undefined) {
-                                                                            handleCellChange(rowId, header, newValue);
-                                                                        }
-                                                                    }}
-                                                                    disabled={!row}
-                                                                >
-                                                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
-                                                                        {cellValue ? (
-                                                                             header === 'status' ? (
-                                                                                <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[cellValue as string] || statusColorMap.default)}>
-                                                                                    {cellValue}
-                                                                                </span>
-                                                                             ) : (
-                                                                                <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
-                                                                                    {cellValue}
-                                                                                </span>
-                                                                             )
-                                                                        ) : (
-                                                                            <span className="text-muted-foreground">Select...</span>
-                                                                        )}
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        {(header === 'ticket_category' ? ALL_CATEGORIES : ALL_STATUSES).map(option => (
-                                                                            <SelectItem key={option} value={option}>
-                                                                                {header === 'status' ? (
-                                                                                    <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[option] || statusColorMap.default)}>
-                                                                                        {option}
-                                                                                    </span>
-                                                                                ) : (
-                                                                                     <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[option] || categoryColorMap.default)}>
-                                                                                        {option}
-                                                                                    </span>
-                                                                                )}
-                                                                            </SelectItem>
-                                                                        ))}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            ) : (
-                                                                <Select
-                                                                    value={(cellValue as string) ?? ''}
-                                                                    onValueChange={(newValue) => {
-                                                                        if (rowId !== undefined) {
-                                                                            handleCellChange(rowId, header, newValue);
-                                                                        }
-                                                                    }}
-                                                                    disabled={!row}
-                                                                >
-                                                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
-                                                                        {cellValue ? (
-                                                                            header === 'module' ? (
-                                                                                <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
-                                                                                    {cellValue}
-                                                                                </span>
-                                                                            ) : (
-                                                                                <span className="text-xs">{cellValue}</span>
-                                                                            )
-                                                                        ) : (
-                                                                            <span className="text-muted-foreground">Select...</span>
-                                                                        )}
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        {(header === 'module' ? ALL_MODULES : header === 'detail_module' ? ALL_DETAIL_MODULES : (filterOptions[header] || [])).map(option => (
-                                                                            <SelectItem key={option} value={option}>
-                                                                                {header === 'module' ? (
-                                                                                    <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>
-                                                                                        {option}
-                                                                                    </span>
-                                                                                ) : (
-                                                                                    option
-                                                                                )}
-                                                                            </SelectItem>
-                                                                        ))}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            )
-                                                        ) : isEditable ? (
-                                                            <Input
-                                                                type="text"
-                                                                value={cellValue ?? ''}
-                                                                onChange={(e) => rowId !== undefined && handleCellChange(rowId, header, e.target.value)}
-                                                                className="h-full w-full rounded-none border-0 bg-transparent p-2 text-xs focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:bg-transparent"
-                                                                disabled={!row}
-                                                            />
-                                                        ) : (
-                                                            <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note'].includes(header) && 'justify-center')}>
-                                                                {row ? (
-                                                                    (() => {
-                                                                        if (header === 'status_case_2' && cellValue) {
-                                                                            const age = Number(cellValue);
-                                                                            const isOverdue = age > 3;
-                                                                            return (
-                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-full font-mono', isOverdue ? 'bg-destructive text-destructive-foreground font-bold' : '')}>
-                                                                                    {age}
-                                                                                </span>
-                                                                            );
-                                                                        }
-                                                                        if (header === 'duration' && cellValue) {
-                                                                            return (
-                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-full font-mono')}>
-                                                                                    {cellValue}
-                                                                                </span>
-                                                                            );
-                                                                        }
-                                                                        if (header === 'ticket_category' && cellValue) {
-                                                                            return (
-                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-full', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
-                                                                                    {cellValue}
-                                                                                </span>
-                                                                            );
-                                                                        }
-                                                                        if (header === 'status' && cellValue) {
-                                                                            return (
-                                                                                <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[cellValue as string] || statusColorMap.default)}>
-                                                                                    {cellValue}
-                                                                                </span>
-                                                                            );
-                                                                        }
-                                                                        if (header === 'module' && cellValue) {
-                                                                            return (
-                                                                                <span className={cn('text-xs px-2 py-0.5 rounded-full', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
-                                                                                    {cellValue}
-                                                                                </span>
-                                                                            );
-                                                                        }
-                                                                        if (header === 'title' && cellValue) {
-                                                                            const ticketNumberMatch = String(cellValue).match(/^(IHO-\d+)/);
-
-                                                                            if (ticketNumberMatch) {
-                                                                                const ticketNumber = ticketNumberMatch[0];
-                                                                                const restOfTitle = String(cellValue).substring(ticketNumber.length).trim();
-                                                                                const jiraUrl = `https://pintro.atlassian.net/browse/${ticketNumber}`;
-                                                                                return (
-                                                                                    <span className="truncate text-xs">
-                                                                                        <a href={jiraUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                                                                                            {ticketNumber}
-                                                                                        </a>
-                                                                                        {' '}{restOfTitle}
-                                                                                    </span>
-                                                                                );
-                                                                            }
-                                                                        }
-                                                                        return <span className="truncate text-xs">{cellValue}</span>;
-                                                                    })()
-                                                                ) : (
-                                                                    <Skeleton className="h-4 w-full" />
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                        <MemoizedRow
+                                            key={row?.id || index}
+                                            row={row}
+                                            headers={headers}
+                                            columnWidths={columnWidths}
+                                            isEditMode={isEditMode}
+                                            rowNumber={rowNumber}
+                                            handleCellChange={handleCellChange}
+                                            filterOptions={filterOptions}
+                                            isRowSelected={selectedRowIds.has(row?.id)}
+                                            onRowSelectionChange={handleRowSelectionChange}
+                                            isBulkDeleting={isBulkDeleting}
+                                        />
                                     );
                                 })}
                             </div>
@@ -1495,5 +1526,3 @@ export function DbViewer({
         </div>
     );
 }
-
-
