@@ -47,6 +47,7 @@ export async function getAllCaseData(filters?: {
   module?: string[];
   status?: string[];
   detailModule?: string[];
+  month?: string[];
   dateRange?: { from?: Date; to?: Date };
   search?: string;           // 🔥 NEW: Global search
   page?: number;              // 🔥 NEW: Current page (1-based)
@@ -106,6 +107,10 @@ export async function getAllCaseData(filters?: {
 
     if (filters?.detailModule?.length) {
       query = query.in('detail_module', filters.detailModule);
+    }
+
+    if (filters?.month?.length) {
+        query = query.in('month', filters.month);
     }
 
     // 🔥 NEW: Global search (server-side)
@@ -262,15 +267,8 @@ const _getDashboardFilterOptions = async () => {
     // Convert years dari database function
     // Function returns: [{ year: 2024 }, { year: 2025 }, etc.]
     const sortedYears = yearsData
-      .map((item: any) => {
-        console.log('🔄 Processing year item:', item);
-        return String(item.year);
-      })
-      .filter((year: string) => {
-        const isValid = year && year !== 'null' && year !== 'undefined' && year !== 'NaN';
-        console.log(`🔍 Year "${year}" is valid?`, isValid);
-        return isValid;
-      });
+      .map((item: any) => String(item.year))
+      .filter((year: string | null) => year && !['null', 'undefined', 'NaN'].includes(year));
 
     console.log('✅ Final years array:', sortedYears);
 

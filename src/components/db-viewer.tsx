@@ -199,7 +199,7 @@ export function DbViewer({
             return indexA - indexB;
         });
         
-        FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module'];
+        FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'month'];
 
         return ['no', ...visibleKeys];
     }, [state.data]);
@@ -290,6 +290,7 @@ export function DbViewer({
                 module: columnFilters['module'],
                 status: columnFilters['status'],
                 detailModule: columnFilters['detail_module'],
+                month: columnFilters['month'],
                 search: debouncedSearchTerm || undefined,
                 page: currentPage,
                 pageSize: pageSize,
@@ -367,9 +368,22 @@ export function DbViewer({
     const filterOptions = useMemo(() => {
         if (!state.data) return {};
         const options: Record<string, string[]> = {};
+        const monthOrder = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    
         FILTER_COLUMNS.forEach(col => {
             const uniqueValues = [...new Set(state.data?.map(row => row[col]).filter(Boolean))];
-            uniqueValues.sort((a, b) => a.localeCompare(b));
+            
+            if (col === 'month') {
+                uniqueValues.sort((a, b) => {
+                    const indexA = monthOrder.indexOf(a);
+                    const indexB = monthOrder.indexOf(b);
+                    if (indexA === -1) return 1;
+                    if (indexB === -1) return -1;
+                    return indexA - indexB;
+                });
+            } else {
+                uniqueValues.sort((a, b) => a.localeCompare(b));
+            }
             options[col] = uniqueValues;
         });
         return options;
@@ -838,7 +852,7 @@ export function DbViewer({
                                 {isGeneratingReport ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Copy className="mr-2 h-4 w-4" />}
                                 {isGeneratingReport ? "Generating..." : "L3 Report"}
                             </Button>
-                            <Button onClick={() => fetchData(true)} size="sm" variant="default" disabled={isPending || isRefreshing || isEditMode || isSaving}>
+                            <Button onClick={() => fetchData(true)} size="sm" variant="default" className="bg-blue-500 hover:bg-blue-600" disabled={isPending || isRefreshing || isEditMode || isSaving}>
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>
