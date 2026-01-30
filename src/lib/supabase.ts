@@ -44,6 +44,7 @@ export interface Database {
           status_case_solved: string | null;
           source_link_op: string | null;
           note: string | null;
+          deleted_at: string | null;
         };
         Insert: {
           id?: number;
@@ -62,6 +63,7 @@ export interface Database {
           status_case_solved?: string | null;
           source_link_op?: string | null;
           note?: string | null;
+          deleted_at?: string | null;
         };
         Update: {
           id?: number;
@@ -80,6 +82,7 @@ export interface Database {
           status_case_solved?: string | null;
           source_link_op?: string | null;
           note?: string | null;
+          deleted_at?: string | null;
         };
       };
     };

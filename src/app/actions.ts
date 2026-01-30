@@ -66,7 +66,8 @@ export async function getAllCaseData(filters?: {
     // Build base query
     let query = supabaseAdmin
       .from("all_cases")
-      .select(getSelectColumns(), { count: "exact" });
+      .select(getSelectColumns(), { count: "exact" })
+      .is('deleted_at', null);
 
     // Apply sorting
     const sortBy = filters?.sortBy || 'date';
@@ -207,7 +208,7 @@ export async function deleteCase(caseId: number) {
   try {
     const { error } = await supabaseAdmin
       .from('all_cases')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', caseId);
 
     if (error) {
@@ -234,7 +235,7 @@ export async function deleteCases(caseIds: number[]) {
 
     const { error } = await supabaseAdmin
       .from('all_cases')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .in('id', caseIds);
 
     if (error) {
@@ -356,6 +357,7 @@ export async function getL3ReportFromDB() {
     const { data, error } = await supabaseAdmin
       .from('all_cases')
       .select('client_name, detail_case, check_in, module_case, source_link_op, status_case, ticket_number')
+      .is('deleted_at', null)
       .in('status_case', ['L3', 'ON HOLD'])
       .order('check_in', { ascending: true });
 
