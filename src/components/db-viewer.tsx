@@ -958,11 +958,9 @@ export function DbViewer({
                                     </Button>
                                 </div>
                             ) : (
-                                state.source !== 'view' && (
-                                    <Button onClick={handleEditClick} size="sm" className="bg-yellow-400 text-black hover:bg-yellow-500">
-                                        <Pencil className="mr-2 h-4 w-4" /> Edit
-                                    </Button>
-                                )
+                                <Button onClick={handleEditClick} size="sm" className="bg-yellow-400 text-black hover:bg-yellow-500">
+                                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                                </Button>
                             )}
                              <Button
                                 onClick={handleUnsolvedFilterClick}
