@@ -74,7 +74,6 @@ const hiddenHeaders = [
     'url_jira',
     'pic_client',
     'checkout',
-    'ticket_number',
 ];
 
 const categoryColorMap: Record<string, string> = {
@@ -281,8 +280,11 @@ export function DbViewer({
             'resolved_at', 'status_case_2', 'duration', 'ticket_op', 'note'
         ];
         
-        const allKeys = Object.keys(state.data[0]);
-        const visibleKeys = allKeys.filter(key => !hiddenHeaders.includes(key) && key !== 'id');
+        const existingKeys = Object.keys(state.data[0]);
+        // Add 'duration' to the keys so it can be sorted and displayed, even though it's calculated
+        const allConsideredKeys = [...new Set([...existingKeys, 'duration'])];
+
+        const visibleKeys = allConsideredKeys.filter(key => !hiddenHeaders.includes(key) && key !== 'id');
         
         visibleKeys.sort((a, b) => {
             const indexA = predefinedOrder.indexOf(a);
@@ -296,7 +298,7 @@ export function DbViewer({
         FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'month'];
         const baseHeaders = ['no', ...visibleKeys];
         return baseHeaders;
-    }, [state.data, isEditMode]);
+    }, [state.data]);
 
     const initialColumnWidths = useCallback(() => {
         const widths: Record<string, number> = {
@@ -316,6 +318,7 @@ export function DbViewer({
             duration: 130,
             ticket_op: 150,
             note: 250,
+            ticket_number: 150
         };
         
         // Add any missing headers with a default value
@@ -1345,6 +1348,15 @@ export function DbViewer({
                                                                                         </a>
                                                                                         {' '}{restOfTitle}
                                                                                     </span>
+                                                                                );
+                                                                            }
+                                                                        }
+                                                                        if (header === 'ticket_number') {
+                                                                            if (row['ticket_op']) {
+                                                                                return (
+                                                                                    <a href={row['ticket_op']} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
+                                                                                        {cellValue}
+                                                                                    </a>
                                                                                 );
                                                                             }
                                                                         }
