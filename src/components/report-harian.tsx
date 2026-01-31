@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useContext, useTransition } from 'react';
@@ -303,7 +302,7 @@ interface ReportHarianProps {
   error?: string;
 }
 
-export function ReportHarian({ error }: ReportHarianProps) {
+export default function ReportHarian({ error }: ReportHarianProps) {
   const { tableData } = useContext(TableDataContext);
 
   // Check if data exists in the context from the import flow

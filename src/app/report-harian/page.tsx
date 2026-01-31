@@ -1,11 +1,10 @@
-
 'use client';
 
 import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const ReportHarian = dynamic(
-    () => import('@/components/report-harian').then(mod => mod.ReportHarian),
+    () => import('@/components/report-harian'),
     { 
         ssr: false,
         loading: () => (
