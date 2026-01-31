@@ -2,7 +2,7 @@
 
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check, ArrowLeft, ChevronDown, Trash2 } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check, ArrowLeft, ChevronDown, Trash2, Download } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -32,6 +32,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { Checkbox } from "./ui/checkbox";
 
+declare const XLSX: any;
 
 interface DbViewerProps {
     initialData: any[] | null;
@@ -1029,6 +1030,44 @@ export function DbViewer({
         });
     }, []);
 
+    const handleExport = () => {
+        if (!displayData || displayData.length === 0) {
+            toast({
+                variant: "destructive",
+                title: "No Data to Export",
+                description: "There is no data to display or export.",
+            });
+            return;
+        }
+        if (typeof XLSX === 'undefined') {
+            toast({ variant: 'destructive', title: "Library Not Loaded", description: "The Excel library is still loading. Please try again in a moment."});
+            return;
+        }
+
+        const exportHeaders = headers.map(h => headerDisplayMapping[h] || h);
+        
+        const dataForSheet = displayData.map(row => {
+            return headers.map(header => {
+                return row[header] ?? '';
+            });
+        });
+
+        const worksheet = XLSX.utils.aoa_to_sheet([exportHeaders, ...dataForSheet]);
+        
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "All Cases");
+
+        const date = new Date().toISOString().slice(0, 10);
+        const filename = `All_Cases_${date}.xlsx`;
+
+        XLSX.writeFile(workbook, filename);
+
+        toast({
+            title: "Export Successful",
+            description: `${displayData.length} rows have been exported to ${filename}.`,
+        });
+    };
+
     const renderHeaderContent = (header: string) => {
         const displayHeader = headerDisplayMapping[header] || header;
         const isFilterable = FILTER_COLUMNS.includes(header);
@@ -1345,6 +1384,10 @@ export function DbViewer({
                             >
                                 {isUnsolvedView ? <ArrowLeft className="mr-2 h-4 w-4" /> : <Filter className="mr-2 h-4 w-4" />}
                                 {isUnsolvedView ? "Show All Cases" : "Unsolved Filter"}
+                            </Button>
+                             <Button onClick={handleExport} size="sm" variant="outline" disabled={isPending || isRefreshing || isEditMode || isSaving}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Export
                             </Button>
                             <Button onClick={() => fetchData(true)} size="sm" variant="default" className="bg-blue-500 hover:bg-blue-600" disabled={isPending || isRefreshing || isEditMode || isSaving}>
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
