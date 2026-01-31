@@ -47,6 +47,12 @@ export interface YourDBRow {
    * Map DB row to Frontend expected format
    */
   export function mapDBToFrontend(dbRow: YourDBRow): FrontendExpectedRow {
+    let title = dbRow.detail_case || '';
+    // Prepend ticket number to title if it's not already there and is in the IHO format
+    if (dbRow.ticket_number && /^IHO-\d+$/.test(dbRow.ticket_number) && !title.startsWith(dbRow.ticket_number)) {
+      title = `${dbRow.ticket_number} ${title}`;
+    }
+  
     return {
       id: dbRow.id,
       date: dbRow.date,
@@ -59,7 +65,7 @@ export interface YourDBRow {
       module: dbRow.module_case,
       detail_module: dbRow.detail_module,
       created_at: dbRow.check_in,
-      title: dbRow.detail_case,
+      title: title.trim(),
       resolved_at: dbRow.check_out,
       ticket_op: dbRow.source_link_op,
       url_jira: dbRow.source_link_op, // Same field
