@@ -18,6 +18,7 @@ export interface YourDBRow {
     status_case_solved?: string;
     source_link_op?: string;
     note?: string;
+    deleted_at?: string | null;
   }
   
   export interface FrontendExpectedRow {
@@ -59,6 +60,7 @@ const buildNormalizationMap = () => {
 
     // Add special custom mappings for common typos/variations
     map.set('yayasanassuryaniyah', 'ASSURYANIYAH BEKASI');
+    map.set('yysnassuryaniyahbekasi', 'ASSURYANIYAH BEKASI');
     map.set('yayasanmuthahhari', 'Muthahhari');
     map.set('alhamidiyah', 'AL Hamidiyah');
     map.set('irsyadulibad', 'Irsyadul Ibad');
@@ -125,7 +127,7 @@ export const normalizeClientName = (name: string | null | undefined): string => 
    * Map Frontend data back to DB format for INSERT/UPDATE
    */
   export function mapFrontendToDB(frontendRow: Record<string, any>): Partial<YourDBRow> {
-    return {
+    const dbRow = {
       // Map from frontend field names to your DB column names
       date: frontendRow['date'] || frontendRow['Date'],
       month: frontendRow['month'] || frontendRow['Month'],
@@ -141,6 +143,7 @@ export const normalizeClientName = (name: string | null | undefined): string => 
       source_link_op: frontendRow['ticket_op'] || frontendRow['Ticket OP'],
       note: frontendRow['note'] || frontendRow['Note'] || '',
     };
+    return dbRow;
   }
   
   /**
@@ -188,6 +191,7 @@ export const normalizeClientName = (name: string | null | undefined): string => 
       check_out,
       status_case_solved,
       source_link_op,
-      note
+      note,
+      deleted_at
     `.trim().replace(/\s+/g, ' ');
   }
