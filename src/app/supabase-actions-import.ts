@@ -1,6 +1,7 @@
 
 "use server";
 
+import { normalizeClientName } from "@/lib/db-mapper";
 import { supabaseAdmin } from "@/lib/supabase";
 
 /* ================= TYPES ================= */
@@ -111,7 +112,7 @@ export async function importOrUpdateCases(rows: ImportCasePayload[]) {
             toInsert.push({
               date: row.date,
               month: row.month,
-              client_name: row.client_name,
+              client_name: normalizeClientName(row.client_name),
               detail_module: row.detail_module,
               check_in: row.created_at,
               check_out: row.resolved_at,

@@ -1,4 +1,3 @@
-
 // src/lib/db-mapper.ts
 // Mapping layer between your DB columns and frontend expectations
 
@@ -66,13 +65,14 @@ const buildNormalizationMap = () => {
     map.set('stikessumberwaras', 'STIKES Sumber Waras');
     map.set('al_iklas', 'Al Ikhlas');
     map.set('darma_bangsa', 'Darma Bangsa');
+    map.set('asram', 'Asram');
 
     return map;
 };
 
 const clientNameNormalizationMap = buildNormalizationMap();
 
-const normalizeClientName = (name: string | null | undefined): string => {
+export const normalizeClientName = (name: string | null | undefined): string => {
     if (!name) return name || '';
     const normalizedKey = name.toLowerCase().replace(/[^a-z0-9]/gi, '');
     return clientNameNormalizationMap.get(normalizedKey) || name;
@@ -126,7 +126,7 @@ const normalizeClientName = (name: string | null | undefined): string => {
       // Map from frontend field names to your DB column names
       date: frontendRow['date'] || frontendRow['Date'],
       month: frontendRow['month'] || frontendRow['Month'],
-      client_name: frontendRow['client_name'] || frontendRow['Client Name'],
+      client_name: normalizeClientName(frontendRow['client_name'] || frontendRow['Client Name']),
       pic_client: frontendRow['customer_name'] || frontendRow['Customer Name'] || frontendRow['pic_client'],
       status_case: frontendRow['status'] || frontendRow['Status'],
       category_case: frontendRow['ticket_category'] || frontendRow['Ticket Category'],

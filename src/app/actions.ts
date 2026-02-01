@@ -7,6 +7,7 @@ import {
   mapDBArrayToFrontend,
   getSelectColumns,
   type YourDBRow,
+  normalizeClientName,
 } from "@/lib/db-mapper";
 
 // ============================================
@@ -169,7 +170,7 @@ export async function updateCase(caseId: number, data: Record<string, any>) {
     const dbData = {
       date: data.date,
       month: data.month,
-      client_name: data.client_name,
+      client_name: normalizeClientName(data.client_name),
       pic_client: data.customer_name, // customer_name -> pic_client
       status_case: data.status, // status -> status_case
       category_case: data.ticket_category, // ticket_category -> category_case
