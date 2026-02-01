@@ -487,6 +487,34 @@ export async function getDistinctClientsFromDB(): Promise<{ success: boolean; cl
 }
 
 
+export async function addClient(clientName: string): Promise<{ success: boolean; client?: { name: string }; error?: string }> {
+  try {
+    if (!clientName || clientName.trim() === '') {
+      return { success: false, error: "Client name cannot be empty." };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('clients')
+      .insert({ name: clientName.trim() })
+      .select('name')
+      .single();
+
+    if (error) {
+      if (error.code === '23505') { // unique violation
+        return { success: false, error: `Client "${clientName}" already exists.` };
+      }
+      throw error;
+    }
+    
+    return { success: true, client: data as { name: string } };
+
+  } catch (err: any) {
+    console.error("❌ Error adding new client:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+
 // ============================================
 // DUMMY FUNCTION IMPLEMENTATIONS
 // ============================================

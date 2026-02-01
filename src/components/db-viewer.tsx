@@ -16,7 +16,7 @@ import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition, memo } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, updateCase, deleteCase, deleteCases } from "@/app/actions";
+import { getAllCaseData, updateCase, deleteCase, deleteCases, addClient } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -27,10 +27,11 @@ import { DateRange } from "react-day-picker"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
 import { Skeleton } from "./ui/skeleton";
 import { Progress } from "./ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "./ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { Checkbox } from "./ui/checkbox";
+import { Label } from "./ui/label";
 
 declare const XLSX: any;
 
@@ -207,6 +208,7 @@ const MemoizedRow = memo(({
     onRowSelectionChange,
     isBulkDeleting,
     availableClients,
+    onAddClient,
 }: {
     row: any;
     headers: string[];
@@ -219,6 +221,7 @@ const MemoizedRow = memo(({
     onRowSelectionChange: (rowId: number, checked: boolean) => void;
     isBulkDeleting: boolean;
     availableClients: string[];
+    onAddClient: () => void;
 }) => {
     return (
         <div className="flex border-b transition-colors hover:bg-muted/50">
@@ -285,6 +288,20 @@ const MemoizedRow = memo(({
                                         <SelectValue placeholder="Select client..." />
                                     </SelectTrigger>
                                     <SelectContent>
+                                        <div className="p-1">
+                                            <Button
+                                                variant="ghost"
+                                                className="w-full justify-start text-xs h-8"
+                                                onClick={(e) => {
+                                                e.preventDefault();
+                                                onAddClient();
+                                                }}
+                                            >
+                                                <Pencil className="mr-2 h-3 w-3" />
+                                                Add New Client
+                                            </Button>
+                                        </div>
+                                        <SelectSeparator />
                                         {displayOptions.map(option => {
                                             const isOptionValid = availableClients.some(c => c.toLowerCase() === option.toLowerCase());
                                             return (
@@ -499,7 +516,7 @@ export function DbViewer({
     initialSource, 
     initialError,
     availableYears = [],
-    availableClients = [],
+    availableClients: initialClients = [],
 }: DbViewerProps) {
     const { setIsProcessing } = useContext(TableDataContext);
     const [state, setState] = useState<DbViewerState>({
@@ -550,6 +567,11 @@ export function DbViewer({
     // Delete confirmation state
     const [selectedRowIds, setSelectedRowIds] = useState(new Set<number>());
 
+    // State for available clients and add client dialog
+    const [availableClients, setAvailableClients] = useState<string[]>(initialClients);
+    const [isAddClientDialogOpen, setIsAddClientDialogOpen] = useState(false);
+    const [newClientName, setNewClientName] = useState("");
+    const [isAddingClient, startAddingClient] = useTransition();
 
     const columnsToCenter = [
         'no', 'date', 'month',
@@ -563,8 +585,8 @@ export function DbViewer({
     }, []);
 
     useEffect(() => {
-        setIsProcessing(isPending || isSaving || isGeneratingReport || isBulkDeleting);
-    }, [isPending, isSaving, isGeneratingReport, isBulkDeleting, setIsProcessing]);
+        setIsProcessing(isPending || isSaving || isGeneratingReport || isBulkDeleting || isAddingClient);
+    }, [isPending, isSaving, isGeneratingReport, isBulkDeleting, isAddingClient, setIsProcessing]);
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return ['no'];
@@ -1136,6 +1158,20 @@ export function DbViewer({
         });
     };
 
+    const handleAddNewClient = () => {
+      startAddingClient(async () => {
+        const result = await addClient(newClientName);
+        if (result.success && result.client) {
+          toast({ title: "Client Added", description: `"${result.client.name}" has been added to the list.` });
+          setAvailableClients(prev => [...prev, result.client!.name].sort((a, b) => a.localeCompare(b)));
+          setIsAddClientDialogOpen(false);
+          setNewClientName("");
+        } else {
+          toast({ variant: 'destructive', title: "Failed to Add Client", description: result.error });
+        }
+      });
+    };
+
     const renderHeaderContent = (header: string) => {
         const displayHeader = headerDisplayMapping[header] || header;
         const isFilterable = FILTER_COLUMNS.includes(header);
@@ -1525,6 +1561,7 @@ export function DbViewer({
                                             onRowSelectionChange={handleRowSelectionChange}
                                             isBulkDeleting={isBulkDeleting}
                                             availableClients={availableClients}
+                                            onAddClient={() => setIsAddClientDialogOpen(true)}
                                         />
                                     );
                                 })}
@@ -1604,6 +1641,43 @@ export function DbViewer({
                     </CardFooter>
                  )}
             </Card>
+
+            <Dialog open={isAddClientDialogOpen} onOpenChange={setIsAddClientDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                    <DialogTitle>Add New Client</DialogTitle>
+                    <DialogDescription>
+                        Enter the name of the new client. This will be added to the central list of clients.
+                    </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="new-client-name" className="text-right">
+                            Name
+                            </Label>
+                            <Input
+                            id="new-client-name"
+                            value={newClientName}
+                            onChange={(e) => setNewClientName(e.target.value)}
+                            className="col-span-3"
+                            autoFocus
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddNewClient();
+                                }
+                            }}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                    <Button onClick={handleAddNewClient} disabled={isAddingClient || !newClientName}>
+                        {isAddingClient ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Save Client
+                    </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
                 <DialogContent className="max-w-3xl">
