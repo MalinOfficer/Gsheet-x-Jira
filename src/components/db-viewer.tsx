@@ -196,6 +196,89 @@ const getUnsolvedCases = async () => {
     return { data, source: 'view' as const, pagination: null };
 };
 
+// Isolated dialog component to prevent re-renders on the main table
+function AddClientDialog({
+    open,
+    onOpenChange,
+    onClientAdded,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onClientAdded: (newClient: string) => void;
+}) {
+    const [newClientName, setNewClientName] = useState("");
+    const [isAddingClient, startAddingClient] = useTransition();
+    const { toast } = useToast();
+
+    const handleAddNewClient = () => {
+        if (!newClientName.trim()) return;
+        startAddingClient(async () => {
+            const result = await addClient(newClientName);
+            if (result.success && result.client) {
+                const newClientNameFromDB = result.client.name;
+                toast({
+                    title: "Client Added",
+                    description: `"${newClientNameFromDB}" has been added to the list.`,
+                });
+                onClientAdded(newClientNameFromDB);
+                onOpenChange(false);
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Failed to Add Client",
+                    description: result.error,
+                });
+            }
+        });
+    };
+    
+    // Reset local state when dialog is closed
+    useEffect(() => {
+        if (!open) {
+            setNewClientName("");
+        }
+    }, [open]);
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add New Client</DialogTitle>
+                    <DialogDescription>
+                        Enter the name of the new client. This will be added to the central list of clients.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="new-client-name" className="text-right">
+                            Name
+                        </Label>
+                        <Input
+                            id="new-client-name"
+                            value={newClientName}
+                            onChange={(e) => setNewClientName(e.target.value)}
+                            className="col-span-3"
+                            autoFocus
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddNewClient();
+                                }
+                            }}
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleAddNewClient} disabled={isAddingClient || !newClientName.trim()}>
+                        {isAddingClient ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Save Client
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 const MemoizedRow = memo(({
     row,
     headers,
@@ -572,9 +655,7 @@ export function DbViewer({
     // State for available clients and add client dialog
     const [availableClients, setAvailableClients] = useState<string[]>(initialClients);
     const [isAddClientDialogOpen, setIsAddClientDialogOpen] = useState(false);
-    const [newClientName, setNewClientName] = useState("");
-    const [isAddingClient, startAddingClient] = useTransition();
-
+    
     const availableClientsSet = useMemo(() => new Set(availableClients), [availableClients]);
 
     const columnsToCenter = [
@@ -589,8 +670,8 @@ export function DbViewer({
     }, []);
 
     useEffect(() => {
-        setIsProcessing(isPending || isSaving || isGeneratingReport || isBulkDeleting || isAddingClient);
-    }, [isPending, isSaving, isGeneratingReport, isBulkDeleting, isAddingClient, setIsProcessing]);
+        setIsProcessing(isPending || isSaving || isGeneratingReport || isBulkDeleting);
+    }, [isPending, isSaving, isGeneratingReport, isBulkDeleting, setIsProcessing]);
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return ['no'];
@@ -1162,24 +1243,11 @@ export function DbViewer({
         });
     };
 
-    const handleAddNewClient = () => {
-      startAddingClient(async () => {
-        const result = await addClient(newClientName);
-        if (result.success && result.client) {
-          const newClientNameFromDB = result.client.name;
-          toast({ title: "Client Added", description: `"${newClientNameFromDB}" has been added to the list.` });
-          
-          setAvailableClients(prev => {
-              const newSet = new Set([...prev, newClientNameFromDB]);
-              return Array.from(newSet).sort((a, b) => a.localeCompare(b));
-          });
-
-          setIsAddClientDialogOpen(false);
-          setNewClientName("");
-        } else {
-          toast({ variant: 'destructive', title: "Failed to Add Client", description: result.error });
-        }
-      });
+    const handleClientAdded = (newClientNameFromDB: string) => {
+        setAvailableClients(prev => {
+          const newSet = new Set([...prev, newClientNameFromDB]);
+          return Array.from(newSet).sort((a, b) => a.localeCompare(b));
+        });
     };
 
     const renderHeaderContent = (header: string) => {
@@ -1653,42 +1721,11 @@ export function DbViewer({
                  )}
             </Card>
 
-            <Dialog open={isAddClientDialogOpen} onOpenChange={setIsAddClientDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                    <DialogTitle>Add New Client</DialogTitle>
-                    <DialogDescription>
-                        Enter the name of the new client. This will be added to the central list of clients.
-                    </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="new-client-name" className="text-right">
-                            Name
-                            </Label>
-                            <Input
-                            id="new-client-name"
-                            value={newClientName}
-                            onChange={(e) => setNewClientName(e.target.value)}
-                            className="col-span-3"
-                            autoFocus
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleAddNewClient();
-                                }
-                            }}
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                    <Button onClick={handleAddNewClient} disabled={isAddingClient || !newClientName}>
-                        {isAddingClient ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Save Client
-                    </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <AddClientDialog
+                open={isAddClientDialogOpen}
+                onOpenChange={setIsAddClientDialogOpen}
+                onClientAdded={handleClientAdded}
+            />
 
             <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
                 <DialogContent className="max-w-3xl">
@@ -1725,5 +1762,3 @@ export function DbViewer({
         </div>
     );
 }
-
-    
