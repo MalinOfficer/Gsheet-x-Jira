@@ -34,6 +34,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { normalizeClientName } from '@/lib/db-mapper';
 
 
 const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
@@ -423,6 +424,10 @@ export function ImportFlow() {
                 const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
                 
                 let value = matchingKey ? flatRow[matchingKey] : '';
+
+                if (header === 'Client Name') {
+                    value = normalizeClientName(String(value || ''));
+                }
 
                 if (header.toLowerCase() === 'status') {
                     const lowerCaseValue = String(value).toLowerCase();
