@@ -844,7 +844,7 @@ export function DbViewer({
         if (!isUnsolvedView) { // Only trigger on filter changes if not in special view
             fetchData();
         }
-    }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, fetchData, isUnsolvedView]);
+    }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, fetchData, isUnsolvedView, initialData]);
     
     useEffect(() => {
         let timer: NodeJS.Timeout | undefined;
