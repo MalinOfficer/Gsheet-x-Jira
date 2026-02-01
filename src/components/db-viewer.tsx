@@ -286,7 +286,6 @@ const MemoizedRow = memo(({
     isEditMode,
     rowNumber,
     handleCellChange,
-    filterOptions,
     isRowSelected,
     onRowSelectionChange,
     isBulkDeleting,
@@ -300,7 +299,6 @@ const MemoizedRow = memo(({
     isEditMode: boolean;
     rowNumber: number;
     handleCellChange: (id: number, header: string, value: string) => void;
-    filterOptions: Record<string, string[]>;
     isRowSelected: boolean;
     onRowSelectionChange: (rowId: number, checked: boolean) => void;
     isBulkDeleting: boolean;
@@ -500,7 +498,7 @@ const MemoizedRow = memo(({
                                         )}
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {(header === 'module' ? ALL_MODULES : header === 'detail_module' ? ALL_DETAIL_MODULES : (filterOptions[header] || [])).map(option => (
+                                        {(header === 'module' ? ALL_MODULES : header === 'detail_module' ? ALL_DETAIL_MODULES : []).map(option => (
                                             <SelectItem key={option} value={option}>
                                                 {header === 'module' ? (
                                                     <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>
@@ -1243,12 +1241,16 @@ export function DbViewer({
         });
     };
 
-    const handleClientAdded = (newClientNameFromDB: string) => {
+    const handleClientAdded = useCallback((newClientNameFromDB: string) => {
         setAvailableClients(prev => {
           const newSet = new Set([...prev, newClientNameFromDB]);
           return Array.from(newSet).sort((a, b) => a.localeCompare(b));
         });
-    };
+    }, []);
+
+    const handleAddClient = useCallback(() => {
+        setIsAddClientDialogOpen(true);
+    }, []);
 
     const renderHeaderContent = (header: string) => {
         const displayHeader = headerDisplayMapping[header] || header;
@@ -1634,13 +1636,12 @@ export function DbViewer({
                                             isEditMode={isEditMode}
                                             rowNumber={rowNumber}
                                             handleCellChange={handleCellChange}
-                                            filterOptions={filterOptions}
                                             isRowSelected={selectedRowIds.has(row?.id)}
                                             onRowSelectionChange={handleRowSelectionChange}
                                             isBulkDeleting={isBulkDeleting}
                                             availableClients={availableClients}
                                             availableClientsSet={availableClientsSet}
-                                            onAddClient={() => setIsAddClientDialogOpen(true)}
+                                            onAddClient={handleAddClient}
                                         />
                                     );
                                 })}
