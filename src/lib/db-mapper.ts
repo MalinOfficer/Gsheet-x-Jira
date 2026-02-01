@@ -42,6 +42,41 @@ export interface YourDBRow {
     checkout?: string;
     note?: string;
   }
+
+const CANONICAL_CLIENT_NAMES = [
+    "Darma Bangsa", "Al Aqobah", "Penus", "Alazka", "Darul Jannah", "Makarima Solo", "AL Izzah", "LabSchool", "Muthahhari", "AL Hamidiyah", "Irsyadul Ibad", "Al Barokah", "BMS", "ASBC", "STIKES Sumber Waras", "ICM", "Romu", "Mumtaza", "Dian Didaktika", "BSB Semarang", "Asram", "AL Azhar Pontianak", "YDAI", "YPI Cerme", "Lazuardi", "Al Hikmah", "LIA", "Al Amanah", "Muga Yogya", "Muhajirin Purwakarta", "Al Bunyan", "Monkey Tree", "Al Fatih", "Yasporbi", "Gunacipta", "Amahan", "MANICS", "Stikes Prima", "ASSURYANIYAH BEKASI", "Al Masoem", "Annibras Subang", "UNRI", "Immanuel Lampung", "BRKS", "SIPINTER EDU", "Al Izzah Batu", "Universitas Strada", "Sekolah Cikal", "Nurul Falah Ploso", "Al Kahfi", "Global Islamic School", "RSIJ Sukapura", "LMS Pesantren", "Baitul Jannah", "Ummul", "PKP JIS", "Mumtaz Al Bantani", "BIM", "UNISKA", "Annajah", "SDIT Baiturrahman", "Embun Pagi Islamic School", "Al Azhar Mandiri", "Al Ikhlas", "Ar Rohmah", "Al Azhar Syifa Budi Cibubur", "SMK Hassina", "IDN", "YKWK", "Al Muflihun"
+].filter((value, index, self) => self.map(v => v.toLowerCase()).indexOf(value.toLowerCase()) === index);
+
+
+const buildNormalizationMap = () => {
+    const map = new Map<string, string>();
+    CANONICAL_CLIENT_NAMES.forEach(name => {
+        // Normalize by lowercasing and removing spaces and special characters
+        const normalizedKey = name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+        if (!map.has(normalizedKey)) {
+            map.set(normalizedKey, name);
+        }
+    });
+
+    // Add special custom mappings for common typos/variations
+    map.set('yayasanassuryaniyah', 'ASSURYANIYAH BEKASI');
+    map.set('yayasanmuthahhari', 'Muthahhari');
+    map.set('alhamidiyah', 'AL Hamidiyah');
+    map.set('irsyadulibad', 'Irsyadul Ibad');
+    map.set('stikessumberwaras', 'STIKES Sumber Waras');
+    map.set('al_iklas', 'Al Ikhlas');
+    map.set('darma_bangsa', 'Darma Bangsa');
+
+    return map;
+};
+
+const clientNameNormalizationMap = buildNormalizationMap();
+
+const normalizeClientName = (name: string | null | undefined): string => {
+    if (!name) return name || '';
+    const normalizedKey = name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+    return clientNameNormalizationMap.get(normalizedKey) || name;
+};
   
   /**
    * Map DB row to Frontend expected format
@@ -58,7 +93,7 @@ export interface YourDBRow {
       date: dbRow.date,
       month: dbRow.month,
       ticket_number: dbRow.ticket_number,
-      client_name: dbRow.client_name,
+      client_name: normalizeClientName(dbRow.client_name),
       customer_name: dbRow.pic_client, // PIC Client → Customer Name
       status: dbRow.status_case,
       ticket_category: dbRow.category_case,
