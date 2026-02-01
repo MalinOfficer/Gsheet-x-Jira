@@ -66,6 +66,9 @@ const buildNormalizationMap = () => {
     map.set('al_iklas', 'Al Ikhlas');
     map.set('darma_bangsa', 'Darma Bangsa');
     map.set('asram', 'Asram');
+    map.set('alizzabatu', 'Al Izzah Batu');
+    map.set('makarima', 'Makarima Solo');
+
 
     return map;
 };
