@@ -1165,6 +1165,7 @@ export function DbViewer({
           const newClientNameFromDB = result.client.name;
           toast({ title: "Client Added", description: `"${newClientNameFromDB}" has been added to the list.` });
           
+          // Just update the list of available clients
           setAvailableClients(prev => [...prev, newClientNameFromDB].sort((a, b) => a.localeCompare(b)));
 
           setIsAddClientDialogOpen(false);
@@ -1706,8 +1707,8 @@ export function DbViewer({
                             size="sm"
                             variant="outline"
                         >
-                            {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                            {isCopied ? 'Copied!' : 'Copy Report'}
+                            {isReportCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                            {isReportCopied ? 'Copied!' : 'Copy Report'}
                         </Button>
                         <Button onClick={() => setIsReportDialogOpen(false)}>Close</Button>
                     </DialogFooter>
