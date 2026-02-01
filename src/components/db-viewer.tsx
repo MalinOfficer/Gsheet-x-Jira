@@ -2,7 +2,7 @@
 
 "use client";
 
-import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check, ArrowLeft, ChevronDown, Trash2, Download } from "lucide-react";
+import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check, ArrowLeft, ChevronDown, Trash2, Download, ChevronsUpDown } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -96,6 +96,11 @@ const statusColorMap: Record<string, string> = {
     'Move to Issue Tracker': 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
     'default': 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
 };
+
+const ALL_CLIENTS = [
+    "Darma Bangsa", "Al Aqobah", "Penus", "Alazka", "Darul Jannah", "Makarima Solo", "AL Izzah", "LabSchool", "Muthahhari", "AL Hamidiyah", "Irsyadul Ibad", "Al Barokah", "BMS", "ASBC", "STIKES Sumber Waras", "ICM", "Romu", "Mumtaza", "Dian Didaktika", "BSB Semarang", "Asram", "AL Azhar Pontianak", "YDAI", "YPI Cerme", "Lazuardi", "Al Hikmah", "LIA", "Al Amanah", "Muga Yogya", "Muhajirin Purwakarta", "Al Bunyan", "Monkey Tree", "Al Fatih", "Yasporbi", "Gunacipta", "Amahan", "MANICS", "Stikes Prima", "ASSURYANIYAH BEKASI", "Al Masoem", "Annibras Subang", "UNRI", "Immanuel Lampung", "BRKS", "SIPINTER EDU", "Al Izzah Batu", "Universitas Strada", "Sekolah Cikal", "Nurul Falah Ploso", "AL Kahfi", "Global Islamic School", "RSIJ Sukapura", "LMS Pesantren", "Baitul Jannah", "Ummul", "PKP JIS", "Mumtaz Al Bantani", "BIM", "UNISKA", "Annajah", "SDIT Baiturrahman", "Embun Pagi Islamic School", "Al Azhar Mandiri", "Al Ikhlas", "Ar Rohmah", "Al Azhar Syifa Budi Cibubur", "SMK Hassina", "IDN", "YKWK", "Al Muflihun"
+].filter((value, index, self) => self.map(v => v.toLowerCase()).indexOf(value.toLowerCase()) === index);
+
 
 const ALL_CATEGORIES = [
     'Adjustment',
@@ -257,6 +262,74 @@ const MemoizedRow = memo(({
                 const cellValue = row ? row[header] : null;
                 const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
 
+                if (header === 'client_name') {
+                    const cellValueStr = (cellValue as string) || '';
+                    const isValid = ALL_CLIENTS.some(c => c.toLowerCase() === cellValueStr.toLowerCase());
+
+                    if (isEditMode) {
+                        const displayOptions = [...ALL_CLIENTS];
+                        if (cellValueStr && !isValid) {
+                            displayOptions.unshift(cellValueStr);
+                        }
+
+                        return (
+                            <div
+                                key={header}
+                                className="align-middle relative"
+                                style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
+                            >
+                                <Select
+                                    value={cellValueStr}
+                                    onValueChange={(newValue) => {
+                                        if (rowId !== undefined) {
+                                            handleCellChange(rowId, header, newValue);
+                                        }
+                                    }}
+                                    disabled={!row}
+                                >
+                                    <SelectTrigger className={cn("h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
+                                        !isValid && cellValueStr && "text-destructive font-semibold"
+                                    )}>
+                                        <SelectValue placeholder="Select client..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {displayOptions.map(option => {
+                                            const isOptionValid = ALL_CLIENTS.some(c => c.toLowerCase() === option.toLowerCase());
+                                            return (
+                                                <SelectItem key={option} value={option} className={cn(!isOptionValid && "text-destructive")}>
+                                                    {option}
+                                                </SelectItem>
+                                            );
+                                        })}
+                                    </SelectContent>
+                                </Select>
+                                {!isValid && cellValueStr && (
+                                    <div className="absolute top-0 right-0 w-0 h-0 border-solid border-t-red-500 border-l-transparent border-t-[8px] border-l-[8px]"></div>
+                                )}
+                            </div>
+                        );
+                    } else {
+                        return (
+                            <div
+                                key={header}
+                                className="align-middle relative"
+                                style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
+                            >
+                                <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note'].includes(header) && 'justify-center')}>
+                                    {row ? (
+                                        <span className="truncate text-xs">{cellValue}</span>
+                                    ) : (
+                                        <Skeleton className="h-4 w-full" />
+                                    )}
+                                </div>
+                                {!isValid && cellValueStr && (
+                                    <div className="absolute top-0 right-0 w-0 h-0 border-solid border-t-red-500 border-l-transparent border-t-[8px] border-l-[8px]"></div>
+                                )}
+                            </div>
+                        );
+                    }
+                }
+
                 return (
                     <div
                         key={header}
@@ -391,7 +464,7 @@ const MemoizedRow = memo(({
                                         }
                                         if (header === 'module' && cellValue) {
                                             return (
-                                                <span className={cn('text-xs px-2 py-0.5 rounded-full', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
+                                                <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
                                                     {cellValue}
                                                 </span>
                                             );
@@ -488,7 +561,7 @@ export function DbViewer({
     const columnsToCenter = [
         'no', 'date', 'month',
         'ticket_category', 'module', 'detail_module', 'created_at', 
-        'resolved_at', 'status_case_2', 'duration', 'client_name', 'customer_name', 'status'
+        'resolved_at', 'status_case_2', 'duration', 'customer_name', 'status'
     ];
 
 
