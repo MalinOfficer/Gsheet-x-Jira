@@ -2,7 +2,7 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase";
-import { revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import {
   mapDBArrayToFrontend,
   getSelectColumns,
@@ -194,7 +194,8 @@ export async function updateCase(caseId: number, data: Record<string, any>) {
       throw error;
     }
     
-    revalidateTag("all-case-data"); // Invalidate cache for dashboard
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
     return { success: true, id: caseId };
 
   } catch (err: any) {
@@ -217,7 +218,8 @@ export async function deleteCase(caseId: number) {
       throw error;
     }
     
-    revalidateTag("all-case-data"); // Invalidate cache for dashboard
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
     return { success: true, id: caseId };
 
   } catch (err: any) {
@@ -244,7 +246,8 @@ export async function deleteCases(caseIds: number[]) {
       throw error;
     }
     
-    revalidateTag("all-case-data"); // Invalidate cache for dashboard
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
     return { success: true, count: caseIds.length };
 
   } catch (err: any) {
@@ -262,7 +265,7 @@ export async function refreshDashboardViews() {
     await supabaseAdmin.rpc('refresh_dashboard_views');
 
     // Revalidate the cache tag to force a refetch of stats and options
-    revalidateTag("all-case-data");
+    revalidatePath('/dashboard');
     
     return { success: true, message: "Views refreshed and cache revalidated." };
   } catch (error: any) {
@@ -506,6 +509,8 @@ export async function addClient(clientName: string): Promise<{ success: boolean;
       throw error;
     }
     
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
     return { success: true, client: data as { name: string } };
 
   } catch (err: any) {
@@ -592,3 +597,4 @@ export async function mergeFilesOnServer(
     
 
     
+

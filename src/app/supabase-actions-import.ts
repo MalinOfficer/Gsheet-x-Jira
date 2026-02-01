@@ -3,6 +3,7 @@
 
 import { normalizeClientName } from "@/lib/db-mapper";
 import { supabaseAdmin } from "@/lib/supabase";
+import { revalidatePath } from 'next/cache';
 
 /* ================= TYPES ================= */
 
@@ -44,6 +45,8 @@ export async function updateCaseStatus(ticket_number: string, status: string) {
         .eq('ticket_number', ticket_number);
         
       if (error) throw error;
+      revalidatePath('/db');
+      revalidatePath('/dashboard');
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message };
@@ -144,6 +147,11 @@ export async function importOrUpdateCases(rows: ImportCasePayload[]) {
         insertedData = data || [];
     }
 
+    if (toInsert.length > 0) {
+        revalidatePath('/db');
+        revalidatePath('/dashboard');
+    }
+
     return {
       success: true,
       inserted: insertedData.map(d => ({ ticket_number: d.ticket_number, title: d.detail_case })),
@@ -166,6 +174,8 @@ export async function truncateAllCases() {
   try {
     const { error } = await supabaseAdmin.rpc("truncate_all_cases");
     if (error) throw error;
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
     return { success: true };
   } catch (err: any) {
     return { error: err.message };
