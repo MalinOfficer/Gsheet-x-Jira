@@ -69,13 +69,7 @@ const headerDisplayMapping: Record<string, string> = {
     note: 'Note',
 };
 
-const hiddenHeaders = [
-    'id',
-    'url_jira',
-    'pic_client',
-    'checkout',
-    'ticket_number',
-];
+const hiddenHeaders: string[] = [];
 
 const categoryColorMap: Record<string, string> = {
     'Bug Fixing': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
@@ -100,6 +94,22 @@ const statusColorMap: Record<string, string> = {
 const ALL_CLIENTS = [
     "Darma Bangsa", "Al Aqobah", "Penus", "Alazka", "Darul Jannah", "Makarima Solo", "AL Izzah", "LabSchool", "Muthahhari", "AL Hamidiyah", "Irsyadul Ibad", "Al Barokah", "BMS", "ASBC", "STIKES Sumber Waras", "ICM", "Romu", "Mumtaza", "Dian Didaktika", "BSB Semarang", "Asram", "AL Azhar Pontianak", "YDAI", "YPI Cerme", "Lazuardi", "Al Hikmah", "LIA", "Al Amanah", "Muga Yogya", "Muhajirin Purwakarta", "Al Bunyan", "Monkey Tree", "Al Fatih", "Yasporbi", "Gunacipta", "Amahan", "MANICS", "Stikes Prima", "ASSURYANIYAH BEKASI", "Al Masoem", "Annibras Subang", "UNRI", "Immanuel Lampung", "BRKS", "SIPINTER EDU", "Al Izzah Batu", "Universitas Strada", "Sekolah Cikal", "Nurul Falah Ploso", "AL Kahfi", "Global Islamic School", "RSIJ Sukapura", "LMS Pesantren", "Baitul Jannah", "Ummul", "PKP JIS", "Mumtaz Al Bantani", "BIM", "UNISKA", "Annajah", "SDIT Baiturrahman", "Embun Pagi Islamic School", "Al Azhar Mandiri", "Al Ikhlas", "Ar Rohmah", "Al Azhar Syifa Budi Cibubur", "SMK Hassina", "IDN", "YKWK", "Al Muflihun"
 ].filter((value, index, self) => self.map(v => v.toLowerCase()).indexOf(value.toLowerCase()) === index);
+
+const clientNameNormalizationMap = new Map<string, string>();
+ALL_CLIENTS.forEach(client => {
+    // Normalize by lowercasing and removing spaces and special characters
+    const normalizedKey = client.toLowerCase().replace(/[^a-z0-9]/gi, '');
+    if (!clientNameNormalizationMap.has(normalizedKey)) {
+        clientNameNormalizationMap.set(normalizedKey, client);
+    }
+});
+
+const findClosestClientName = (name: string): string => {
+    if (!name) return name; // Return original if empty
+    // Normalize input name in the same way as the map keys
+    const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+    return clientNameNormalizationMap.get(normalizedName) || name; // Return corrected name or original if not found
+};
 
 
 const ALL_CATEGORIES = [
@@ -931,7 +941,28 @@ export function DbViewer({
     }
     
     const handleEditClick = () => {
+        if (!state.data) return;
         setDataBeforeEdit(JSON.parse(JSON.stringify(state.data))); // Deep copy
+
+        let changesCount = 0;
+        const normalizedData = state.data.map(row => {
+            const clientName = row.client_name || '';
+            const correctedName = findClosestClientName(clientName);
+            if (correctedName && correctedName !== clientName) {
+                changesCount++;
+                return {...row, client_name: correctedName};
+            }
+            return row;
+        });
+
+        if (changesCount > 0) {
+            setState(prev => ({...prev, data: normalizedData}));
+            toast({
+                title: "Client Names Corrected",
+                description: `${changesCount} client name(s) were automatically updated to a standard format.`
+            });
+        }
+        
         setIsEditMode(true);
     };
 
@@ -1087,11 +1118,12 @@ export function DbViewer({
                     
                     if (header === 'status') {
                         const isNowSolved = value === 'Solved' || value === 'RESOLVED';
-                        const wasSolved = row.status === 'Solved' || row.status === 'RESOLVED';
+                        const wasSolvedBefore = row.status === 'Solved' || row.status === 'RESOLVED';
 
-                        if (isNowSolved && !wasSolved) {
+                        if (isNowSolved && !wasSolvedBefore) {
                             updatedRow.resolved_at = new Date().toISOString();
-                        } else if (!isNowSolved && wasSolved) {
+                        } else if (!isNowSolved && wasSolvedBefore) {
+                            // If status is changed from Solved to something else, clear resolved_at
                             updatedRow.resolved_at = '';
                         }
                     }
@@ -1448,10 +1480,9 @@ export function DbViewer({
                              <Button
                                 onClick={handleUnsolvedFilterClick}
                                 size="sm"
-                                variant={isUnsolvedView ? "default": "secondary"}
+                                variant="secondary"
                                 className={cn(
-                                    "bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700",
-                                    isUnsolvedView && "bg-orange-500 text-white hover:bg-orange-600"
+                                    isUnsolvedView && "bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
                                 )}
                                 disabled={isPending || isRefreshing || isEditMode || isSaving}
                             >
