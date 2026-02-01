@@ -1162,8 +1162,23 @@ export function DbViewer({
       startAddingClient(async () => {
         const result = await addClient(newClientName);
         if (result.success && result.client) {
-          toast({ title: "Client Added", description: `"${result.client.name}" has been added to the list.` });
-          setAvailableClients(prev => [...prev, result.client!.name].sort((a, b) => a.localeCompare(b)));
+          const newClientNameFromDB = result.client.name;
+          toast({ title: "Client Added", description: `"${newClientNameFromDB}" has been added to the list.` });
+          
+          setAvailableClients(prev => [...prev, newClientNameFromDB].sort((a, b) => a.localeCompare(b)));
+
+          // After adding, find any rows that were using a non-canonical version of this new name and update them to the canonical version.
+          setState(prevState => {
+            if (!prevState.data) return prevState;
+            const newData = prevState.data.map(row => {
+                if (row.client_name && row.client_name.toLowerCase() === newClientNameFromDB.toLowerCase() && row.client_name !== newClientNameFromDB) {
+                    return {...row, client_name: newClientNameFromDB };
+                }
+                return row;
+            });
+            return {...prevState, data: newData};
+          });
+
           setIsAddClientDialogOpen(false);
           setNewClientName("");
         } else {
@@ -1703,8 +1718,8 @@ export function DbViewer({
                             size="sm"
                             variant="outline"
                         >
-                            {isReportCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                            {isReportCopied ? 'Copied!' : 'Copy Report'}
+                            {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                            {isCopied ? 'Copied!' : 'Copy Report'}
                         </Button>
                         <Button onClick={() => setIsReportDialogOpen(false)}>Close</Button>
                     </DialogFooter>
