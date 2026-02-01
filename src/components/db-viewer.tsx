@@ -208,6 +208,7 @@ const MemoizedRow = memo(({
     onRowSelectionChange,
     isBulkDeleting,
     availableClients,
+    availableClientsSet,
     onAddClient,
 }: {
     row: any;
@@ -221,6 +222,7 @@ const MemoizedRow = memo(({
     onRowSelectionChange: (rowId: number, checked: boolean) => void;
     isBulkDeleting: boolean;
     availableClients: string[];
+    availableClientsSet: Set<string>;
     onAddClient: () => void;
 }) => {
     return (
@@ -259,7 +261,7 @@ const MemoizedRow = memo(({
 
                 if (header === 'client_name') {
                     const cellValueStr = (cellValue as string) || '';
-                    const isValid = availableClients.includes(cellValueStr);
+                    const isValid = availableClientsSet.has(cellValueStr);
 
                     if (isEditMode) {
                         const displayOptions = [...availableClients];
@@ -303,7 +305,7 @@ const MemoizedRow = memo(({
                                         </div>
                                         <SelectSeparator />
                                         {displayOptions.map(option => {
-                                            const isOptionValid = availableClients.includes(option);
+                                            const isOptionValid = availableClientsSet.has(option);
                                             return (
                                                 <SelectItem key={option} value={option} className={cn(!isOptionValid && "text-destructive")}>
                                                     {option}
@@ -572,6 +574,8 @@ export function DbViewer({
     const [isAddClientDialogOpen, setIsAddClientDialogOpen] = useState(false);
     const [newClientName, setNewClientName] = useState("");
     const [isAddingClient, startAddingClient] = useTransition();
+
+    const availableClientsSet = useMemo(() => new Set(availableClients), [availableClients]);
 
     const columnsToCenter = [
         'no', 'date', 'month',
@@ -1165,8 +1169,10 @@ export function DbViewer({
           const newClientNameFromDB = result.client.name;
           toast({ title: "Client Added", description: `"${newClientNameFromDB}" has been added to the list.` });
           
-          // Just update the list of available clients
-          setAvailableClients(prev => [...prev, newClientNameFromDB].sort((a, b) => a.localeCompare(b)));
+          setAvailableClients(prev => {
+              const newSet = new Set([...prev, newClientNameFromDB]);
+              return Array.from(newSet).sort((a, b) => a.localeCompare(b));
+          });
 
           setIsAddClientDialogOpen(false);
           setNewClientName("");
@@ -1565,6 +1571,7 @@ export function DbViewer({
                                             onRowSelectionChange={handleRowSelectionChange}
                                             isBulkDeleting={isBulkDeleting}
                                             availableClients={availableClients}
+                                            availableClientsSet={availableClientsSet}
                                             onAddClient={() => setIsAddClientDialogOpen(true)}
                                         />
                                     );
