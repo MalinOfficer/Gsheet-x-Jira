@@ -1,10 +1,11 @@
 import { DbViewer } from '@/components/db-viewer';
-import { getAllCaseData, getDashboardFilterOptions } from '@/app/actions';
+import { getAllCaseData, getDashboardFilterOptions, getDistinctClientsFromDB } from '@/app/actions';
 
 export default async function DbPage() {
-    const [dataResult, filterOptionsResult] = await Promise.all([
+    const [dataResult, filterOptionsResult, clientsResult] = await Promise.all([
         getAllCaseData(),
-        getDashboardFilterOptions()
+        getDashboardFilterOptions(),
+        getDistinctClientsFromDB()
     ]);
 
     return (
@@ -14,6 +15,7 @@ export default async function DbPage() {
                 initialSource={dataResult.source ?? 'N/A'}
                 initialError={dataResult.error ?? undefined}
                 availableYears={filterOptionsResult.data?.years ?? []}
+                availableClients={clientsResult.success ? clientsResult.clients : []}
             />
         </main>
     );

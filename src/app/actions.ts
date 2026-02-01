@@ -466,6 +466,26 @@ export async function getL3ReportFromDB() {
   }
 }
 
+export async function getDistinctClientsFromDB(): Promise<{ success: boolean; clients?: string[]; error?: string }> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('clients')
+      .select('name')
+      .order('name', { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+    
+    // Assuming the column is named 'name' and it returns objects like { name: 'Client A' }
+    return { success: true, clients: data.map((c: { name: string }) => c.name).filter(Boolean) };
+
+  } catch (err: any) {
+    console.error("❌ Error fetching distinct clients:", err);
+    return { success: false, error: err.message };
+  }
+}
+
 
 // ============================================
 // DUMMY FUNCTION IMPLEMENTATIONS

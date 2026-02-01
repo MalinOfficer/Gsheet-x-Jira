@@ -39,6 +39,7 @@ interface DbViewerProps {
     initialSource: 'cache' | 'sheet' | 'N/A' | 'supabase';
     initialError?: string | null;
     availableYears?: string[];
+    availableClients?: string[];
 }
 
 interface DbViewerState {
@@ -90,10 +91,6 @@ const statusColorMap: Record<string, string> = {
     'Move to Issue Tracker': 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
     'default': 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
 };
-
-const ALL_CLIENTS = [
-    "Darma Bangsa", "Al Aqobah", "Penus", "Alazka", "Darul Jannah", "Makarima Solo", "AL Izzah", "LabSchool", "Muthahhari", "AL Hamidiyah", "Irsyadul Ibad", "Al Barokah", "BMS", "ASBC", "STIKES Sumber Waras", "ICM", "Romu", "Mumtaza", "Dian Didaktika", "BSB Semarang", "Asram", "AL Azhar Pontianak", "YDAI", "YPI Cerme", "Lazuardi", "Al Hikmah", "LIA", "Al Amanah", "Muga Yogya", "Muhajirin Purwakarta", "Al Bunyan", "Monkey Tree", "Al Fatih", "Yasporbi", "Gunacipta", "Amahan", "MANICS", "Stikes Prima", "ASSURYANIYAH BEKASI", "Al Masoem", "Annibras Subang", "UNRI", "Immanuel Lampung", "BRKS", "SIPINTER EDU", "Al Izzah Batu", "Universitas Strada", "Sekolah Cikal", "Nurul Falah Ploso", "Al Kahfi", "Global Islamic School", "RSIJ Sukapura", "LMS Pesantren", "Baitul Jannah", "Ummul", "PKP JIS", "Mumtaz Al Bantani", "BIM", "UNISKA", "Annajah", "SDIT Baiturrahman", "Embun Pagi Islamic School", "Al Azhar Mandiri", "Al Ikhlas", "Ar Rohmah", "Al Azhar Syifa Budi Cibubur", "SMK Hassina", "IDN", "YKWK", "Al Muflihun"
-].filter((value, index, self) => self.map(v => v.toLowerCase()).indexOf(value.toLowerCase()) === index);
 
 const ALL_CATEGORIES = [
     'Adjustment',
@@ -209,6 +206,7 @@ const MemoizedRow = memo(({
     isRowSelected,
     onRowSelectionChange,
     isBulkDeleting,
+    availableClients,
 }: {
     row: any;
     headers: string[];
@@ -220,6 +218,7 @@ const MemoizedRow = memo(({
     isRowSelected: boolean;
     onRowSelectionChange: (rowId: number, checked: boolean) => void;
     isBulkDeleting: boolean;
+    availableClients: string[];
 }) => {
     return (
         <div className="flex border-b transition-colors hover:bg-muted/50">
@@ -257,10 +256,10 @@ const MemoizedRow = memo(({
 
                 if (header === 'client_name') {
                     const cellValueStr = (cellValue as string) || '';
-                    const isValid = ALL_CLIENTS.some(c => c.toLowerCase() === cellValueStr.toLowerCase());
+                    const isValid = availableClients.some(c => c.toLowerCase() === cellValueStr.toLowerCase());
 
                     if (isEditMode) {
-                        const displayOptions = [...ALL_CLIENTS];
+                        const displayOptions = [...availableClients];
                         if (cellValueStr && !isValid) {
                             displayOptions.unshift(cellValueStr);
                         }
@@ -287,7 +286,7 @@ const MemoizedRow = memo(({
                                     </SelectTrigger>
                                     <SelectContent>
                                         {displayOptions.map(option => {
-                                            const isOptionValid = ALL_CLIENTS.some(c => c.toLowerCase() === option.toLowerCase());
+                                            const isOptionValid = availableClients.some(c => c.toLowerCase() === option.toLowerCase());
                                             return (
                                                 <SelectItem key={option} value={option} className={cn(!isOptionValid && "text-destructive")}>
                                                     {option}
@@ -499,7 +498,8 @@ export function DbViewer({
     initialData, 
     initialSource, 
     initialError,
-    availableYears = []
+    availableYears = [],
+    availableClients = [],
 }: DbViewerProps) {
     const { setIsProcessing } = useContext(TableDataContext);
     const [state, setState] = useState<DbViewerState>({
@@ -1229,11 +1229,14 @@ export function DbViewer({
         }
 
         if (isFilterable) {
+            const isClientFilter = header === 'client_name';
             const isCategoryFilter = header === 'ticket_category';
             const isStatusFilter = header === 'status';
             const isModuleFilter = header === 'module';
             const isDetailModuleFilter = header === 'detail_module';
-            const options = isCategoryFilter
+            const options = isClientFilter
+                ? availableClients
+                : isCategoryFilter
                 ? ALL_CATEGORIES
                 : isStatusFilter
                 ? ALL_STATUSES
@@ -1521,6 +1524,7 @@ export function DbViewer({
                                             isRowSelected={selectedRowIds.has(row?.id)}
                                             onRowSelectionChange={handleRowSelectionChange}
                                             isBulkDeleting={isBulkDeleting}
+                                            availableClients={availableClients}
                                         />
                                     );
                                 })}
