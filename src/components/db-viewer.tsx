@@ -259,7 +259,7 @@ const MemoizedRow = memo(({
 
                 if (header === 'client_name') {
                     const cellValueStr = (cellValue as string) || '';
-                    const isValid = availableClients.some(c => c.toLowerCase() === cellValueStr.toLowerCase());
+                    const isValid = availableClients.includes(cellValueStr);
 
                     if (isEditMode) {
                         const displayOptions = [...availableClients];
@@ -303,7 +303,7 @@ const MemoizedRow = memo(({
                                         </div>
                                         <SelectSeparator />
                                         {displayOptions.map(option => {
-                                            const isOptionValid = availableClients.some(c => c.toLowerCase() === option.toLowerCase());
+                                            const isOptionValid = availableClients.includes(option);
                                             return (
                                                 <SelectItem key={option} value={option} className={cn(!isOptionValid && "text-destructive")}>
                                                     {option}
@@ -1167,18 +1167,6 @@ export function DbViewer({
           
           setAvailableClients(prev => [...prev, newClientNameFromDB].sort((a, b) => a.localeCompare(b)));
 
-          // After adding, find any rows that were using a non-canonical version of this new name and update them to the canonical version.
-          setState(prevState => {
-            if (!prevState.data) return prevState;
-            const newData = prevState.data.map(row => {
-                if (row.client_name && row.client_name.toLowerCase() === newClientNameFromDB.toLowerCase() && row.client_name !== newClientNameFromDB) {
-                    return {...row, client_name: newClientNameFromDB };
-                }
-                return row;
-            });
-            return {...prevState, data: newData};
-          });
-
           setIsAddClientDialogOpen(false);
           setNewClientName("");
         } else {
@@ -1729,3 +1717,5 @@ export function DbViewer({
         </div>
     );
 }
+
+    
