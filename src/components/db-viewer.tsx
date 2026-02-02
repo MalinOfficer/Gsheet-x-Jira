@@ -27,11 +27,12 @@ import { DateRange } from "react-day-picker"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
 import { Skeleton } from "./ui/skeleton";
 import { Progress } from "./ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "./ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator, SelectViewport, SelectScrollUpButton, SelectScrollDownButton } from "./ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 declare const XLSX: any;
 
@@ -331,7 +332,7 @@ const MemoizedRow = memo(({
     onAddClient: () => void;
 }) => {
     return (
-        <div className="flex border-b transition-colors hover:bg-muted/50">
+        <div className="flex border-b transition-colors hover:bg-muted/50 h-full">
             {headers.map(header => {
                 const isEditable = isEditMode;
                 const rowId = row?.id;
@@ -366,7 +367,7 @@ const MemoizedRow = memo(({
 
                 if (header === 'client_name') {
                     const cellValueStr = (cellValue as string) || '';
-                    const isValid = availableClientsSet.has(cellValueStr);
+                    const isValid = availableClientsSet.has(cellValueStr.toLowerCase());
 
                     if (isEditMode) {
                         const displayOptions = [...availableClients];
@@ -411,7 +412,7 @@ const MemoizedRow = memo(({
                                         <SelectScrollUpButton />
                                         <SelectViewport>
                                             {displayOptions.map(option => {
-                                                const isOptionValid = availableClientsSet.has(option);
+                                                const isOptionValid = availableClientsSet.has(option.toLowerCase());
                                                 return (
                                                     <SelectItem key={option} value={option} className={cn(!isOptionValid && "text-destructive")}>
                                                         {option}
@@ -681,7 +682,7 @@ export function DbViewer({
     const [availableClients, setAvailableClients] = useState<string[]>(initialClients);
     const [isAddClientDialogOpen, setIsAddClientDialogOpen] = useState(false);
     
-    const availableClientsSet = useMemo(() => new Set(availableClients), [availableClients]);
+    const availableClientsSet = useMemo(() => new Set(availableClients.map(c => c.toLowerCase())), [availableClients]);
 
     const columnsToCenter = [
         'no', 'date', 'month',
@@ -1023,6 +1024,16 @@ export function DbViewer({
             return newRow;
         });
     }, [state.data]);
+
+    const rowVirtualizer = useVirtualizer({
+        count: displayData.length,
+        getScrollElement: () => tableContainerRef.current,
+        estimateSize: () => 41, // Estimate row height in pixels
+        overscan: 10,
+    });
+
+    const virtualRows = rowVirtualizer.getVirtualItems();
+    const totalRowHeight = rowVirtualizer.getTotalSize();
 
     const handleClearAllFilters = () => {
         setSearchTerm('');
@@ -1659,26 +1670,40 @@ export function DbViewer({
                                 </div>
 
                                 {/* Data rows */}
-                                {displayData.map((row, index) => {
-                                    const rowNumber = (currentPage - 1) * pageSize + index + 1;
-                                    return (
-                                        <MemoizedRow
-                                            key={row?.id || index}
-                                            row={row}
-                                            headers={headers}
-                                            columnWidths={columnWidths}
-                                            isEditMode={isEditMode}
-                                            rowNumber={rowNumber}
-                                            handleCellChange={handleCellChange}
-                                            isRowSelected={selectedRowIds.has(row?.id)}
-                                            onRowSelectionChange={handleRowSelectionChange}
-                                            isBulkDeleting={isBulkDeleting}
-                                            availableClients={availableClients}
-                                            availableClientsSet={availableClientsSet}
-                                            onAddClient={handleAddClient}
-                                        />
-                                    );
-                                })}
+                                <div style={{ height: `${totalRowHeight}px`, position: 'relative' }}>
+                                    {virtualRows.map((virtualRow) => {
+                                        const row = displayData[virtualRow.index];
+                                        const rowNumber = (currentPage - 1) * pageSize + virtualRow.index + 1;
+                                        return (
+                                            <div
+                                                key={virtualRow.key}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    width: '100%',
+                                                    height: `${virtualRow.size}px`,
+                                                    transform: `translateY(${virtualRow.start}px)`,
+                                                }}
+                                            >
+                                                <MemoizedRow
+                                                    row={row}
+                                                    headers={headers}
+                                                    columnWidths={columnWidths}
+                                                    isEditMode={isEditMode}
+                                                    rowNumber={rowNumber}
+                                                    handleCellChange={handleCellChange}
+                                                    isRowSelected={selectedRowIds.has(row?.id)}
+                                                    onRowSelectionChange={handleRowSelectionChange}
+                                                    isBulkDeleting={isBulkDeleting}
+                                                    availableClients={availableClients}
+                                                    availableClientsSet={availableClientsSet}
+                                                    onAddClient={handleAddClient}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
                     </div>
