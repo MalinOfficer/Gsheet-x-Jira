@@ -197,7 +197,7 @@ const getUnsolvedCases = async () => {
 };
 
 // Isolated dialog component to prevent re-renders on the main table
-function AddClientDialog({
+const AddClientDialog = memo(({
     open,
     onOpenChange,
     onClientAdded,
@@ -205,7 +205,7 @@ function AddClientDialog({
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onClientAdded: (newClient: string) => void;
-}) {
+}) => {
     const [newClientName, setNewClientName] = useState("");
     const [isAddingClient, startAddingClient] = useTransition();
     const { toast } = useToast();
@@ -277,7 +277,8 @@ function AddClientDialog({
             </DialogContent>
         </Dialog>
     );
-}
+});
+AddClientDialog.displayName = "AddClientDialog";
 
 const MemoizedRow = memo(({
     row,
@@ -371,7 +372,7 @@ const MemoizedRow = memo(({
                                         <SelectValue placeholder="Select client..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <div className="p-1">
+                                        <div className="p-1 sticky top-0 bg-popover z-10">
                                             <Button
                                                 variant="ghost"
                                                 className="w-full justify-start text-xs h-8"
