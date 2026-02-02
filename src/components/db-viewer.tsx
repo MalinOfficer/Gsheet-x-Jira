@@ -16,7 +16,7 @@ import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition, memo } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, updateCase, deleteCase, deleteCases, addClient } from "@/app/actions";
+import { getAllCaseData, updateCase, deleteCase, deleteCases, addClient, refreshDashboardViews } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -212,10 +212,12 @@ const AddClientDialog = memo(({
     const [isAddingClient, startAddingClient] = useTransition();
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
+    const availableClientsSet = useMemo(() => new Set(availableClients.map(c => c.toLowerCase())), [availableClients]);
+
 
     const handleNewClientNameChange = (name: string) => {
         setNewClientName(name);
-        if (name.trim() && availableClients.some(client => client.toLowerCase() === name.trim().toLowerCase())) {
+        if (name.trim() && availableClientsSet.has(name.trim().toLowerCase())) {
             setError(`Client "${name.trim()}" already exists.`);
         } else {
             setError(null);
@@ -406,14 +408,18 @@ const MemoizedRow = memo(({
                                                 Add New Client
                                             </Button>
                                         </div>
-                                        {displayOptions.map(option => {
-                                            const isOptionValid = availableClientsSet.has(option);
-                                            return (
-                                                <SelectItem key={option} value={option} className={cn(!isOptionValid && "text-destructive")}>
-                                                    {option}
-                                                </SelectItem>
-                                            );
-                                        })}
+                                        <SelectScrollUpButton />
+                                        <SelectViewport>
+                                            {displayOptions.map(option => {
+                                                const isOptionValid = availableClientsSet.has(option);
+                                                return (
+                                                    <SelectItem key={option} value={option} className={cn(!isOptionValid && "text-destructive")}>
+                                                        {option}
+                                                    </SelectItem>
+                                                );
+                                            })}
+                                        </SelectViewport>
+                                        <SelectScrollDownButton />
                                     </SelectContent>
                                 </Select>
                                 {!isValid && cellValueStr && (
@@ -634,7 +640,7 @@ export function DbViewer({
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [fetchedYears, setFetchedYears] = useState<string[]>(availableYears);
     const [isEditMode, setIsEditMode] = useState(false);
-    const [dataBeforeEdit, setDataBeforeEdit] = useState<any[] | null>(null);
+    const [dataBeforeEdit, setDataBeforeEdit] = useState<Map<number, any> | null>(null);
 
     const [progress, setProgress] = useState(0);
     const { toast } = useToast();
@@ -843,9 +849,10 @@ export function DbViewer({
                 if (dataResult.error) {
                     toast({ variant: 'destructive', title: "Refresh Failed", description: dataResult.error });
                 } else {
+                    await refreshDashboardViews();
                     toast({ 
                         title: "Data Refreshed", 
-                        description: `Loaded ${dataResult.data?.length || 0} rows.` 
+                        description: `Loaded ${dataResult.data?.length || 0} rows. Dashboard data synced.` 
                     });
                 }
                 setIsRefreshing(false);
@@ -1051,13 +1058,17 @@ export function DbViewer({
     
     const handleEditClick = () => {
         if (!state.data) return;
-        setDataBeforeEdit(JSON.parse(JSON.stringify(state.data))); // Deep copy
+        // Create a snapshot of the current state as a Map for efficient lookups.
+        // Each row is shallow-copied to prevent mutation.
+        const snapshot = new Map(state.data.map(row => [row.id, { ...row }]));
+        setDataBeforeEdit(snapshot);
         setIsEditMode(true);
     };
 
     const handleCancelEdit = () => {
         if (dataBeforeEdit) {
-            setState(prev => ({...prev, data: dataBeforeEdit}));
+            // Restore data from the Map's values
+            setState(prev => ({...prev, data: Array.from(dataBeforeEdit.values())}));
         }
         setIsEditMode(false);
         setDataBeforeEdit(null);
@@ -1069,14 +1080,16 @@ export function DbViewer({
             if (!dataBeforeEdit || !state.data) return;
 
             const modifiedRows = state.data.filter(currentRow => {
-                const originalRow = dataBeforeEdit.find(o => o.id === currentRow.id);
-                if (!originalRow) return false;
+                const originalRow = dataBeforeEdit.get(currentRow.id); // Fast O(1) lookup
+                if (!originalRow) return false; // Should not happen if data is consistent
+                // Compare stringified versions to detect any changes in the row object.
                 return JSON.stringify(currentRow) !== JSON.stringify(originalRow);
             });
 
             if (modifiedRows.length === 0) {
                 toast({ title: "No Changes Detected", description: "You haven't made any changes to save." });
                 setIsEditMode(false);
+                setDataBeforeEdit(null);
                 return;
             }
 
@@ -1110,7 +1123,7 @@ export function DbViewer({
                 });
                 setIsEditMode(false);
                 setDataBeforeEdit(null);
-                fetchData(); // Refetch data to confirm changes from DB
+                fetchData(true); // Refetch data to confirm changes from DB
             }
         });
     };
