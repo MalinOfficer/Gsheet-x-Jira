@@ -201,17 +201,29 @@ const AddClientDialog = memo(({
     open,
     onOpenChange,
     onClientAdded,
+    availableClients,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onClientAdded: (newClient: string) => void;
+    availableClients: string[];
 }) => {
     const [newClientName, setNewClientName] = useState("");
     const [isAddingClient, startAddingClient] = useTransition();
+    const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
 
+    const handleNewClientNameChange = (name: string) => {
+        setNewClientName(name);
+        if (name.trim() && availableClients.some(client => client.toLowerCase() === name.trim().toLowerCase())) {
+            setError(`Client "${name.trim()}" already exists.`);
+        } else {
+            setError(null);
+        }
+    };
+    
     const handleAddNewClient = () => {
-        if (!newClientName.trim()) return;
+        if (!newClientName.trim() || error) return;
         startAddingClient(async () => {
             const result = await addClient(newClientName);
             if (result.success && result.client) {
@@ -223,19 +235,23 @@ const AddClientDialog = memo(({
                 onClientAdded(newClientNameFromDB);
                 onOpenChange(false);
             } else {
-                toast({
-                    variant: "destructive",
-                    title: "Failed to Add Client",
-                    description: result.error,
-                });
+                setError(result.error || "An unknown error occurred.");
+                if (result.error) {
+                    toast({
+                        variant: "destructive",
+                        title: "Failed to Add Client",
+                        description: result.error,
+                    });
+                }
             }
         });
     };
     
-    // Reset local state when dialog is closed
+    // Reset local state when dialog is opened
     useEffect(() => {
-        if (!open) {
+        if (open) {
             setNewClientName("");
+            setError(null);
         }
     }, [open]);
 
@@ -249,15 +265,15 @@ const AddClientDialog = memo(({
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
+                    <div className="grid grid-cols-4 items-center gap-x-4 gap-y-2">
                         <Label htmlFor="new-client-name" className="text-right">
                             Name
                         </Label>
                         <Input
                             id="new-client-name"
                             value={newClientName}
-                            onChange={(e) => setNewClientName(e.target.value)}
-                            className="col-span-3"
+                            onChange={(e) => handleNewClientNameChange(e.target.value)}
+                            className={cn("col-span-3", error && "border-destructive focus-visible:ring-destructive")}
                             autoFocus
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
@@ -266,10 +282,15 @@ const AddClientDialog = memo(({
                                 }
                             }}
                         />
+                         {error && (
+                            <p className="col-start-2 col-span-3 text-xs text-destructive">
+                                {error}
+                            </p>
+                        )}
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button onClick={handleAddNewClient} disabled={isAddingClient || !newClientName.trim()}>
+                    <Button onClick={handleAddNewClient} disabled={isAddingClient || !newClientName.trim() || !!error}>
                         {isAddingClient ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                         Save Client
                     </Button>
@@ -372,7 +393,7 @@ const MemoizedRow = memo(({
                                         <SelectValue placeholder="Select client..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <div className="p-1 sticky top-0 bg-popover z-10">
+                                        <div className="p-1 sticky top-0 bg-popover z-10 border-b">
                                             <Button
                                                 variant="ghost"
                                                 className="w-full justify-start text-xs h-8"
@@ -385,7 +406,6 @@ const MemoizedRow = memo(({
                                                 Add New Client
                                             </Button>
                                         </div>
-                                        <SelectSeparator />
                                         {displayOptions.map(option => {
                                             const isOptionValid = availableClientsSet.has(option);
                                             return (
@@ -1727,6 +1747,7 @@ export function DbViewer({
                 open={isAddClientDialogOpen}
                 onOpenChange={setIsAddClientDialogOpen}
                 onClientAdded={handleClientAdded}
+                availableClients={availableClients}
             />
 
             <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
