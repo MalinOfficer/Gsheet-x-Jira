@@ -1,6 +1,7 @@
+
 "use client";
 
-import { AlertTriangle, Database, RefreshCw, Search, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, ChevronDown, Download, Check, Copy } from "lucide-react";
+import { AlertTriangle, Database, RefreshCw, Search, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, ChevronDown, Download, Check, Copy, UserPlus, Calendar as CalendarIcon } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -25,8 +26,9 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Skeleton } from "./ui/skeleton";
 import { Progress } from "./ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectViewport, SelectScrollUpButton, SelectScrollDownButton } from "./ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/alert-dialog";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Label } from "./ui/label";
 
 declare const XLSX: any;
 
@@ -113,12 +115,16 @@ const FilterDropdown = memo(({
     selected,
     onSelectionChange,
     renderOption,
+    onAddClient,
+    availableClientsSet,
 }: {
     label: string;
     options: string[];
     selected: string[];
     onSelectionChange: (selected: string[]) => void;
     renderOption?: (option: string) => React.ReactNode;
+    onAddClient?: () => void;
+    availableClientsSet?: Set<string>;
 }) => {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
@@ -160,6 +166,14 @@ const FilterDropdown = memo(({
             </PopoverTrigger>
             <PopoverContent className="w-[220px] p-0 shadow-lg" align="start">
                 <Command>
+                    {label === "Client Name" && onAddClient && (
+                         <div className="border-b p-2 sticky top-0 bg-popover z-10">
+                             <Button onClick={onAddClient} className="w-full h-8" size="sm">
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                Add New Client
+                            </Button>
+                        </div>
+                    )}
                     <CommandInput
                         placeholder={`Search ${label.toLowerCase()}...`}
                         value={search}
@@ -224,87 +238,69 @@ const FilterDropdown = memo(({
 });
 FilterDropdown.displayName = "FilterDropdown";
 
-const AddClientDialog = memo(({
+
+const AddClientDialog = memo(({ 
     availableClientsSet,
     onClientAdded
 }: {
-    availableClientsSet: Set<string>,
-    onClientAdded: (newClient: string) => void
+    availableClientsSet: Set<string>;
+    onClientAdded: (name: string) => void;
 }) => {
-    const [open, setOpen] = useState(false);
     const [newClientName, setNewClientName] = useState('');
     const [isSaving, startSaving] = useTransition();
     const { toast } = useToast();
-    const [error, setError] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
 
-    const handleSave = () => {
-        if (!newClientName.trim()) return;
+    const normalizedNewClientName = newClientName.trim().toLowerCase();
+    const isDuplicate = availableClientsSet.has(normalizedNewClientName);
+
+    const handleSave = async () => {
+        if (!newClientName.trim() || isDuplicate) return;
 
         startSaving(async () => {
-            const result = await addClient(newClientName);
+            const result = await addClient(newClientName.trim());
             if (result.success && result.client) {
-                toast({
-                    title: "Client Added",
-                    description: `Successfully added "${result.client.name}".`
-                });
+                toast({ title: "Client Added", description: `"${result.client.name}" has been added.` });
                 onClientAdded(result.client.name);
                 setNewClientName('');
-                setOpen(false);
+                setIsOpen(false);
             } else {
-                toast({
-                    variant: 'destructive',
-                    title: 'Failed to Add Client',
-                    description: result.error || 'An unknown error occurred.'
-                });
+                toast({ variant: "destructive", title: "Failed to Add Client", description: result.error });
             }
         });
     };
 
-    const clientExists = useMemo(() => {
-        return availableClientsSet.has(newClientName.trim().toLowerCase());
-    }, [newClientName, availableClientsSet]);
-
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <div className="sticky top-0 z-10 p-2 bg-popover border-b">
-                    <Button variant="ghost" className="w-full justify-start text-xs">
-                        + Add New Client
-                    </Button>
-                </div>
-            </DialogTrigger>
-            <DialogContent>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Add New Client</DialogTitle>
                     <DialogDescription>
-                        This will add a new client to the central database.
+                        Enter the name of the new client. This will be saved to the database.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <label htmlFor="name" className="text-right">
+                        <Label htmlFor="new-client-name" className="text-right">
                             Name
-                        </label>
+                        </Label>
                         <Input
-                            id="name"
+                            id="new-client-name"
                             value={newClientName}
                             onChange={(e) => setNewClientName(e.target.value)}
                             className="col-span-3"
-                            autoComplete="off"
+                            disabled={isSaving}
                         />
                     </div>
-                    {clientExists && (
-                        <p className="col-start-2 col-span-3 text-xs text-destructive">
+                    {isDuplicate && (
+                        <p className="col-span-4 text-xs text-destructive text-center">
                             This client name already exists.
                         </p>
                     )}
                 </div>
                 <DialogFooter>
-                    <Button
-                        onClick={handleSave}
-                        disabled={isSaving || !newClientName.trim() || clientExists}
-                    >
-                        {isSaving ? "Saving..." : "Save Client"}
+                    <Button onClick={handleSave} disabled={isSaving || !newClientName.trim() || isDuplicate}>
+                        {isSaving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : 'Save Client'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -312,7 +308,6 @@ const AddClientDialog = memo(({
     );
 });
 AddClientDialog.displayName = "AddClientDialog";
-
 
 // ============================================
 // 🔥 LAZY EDITABLE CELL (Google Sheets Style)
@@ -330,7 +325,6 @@ const LazyEditableCell = memo(({
     availableClientsSet,
     activeCell,
     onCellClick,
-    onClientAdded,
 }: {
     header: string;
     value: any;
@@ -343,7 +337,6 @@ const LazyEditableCell = memo(({
     availableClientsSet: Set<string>;
     activeCell: { rowId: number; header: string } | null;
     onCellClick: (rowId: number, header: string) => void;
-    onClientAdded: (clientName: string) => void;
 }) => {
     const [localValue, setLocalValue] = useState(value);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -427,10 +420,7 @@ const LazyEditableCell = memo(({
                             <SelectValue placeholder="Select client..." />
                         </SelectTrigger>
                         <SelectContent>
-                             <AddClientDialog
-                                availableClientsSet={availableClientsSet}
-                                onClientAdded={onClientAdded}
-                            />
+                            <SelectScrollUpButton />
                             <SelectViewport>
                                 {availableClients.map(option => (
                                     <SelectItem key={option} value={option}>
@@ -438,6 +428,7 @@ const LazyEditableCell = memo(({
                                     </SelectItem>
                                 ))}
                             </SelectViewport>
+                            <SelectScrollDownButton />
                         </SelectContent>
                     </Select>
                     {!isValid && cellValueStr && (
@@ -574,7 +565,7 @@ const LazyEditableCell = memo(({
                     }
                     if (header === 'module' && value) {
                         return (
-                            <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[value as string] || moduleColorMap.default)}>
+                            <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>
                                 {value}
                             </span>
                         );
@@ -614,7 +605,6 @@ const MemoizedRow = memo(({
     availableClientsSet,
     activeCell,
     onCellClick,
-    onClientAdded,
 }: {
     row: any;
     headers: string[];
@@ -626,7 +616,6 @@ const MemoizedRow = memo(({
     availableClientsSet: Set<string>;
     activeCell: { rowId: number; header: string } | null;
     onCellClick: (rowId: number, header: string) => void;
-    onClientAdded: (clientName: string) => void;
 }) => {
     return (
         <div className="flex border-b transition-colors hover:bg-muted/50 h-full">
@@ -644,7 +633,6 @@ const MemoizedRow = memo(({
                     availableClientsSet={availableClientsSet}
                     activeCell={activeCell}
                     onCellClick={onCellClick}
-                    onClientAdded={onClientAdded}
                 />
             ))}
         </div>
@@ -683,9 +671,6 @@ export function DbViewer({
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
     const [yearFilter, setYearFilter] = useState<string>('');
     
-    const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
-    const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(undefined);
-
     const [pageSize, setPageSize] = useState(50);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalRows, setTotalRows] = useState(0);
@@ -693,31 +678,18 @@ export function DbViewer({
     
     const [isClient, setIsClient] = useState(false);
     const [availableClients, setAvailableClients] = useState<string[]>(initialClients);
+    const [isAddClientOpen, setIsAddClientOpen] = useState(false);
     
     // 🔥 Active cell for lazy editing (Google Sheets style)
     const [activeCell, setActiveCell] = useState<{ rowId: number; header: string } | null>(null);
     
     // 🔥 Auto-save debounce
     const saveTimeoutRef = useRef<NodeJS.Timeout>();
-
-    // Editing state
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [dataBeforeEdit, setDataBeforeEdit] = useState<Map<number, any> | null>(null);
-    const [isCopied, setIsCopied] = useState(false);
-    const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
     
     const availableClientsSet = useMemo(
         () => new Set(availableClients.map(c => c.toLowerCase())), 
         [availableClients]
     );
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    useEffect(() => {
-        setIsProcessing(isPending || isSaving);
-    }, [isPending, isSaving, setIsProcessing]);
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return ['no'];
@@ -743,6 +715,21 @@ export function DbViewer({
         FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'month'];
         return ['no', ...visibleKeys];
     }, [state.data]);
+
+    // Which filter columns are actually present in the current headers
+    const visibleFilterColumns = useMemo(
+        () => FILTER_COLUMNS.filter(col => headers.includes(col)),
+        [headers]
+    );
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    useEffect(() => {
+        setIsProcessing(isPending || isSaving);
+    }, [isPending, isSaving, setIsProcessing]);
+
 
     const initialColumnWidths = useCallback(() => {
         const widths: Record<string, number> = {
@@ -770,8 +757,8 @@ export function DbViewer({
 
     // ── Filter helpers ──────────────────────────────────────────
     const activeFilterCount = useMemo(
-        () => Object.values(columnFilters).reduce((sum, arr) => sum + arr.length, 0),
-        [columnFilters]
+        () => Object.values(columnFilters).reduce((sum, arr) => sum + arr.length, 0) + (dateRange ? 1 : 0),
+        [columnFilters, dateRange]
     );
 
     const setFilterForColumn = useCallback((column: string, values: string[]) => {
@@ -790,6 +777,7 @@ export function DbViewer({
 
     const clearAllFilters = useCallback(() => {
         setColumnFilters({});
+        setDateRange(undefined);
         setCurrentPage(1);
     }, []);
 
@@ -873,10 +861,8 @@ export function DbViewer({
     }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, toast]);
 
     useEffect(() => {
-        if (!isEditMode) {
-            fetchData();
-        }
-    }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, fetchData, isEditMode]);
+        fetchData();
+    }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, fetchData]);
     
     const displayData = useMemo(() => {
         if (!state.data) return [];
@@ -939,9 +925,12 @@ export function DbViewer({
 
     // 🔥 Lazy cell editing handlers
     const handleCellClick = useCallback((rowId: number, header: string) => {
-        if (!isEditMode) return;
-        setActiveCell(rowId === 0 ? null : { rowId, header });
-    }, [isEditMode]);
+        if (rowId === 0) {
+            setActiveCell(null);
+        } else {
+            setActiveCell({ rowId, header });
+        }
+    }, []);
 
     const handleCellChange = useCallback((id: number, header: string, value: string) => {
         setState(prevState => {
@@ -972,7 +961,6 @@ export function DbViewer({
 
     // 🔥 Auto-save with debounce
     const handleCellSave = useCallback((id: number) => {
-        if (!isEditMode) return;
         if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
         }
@@ -999,7 +987,7 @@ export function DbViewer({
             }
             setIsSaving(false);
         }, 800); // Debounce 800ms
-    }, [state.data, toast, isEditMode]);
+    }, [state.data, toast]);
 
     const handleExport = () => {
         if (!displayData || displayData.length === 0) {
@@ -1030,16 +1018,6 @@ export function DbViewer({
         });
     };
 
-    const handleClientAdded = useCallback((newClient: string) => {
-        setAvailableClients(prev => [...prev, newClient].sort((a, b) => a.localeCompare(b)));
-    }, []);
-    
-    // Which filter columns are actually present in the current headers
-    const visibleFilterColumns = useMemo(
-        () => FILTER_COLUMNS.filter(col => headers.includes(col)),
-        [headers]
-    );
-
     if (!isClient) {
         return <div className="flex-1 p-8"><Skeleton className="h-[600px] w-full" /></div>;
     }
@@ -1047,6 +1025,14 @@ export function DbViewer({
 
     return (
         <div className="flex-1 bg-background text-foreground px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3 md:px-8 md:pb-8 md:pt-4">
+            {isAddClientOpen && (
+                <AddClientDialog 
+                    availableClientsSet={availableClientsSet}
+                    onClientAdded={(newClient) => {
+                        setAvailableClients(prev => [...prev, newClient].sort());
+                    }}
+                />
+            )}
             <Card>
                 <CardHeader>
                     {/* ── Row 1: Search + Action buttons ── */}
@@ -1091,8 +1077,52 @@ export function DbViewer({
                                 selected={columnFilters[col] || []}
                                 onSelectionChange={(values) => setFilterForColumn(col, values)}
                                 renderOption={renderFilterOption(col)}
+                                onAddClient={col === 'client_name' ? () => setIsAddClientOpen(true) : undefined}
+                                availableClientsSet={col === 'client_name' ? availableClientsSet : undefined}
                             />
                         ))}
+
+                         <Popover>
+                            <PopoverTrigger asChild>
+                                <button
+                                    className={cn(
+                                        "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                                        dateRange
+                                            ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+                                            : "bg-white dark:bg-slate-950 border-muted text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="h-3 w-3" />
+                                    <span>
+                                        {dateRange?.from ? (
+                                            dateRange.to ? (
+                                                <>
+                                                    {format(dateRange.from, "LLL dd")} - {format(dateRange.to, "LLL dd")}
+                                                </>
+                                            ) : (
+                                                format(dateRange.from, "LLL dd, y")
+                                            )
+                                        ) : (
+                                            "Date Range"
+                                        )}
+                                    </span>
+                                    <ChevronDown className="h-3 w-3" />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={dateRange?.from}
+                                    selected={dateRange}
+                                    onSelect={(range) => {
+                                        setDateRange(range);
+                                        setCurrentPage(1);
+                                    }}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
 
                         {/* Clear-all button — only visible when something is active */}
                         {activeFilterCount > 0 && (
@@ -1166,7 +1196,6 @@ export function DbViewer({
                                                     availableClientsSet={availableClientsSet}
                                                     activeCell={activeCell}
                                                     onCellClick={handleCellClick}
-                                                    onClientAdded={handleClientAdded}
                                                 />
                                             </div>
                                         );
