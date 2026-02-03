@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check, ArrowLeft, ChevronDown, Trash2, Download, ChevronsUpDown } from "lucide-react";
@@ -72,7 +70,7 @@ const headerDisplayMapping: Record<string, string> = {
     note: 'Note',
 };
 
-const hiddenHeaders: string[] = ['ticket_number'];
+const hiddenHeaders: string[] = ['ticket_number', 'pic_client', 'checkout', 'url_jira'];
 
 const categoryColorMap: Record<string, string> = {
     'Bug Fixing': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
@@ -182,7 +180,6 @@ const moduleColorMap: Record<string, string> = {
 };
 
 const getUnsolvedCases = async () => {
-    // This is a placeholder. In a real scenario, you would fetch from a specific view/endpoint.
     const { data, error, count } = await getAllCaseData({
         status: ['L1', 'L2', 'L3', 'ON HOLD']
     });
@@ -191,13 +188,384 @@ const getUnsolvedCases = async () => {
         return { error };
     }
 
-    // Since this is a view, there's no separate pagination data source.
-    // The pagination will be handled client-side for this view if needed,
-    // or we can assume the view returns a manageable number of rows.
     return { data, source: 'view' as const, pagination: null };
 };
 
-// Isolated dialog component to prevent re-renders on the main table
+// ============================================
+// OPTIMIZED CELL COMPONENTS
+// ============================================
+
+// Memoized Cell untuk mencegah re-render tidak perlu
+const MemoizedCell = memo(({
+    header,
+    value,
+    rowId,
+    rowNumber,
+    isEditMode,
+    isSelected,
+    isBulkDeleting,
+    columnWidth,
+    onCellChange,
+    onRowSelectionChange,
+    onAddClient,
+    availableClients,
+    availableClientsSet,
+}: {
+    header: string;
+    value: any;
+    rowId: number;
+    rowNumber: number;
+    isEditMode: boolean;
+    isSelected: boolean;
+    isBulkDeleting: boolean;
+    columnWidth: number;
+    onCellChange: (id: number, header: string, value: string) => void;
+    onRowSelectionChange: (rowId: number, checked: boolean) => void;
+    onAddClient: () => void;
+    availableClients: string[];
+    availableClientsSet: Set<string>;
+}) => {
+    // State untuk lazy loading dropdown
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+    const cellStyle = {
+        width: columnWidth,
+        flexShrink: 0,
+        borderRight: '1px solid hsl(var(--border))'
+    };
+
+    // Checkbox column (No)
+    if (header === 'no') {
+        return (
+            <div
+                className="align-middle flex items-center justify-center"
+                style={cellStyle}
+            >
+                {isEditMode ? (
+                    <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={(checked) => onRowSelectionChange(rowId, checked === true)}
+                        aria-label={`Select row ${rowNumber}`}
+                        disabled={isBulkDeleting}
+                    />
+                ) : (
+                    <span className="truncate text-xs">{rowNumber}</span>
+                )}
+            </div>
+        );
+    }
+
+    // Client Name Column (dengan validasi)
+    if (header === 'client_name') {
+        const cellValueStr = (value as string) || '';
+        const isValid = availableClientsSet.has(cellValueStr);
+
+        if (isEditMode) {
+            const displayOptions = [...availableClients];
+            if (cellValueStr && !isValid) {
+                displayOptions.unshift(cellValueStr);
+            }
+
+            return (
+                <div className="align-middle relative" style={cellStyle}>
+                    <Select
+                        value={cellValueStr}
+                        onValueChange={(newValue) => onCellChange(rowId, header, newValue)}
+                        open={isDropdownOpen}
+                        onOpenChange={setIsDropdownOpen}
+                    >
+                        <SelectTrigger 
+                            className={cn(
+                                "h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
+                                !isValid && cellValueStr && "text-destructive font-semibold"
+                            )}
+                        >
+                            <SelectValue placeholder="Select client..." />
+                        </SelectTrigger>
+                        {isDropdownOpen && (
+                            <SelectContent>
+                                <div className="p-1 sticky top-0 bg-popover z-10 border-b">
+                                    <Button
+                                        variant="ghost"
+                                        className="w-full justify-start text-xs h-8"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setIsDropdownOpen(false);
+                                            onAddClient();
+                                        }}
+                                    >
+                                        <Pencil className="mr-2 h-3 w-3" />
+                                        Add New Client
+                                    </Button>
+                                </div>
+                                <SelectScrollUpButton />
+                                <SelectViewport>
+                                    {displayOptions.map(option => {
+                                        const isOptionValid = availableClientsSet.has(option);
+                                        return (
+                                            <SelectItem 
+                                                key={option} 
+                                                value={option} 
+                                                className={cn(!isOptionValid && "text-destructive")}
+                                            >
+                                                {option}
+                                            </SelectItem>
+                                        );
+                                    })}
+                                </SelectViewport>
+                                <SelectScrollDownButton />
+                            </SelectContent>
+                        )}
+                    </Select>
+                    {!isValid && cellValueStr && (
+                        <div className="absolute top-0 right-0 w-0 h-0 border-solid border-t-red-500 border-l-transparent border-t-[8px] border-l-[8px]"></div>
+                    )}
+                </div>
+            );
+        }
+
+        return (
+            <div className="align-middle relative" style={cellStyle}>
+                <div className="py-1 px-2 flex items-center h-full justify-center">
+                    <span className="truncate text-xs">{value}</span>
+                </div>
+                {!isValid && cellValueStr && (
+                    <div className="absolute top-0 right-0 w-0 h-0 border-solid border-t-red-500 border-l-transparent border-t-[8px] border-l-[8px]"></div>
+                )}
+            </div>
+        );
+    }
+
+    // Dropdown Columns (status, category, module, detail_module)
+    const isDropdownColumn = isEditMode && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
+    
+    if (isDropdownColumn) {
+        const isCategoryOrStatus = header === 'ticket_category' || header === 'status';
+        
+        return (
+            <div className="align-middle" style={cellStyle}>
+                <Select
+                    value={(value as string) ?? ''}
+                    onValueChange={(newValue) => onCellChange(rowId, header, newValue)}
+                    open={isDropdownOpen}
+                    onOpenChange={setIsDropdownOpen}
+                >
+                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
+                        {value ? (
+                            isCategoryOrStatus ? (
+                                header === 'status' ? (
+                                    <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[value as string] || statusColorMap.default)}>
+                                        {value}
+                                    </span>
+                                ) : (
+                                    <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[value as string] || categoryColorMap.default)}>
+                                        {value}
+                                    </span>
+                                )
+                            ) : header === 'module' ? (
+                                <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[value as string] || moduleColorMap.default)}>
+                                    {value}
+                                </span>
+                            ) : (
+                                <span className="text-xs">{value}</span>
+                            )
+                        ) : (
+                            <span className="text-muted-foreground">Select...</span>
+                        )}
+                    </SelectTrigger>
+                    {isDropdownOpen && (
+                        <SelectContent>
+                            {(
+                                header === 'ticket_category' ? ALL_CATEGORIES :
+                                header === 'status' ? ALL_STATUSES :
+                                header === 'module' ? ALL_MODULES :
+                                header === 'detail_module' ? ALL_DETAIL_MODULES :
+                                []
+                            ).map(option => (
+                                <SelectItem key={option} value={option}>
+                                    {header === 'status' ? (
+                                        <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[option] || statusColorMap.default)}>
+                                            {option}
+                                        </span>
+                                    ) : header === 'ticket_category' ? (
+                                        <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[option] || categoryColorMap.default)}>
+                                            {option}
+                                        </span>
+                                    ) : header === 'module' ? (
+                                        <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>
+                                            {option}
+                                        </span>
+                                    ) : (
+                                        option
+                                    )}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    )}
+                </Select>
+            </div>
+        );
+    }
+
+    // Editable Input Columns
+    if (isEditMode) {
+        return (
+            <div className="align-middle" style={cellStyle}>
+                <Input
+                    type="text"
+                    value={value ?? ''}
+                    onChange={(e) => onCellChange(rowId, header, e.target.value)}
+                    className="h-full w-full rounded-none border-0 bg-transparent p-2 text-xs focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:bg-transparent"
+                />
+            </div>
+        );
+    }
+
+    // Read-only cells with special formatting
+    return (
+        <div className="align-middle" style={cellStyle}>
+            <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note'].includes(header) && 'justify-center')}>
+                {(() => {
+                    if (header === 'status_case_2' && value) {
+                        const age = Number(value);
+                        const isOverdue = age > 3;
+                        return (
+                            <span className={cn('text-xs px-2 py-0.5 rounded-full font-mono', isOverdue ? 'bg-destructive text-destructive-foreground font-bold' : '')}>
+                                {age}
+                            </span>
+                        );
+                    }
+                    if (header === 'duration' && value) {
+                        return (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-mono">
+                                {value}
+                            </span>
+                        );
+                    }
+                    if (header === 'ticket_category' && value) {
+                        return (
+                            <span className={cn('text-xs px-2 py-0.5 rounded-full', categoryColorMap[value as string] || categoryColorMap.default)}>
+                                {value}
+                            </span>
+                        );
+                    }
+                    if (header === 'status' && value) {
+                        return (
+                            <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[value as string] || statusColorMap.default)}>
+                                {value}
+                            </span>
+                        );
+                    }
+                    if (header === 'module' && value) {
+                        return (
+                            <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[value as string] || moduleColorMap.default)}>
+                                {value}
+                            </span>
+                        );
+                    }
+                    if (header === 'title' && value) {
+                        const ticketNumberMatch = String(value).match(/^(IHO-\d+)/);
+                        if (ticketNumberMatch) {
+                            const ticketNumber = ticketNumberMatch[0];
+                            const restOfTitle = String(value).substring(ticketNumber.length).trim();
+                            const jiraUrl = `https://pintro.atlassian.net/browse/${ticketNumber}`;
+                            return (
+                                <span className="truncate text-xs">
+                                    <a href={jiraUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                        {ticketNumber}
+                                    </a>
+                                    {' '}{restOfTitle}
+                                </span>
+                            );
+                        }
+                    }
+                    return <span className="truncate text-xs">{value}</span>;
+                })()}
+            </div>
+        </div>
+    );
+}, (prevProps, nextProps) => {
+    // Custom comparison untuk mencegah re-render tidak perlu
+    return (
+        prevProps.value === nextProps.value &&
+        prevProps.isEditMode === nextProps.isEditMode &&
+        prevProps.isSelected === nextProps.isSelected &&
+        prevProps.rowId === nextProps.rowId &&
+        prevProps.columnWidth === nextProps.columnWidth
+    );
+});
+MemoizedCell.displayName = "MemoizedCell";
+
+// Optimized Row Component
+const MemoizedRow = memo(({
+    row,
+    headers,
+    columnWidths,
+    isEditMode,
+    rowNumber,
+    handleCellChange,
+    isRowSelected,
+    onRowSelectionChange,
+    isBulkDeleting,
+    availableClients,
+    availableClientsSet,
+    onAddClient,
+}: {
+    row: any;
+    headers: string[];
+    columnWidths: Record<string, number>;
+    isEditMode: boolean;
+    rowNumber: number;
+    handleCellChange: (id: number, header: string, value: string) => void;
+    isRowSelected: boolean;
+    onRowSelectionChange: (rowId: number, checked: boolean) => void;
+    isBulkDeleting: boolean;
+    availableClients: string[];
+    availableClientsSet: Set<string>;
+    onAddClient: () => void;
+}) => {
+    return (
+        <div className="flex border-b transition-colors hover:bg-muted/50 h-full">
+            {headers.map(header => (
+                <MemoizedCell
+                    key={`${row.id}-${header}`}
+                    header={header}
+                    value={row[header]}
+                    rowId={row.id}
+                    rowNumber={rowNumber}
+                    isEditMode={isEditMode}
+                    isSelected={isRowSelected}
+                    isBulkDeleting={isBulkDeleting}
+                    columnWidth={columnWidths[header]}
+                    onCellChange={handleCellChange}
+                    onRowSelectionChange={onRowSelectionChange}
+                    onAddClient={onAddClient}
+                    availableClients={availableClients}
+                    availableClientsSet={availableClientsSet}
+                />
+            ))}
+        </div>
+    );
+}, (prevProps, nextProps) => {
+    // Optimized comparison
+    if (prevProps.isEditMode !== nextProps.isEditMode) return false;
+    if (prevProps.isRowSelected !== nextProps.isRowSelected) return false;
+    if (prevProps.rowNumber !== nextProps.rowNumber) return false;
+    if (prevProps.row.id !== nextProps.row.id) return false;
+    
+    // Check if any cell value changed
+    for (const header of prevProps.headers) {
+        if (prevProps.row[header] !== nextProps.row[header]) return false;
+    }
+    
+    return true;
+});
+MemoizedRow.displayName = "MemoizedRow";
+
+// ============================================
+// ADD CLIENT DIALOG
+// ============================================
+
 const AddClientDialog = memo(({
     open,
     onOpenChange,
@@ -214,7 +582,6 @@ const AddClientDialog = memo(({
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
     const availableClientsSet = useMemo(() => new Set(availableClients.map(c => c.toLowerCase())), [availableClients]);
-
 
     const handleNewClientNameChange = (name: string) => {
         setNewClientName(name);
@@ -250,7 +617,6 @@ const AddClientDialog = memo(({
         });
     };
     
-    // Reset local state when dialog is opened
     useEffect(() => {
         if (open) {
             setNewClientName("");
@@ -304,323 +670,9 @@ const AddClientDialog = memo(({
 });
 AddClientDialog.displayName = "AddClientDialog";
 
-const MemoizedRow = memo(({
-    row,
-    headers,
-    columnWidths,
-    isEditMode,
-    rowNumber,
-    handleCellChange,
-    isRowSelected,
-    onRowSelectionChange,
-    isBulkDeleting,
-    availableClients,
-    availableClientsSet,
-    onAddClient,
-}: {
-    row: any;
-    headers: string[];
-    columnWidths: Record<string, number>;
-    isEditMode: boolean;
-    rowNumber: number;
-    handleCellChange: (id: number, header: string, value: string) => void;
-    isRowSelected: boolean;
-    onRowSelectionChange: (rowId: number, checked: boolean) => void;
-    isBulkDeleting: boolean;
-    availableClients: string[];
-    availableClientsSet: Set<string>;
-    onAddClient: () => void;
-}) => {
-    return (
-        <div className="flex border-b transition-colors hover:bg-muted/50 h-full">
-            {headers.map(header => {
-                const isEditable = isEditMode;
-                const rowId = row?.id;
-
-                if (header === 'no') {
-                    return (
-                        <div
-                            key={header}
-                            className="align-middle flex items-center justify-center"
-                            style={{
-                                width: columnWidths[header],
-                                flexShrink: 0,
-                                borderRight: '1px solid hsl(var(--border))'
-                            }}
-                        >
-                            {isEditMode ? (
-                                <Checkbox
-                                    checked={isRowSelected}
-                                    onCheckedChange={(checked) => onRowSelectionChange(rowId, checked === true)}
-                                    aria-label={`Select row ${rowNumber}`}
-                                    disabled={!row || isBulkDeleting}
-                                />
-                            ) : (
-                                <span className="truncate text-xs">{rowNumber}</span>
-                            )}
-                        </div>
-                    );
-                }
-
-                const cellValue = row ? row[header] : null;
-                const isDropdownColumn = isEditable && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
-
-                if (header === 'client_name') {
-                    const cellValueStr = (cellValue as string) || '';
-                    const isValid = availableClientsSet.has(cellValueStr.toLowerCase());
-
-                    if (isEditMode) {
-                        const displayOptions = [...availableClients];
-                        if (cellValueStr && !isValid) {
-                            displayOptions.unshift(cellValueStr);
-                        }
-
-                        return (
-                            <div
-                                key={header}
-                                className="align-middle relative"
-                                style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
-                            >
-                                <Select
-                                    value={cellValueStr}
-                                    onValueChange={(newValue) => {
-                                        if (rowId !== undefined) {
-                                            handleCellChange(rowId, header, newValue);
-                                        }
-                                    }}
-                                    disabled={!row}
-                                >
-                                    <SelectTrigger className={cn("h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
-                                        !isValid && cellValueStr && "text-destructive font-semibold"
-                                    )}>
-                                        <SelectValue placeholder="Select client..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <div className="p-1 sticky top-0 bg-popover z-10 border-b">
-                                            <Button
-                                                variant="ghost"
-                                                className="w-full justify-start text-xs h-8"
-                                                onClick={(e) => {
-                                                e.preventDefault();
-                                                onAddClient();
-                                                }}
-                                            >
-                                                <Pencil className="mr-2 h-3 w-3" />
-                                                Add New Client
-                                            </Button>
-                                        </div>
-                                        <SelectScrollUpButton />
-                                        <SelectViewport>
-                                            {displayOptions.map(option => {
-                                                const isOptionValid = availableClientsSet.has(option.toLowerCase());
-                                                return (
-                                                    <SelectItem key={option} value={option} className={cn(!isOptionValid && "text-destructive")}>
-                                                        {option}
-                                                    </SelectItem>
-                                                );
-                                            })}
-                                        </SelectViewport>
-                                        <SelectScrollDownButton />
-                                    </SelectContent>
-                                </Select>
-                                {!isValid && cellValueStr && (
-                                    <div className="absolute top-0 right-0 w-0 h-0 border-solid border-t-red-500 border-l-transparent border-t-[8px] border-l-[8px]"></div>
-                                )}
-                            </div>
-                        );
-                    } else {
-                        return (
-                            <div
-                                key={header}
-                                className="align-middle relative"
-                                style={{ width: columnWidths[header], flexShrink: 0, borderRight: '1px solid hsl(var(--border))' }}
-                            >
-                                <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note'].includes(header) && 'justify-center')}>
-                                    {row ? (
-                                        <span className="truncate text-xs">{cellValue}</span>
-                                    ) : (
-                                        <Skeleton className="h-4 w-full" />
-                                    )}
-                                </div>
-                                {!isValid && cellValueStr && (
-                                    <div className="absolute top-0 right-0 w-0 h-0 border-solid border-t-red-500 border-l-transparent border-t-[8px] border-l-[8px]"></div>
-                                )}
-                            </div>
-                        );
-                    }
-                }
-
-                return (
-                    <div
-                        key={header}
-                        className="align-middle"
-                        style={{
-                            width: columnWidths[header],
-                            flexShrink: 0,
-                            borderRight: '1px solid hsl(var(--border))'
-                        }}
-                    >
-                        {isDropdownColumn ? (
-                            (header === 'ticket_category' || header === 'status') ? (
-                                <Select
-                                    value={(cellValue as string) ?? ''}
-                                    onValueChange={(newValue) => {
-                                        if (rowId !== undefined) {
-                                            handleCellChange(rowId, header, newValue);
-                                        }
-                                    }}
-                                    disabled={!row}
-                                >
-                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
-                                        {cellValue ? (
-                                                header === 'status' ? (
-                                                <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[cellValue as string] || statusColorMap.default)}>
-                                                    {cellValue}
-                                                </span>
-                                                ) : (
-                                                <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
-                                                    {cellValue}
-                                                </span>
-                                                )
-                                        ) : (
-                                            <span className="text-muted-foreground">Select...</span>
-                                        )}
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {(header === 'ticket_category' ? ALL_CATEGORIES : ALL_STATUSES).map(option => (
-                                            <SelectItem key={option} value={option}>
-                                                {header === 'status' ? (
-                                                    <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[option] || statusColorMap.default)}>
-                                                        {option}
-                                                    </span>
-                                                ) : (
-                                                        <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[option] || categoryColorMap.default)}>
-                                                        {option}
-                                                    </span>
-                                                )}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            ) : (
-                                <Select
-                                    value={(cellValue as string) ?? ''}
-                                    onValueChange={(newValue) => {
-                                        if (rowId !== undefined) {
-                                            handleCellChange(rowId, header, newValue);
-                                        }
-                                    }}
-                                    disabled={!row}
-                                >
-                                    <SelectTrigger className="h-full w-full rounded-none border-0 bg-transparent p-0 py-1 px-2 text-xs focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
-                                        {cellValue ? (
-                                            header === 'module' ? (
-                                                <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
-                                                    {cellValue}
-                                                </span>
-                                            ) : (
-                                                <span className="text-xs">{cellValue}</span>
-                                            )
-                                        ) : (
-                                            <span className="text-muted-foreground">Select...</span>
-                                        )}
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {(header === 'module' ? ALL_MODULES : header === 'detail_module' ? ALL_DETAIL_MODULES : []).map(option => (
-                                            <SelectItem key={option} value={option}>
-                                                {header === 'module' ? (
-                                                    <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>
-                                                        {option}
-                                                    </span>
-                                                ) : (
-                                                    option
-                                                )}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            )
-                        ) : isEditable ? (
-                            <Input
-                                type="text"
-                                value={cellValue ?? ''}
-                                onChange={(e) => rowId !== undefined && handleCellChange(rowId, header, e.target.value)}
-                                className="h-full w-full rounded-none border-0 bg-transparent p-2 text-xs focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:bg-transparent"
-                                disabled={!row}
-                            />
-                        ) : (
-                            <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note'].includes(header) && 'justify-center')}>
-                                {row ? (
-                                    (() => {
-                                        if (header === 'status_case_2' && cellValue) {
-                                            const age = Number(cellValue);
-                                            const isOverdue = age > 3;
-                                            return (
-                                                <span className={cn('text-xs px-2 py-0.5 rounded-full font-mono', isOverdue ? 'bg-destructive text-destructive-foreground font-bold' : '')}>
-                                                    {age}
-                                                </span>
-                                            );
-                                        }
-                                        if (header === 'duration' && cellValue) {
-                                            return (
-                                                <span className={cn('text-xs px-2 py-0.5 rounded-full font-mono')}>
-                                                    {cellValue}
-                                                </span>
-                                            );
-                                        }
-                                        if (header === 'ticket_category' && cellValue) {
-                                            return (
-                                                <span className={cn('text-xs px-2 py-0.5 rounded-full', categoryColorMap[cellValue as string] || categoryColorMap.default)}>
-                                                    {cellValue}
-                                                </span>
-                                            );
-                                        }
-                                        if (header === 'status' && cellValue) {
-                                            return (
-                                                <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[cellValue as string] || statusColorMap.default)}>
-                                                    {cellValue}
-                                                </span>
-                                            );
-                                        }
-                                        if (header === 'module' && cellValue) {
-                                            return (
-                                                <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[cellValue as string] || moduleColorMap.default)}>
-                                                    {cellValue}
-                                                </span>
-                                            );
-                                        }
-                                        if (header === 'title' && cellValue) {
-                                            const ticketNumberMatch = String(cellValue).match(/^(IHO-\d+)/);
-
-                                            if (ticketNumberMatch) {
-                                                const ticketNumber = ticketNumberMatch[0];
-                                                const restOfTitle = String(cellValue).substring(ticketNumber.length).trim();
-                                                const jiraUrl = `https://pintro.atlassian.net/browse/${ticketNumber}`;
-                                                return (
-                                                    <span className="truncate text-xs">
-                                                        <a href={jiraUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                                                            {ticketNumber}
-                                                        </a>
-                                                        {' '}{restOfTitle}
-                                                    </span>
-                                                );
-                                            }
-                                        }
-                                        return <span className="truncate text-xs">{cellValue}</span>;
-                                    })()
-                                ) : (
-                                    <Skeleton className="h-4 w-full" />
-                                )}
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-        </div>
-    );
-});
-MemoizedRow.displayName = "MemoizedRow";
-
+// ============================================
+// MAIN COMPONENT
+// ============================================
 
 export function DbViewer({ 
     initialData, 
@@ -642,6 +694,9 @@ export function DbViewer({
     const [fetchedYears, setFetchedYears] = useState<string[]>(availableYears);
     const [isEditMode, setIsEditMode] = useState(false);
     const [dataBeforeEdit, setDataBeforeEdit] = useState<Map<number, any> | null>(null);
+    
+    // ✅ OPTIMIZATION: Track changed fields instead of deep comparison
+    const [changedFields, setChangedFields] = useState<Map<number, Set<string>>>(new Map());
 
     const [progress, setProgress] = useState(0);
     const { toast } = useToast();
@@ -653,11 +708,9 @@ export function DbViewer({
     const [yearFilter, setYearFilter] = useState<string>('');
     const isInitialMount = useRef(true);
     
-    // States for date popover
     const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
     const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(undefined);
 
-    // Pagination state - SERVER-SIDE
     const [pageSize, setPageSize] = useState(50);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalRows, setTotalRows] = useState(0);
@@ -665,31 +718,24 @@ export function DbViewer({
     
     const [isClient, setIsClient] = useState(false);
     
-    // Report Dialog State
     const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
     const [reportContent, setReportContent] = useState('');
     const [isGeneratingReport, startGeneratingReport] = useTransition();
     const [isReportCopied, setIsReportCopied] = useState(false);
     
-    // Unsolved view state
     const [isUnsolvedView, setIsUnsolvedView] = useState(false);
     const [preUnsolvedState, setPreUnsolvedState] = useState<any>(null);
 
-    // Delete confirmation state
     const [selectedRowIds, setSelectedRowIds] = useState(new Set<number>());
 
-    // State for available clients and add client dialog
     const [availableClients, setAvailableClients] = useState<string[]>(initialClients);
     const [isAddClientDialogOpen, setIsAddClientDialogOpen] = useState(false);
     
-    const availableClientsSet = useMemo(() => new Set(availableClients.map(c => c.toLowerCase())), [availableClients]);
-
-    const columnsToCenter = [
-        'no', 'date', 'month',
-        'ticket_category', 'module', 'detail_module', 'created_at', 
-        'resolved_at', 'status_case_2', 'duration', 'customer_name', 'status'
-    ];
-
+    // ✅ OPTIMIZATION: Memoize availableClientsSet dengan lowercase
+    const availableClientsSet = useMemo(
+        () => new Set(availableClients), 
+        [availableClients]
+    );
 
     useEffect(() => {
         setIsClient(true);
@@ -722,8 +768,7 @@ export function DbViewer({
         });
 
         FILTER_COLUMNS = ['client_name', 'status', 'ticket_category', 'module', 'detail_module', 'month'];
-        const baseHeaders = ['no', ...visibleKeys];
-        return baseHeaders;
+        return ['no', ...visibleKeys];
     }, [state.data]);
 
     const initialColumnWidths = useCallback(() => {
@@ -740,7 +785,7 @@ export function DbViewer({
             detail_module: 200,
             created_at: 150,
             resolved_at: 150,
-            status_case_2: 130, // Umur Case
+            status_case_2: 130,
             duration: 130,
             ticket_op: 150,
             note: 250,
@@ -870,7 +915,7 @@ export function DbViewer({
             }
             return;
         }
-        if (!isUnsolvedView) { // Only trigger on filter changes if not in special view
+        if (!isUnsolvedView) {
             fetchData();
         }
     }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, fetchData, isUnsolvedView, initialData]);
@@ -998,7 +1043,7 @@ export function DbViewer({
     
             const status = newRow.status?.toUpperCase();
             if (['L1', 'L2', 'L3', 'ON HOLD'].includes(status)) {
-                const createdAtStr = row.created_at; // use original row data for calculation
+                const createdAtStr = row.created_at;
                 if (createdAtStr) {
                     const createdAt = new Date(createdAtStr);
                     if (!isNaN(createdAt.getTime())) {
@@ -1025,11 +1070,13 @@ export function DbViewer({
         });
     }, [state.data]);
 
+    // ✅ OPTIMIZATION: Virtualization dengan tuning
     const rowVirtualizer = useVirtualizer({
         count: displayData.length,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 41, // Estimate row height in pixels
-        overscan: 10,
+        estimateSize: () => 48,
+        overscan: isEditMode ? 3 : 10, // Kurangi overscan saat edit mode
+        enabled: displayData.length > 20,
     });
 
     const virtualRows = rowVirtualizer.getVirtualItems();
@@ -1067,40 +1114,47 @@ export function DbViewer({
         );
     }
     
+    // ✅ OPTIMIZATION: Transition untuk smooth entry ke edit mode
     const handleEditClick = () => {
         if (!state.data) return;
-        // Create a snapshot of the current state as a Map for efficient lookups.
-        // Each row is shallow-copied to prevent mutation.
-        const snapshot = new Map(state.data.map(row => [row.id, { ...row }]));
-        setDataBeforeEdit(snapshot);
-        setIsEditMode(true);
+        
+        toast({ title: "Entering edit mode...", duration: 1000 });
+        
+        startTransition(() => {
+            const snapshot = new Map(state.data.map(row => [row.id, { ...row }]));
+            setDataBeforeEdit(snapshot);
+            setChangedFields(new Map()); // Reset changed fields tracker
+            
+            // Small delay untuk UI update
+            setTimeout(() => {
+                setIsEditMode(true);
+            }, 50);
+        });
     };
 
     const handleCancelEdit = () => {
         if (dataBeforeEdit) {
-            // Restore data from the Map's values
             setState(prev => ({...prev, data: Array.from(dataBeforeEdit.values())}));
         }
         setIsEditMode(false);
         setDataBeforeEdit(null);
+        setChangedFields(new Map());
         setSelectedRowIds(new Set());
     };
 
+    // ✅ OPTIMIZATION: Hanya update field yang berubah
     const handleSaveChanges = () => {
         startSaving(async () => {
             if (!dataBeforeEdit || !state.data) return;
 
-            const modifiedRows = state.data.filter(currentRow => {
-                const originalRow = dataBeforeEdit.get(currentRow.id); // Fast O(1) lookup
-                if (!originalRow) return false; // Should not happen if data is consistent
-                // Compare stringified versions to detect any changes in the row object.
-                return JSON.stringify(currentRow) !== JSON.stringify(originalRow);
-            });
+            // Filter hanya row yang ada di changedFields
+            const modifiedRows = state.data.filter(row => changedFields.has(row.id));
 
             if (modifiedRows.length === 0) {
                 toast({ title: "No Changes Detected", description: "You haven't made any changes to save." });
                 setIsEditMode(false);
                 setDataBeforeEdit(null);
+                setChangedFields(new Map());
                 return;
             }
 
@@ -1117,8 +1171,8 @@ export function DbViewer({
                 }
                 return updateCase(row.id, rowForDb);
             });
-            const results = await Promise.all(updatePromises);
             
+            const results = await Promise.all(updatePromises);
             const failedUpdates = results.filter(r => !r.success);
 
             if (failedUpdates.length > 0) {
@@ -1134,7 +1188,8 @@ export function DbViewer({
                 });
                 setIsEditMode(false);
                 setDataBeforeEdit(null);
-                fetchData(true); // Refetch data to confirm changes from DB
+                setChangedFields(new Map());
+                fetchData(true);
             }
         });
     };
@@ -1176,7 +1231,6 @@ export function DbViewer({
 
     const handleUnsolvedFilterClick = () => {
         if (isUnsolvedView) {
-            // Restore previous state and re-fetch
             setIsUnsolvedView(false);
             if(preUnsolvedState) {
                 setSearchTerm(preUnsolvedState.searchTerm);
@@ -1186,13 +1240,10 @@ export function DbViewer({
                 setCurrentPage(preUnsolvedState.currentPage);
                 setPageSize(preUnsolvedState.pageSize);
             }
-            // fetchData will be triggered by useEffect
         } else {
-            // Save current state
             setPreUnsolvedState({
                 searchTerm, dateRange, columnFilters, yearFilter, currentPage, pageSize
             });
-            // Clear filters for the view
             handleClearAllFilters();
             setIsUnsolvedView(true);
             fetchData(false, 'unsolved');
@@ -1220,11 +1271,11 @@ export function DbViewer({
         }
     }, [displayData]);
 
+    // ✅ OPTIMIZATION: Track changed fields
     const handleCellChange = useCallback((id: number, header: string, value: string) => {
         setState(prevState => {
-            if (!prevState.data) {
-                return prevState;
-            }
+            if (!prevState.data) return prevState;
+            
             const newData = prevState.data.map(row => {
                 if (row.id === id) {
                     const updatedRow = { ...row, [header]: value };
@@ -1236,7 +1287,6 @@ export function DbViewer({
                         if (isNowSolved && !wasSolvedBefore) {
                             updatedRow.resolved_at = new Date().toISOString();
                         } else if (!isNowSolved && wasSolvedBefore) {
-                            // If status is changed from Solved to something else, clear resolved_at
                             updatedRow.resolved_at = '';
                         }
                     }
@@ -1244,6 +1294,16 @@ export function DbViewer({
                 }
                 return row;
             });
+            
+            // Track field yang berubah
+            setChangedFields(prev => {
+                const newMap = new Map(prev);
+                const rowChanges = newMap.get(id) || new Set();
+                rowChanges.add(header);
+                newMap.set(id, rowChanges);
+                return newMap;
+            });
+            
             return { ...prevState, data: newData };
         });
     }, []);
@@ -1669,7 +1729,7 @@ export function DbViewer({
                                     ))}
                                 </div>
 
-                                {/* Data rows */}
+                                {/* ✅ VIRTUALIZED Data rows */}
                                 <div style={{ height: `${totalRowHeight}px`, position: 'relative' }}>
                                     {virtualRows.map((virtualRow) => {
                                         const row = displayData[virtualRow.index];
@@ -1819,7 +1879,6 @@ export function DbViewer({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
         </div>
     );
 }
