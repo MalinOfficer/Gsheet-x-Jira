@@ -14,7 +14,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useEffect, useState, useRef, useMemo, useCallback, useContext, MouseEvent, useTransition, memo } from "react";
 import { TableDataContext } from "@/store/table-data-context";
-import { getAllCaseData, updateCase, addClient, refreshDashboardViews } from "@/app/actions";
+import { getAllCaseData, updateCase, addClient, refreshDashboardViews, deleteCases } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDebounce } from 'use-debounce';
@@ -67,7 +67,7 @@ const headerDisplayMapping: Record<string, string> = {
     note: 'Note',
 };
 
-const hiddenHeaders: string[] = ['ticket_number', 'pic_client', 'checkout', 'url_jira'];
+const hiddenHeaders: string[] = ['ticket_number', 'url_jira', 'pic_client', 'checkout'];
 
 const categoryColorMap: Record<string, string> = {
     'Bug Fixing': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
@@ -240,10 +240,8 @@ FilterDropdown.displayName = "FilterDropdown";
 
 
 const AddClientDialog = memo(({ 
-    availableClientsSet,
     onClientAdded
 }: {
-    availableClientsSet: Set<string>;
     onClientAdded: (name: string) => void;
 }) => {
     const [newClientName, setNewClientName] = useState('');
@@ -251,11 +249,8 @@ const AddClientDialog = memo(({
     const { toast } = useToast();
     const [isOpen, setIsOpen] = useState(false);
 
-    const normalizedNewClientName = newClientName.trim().toLowerCase();
-    const isDuplicate = availableClientsSet.has(normalizedNewClientName);
-
     const handleSave = async () => {
-        if (!newClientName.trim() || isDuplicate) return;
+        if (!newClientName.trim()) return;
 
         startSaving(async () => {
             const result = await addClient(newClientName.trim());
@@ -272,6 +267,12 @@ const AddClientDialog = memo(({
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
+             <DialogTrigger asChild>
+                <Button className="w-full h-8" size="sm">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Add New Client
+                </Button>
+            </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Add New Client</DialogTitle>
@@ -292,14 +293,9 @@ const AddClientDialog = memo(({
                             disabled={isSaving}
                         />
                     </div>
-                    {isDuplicate && (
-                        <p className="col-span-4 text-xs text-destructive text-center">
-                            This client name already exists.
-                        </p>
-                    )}
                 </div>
                 <DialogFooter>
-                    <Button onClick={handleSave} disabled={isSaving || !newClientName.trim() || isDuplicate}>
+                    <Button onClick={handleSave} disabled={isSaving || !newClientName.trim()}>
                         {isSaving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : 'Save Client'}
                     </Button>
                 </DialogFooter>
@@ -668,6 +664,8 @@ export function DbViewer({
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(undefined);
+    const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
     const [yearFilter, setYearFilter] = useState<string>('');
     
@@ -678,7 +676,6 @@ export function DbViewer({
     
     const [isClient, setIsClient] = useState(false);
     const [availableClients, setAvailableClients] = useState<string[]>(initialClients);
-    const [isAddClientOpen, setIsAddClientOpen] = useState(false);
     
     // 🔥 Active cell for lazy editing (Google Sheets style)
     const [activeCell, setActiveCell] = useState<{ rowId: number; header: string } | null>(null);
@@ -1025,14 +1022,6 @@ export function DbViewer({
 
     return (
         <div className="flex-1 bg-background text-foreground px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3 md:px-8 md:pb-8 md:pt-4">
-            {isAddClientOpen && (
-                <AddClientDialog 
-                    availableClientsSet={availableClientsSet}
-                    onClientAdded={(newClient) => {
-                        setAvailableClients(prev => [...prev, newClient].sort());
-                    }}
-                />
-            )}
             <Card>
                 <CardHeader>
                     {/* ── Row 1: Search + Action buttons ── */}
@@ -1077,12 +1066,23 @@ export function DbViewer({
                                 selected={columnFilters[col] || []}
                                 onSelectionChange={(values) => setFilterForColumn(col, values)}
                                 renderOption={renderFilterOption(col)}
-                                onAddClient={col === 'client_name' ? () => setIsAddClientOpen(true) : undefined}
+                                onAddClient={col === 'client_name' ? () => {
+                                    const trigger = document.querySelector('#add-client-dialog-trigger');
+                                    if (trigger instanceof HTMLElement) trigger.click();
+                                } : undefined}
                                 availableClientsSet={col === 'client_name' ? availableClientsSet : undefined}
                             />
                         ))}
+                        <AddClientDialog onClientAdded={(newClient) => {
+                            setAvailableClients(prev => [...prev, newClient].sort((a,b) => a.localeCompare(b)));
+                        }} />
 
-                         <Popover>
+                         <Popover open={isDatePopoverOpen} onOpenChange={(open) => {
+                            if (open) {
+                                setTempDateRange(dateRange);
+                            }
+                            setIsDatePopoverOpen(open);
+                        }}>
                             <PopoverTrigger asChild>
                                 <button
                                     className={cn(
@@ -1113,14 +1113,41 @@ export function DbViewer({
                                 <Calendar
                                     initialFocus
                                     mode="range"
-                                    defaultMonth={dateRange?.from}
-                                    selected={dateRange}
-                                    onSelect={(range) => {
-                                        setDateRange(range);
-                                        setCurrentPage(1);
-                                    }}
+                                    defaultMonth={tempDateRange?.from ?? dateRange?.from}
+                                    selected={tempDateRange}
+                                    onSelect={setTempDateRange}
                                     numberOfMonths={2}
                                 />
+                                <div className="flex justify-end gap-2 p-3 border-t">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setIsDatePopoverOpen(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            setDateRange(undefined);
+                                            setCurrentPage(1);
+                                            setIsDatePopoverOpen(false);
+                                        }}
+                                    >
+                                        Clear
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => {
+                                            setDateRange(tempDateRange);
+                                            setCurrentPage(1);
+                                            setIsDatePopoverOpen(false);
+                                        }}
+                                    >
+                                        Apply
+                                    </Button>
+                                </div>
                             </PopoverContent>
                         </Popover>
 
@@ -1235,3 +1262,4 @@ export function DbViewer({
         </div>
     );
 }
+
