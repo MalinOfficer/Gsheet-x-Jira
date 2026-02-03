@@ -642,7 +642,7 @@ export function ImportFlow() {
           {jsonError && <JsonErrorAlert message={jsonError} />}
         </CardContent>
         <CardFooter className="flex items-center justify-between">
-            <div className="flex flex-wrap gap-2">
+             <div className="flex flex-wrap gap-2">
                 <Button onClick={handleJsonImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
                   <Upload className="mr-2 h-4 w-4" /> Import Json
                 </Button>
@@ -843,29 +843,6 @@ function PreviewTable({
                             Preview your converted data. Once ready, you can import it into the database.
                         </CardDescription>
                     </div>
-                     <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-                         <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button size="sm" disabled={isProcessing}>
-                                    {isImportingToDb ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengimpor...</> : <><Database className="mr-2 h-4 w-4" />Import File</>}
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Confirm Database Import</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will insert or update {tableData.rows.length} rows in the 'all_cases' database table. This action cannot be undone through the UI.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleImportToDb} disabled={isImportingToDb}>
-                                        {isImportingToDb ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Importing...</> : "Yes, Import"}
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </div>
                 </div>
             </CardHeader>
              <CardContent>
@@ -878,6 +855,27 @@ function PreviewTable({
                         <BarChart className="mr-2 h-4 w-4" />
                         Daily Report
                     </Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button size="sm" disabled={isProcessing}>
+                                {isImportingToDb ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengimpor...</> : <><Database className="mr-2 h-4 w-4" />Import File</>}
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Confirm Database Import</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will insert or update {tableData.rows.length} rows in the 'all_cases' database table. This action cannot be undone through the UI.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleImportToDb} disabled={isImportingToDb}>
+                                    {isImportingToDb ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Importing...</> : "Yes, Import"}
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </div>
                 <div className="h-[500px] overflow-hidden">
                     <div
