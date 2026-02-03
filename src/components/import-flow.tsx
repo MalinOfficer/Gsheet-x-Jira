@@ -618,14 +618,6 @@ export function ImportFlow() {
                     Impor file JSON atau CSV, atau tempel kontennya. Data akan dikonversi secara otomatis.
                 </CardDescription>
             </div>
-            <div className="flex flex-wrap gap-2">
-                <Button onClick={() => handleConvert(jsonInput, jsonInput.trim().startsWith('[') || jsonInput.trim().startsWith('{') ? 'json' : 'csv')} size="sm" disabled={!jsonInput || isProcessing || !!tableData}>
-                    <Braces className="mr-2 h-4 w-4" /> Convert
-                </Button>
-                <Button onClick={handleDeleteInput} variant="destructive" size="sm" disabled={isProcessing}>
-                    <Trash2 className="mr-2 h-4 w-4" /> Clear Input
-                </Button>
-            </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 items-start">
@@ -643,6 +635,18 @@ export function ImportFlow() {
               </div>
           </div>
           
+          <div className="mt-4">
+            <Label>Template Header (dipisahkan koma)</Label>
+            <Textarea
+              id="template-input"
+              placeholder="e.g., id,name,email"
+              value={DEFAULT_TEMPLATE}
+              rows={4}
+              className="font-mono text-xs"
+              disabled
+            />
+          </div>
+          
           <Input type="file" ref={jsonFileInputRef} onChange={(e) => handleFileChange(e, 'json')} className="hidden" accept=".json" />
           <Input type="file" ref={csvFileInputRef} onChange={(e) => handleFileChange(e, 'csv')} className="hidden" accept=".csv" />
           
@@ -651,10 +655,16 @@ export function ImportFlow() {
         <CardFooter className="justify-end">
             <div className="flex flex-wrap gap-2">
                 <Button onClick={handleJsonImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
-                    <Upload className="mr-2 h-4 w-4" /> Import Json
+                  <Upload className="mr-2 h-4 w-4" /> Import Json
                 </Button>
                 <Button onClick={handleCsvImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
                     <Upload className="mr-2 h-4 w-4" /> Import CSV
+                </Button>
+                <Button onClick={() => handleConvert(jsonInput, jsonInput.trim().startsWith('[') || jsonInput.trim().startsWith('{') ? 'json' : 'csv')} size="sm" disabled={!jsonInput || isProcessing || !!tableData}>
+                    <Braces className="mr-2 h-4 w-4" /> Convert
+                </Button>
+                <Button onClick={handleDeleteInput} variant="destructive" size="sm" disabled={isProcessing}>
+                    <Trash2 className="mr-2 h-4 w-4" /> Clear Input
                 </Button>
             </div>
         </CardFooter>
