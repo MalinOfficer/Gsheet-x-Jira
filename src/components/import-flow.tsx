@@ -37,7 +37,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { normalizeClientName } from '@/lib/db-mapper';
 
 
-const LOCAL_STORAGE_KEY_TEMPLATE = 'jsonConverterHeaderTemplate';
 const DEFAULT_TEMPLATE = 'Client Name,Customer Name,Status,Ticket Number,Title,Ticket Category,Module,Detail Module,Created At,Kolom kosong2,Resolved At,Ticket OP';
 const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
 
@@ -108,7 +107,6 @@ export function ImportFlow() {
   const { toast } = useToast();
 
   const [jsonInput, setJsonInput] = useState('');
-  const [templateInput, setTemplateInput] = useState(DEFAULT_TEMPLATE);
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [dateFormats, setDateFormats] = useState<Record<string, DateFormat>>({
     'Created At': 'jam',
@@ -192,8 +190,6 @@ export function ImportFlow() {
 
 
   useEffect(() => {
-    const savedTemplate = localStorage.getItem(LOCAL_STORAGE_KEY_TEMPLATE);
-    setTemplateInput(savedTemplate || DEFAULT_TEMPLATE);
     const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
     if (savedJson) {
         setJsonInput(savedJson);
@@ -408,7 +404,7 @@ export function ImportFlow() {
         }
         
         const flattenedData = processedData.map((item: any) => flattenJson(item));
-        const headers = templateInput.split(',').map(h => {
+        const headers = DEFAULT_TEMPLATE.split(',').map(h => {
             const trimmed = h.trim();
             return toTitleCase(trimmed);
         });
@@ -556,11 +552,7 @@ export function ImportFlow() {
     localStorage.removeItem(LOCAL_STORAGE_KEY_INPUT);
     toast({ title: "Input Cleared", description: "JSON or CSV input has been cleared." });
   };
-  const handleSaveTemplate = () => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_TEMPLATE, templateInput);
-    toast({ title: "Template Saved", description: "Header template has been saved." });
-  };
-
+  
    const handleCopyToClipboard = () => {
         if (!tableData) return;
 
@@ -627,7 +619,7 @@ export function ImportFlow() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <div className="grid grid-cols-1 gap-4 items-start">
               <div className="grid gap-2">
                   <Label htmlFor="json-input">Paste Content (JSON or CSV)</Label>
                   <Textarea
@@ -645,23 +637,6 @@ export function ImportFlow() {
                       </Button>
                       <Button onClick={handleDeleteInput} variant="destructive" size="sm" disabled={isProcessing}>
                           <Trash2 className="mr-2 h-4 w-4" /> Clear Input
-                      </Button>
-                  </div>
-              </div>
-               <div className="grid gap-2">
-                  <Label htmlFor="template-input">"Convert To" Headers</Label>
-                  <Textarea
-                      id="template-input"
-                      placeholder="e.g., id,name,email"
-                      value={templateInput}
-                      onChange={(e) => setTemplateInput(e.target.value)}
-                      rows={4}
-                      className="font-mono text-xs"
-                      disabled={isProcessing || !!tableData}
-                  />
-                  <div className="flex flex-wrap gap-2">
-                      <Button onClick={handleSaveTemplate} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
-                          <Save className="mr-2 h-4 w-4" /> Save Template
                       </Button>
                   </div>
               </div>
@@ -1010,3 +985,5 @@ function PreviewTable({
         </Card>
     );
 }
+
+    
