@@ -641,7 +641,7 @@ export function ImportFlow() {
           
           {jsonError && <JsonErrorAlert message={jsonError} />}
         </CardContent>
-        <CardFooter className="justify-end">
+        <CardFooter className="flex items-center justify-between">
             <div className="flex flex-wrap gap-2">
                 <Button onClick={handleJsonImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
                   <Upload className="mr-2 h-4 w-4" /> Import Json
@@ -649,7 +649,9 @@ export function ImportFlow() {
                 <Button onClick={handleCsvImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
                     <Upload className="mr-2 h-4 w-4" /> Import CSV
                 </Button>
-                <Button onClick={() => handleConvert(jsonInput, jsonInput.trim().startsWith('[') || jsonInput.trim().startsWith('{') ? 'json' : 'csv')} size="sm" disabled={!jsonInput || isProcessing || !!tableData}>
+            </div>
+             <div className="flex flex-wrap gap-2">
+                 <Button onClick={() => handleConvert(jsonInput, jsonInput.trim().startsWith('[') || jsonInput.trim().startsWith('{') ? 'json' : 'csv')} size="sm" disabled={!jsonInput || isProcessing || !!tableData}>
                     <Braces className="mr-2 h-4 w-4" /> Convert
                 </Button>
                 <Button onClick={handleDeleteInput} variant="destructive" size="sm" disabled={isProcessing}>
