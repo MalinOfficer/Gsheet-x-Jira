@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { AlertTriangle, Database, RefreshCw, Search, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, ChevronDown, Download, Check, Copy, UserPlus, Calendar as CalendarIcon } from "lucide-react";
@@ -239,15 +240,25 @@ const FilterDropdown = memo(({
 FilterDropdown.displayName = "FilterDropdown";
 
 
-const AddClientDialog = memo(({ 
+const AddClientDialog = memo(({
+    isOpen,
+    onOpenChange,
     onClientAdded
 }: {
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
     onClientAdded: (name: string) => void;
 }) => {
     const [newClientName, setNewClientName] = useState('');
     const [isSaving, startSaving] = useTransition();
     const { toast } = useToast();
-    const [isOpen, setIsOpen] = useState(false);
+
+    // Reset state when dialog closes
+    useEffect(() => {
+        if (!isOpen) {
+            setNewClientName('');
+        }
+    }, [isOpen]);
 
     const handleSave = async () => {
         if (!newClientName.trim()) return;
@@ -257,8 +268,7 @@ const AddClientDialog = memo(({
             if (result.success && result.client) {
                 toast({ title: "Client Added", description: `"${result.client.name}" has been added.` });
                 onClientAdded(result.client.name);
-                setNewClientName('');
-                setIsOpen(false);
+                onOpenChange(false);
             } else {
                 toast({ variant: "destructive", title: "Failed to Add Client", description: result.error });
             }
@@ -266,13 +276,7 @@ const AddClientDialog = memo(({
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-             <DialogTrigger asChild>
-                <Button className="w-full h-8" size="sm">
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Add New Client
-                </Button>
-            </DialogTrigger>
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Add New Client</DialogTitle>
@@ -676,6 +680,7 @@ export function DbViewer({
     
     const [isClient, setIsClient] = useState(false);
     const [availableClients, setAvailableClients] = useState<string[]>(initialClients);
+    const [isAddClientOpen, setIsAddClientOpen] = useState(false);
     
     // 🔥 Active cell for lazy editing (Google Sheets style)
     const [activeCell, setActiveCell] = useState<{ rowId: number; header: string } | null>(null);
@@ -1066,16 +1071,17 @@ export function DbViewer({
                                 selected={columnFilters[col] || []}
                                 onSelectionChange={(values) => setFilterForColumn(col, values)}
                                 renderOption={renderFilterOption(col)}
-                                onAddClient={col === 'client_name' ? () => {
-                                    const trigger = document.querySelector('#add-client-dialog-trigger');
-                                    if (trigger instanceof HTMLElement) trigger.click();
-                                } : undefined}
+                                onAddClient={col === 'client_name' ? () => setIsAddClientOpen(true) : undefined}
                                 availableClientsSet={col === 'client_name' ? availableClientsSet : undefined}
                             />
                         ))}
-                        <AddClientDialog onClientAdded={(newClient) => {
-                            setAvailableClients(prev => [...prev, newClient].sort((a,b) => a.localeCompare(b)));
-                        }} />
+                        <AddClientDialog 
+                            isOpen={isAddClientOpen}
+                            onOpenChange={setIsAddClientOpen}
+                            onClientAdded={(newClient) => {
+                                setAvailableClients(prev => [...prev, newClient].sort((a,b) => a.localeCompare(b)));
+                            }} 
+                        />
 
                          <Popover open={isDatePopoverOpen} onOpenChange={(open) => {
                             if (open) {
@@ -1262,4 +1268,5 @@ export function DbViewer({
         </div>
     );
 }
+
 
