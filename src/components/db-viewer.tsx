@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AlertTriangle, Database, Cloud, RefreshCw, Search, Calendar as CalendarIcon, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, X, Save, Copy, Check, ArrowLeft, ChevronDown, Trash2, Download, ChevronsUpDown } from "lucide-react";
@@ -195,7 +196,6 @@ const getUnsolvedCases = async () => {
 // OPTIMIZED CELL COMPONENTS
 // ============================================
 
-// Memoized Cell untuk mencegah re-render tidak perlu
 const MemoizedCell = memo(({
     header,
     value,
@@ -225,7 +225,6 @@ const MemoizedCell = memo(({
     availableClients: string[];
     availableClientsSet: Set<string>;
 }) => {
-    // State untuk lazy loading dropdown
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const cellStyle = {
@@ -234,7 +233,6 @@ const MemoizedCell = memo(({
         borderRight: '1px solid hsl(var(--border))'
     };
 
-    // Checkbox column (No)
     if (header === 'no') {
         return (
             <div
@@ -255,7 +253,6 @@ const MemoizedCell = memo(({
         );
     }
 
-    // Client Name Column (dengan validasi)
     if (header === 'client_name') {
         const cellValueStr = (value as string) || '';
         const isValid = availableClientsSet.has(cellValueStr);
@@ -336,7 +333,6 @@ const MemoizedCell = memo(({
         );
     }
 
-    // Dropdown Columns (status, category, module, detail_module)
     const isDropdownColumn = isEditMode && ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
     
     if (isDropdownColumn) {
@@ -407,7 +403,6 @@ const MemoizedCell = memo(({
         );
     }
 
-    // Editable Input Columns
     if (isEditMode) {
         return (
             <div className="align-middle" style={cellStyle}>
@@ -421,7 +416,6 @@ const MemoizedCell = memo(({
         );
     }
 
-    // Read-only cells with special formatting
     return (
         <div className="align-middle" style={cellStyle}>
             <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note'].includes(header) && 'justify-center')}>
@@ -484,19 +478,9 @@ const MemoizedCell = memo(({
             </div>
         </div>
     );
-}, (prevProps, nextProps) => {
-    // Custom comparison untuk mencegah re-render tidak perlu
-    return (
-        prevProps.value === nextProps.value &&
-        prevProps.isEditMode === nextProps.isEditMode &&
-        prevProps.isSelected === nextProps.isSelected &&
-        prevProps.rowId === nextProps.rowId &&
-        prevProps.columnWidth === nextProps.columnWidth
-    );
 });
 MemoizedCell.displayName = "MemoizedCell";
 
-// Optimized Row Component
 const MemoizedRow = memo(({
     row,
     headers,
@@ -546,19 +530,6 @@ const MemoizedRow = memo(({
             ))}
         </div>
     );
-}, (prevProps, nextProps) => {
-    // Optimized comparison
-    if (prevProps.isEditMode !== nextProps.isEditMode) return false;
-    if (prevProps.isRowSelected !== nextProps.isRowSelected) return false;
-    if (prevProps.rowNumber !== nextProps.rowNumber) return false;
-    if (prevProps.row.id !== nextProps.row.id) return false;
-    
-    // Check if any cell value changed
-    for (const header of prevProps.headers) {
-        if (prevProps.row[header] !== nextProps.row[header]) return false;
-    }
-    
-    return true;
 });
 MemoizedRow.displayName = "MemoizedRow";
 
@@ -694,8 +665,6 @@ export function DbViewer({
     const [fetchedYears, setFetchedYears] = useState<string[]>(availableYears);
     const [isEditMode, setIsEditMode] = useState(false);
     const [dataBeforeEdit, setDataBeforeEdit] = useState<Map<number, any> | null>(null);
-    
-    // ✅ OPTIMIZATION: Track changed fields instead of deep comparison
     const [changedFields, setChangedFields] = useState<Map<number, Set<string>>>(new Map());
 
     const [progress, setProgress] = useState(0);
@@ -731,7 +700,6 @@ export function DbViewer({
     const [availableClients, setAvailableClients] = useState<string[]>(initialClients);
     const [isAddClientDialogOpen, setIsAddClientDialogOpen] = useState(false);
     
-    // ✅ OPTIMIZATION: Memoize availableClientsSet dengan lowercase
     const availableClientsSet = useMemo(
         () => new Set(availableClients), 
         [availableClients]
@@ -1070,12 +1038,11 @@ export function DbViewer({
         });
     }, [state.data]);
 
-    // ✅ OPTIMIZATION: Virtualization dengan tuning
     const rowVirtualizer = useVirtualizer({
         count: displayData.length,
         getScrollElement: () => tableContainerRef.current,
         estimateSize: () => 48,
-        overscan: isEditMode ? 3 : 10, // Kurangi overscan saat edit mode
+        overscan: isEditMode ? 3 : 10,
         enabled: displayData.length > 20,
     });
 
@@ -1114,18 +1081,14 @@ export function DbViewer({
         );
     }
     
-    // ✅ OPTIMIZATION: Transition untuk smooth entry ke edit mode
     const handleEditClick = () => {
         if (!state.data) return;
-        
-        toast({ title: "Entering edit mode...", duration: 1000 });
         
         startTransition(() => {
             const snapshot = new Map(state.data.map(row => [row.id, { ...row }]));
             setDataBeforeEdit(snapshot);
-            setChangedFields(new Map()); // Reset changed fields tracker
+            setChangedFields(new Map());
             
-            // Small delay untuk UI update
             setTimeout(() => {
                 setIsEditMode(true);
             }, 50);
@@ -1142,12 +1105,10 @@ export function DbViewer({
         setSelectedRowIds(new Set());
     };
 
-    // ✅ OPTIMIZATION: Hanya update field yang berubah
     const handleSaveChanges = () => {
         startSaving(async () => {
             if (!dataBeforeEdit || !state.data) return;
 
-            // Filter hanya row yang ada di changedFields
             const modifiedRows = state.data.filter(row => changedFields.has(row.id));
 
             if (modifiedRows.length === 0) {
@@ -1271,7 +1232,6 @@ export function DbViewer({
         }
     }, [displayData]);
 
-    // ✅ OPTIMIZATION: Track changed fields
     const handleCellChange = useCallback((id: number, header: string, value: string) => {
         setState(prevState => {
             if (!prevState.data) return prevState;
@@ -1295,7 +1255,6 @@ export function DbViewer({
                 return row;
             });
             
-            // Track field yang berubah
             setChangedFields(prev => {
                 const newMap = new Map(prev);
                 const rowChanges = newMap.get(id) || new Set();
