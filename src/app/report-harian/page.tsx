@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const ReportHarian = dynamic(
-    () => import('@/components/report-harian'),
+    () => import('@/components/report-harian').then((mod) => mod.ReportHarian),
     { 
         ssr: false,
         loading: () => (

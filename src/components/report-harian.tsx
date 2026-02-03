@@ -302,7 +302,7 @@ interface ReportHarianProps {
   error?: string;
 }
 
-export default function ReportHarian({ error }: ReportHarianProps) {
+export function ReportHarian({ error }: ReportHarianProps) {
   const { tableData } = useContext(TableDataContext);
 
   // Check if data exists in the context from the import flow
