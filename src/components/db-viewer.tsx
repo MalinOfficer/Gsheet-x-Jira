@@ -565,7 +565,7 @@ const LazyEditableCell = memo(({
                     }
                     if (header === 'module' && value) {
                         return (
-                            <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>
+                            <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[value] || moduleColorMap.default)}>
                                 {value}
                             </span>
                         );
