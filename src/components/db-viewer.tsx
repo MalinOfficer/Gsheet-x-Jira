@@ -1,8 +1,7 @@
 
-
 "use client";
 
-import { AlertTriangle, Database, RefreshCw, Search, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, ChevronDown, Download, Check, Copy, UserPlus, Calendar as CalendarIcon } from "lucide-react";
+import { AlertTriangle, Database, RefreshCw, Search, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, ChevronDown, Download, Check, Copy, UserPlus, Calendar as CalendarIcon, Trash2 } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -107,25 +106,26 @@ const moduleColorMap: Record<string, string> = {
 };
 
 // ============================================
-// 🔽 FILTER DROPDOWN POPOVER (Multi-select)
+// 🔽 COLUMN HEADER FILTER POPOVER
+// Renders inside each filterable column header.
 // ============================================
 
-const FilterDropdown = memo(({
+const HeaderFilterPopover = memo(({
     label,
     options,
     selected,
     onSelectionChange,
     renderOption,
+    showAddClient,
     onAddClient,
-    availableClientsSet,
 }: {
     label: string;
     options: string[];
     selected: string[];
     onSelectionChange: (selected: string[]) => void;
     renderOption?: (option: string) => React.ReactNode;
+    showAddClient?: boolean;
     onAddClient?: () => void;
-    availableClientsSet?: Set<string>;
 }) => {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
@@ -145,44 +145,39 @@ const FilterDropdown = memo(({
     const hasActive = selected.length > 0;
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(''); }}>
             <PopoverTrigger asChild>
-                <button
-                    className={cn(
-                        "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
-                        hasActive
-                            ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
-                            : "bg-white dark:bg-slate-950 border-muted text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                >
-                    <Filter className="h-3 w-3" />
-                    <span>{label}</span>
+                {/* The clickable header label + icon */}
+                <button className="inline-flex items-center justify-center gap-1 w-full h-full group">
+                    <span className={cn("truncate text-xs font-semibold", hasActive && "text-primary")}>{label}</span>
+                    <ChevronDown className={cn(
+                        "h-3 w-3 flex-shrink-0 transition-all",
+                        hasActive ? "text-primary opacity-100" : "text-muted-foreground opacity-50",
+                        open && "rotate-180"
+                    )} />
                     {hasActive && (
-                        <span className="ml-1 inline-flex items-center justify-center rounded-full bg-primary-foreground text-primary text-[10px] font-bold w-4 h-4">
-                            {selected.length}
-                        </span>
+                        <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" />
                     )}
-                    <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[220px] p-0 shadow-lg" align="start">
+            <PopoverContent className="w-[210px] p-0 shadow-lg" align="center">
                 <Command>
-                    {label === "Client Name" && onAddClient && (
-                         <div className="border-b p-2 sticky top-0 bg-popover z-10">
-                             <Button onClick={onAddClient} className="w-full h-8" size="sm">
-                                <UserPlus className="mr-2 h-4 w-4" />
-                                Add New Client
+                    {showAddClient && onAddClient && (
+                        <div className="border-b p-1.5">
+                            <Button onClick={() => { onAddClient(); setOpen(false); }} className="w-full h-7" size="sm" variant="outline">
+                                <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                                <span className="text-xs">Add New Client</span>
                             </Button>
                         </div>
                     )}
                     <CommandInput
-                        placeholder={`Search ${label.toLowerCase()}...`}
+                        placeholder={`Search...`}
                         value={search}
                         onValueChange={setSearch}
-                        className="text-xs"
+                        className="text-xs h-8"
                     />
-                    <CommandList>
-                        <CommandEmpty className="text-xs py-3 text-center text-muted-foreground">No results found.</CommandEmpty>
+                    <CommandList className="max-h-[200px]">
+                        <CommandEmpty className="text-xs py-3 text-center text-muted-foreground">No results.</CommandEmpty>
                         <CommandGroup>
                             {filteredOptions.map(option => {
                                 const isSelected = selected.includes(option);
@@ -191,19 +186,16 @@ const FilterDropdown = memo(({
                                         key={option}
                                         value={option}
                                         onSelect={() => toggleOption(option)}
-                                        className="flex items-center gap-2 text-xs cursor-pointer"
+                                        className="flex items-center gap-2 text-xs cursor-pointer py-1.5"
                                     >
-                                        {/* Checkbox */}
                                         <div className={cn(
-                                            "h-4 w-4 rounded border flex items-center justify-center flex-shrink-0",
+                                            "h-3.5 w-3.5 rounded border flex items-center justify-center flex-shrink-0",
                                             isSelected
                                                 ? "bg-primary border-primary text-primary-foreground"
                                                 : "border-muted bg-white dark:bg-slate-950"
                                         )}>
-                                            {isSelected && <Check className="h-3 w-3" />}
+                                            {isSelected && <Check className="h-2.5 w-2.5" />}
                                         </div>
-
-                                        {/* Label / Badge */}
                                         {renderOption ? renderOption(option) : (
                                             <span className="truncate">{option}</span>
                                         )}
@@ -214,7 +206,7 @@ const FilterDropdown = memo(({
                     </CommandList>
                 </Command>
 
-                {/* Footer: Select All / Clear */}
+                {/* Footer */}
                 {options.length > 0 && (
                     <div className="border-t px-2 py-1.5 flex items-center justify-between">
                         <button
@@ -237,32 +229,89 @@ const FilterDropdown = memo(({
         </Popover>
     );
 });
-FilterDropdown.displayName = "FilterDropdown";
+HeaderFilterPopover.displayName = "HeaderFilterPopover";
 
+
+// ============================================
+// 📅 DATE RANGE HEADER POPOVER
+// ============================================
+
+const DateRangeHeaderPopover = memo(({
+    dateRange,
+    onDateRangeChange,
+}: {
+    dateRange: DateRange | undefined;
+    onDateRangeChange: (range: DateRange | undefined) => void;
+}) => {
+    const [open, setOpen] = useState(false);
+    const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(undefined);
+    const hasActive = !!dateRange?.from;
+
+    return (
+        <Popover open={open} onOpenChange={(v) => { if (v) setTempDateRange(dateRange); setOpen(v); }}>
+            <PopoverTrigger asChild>
+                <button className="inline-flex items-center justify-center gap-1 w-full h-full group">
+                    <span className={cn("truncate text-xs font-semibold", hasActive && "text-primary")}>Date</span>
+                    <ChevronDown className={cn(
+                        "h-3 w-3 flex-shrink-0 transition-all",
+                        hasActive ? "text-primary opacity-100" : "text-muted-foreground opacity-50",
+                        open && "rotate-180"
+                    )} />
+                    {hasActive && (
+                        <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                    )}
+                </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 shadow-lg" align="start">
+                <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={tempDateRange?.from ?? dateRange?.from}
+                    selected={tempDateRange}
+                    onSelect={setTempDateRange}
+                    numberOfMonths={2}
+                />
+                <div className="flex justify-end gap-2 p-3 border-t">
+                    <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+                    <Button variant="outline" size="sm" onClick={() => { onDateRangeChange(undefined); setOpen(false); }}>Clear</Button>
+                    <Button size="sm" onClick={() => { onDateRangeChange(tempDateRange); setOpen(false); }}>Apply</Button>
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
+});
+DateRangeHeaderPopover.displayName = "DateRangeHeaderPopover";
+
+
+// ============================================
+// AddClientDialog (unchanged)
+// ============================================
 
 const AddClientDialog = memo(({
     isOpen,
     onOpenChange,
-    onClientAdded
+    onClientAdded,
+    existingClientsSet
 }: {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     onClientAdded: (name: string) => void;
+    existingClientsSet?: Set<string>;
 }) => {
     const [newClientName, setNewClientName] = useState('');
     const [isSaving, startSaving] = useTransition();
     const { toast } = useToast();
 
-    // Reset state when dialog closes
     useEffect(() => {
-        if (!isOpen) {
-            setNewClientName('');
-        }
+        if (!isOpen) setNewClientName('');
     }, [isOpen]);
 
     const handleSave = async () => {
         if (!newClientName.trim()) return;
-
+        if (existingClientsSet?.has(newClientName.trim().toLowerCase())) {
+            toast({ variant: "destructive", title: "Client Already Exists", description: `"${newClientName.trim()}" already exists.` });
+            return;
+        }
         startSaving(async () => {
             const result = await addClient(newClientName.trim());
             if (result.success && result.client) {
@@ -280,15 +329,11 @@ const AddClientDialog = memo(({
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Add New Client</DialogTitle>
-                    <DialogDescription>
-                        Enter the name of the new client. This will be saved to the database.
-                    </DialogDescription>
+                    <DialogDescription>Enter the name of the new client. This will be saved to the database.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="new-client-name" className="text-right">
-                            Name
-                        </Label>
+                        <Label htmlFor="new-client-name" className="text-right">Name</Label>
                         <Input
                             id="new-client-name"
                             value={newClientName}
@@ -367,7 +412,7 @@ const LazyEditableCell = memo(({
         if (e.key === 'Enter') {
             e.preventDefault();
             handleBlur();
-            onCellClick(0, ''); // Clear active cell
+            onCellClick(0, '');
         } else if (e.key === 'Escape') {
             setLocalValue(value);
             onCellClick(0, '');
@@ -380,7 +425,6 @@ const LazyEditableCell = memo(({
         borderRight: '1px solid hsl(var(--border))'
     };
 
-    // No column (read-only)
     if (header === 'no') {
         return (
             <div className="align-middle flex items-center justify-center" style={cellStyle}>
@@ -389,7 +433,6 @@ const LazyEditableCell = memo(({
         );
     }
 
-    // Client Name with dropdown
     if (header === 'client_name') {
         const cellValueStr = (value as string) || '';
         const isValid = availableClientsSet.has(cellValueStr.toLowerCase());
@@ -406,9 +449,7 @@ const LazyEditableCell = memo(({
                             onCellClick(0, '');
                         }}
                         open={isActive}
-                        onOpenChange={(open) => {
-                            if (!open) onCellClick(0, '');
-                        }}
+                        onOpenChange={(open) => { if (!open) onCellClick(0, ''); }}
                     >
                         <SelectTrigger 
                             ref={selectTriggerRef}
@@ -423,9 +464,7 @@ const LazyEditableCell = memo(({
                             <SelectScrollUpButton />
                             <SelectViewport>
                                 {availableClients.map(option => (
-                                    <SelectItem key={option} value={option}>
-                                        {option}
-                                    </SelectItem>
+                                    <SelectItem key={option} value={option}>{option}</SelectItem>
                                 ))}
                             </SelectViewport>
                             <SelectScrollDownButton />
@@ -454,7 +493,6 @@ const LazyEditableCell = memo(({
         );
     }
 
-    // Dropdown columns (status, category, module, detail_module)
     const isDropdownColumn = ['status', 'ticket_category', 'module', 'detail_module'].includes(header);
     
     if (isDropdownColumn && isActive) {
@@ -475,9 +513,7 @@ const LazyEditableCell = memo(({
                         onCellClick(0, '');
                     }}
                     open={isActive}
-                    onOpenChange={(open) => {
-                        if (!open) onCellClick(0, '');
-                    }}
+                    onOpenChange={(open) => { if (!open) onCellClick(0, ''); }}
                 >
                     <SelectTrigger className="h-full w-full rounded-none border-2 border-primary bg-white dark:bg-slate-950 p-0 py-1 px-2 text-xs">
                         <SelectValue />
@@ -486,20 +522,12 @@ const LazyEditableCell = memo(({
                         {options.map(option => (
                             <SelectItem key={option} value={option}>
                                 {header === 'status' ? (
-                                    <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[option] || statusColorMap.default)}>
-                                        {option}
-                                    </span>
+                                    <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[option] || statusColorMap.default)}>{option}</span>
                                 ) : header === 'ticket_category' ? (
-                                    <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[option] || categoryColorMap.default)}>
-                                        {option}
-                                    </span>
+                                    <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[option] || categoryColorMap.default)}>{option}</span>
                                 ) : header === 'module' ? (
-                                    <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>
-                                        {option}
-                                    </span>
-                                ) : (
-                                    option
-                                )}
+                                    <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>{option}</span>
+                                ) : option}
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -508,7 +536,6 @@ const LazyEditableCell = memo(({
         );
     }
 
-    // Text input for editable fields
     if (isEditable && isActive) {
         return (
             <div className="align-middle" style={cellStyle}>
@@ -525,13 +552,9 @@ const LazyEditableCell = memo(({
         );
     }
 
-    // Read-only display with special formatting
     return (
         <div 
-            className={cn(
-                "align-middle",
-                isEditable && "cursor-pointer hover:bg-accent/50"
-            )}
+            className={cn("align-middle", isEditable && "cursor-pointer hover:bg-accent/50")}
             style={cellStyle}
             onClick={() => isEditable && onCellClick(rowId, header)}
         >
@@ -551,23 +574,17 @@ const LazyEditableCell = memo(({
                     }
                     if (header === 'ticket_category' && value) {
                         return (
-                            <span className={cn('text-xs px-2 py-0.5 rounded-full', categoryColorMap[value as string] || categoryColorMap.default)}>
-                                {value}
-                            </span>
+                            <span className={cn('text-xs px-2 py-0.5 rounded-full', categoryColorMap[value as string] || categoryColorMap.default)}>{value}</span>
                         );
                     }
                     if (header === 'status' && value) {
                         return (
-                            <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[value as string] || statusColorMap.default)}>
-                                {value}
-                            </span>
+                            <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[value as string] || statusColorMap.default)}>{value}</span>
                         );
                     }
                     if (header === 'module' && value) {
                         return (
-                            <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[value] || moduleColorMap.default)}>
-                                {value}
-                            </span>
+                            <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[value] || moduleColorMap.default)}>{value}</span>
                         );
                     }
                     if (header === 'title' && value) {
@@ -578,9 +595,7 @@ const LazyEditableCell = memo(({
                             const jiraUrl = `https://pintro.atlassian.net/browse/${ticketNumber}`;
                             return (
                                 <span className="truncate text-xs">
-                                    <a href={jiraUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                                        {ticketNumber}
-                                    </a>
+                                    <a href={jiraUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{ticketNumber}</a>
                                     {' '}{restOfTitle}
                                 </span>
                             );
@@ -591,20 +606,21 @@ const LazyEditableCell = memo(({
             </div>
         </div>
     );
+}, (prevProps, nextProps) => {
+    const isNowActive = nextProps.activeCell?.rowId === nextProps.rowId && nextProps.activeCell?.header === nextProps.header;
+    const wasActive = prevProps.activeCell?.rowId === prevProps.rowId && prevProps.activeCell?.header === prevProps.header;
+    if (isNowActive !== wasActive) return false;
+    if (prevProps.value !== nextProps.value) return false;
+    if (prevProps.columnWidth !== nextProps.columnWidth) return false;
+    return true;
 });
 LazyEditableCell.displayName = "LazyEditableCell";
 
 const MemoizedRow = memo(({
-    row,
-    headers,
-    columnWidths,
-    rowNumber,
-    handleCellChange,
-    handleCellSave,
-    availableClients,
-    availableClientsSet,
-    activeCell,
-    onCellClick,
+    row, headers, columnWidths, rowNumber,
+    handleCellChange, handleCellSave,
+    availableClients, availableClientsSet,
+    activeCell, onCellClick, onDeleteRow,
 }: {
     row: any;
     headers: string[];
@@ -616,9 +632,10 @@ const MemoizedRow = memo(({
     availableClientsSet: Set<string>;
     activeCell: { rowId: number; header: string } | null;
     onCellClick: (rowId: number, header: string) => void;
+    onDeleteRow: (id: number) => void;
 }) => {
     return (
-        <div className="flex border-b transition-colors hover:bg-muted/50 h-full">
+        <div className="group relative flex border-b transition-colors hover:bg-muted/50 h-full">
             {headers.map(header => (
                 <LazyEditableCell
                     key={`${row.id}-${header}`}
@@ -635,6 +652,16 @@ const MemoizedRow = memo(({
                     onCellClick={onCellClick}
                 />
             ))}
+            {/* Trash icon — appears on row hover, absolutely positioned */}
+            <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center justify-center w-10 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-background">
+                <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteRow(row.id); }}
+                    className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Delete row"
+                >
+                    <Trash2 className="h-3.5 w-3.5" />
+                </button>
+            </div>
         </div>
     );
 });
@@ -668,8 +695,6 @@ export function DbViewer({
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-    const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(undefined);
-    const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
     const [yearFilter, setYearFilter] = useState<string>('');
     
@@ -679,13 +704,22 @@ export function DbViewer({
     const [totalPages, setTotalPages] = useState(0);
     
     const [isClient, setIsClient] = useState(false);
-    const [availableClients, setAvailableClients] = useState<string[]>(initialClients);
+    const [availableClients, setAvailableClients] = useState<string[]>(
+        () => {
+            const seen = new Set<string>();
+            return initialClients.filter(c => {
+                const key = c.toLowerCase();
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+        }
+    );
     const [isAddClientOpen, setIsAddClientOpen] = useState(false);
     
-    // 🔥 Active cell for lazy editing (Google Sheets style)
     const [activeCell, setActiveCell] = useState<{ rowId: number; header: string } | null>(null);
-    
-    // 🔥 Auto-save debounce
+    const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout>();
     
     const availableClientsSet = useMemo(
@@ -718,20 +752,17 @@ export function DbViewer({
         return ['no', ...visibleKeys];
     }, [state.data]);
 
-    // Which filter columns are actually present in the current headers
+    // Must be above early return
     const visibleFilterColumns = useMemo(
         () => FILTER_COLUMNS.filter(col => headers.includes(col)),
         [headers]
     );
 
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
+    useEffect(() => { setIsClient(true); }, []);
 
     useEffect(() => {
         setIsProcessing(isPending || isSaving);
     }, [isPending, isSaving, setIsProcessing]);
-
 
     const initialColumnWidths = useCallback(() => {
         const widths: Record<string, number> = {
@@ -740,24 +771,19 @@ export function DbViewer({
             detail_module: 200, created_at: 150, resolved_at: 150,
             status_case_2: 130, duration: 130, ticket_op: 150, note: 250,
         };
-        
-        headers.forEach(header => {
-            if (!widths[header]) widths[header] = 120;
-        });
+        headers.forEach(header => { if (!widths[header]) widths[header] = 120; });
         return widths;
     }, [headers]);
 
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
 
     useEffect(() => {
-        if (headers.length > 0) {
-            setColumnWidths(initialColumnWidths());
-        }
+        if (headers.length > 0) setColumnWidths(initialColumnWidths());
     }, [headers, initialColumnWidths]);
 
     const totalWidth = useMemo(() => Object.values(columnWidths).reduce((acc, width) => acc + width, 0), [columnWidths]);
 
-    // ── Filter helpers ──────────────────────────────────────────
+    // ── Filter helpers ──
     const activeFilterCount = useMemo(
         () => Object.values(columnFilters).reduce((sum, arr) => sum + arr.length, 0) + (dateRange ? 1 : 0),
         [columnFilters, dateRange]
@@ -766,14 +792,10 @@ export function DbViewer({
     const setFilterForColumn = useCallback((column: string, values: string[]) => {
         setColumnFilters(prev => {
             const next = { ...prev };
-            if (values.length === 0) {
-                delete next[column];
-            } else {
-                next[column] = values;
-            }
+            if (values.length === 0) delete next[column];
+            else next[column] = values;
             return next;
         });
-        // Reset to page 1 whenever a filter changes
         setCurrentPage(1);
     }, []);
 
@@ -783,7 +805,6 @@ export function DbViewer({
         setCurrentPage(1);
     }, []);
 
-    // Options map per filterable column
     const filterOptionsMap: Record<string, string[]> = useMemo(() => ({
         client_name: availableClients,
         status: ALL_STATUSES,
@@ -793,29 +814,19 @@ export function DbViewer({
         month: ALL_MONTHS,
     }), [availableClients]);
 
-    // Render badge inside the filter dropdown list
     const renderFilterOption = useCallback((column: string) => {
         return (option: string) => {
-            if (column === 'status') {
-                return <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[option] || statusColorMap.default)}>{option}</span>;
-            }
-            if (column === 'ticket_category') {
-                return <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[option] || categoryColorMap.default)}>{option}</span>;
-            }
-            if (column === 'module') {
-                return <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>{option}</span>;
-            }
+            if (column === 'status') return <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[option] || statusColorMap.default)}>{option}</span>;
+            if (column === 'ticket_category') return <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[option] || categoryColorMap.default)}>{option}</span>;
+            if (column === 'module') return <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>{option}</span>;
             return <span className="truncate text-xs">{option}</span>;
         };
     }, []);
-    // ── end filter helpers ──────────────────────────────────────
+    // ── end filter helpers ──
     
     const fetchData = useCallback(async (isRefresh = false) => {
         startTransition(async () => {
-            if (isRefresh) {
-                setIsRefreshing(true);
-                setProgress(0);
-            }
+            if (isRefresh) { setIsRefreshing(true); setProgress(0); }
             
             const dataResult = await getAllCaseData({
                 year: yearFilter || undefined,
@@ -836,12 +847,7 @@ export function DbViewer({
                 setTotalRows(0);
                 setTotalPages(0);
             } else {
-                setState({
-                    data: dataResult.data || null,
-                    source: (dataResult.source as any) || 'N/A',
-                    error: null,
-                });
-                
+                setState({ data: dataResult.data || null, source: (dataResult.source as any) || 'N/A', error: null });
                 if (dataResult.pagination) {
                     setTotalRows(dataResult.pagination.total);
                     setTotalPages(dataResult.pagination.totalPages);
@@ -852,10 +858,7 @@ export function DbViewer({
                 setProgress(100);
                 if (!dataResult.error) {
                     await refreshDashboardViews();
-                    toast({ 
-                        title: "Data Refreshed", 
-                        description: `Loaded ${dataResult.data?.length || 0} rows.` 
-                    });
+                    toast({ title: "Data Refreshed", description: `Loaded ${dataResult.data?.length || 0} rows.` });
                 }
                 setIsRefreshing(false);
             }
@@ -868,10 +871,8 @@ export function DbViewer({
     
     const displayData = useMemo(() => {
         if (!state.data) return [];
-        
         return state.data.map(row => {
             const newRow = {...row};
-    
             const createdAtDate = row.created_at ? new Date(row.created_at) : null;
             const resolvedAtDate = row.resolved_at ? new Date(row.resolved_at) : null;
             
@@ -882,12 +883,10 @@ export function DbViewer({
                 const hours = Math.floor(diffMs / (1000 * 60 * 60));
                 diffMs -= hours * (1000 * 60 * 60);
                 const minutes = Math.floor(diffMs / (1000 * 60));
-                
                 let durationString = '';
                 if (days > 0) durationString += `${days}d `;
                 if (hours > 0) durationString += `${hours}h `;
                 if (minutes >= 0) durationString += `${minutes}m`;
-                
                 newRow.duration = durationString.trim();
             } else {
                 newRow.duration = '';
@@ -902,15 +901,12 @@ export function DbViewer({
                         const now = new Date();
                         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                         const startOfCreatedAt = new Date(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate());
-                        
                         const diffTime = startOfToday.getTime() - startOfCreatedAt.getTime();
                         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                        
                         newRow.status_case_2 = diffDays + 1;
                     }
                 }
             }
-            
             return newRow;
         });
     }, [state.data]);
@@ -925,113 +921,136 @@ export function DbViewer({
     const virtualRows = rowVirtualizer.getVirtualItems();
     const totalRowHeight = rowVirtualizer.getTotalSize();
 
-    // 🔥 Lazy cell editing handlers
     const handleCellClick = useCallback((rowId: number, header: string) => {
-        if (rowId === 0) {
-            setActiveCell(null);
-        } else {
-            setActiveCell({ rowId, header });
-        }
+        if (rowId === 0) setActiveCell(null);
+        else setActiveCell({ rowId, header });
     }, []);
 
     const handleCellChange = useCallback((id: number, header: string, value: string) => {
         setState(prevState => {
             if (!prevState.data) return prevState;
-            
             const newData = prevState.data.map(row => {
                 if (row.id === id) {
                     const updatedRow = { ...row, [header]: value };
-                    
                     if (header === 'status') {
                         const isNowSolved = value === 'Solved' || value === 'RESOLVED';
                         const wasSolvedBefore = row.status === 'Solved' || row.status === 'RESOLVED';
-
-                        if (isNowSolved && !wasSolvedBefore) {
-                            updatedRow.resolved_at = new Date().toISOString();
-                        } else if (!isNowSolved && wasSolvedBefore) {
-                            updatedRow.resolved_at = '';
-                        }
+                        if (isNowSolved && !wasSolvedBefore) updatedRow.resolved_at = new Date().toISOString();
+                        else if (!isNowSolved && wasSolvedBefore) updatedRow.resolved_at = '';
                     }
                     return updatedRow;
                 }
                 return row;
             });
-            
             return { ...prevState, data: newData };
         });
     }, []);
 
-    // 🔥 Auto-save with debounce
     const handleCellSave = useCallback((id: number) => {
-        if (saveTimeoutRef.current) {
-            clearTimeout(saveTimeoutRef.current);
-        }
-
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(async () => {
             const rowToSave = state.data?.find(r => r.id === id);
             if (!rowToSave) return;
-
             setIsSaving(true);
             const result = await updateCase(id, rowToSave);
-            
             if (result.success) {
-                toast({ 
-                    title: "Saved", 
-                    description: "Changes saved automatically.",
-                    duration: 2000 
-                });
+                toast({ title: "Saved", description: "Changes saved automatically.", duration: 2000 });
             } else {
-                toast({ 
-                    variant: "destructive",
-                    title: "Save Failed", 
-                    description: result.error 
-                });
+                toast({ variant: "destructive", title: "Save Failed", description: result.error });
             }
             setIsSaving(false);
-        }, 800); // Debounce 800ms
+        }, 800);
     }, [state.data, toast]);
+
+    // 🗑️ Delete row handler
+    const handleDeleteRow = useCallback((id: number) => {
+        setDeleteConfirmId(id);
+    }, []);
+
+    const confirmDelete = useCallback(async () => {
+        if (deleteConfirmId === null) return;
+        setIsDeleting(true);
+        const result = await deleteCases([deleteConfirmId]);
+        if (result.success) {
+            toast({ title: "Row Deleted", description: "The row has been deleted.", duration: 2000 });
+            setState(prev => ({
+                ...prev,
+                data: prev.data?.filter(r => r.id !== deleteConfirmId) || null,
+            }));
+            setTotalRows(prev => prev - 1);
+        } else {
+            toast({ variant: "destructive", title: "Delete Failed", description: result.error });
+        }
+        setIsDeleting(false);
+        setDeleteConfirmId(null);
+    }, [deleteConfirmId, toast]);
 
     const handleExport = () => {
         if (!displayData || displayData.length === 0) {
-            toast({
-                variant: "destructive",
-                title: "No Data to Export",
-                description: "There is no data to display or export.",
-            });
+            toast({ variant: "destructive", title: "No Data to Export", description: "There is no data to display or export." });
             return;
         }
         if (typeof XLSX === 'undefined') {
             toast({ variant: 'destructive', title: "Library Not Loaded" });
             return;
         }
-
         const exportHeaders = headers.map(h => headerDisplayMapping[h] || h);
         const dataForSheet = displayData.map(row => headers.map(header => row[header] ?? ''));
         const worksheet = XLSX.utils.aoa_to_sheet([exportHeaders, ...dataForSheet]);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "All Cases");
         const date = new Date().toISOString().slice(0, 10);
-        const filename = `All_Cases_${date}.xlsx`;
-        XLSX.writeFile(workbook, filename);
-
-        toast({
-            title: "Export Successful",
-            description: `${displayData.length} rows exported.`,
-        });
+        XLSX.writeFile(workbook, `All_Cases_${date}.xlsx`);
+        toast({ title: "Export Successful", description: `${displayData.length} rows exported.` });
     };
+
+    // Columns that get a filter popover inside their header
+    const FILTERABLE_SET = useMemo(() => new Set(visibleFilterColumns), [visibleFilterColumns]);
 
     if (!isClient) {
         return <div className="flex-1 p-8"><Skeleton className="h-[600px] w-full" /></div>;
     }
 
-
     return (
         <div className="flex-1 bg-background text-foreground px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3 md:px-8 md:pb-8 md:pt-4">
+            {/* AddClientDialog rendered at top level, controlled by state */}
+            <AddClientDialog 
+                isOpen={isAddClientOpen}
+                onOpenChange={setIsAddClientOpen}
+                existingClientsSet={availableClientsSet}
+                onClientAdded={(newClient) => {
+                    setAvailableClients(prev => {
+                        const exists = prev.some(c => c.toLowerCase() === newClient.toLowerCase());
+                        if (exists) return prev;
+                        return [...prev, newClient].sort((a, b) => a.localeCompare(b));
+                    });
+                }}
+            />
+
+            {/* ── Delete confirmation dialog ── */}
+            <Dialog open={deleteConfirmId !== null} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+                <DialogContent className="sm:max-w-[380px]">
+                    <DialogHeader>
+                        <DialogTitle>Delete Row</DialogTitle>
+                        <DialogDescription>
+                            Apakah Anda yakin ingin menghapus row ini? Tindakan ini tidak dapat dibatalkan.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex-row justify-end gap-2 pt-2">
+                        <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)} disabled={isDeleting}>Cancel</Button>
+                        <Button variant="destructive" size="sm" onClick={confirmDelete} disabled={isDeleting}>
+                            {isDeleting ? <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <Card>
                 <CardHeader>
-                    {/* ── Row 1: Search + Action buttons ── */}
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div className="flex flex-wrap items-center gap-2">
+                    {/* Single row: Search + Clear All + Export + Refresh */}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
@@ -1039,13 +1058,23 @@ export function DbViewer({
                                     placeholder="Search all data..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-8 sm:w-[300px]"
+                                    className="pl-8 sm:w-[280px]"
                                 />
                             </div>
+                            {/* Clear All — shown inline next to search when any filter is active */}
+                            {activeFilterCount > 0 && (
+                                <button
+                                    onClick={clearAllFilters}
+                                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors whitespace-nowrap"
+                                >
+                                    <FilterX className="h-3 w-3" />
+                                    Clear ({activeFilterCount})
+                                </button>
+                            )}
                         </div>
                         <div className="flex items-center gap-2">
                             {isSaving && (
-                                <span className="text-xs text-muted-foreground flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                                     <RefreshCw className="h-3 w-3 animate-spin" />
                                     Saving...
                                 </span>
@@ -1060,116 +1089,8 @@ export function DbViewer({
                             </Button>
                         </div>
                     </div>
-
-                    {/* ── Row 2: Filter dropdowns ── */}
-                    <div className="flex flex-wrap items-center gap-2 pt-3">
-                        {visibleFilterColumns.map(col => (
-                            <FilterDropdown
-                                key={col}
-                                label={headerDisplayMapping[col] || col}
-                                options={filterOptionsMap[col] || []}
-                                selected={columnFilters[col] || []}
-                                onSelectionChange={(values) => setFilterForColumn(col, values)}
-                                renderOption={renderFilterOption(col)}
-                                onAddClient={col === 'client_name' ? () => setIsAddClientOpen(true) : undefined}
-                                availableClientsSet={col === 'client_name' ? availableClientsSet : undefined}
-                            />
-                        ))}
-                        <AddClientDialog 
-                            isOpen={isAddClientOpen}
-                            onOpenChange={setIsAddClientOpen}
-                            onClientAdded={(newClient) => {
-                                setAvailableClients(prev => [...prev, newClient].sort((a,b) => a.localeCompare(b)));
-                            }} 
-                        />
-
-                         <Popover open={isDatePopoverOpen} onOpenChange={(open) => {
-                            if (open) {
-                                setTempDateRange(dateRange);
-                            }
-                            setIsDatePopoverOpen(open);
-                        }}>
-                            <PopoverTrigger asChild>
-                                <button
-                                    className={cn(
-                                        "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
-                                        dateRange
-                                            ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
-                                            : "bg-white dark:bg-slate-950 border-muted text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="h-3 w-3" />
-                                    <span>
-                                        {dateRange?.from ? (
-                                            dateRange.to ? (
-                                                <>
-                                                    {format(dateRange.from, "LLL dd")} - {format(dateRange.to, "LLL dd")}
-                                                </>
-                                            ) : (
-                                                format(dateRange.from, "LLL dd, y")
-                                            )
-                                        ) : (
-                                            "Date Range"
-                                        )}
-                                    </span>
-                                    <ChevronDown className="h-3 w-3" />
-                                </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    initialFocus
-                                    mode="range"
-                                    defaultMonth={tempDateRange?.from ?? dateRange?.from}
-                                    selected={tempDateRange}
-                                    onSelect={setTempDateRange}
-                                    numberOfMonths={2}
-                                />
-                                <div className="flex justify-end gap-2 p-3 border-t">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setIsDatePopoverOpen(false)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                            setDateRange(undefined);
-                                            setCurrentPage(1);
-                                            setIsDatePopoverOpen(false);
-                                        }}
-                                    >
-                                        Clear
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        onClick={() => {
-                                            setDateRange(tempDateRange);
-                                            setCurrentPage(1);
-                                            setIsDatePopoverOpen(false);
-                                        }}
-                                    >
-                                        Apply
-                                    </Button>
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-
-                        {/* Clear-all button — only visible when something is active */}
-                        {activeFilterCount > 0 && (
-                            <button
-                                onClick={clearAllFilters}
-                                className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
-                            >
-                                <FilterX className="h-3 w-3" />
-                                Clear All
-                                <span className="ml-0.5 text-[10px] opacity-60">({activeFilterCount})</span>
-                            </button>
-                        )}
-                    </div>
                 </CardHeader>
+
                 <CardContent className="p-0">
                     <div ref={tableContainerRef} className="overflow-auto h-[75vh] border-t rounded-b-md">
                         {(!displayData || displayData.length === 0) ? (
@@ -1181,27 +1102,55 @@ export function DbViewer({
                             </div>
                         ) : (
                             <div style={{ width: `${totalWidth}px` }}>
+                                {/* ── Sticky header row with inline filter popovers ── */}
                                 <div className="sticky top-0 z-10 flex bg-muted">
-                                    {headers.map(header => (
-                                        <div
-                                            key={header}
-                                            className="h-12 px-4 flex items-center justify-center relative text-xs font-semibold"
-                                            style={{ 
-                                                width: columnWidths[header], 
-                                                flexShrink: 0, 
-                                                borderBottom: '1px solid hsl(var(--border))', 
-                                                borderRight: '1px solid hsl(var(--border))' 
-                                            }}
-                                        >
-                                            {headerDisplayMapping[header] || header}
-                                            {/* Small filter-active indicator dot on column headers */}
-                                            {columnFilters[header]?.length ? (
-                                                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />
-                                            ) : null}
-                                        </div>
-                                    ))}
+                                    {headers.map(header => {
+                                        const isFilterable = FILTERABLE_SET.has(header);
+                                        const isDateCol = header === 'date';
+
+                                        return (
+                                            <div
+                                                key={header}
+                                                className="h-12 flex items-center justify-center relative text-xs font-semibold"
+                                                style={{ 
+                                                    width: columnWidths[header], 
+                                                    flexShrink: 0, 
+                                                    borderBottom: '1px solid hsl(var(--border))', 
+                                                    borderRight: '1px solid hsl(var(--border))' 
+                                                }}
+                                            >
+                                                {/* Date column → DateRange popover */}
+                                                {isDateCol ? (
+                                                    <DateRangeHeaderPopover
+                                                        dateRange={dateRange}
+                                                        onDateRangeChange={(range) => {
+                                                            setDateRange(range);
+                                                            setCurrentPage(1);
+                                                        }}
+                                                    />
+                                                )
+                                                /* Filterable columns → multi-select popover */
+                                                : isFilterable ? (
+                                                    <HeaderFilterPopover
+                                                        label={headerDisplayMapping[header] || header}
+                                                        options={filterOptionsMap[header] || []}
+                                                        selected={columnFilters[header] || []}
+                                                        onSelectionChange={(values) => setFilterForColumn(header, values)}
+                                                        renderOption={renderFilterOption(header)}
+                                                        showAddClient={header === 'client_name'}
+                                                        onAddClient={header === 'client_name' ? () => setIsAddClientOpen(true) : undefined}
+                                                    />
+                                                )
+                                                /* Plain non-filterable header */
+                                                : (
+                                                    <span className="truncate px-2">{headerDisplayMapping[header] || header}</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
 
+                                {/* ── Virtualized rows ── */}
                                 <div style={{ height: `${totalRowHeight}px`, position: 'relative' }}>
                                     {virtualRows.map((virtualRow) => {
                                         const row = displayData[virtualRow.index];
@@ -1211,9 +1160,7 @@ export function DbViewer({
                                                 key={virtualRow.key}
                                                 style={{
                                                     position: 'absolute',
-                                                    top: 0,
-                                                    left: 0,
-                                                    width: '100%',
+                                                    top: 0, left: 0, width: '100%',
                                                     height: `${virtualRow.size}px`,
                                                     transform: `translateY(${virtualRow.start}px)`,
                                                 }}
@@ -1229,6 +1176,7 @@ export function DbViewer({
                                                     availableClientsSet={availableClientsSet}
                                                     activeCell={activeCell}
                                                     onCellClick={handleCellClick}
+                                                    onDeleteRow={handleDeleteRow}
                                                 />
                                             </div>
                                         );
@@ -1238,27 +1186,18 @@ export function DbViewer({
                         )}
                     </div>
                 </CardContent>
+
                 <CardFooter className="p-3 border-t">
                     <div className="flex items-center justify-between w-full">
                         <div className="flex-1 text-sm text-muted-foreground">
                             Showing {totalRows > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRows)} of {totalRows.toLocaleString()} rows
                         </div>
                         <div className="flex items-center space-x-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                            >
+                            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
                             <span className="text-sm">Page {currentPage} of {totalPages || 1}</span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))}
-                                disabled={currentPage >= (totalPages || 1)}
-                            >
+                            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))} disabled={currentPage >= (totalPages || 1)}>
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
@@ -1268,5 +1207,3 @@ export function DbViewer({
         </div>
     );
 }
-
-
