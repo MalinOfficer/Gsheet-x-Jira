@@ -29,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectVi
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Label } from "./ui/label";
+import { formatDateTime } from "@/lib/date-utils";
 
 declare const XLSX: any;
 
@@ -163,7 +164,7 @@ const HeaderFilterPopover = memo(({
             <PopoverContent className="w-[210px] p-0 shadow-lg" align="center">
                 <Command>
                     {showAddClient && onAddClient && (
-                        <div className="border-b p-1.5">
+                         <div className="border-b p-1.5 sticky top-0 bg-popover z-10">
                             <Button onClick={() => { onAddClient(); setOpen(false); }} className="w-full h-7" size="sm" variant="outline">
                                 <UserPlus className="mr-1.5 h-3.5 w-3.5" />
                                 <span className="text-xs">Add New Client</span>
@@ -344,7 +345,7 @@ const AddClientDialog = memo(({
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button onClick={handleSave} disabled={isSaving || !newClientName.trim()}>
+                    <Button onClick={handleSave} disabled={isSaving || !newClientName.trim() || existingClientsSet?.has(newClientName.trim().toLowerCase())}>
                         {isSaving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : 'Save Client'}
                     </Button>
                 </DialogFooter>
@@ -560,6 +561,9 @@ const LazyEditableCell = memo(({
         >
             <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note'].includes(header) && 'justify-center')}>
                 {(() => {
+                    if (header === 'created_at' || header === 'resolved_at') {
+                        return <span className="truncate text-xs">{value ? formatDateTime(value, 'report') : '-'}</span>;
+                    }
                     if (header === 'status_case_2' && value) {
                         const age = Number(value);
                         const isOverdue = age > 3;
@@ -606,13 +610,6 @@ const LazyEditableCell = memo(({
             </div>
         </div>
     );
-}, (prevProps, nextProps) => {
-    const isNowActive = nextProps.activeCell?.rowId === nextProps.rowId && nextProps.activeCell?.header === nextProps.header;
-    const wasActive = prevProps.activeCell?.rowId === prevProps.rowId && prevProps.activeCell?.header === prevProps.header;
-    if (isNowActive !== wasActive) return false;
-    if (prevProps.value !== nextProps.value) return false;
-    if (prevProps.columnWidth !== nextProps.columnWidth) return false;
-    return true;
 });
 LazyEditableCell.displayName = "LazyEditableCell";
 
@@ -652,7 +649,6 @@ const MemoizedRow = memo(({
                     onCellClick={onCellClick}
                 />
             ))}
-            {/* Trash icon — appears on row hover, absolutely positioned */}
             <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center justify-center w-10 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-background">
                 <button
                     onClick={(e) => { e.stopPropagation(); onDeleteRow(row.id); }}
@@ -752,12 +748,11 @@ export function DbViewer({
         return ['no', ...visibleKeys];
     }, [state.data]);
 
-    // Must be above early return
     const visibleFilterColumns = useMemo(
         () => FILTER_COLUMNS.filter(col => headers.includes(col)),
         [headers]
     );
-
+    
     useEffect(() => { setIsClient(true); }, []);
 
     useEffect(() => {
@@ -815,11 +810,11 @@ export function DbViewer({
     }), [availableClients]);
 
     const renderFilterOption = useCallback((column: string) => {
-        return (option: string) => {
-            if (column === 'status') return <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[option] || statusColorMap.default)}>{option}</span>;
-            if (column === 'ticket_category') return <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[option] || categoryColorMap.default)}>{option}</span>;
-            if (column === 'module') return <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[option] || moduleColorMap.default)}>{option}</span>;
-            return <span className="truncate text-xs">{option}</span>;
+        return (value: string) => {
+            if (column === 'status') return <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[value] || statusColorMap.default)}>{value}</span>;
+            if (column === 'ticket_category') return <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[value] || categoryColorMap.default)}>{value}</span>;
+            if (column === 'module') return <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[value] || moduleColorMap.default)}>{value}</span>;
+            return <span className="truncate text-xs">{value}</span>;
         };
     }, []);
     // ── end filter helpers ──
@@ -904,8 +899,14 @@ export function DbViewer({
                         const diffTime = startOfToday.getTime() - startOfCreatedAt.getTime();
                         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                         newRow.status_case_2 = diffDays + 1;
+                    } else {
+                        newRow.status_case_2 = '';
                     }
+                } else {
+                     newRow.status_case_2 = '';
                 }
+            } else {
+                newRow.status_case_2 = '';
             }
             return newRow;
         });
