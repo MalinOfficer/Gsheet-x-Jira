@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useTransition, useEffect, useContext, useCallback, useRef, MouseEvent } from 'react';
@@ -635,18 +636,6 @@ export function ImportFlow() {
               </div>
           </div>
           
-          <div className="mt-4">
-            <Label>Template Header (dipisahkan koma)</Label>
-            <Textarea
-              id="template-input"
-              placeholder="e.g., id,name,email"
-              value={DEFAULT_TEMPLATE}
-              rows={4}
-              className="font-mono text-xs"
-              disabled
-            />
-          </div>
-          
           <Input type="file" ref={jsonFileInputRef} onChange={(e) => handleFileChange(e, 'json')} className="hidden" accept=".json" />
           <Input type="file" ref={csvFileInputRef} onChange={(e) => handleFileChange(e, 'csv')} className="hidden" accept=".csv" />
           
@@ -847,7 +836,7 @@ function PreviewTable({
             <CardHeader>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <CardTitle className="text-xl">2. Data Preview &amp; Actions</CardTitle>
+                        <CardTitle className="text-xl">2. Data Preview & Actions</CardTitle>
                         <CardDescription>
                             Preview your converted data. Once ready, you can import it into the database.
                         </CardDescription>
