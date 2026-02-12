@@ -1,4 +1,5 @@
+import { notFound } from 'next/navigation';
 
 export default function ApiQiscusPage() {
-  return null;
+  notFound();
 }
