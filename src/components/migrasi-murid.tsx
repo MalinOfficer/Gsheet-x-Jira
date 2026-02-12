@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect, Fragment } from "react";
+import { useState, useCallback, KeyboardEvent, MouseEvent, useMemo, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { PlusCircle, Wand2, Download, Undo2, Redo2, Trash2, ArrowLeft } from "lucide-react";
-import Link from 'next/link';
+import { PlusCircle, Wand2, Download, Undo2, Redo2, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +33,9 @@ const tableHeaders = [
     "Wali", "Pekerjaan Wali", "No Kartu Keluarga"
 ];
 
+// Kolom yang harus unik (tidak boleh duplikat)
+const UNIQUE_COLUMNS = ["Username", "NIS", "NISN", "Kode"];
+
 type MuridData = Record<string, string | number | Date>;
 type CellSelection = {
     row: number;
@@ -43,18 +45,18 @@ type CellSelection = {
 // Helper to create an empty row
 const createEmptyRow = (): MuridData => tableHeaders.reduce((acc, header) => ({ ...acc, [header]: '' }), {});
 
-const INITIAL_ROWS = 24;
+const INITIAL_ROWS = 23;
 
 const monthMap: { [key: string]: string } = {
     // Indonesian
     'januari': '01', 'janu': '01', 'jan': '01',
     'februari': '02', 'feb': '02', 'febr': '02',
-    'maret': '03', 'mar': '03',
+    'maret': '03', 'mar': '03', 'mrt': '03',
     'april': '04', 'apr': '04',
     'mei': '05',
     'juni': '06', 'jun': '06',
     'juli': '07', 'jul': '07',
-    'agustus': '08', 'agu': '08', 'ags': '08',
+    'agustus': '08', 'agu': '08', 'ags': '08', 'agt': '08',
     'september': '09', 'sep': '09', 'sept': '09',
     'oktober': '10', 'okt': '10',
     'november': '11', 'nov': '11',
@@ -76,9 +78,9 @@ const parseAndFormatDate = (dateStr: string): string | null => {
 
     const trimmedDate = dateStr.trim().toLowerCase().replace(/,/g, '/');
     
-    // Check if it's already in DD/MM/YYYY or DD-MM-YYYY format
-    if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(trimmedDate)) {
-        const parts = trimmedDate.split(/[/-]/);
+    // Check if it's already in DD/MM/YYYY format
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmedDate)) {
+        const parts = trimmedDate.split('/');
         if (parts.length === 3) {
             const day = parts[0].padStart(2, '0');
             const month = parts[1].padStart(2, '0');
@@ -98,6 +100,45 @@ const parseAndFormatDate = (dateStr: string): string | null => {
         const day = americanDateMatch[2].padStart(2, '0');
         const year = americanDateMatch[3];
         return `${day}/${month}/${year}`;
+    }
+
+    // Try parsing MMM/DD/YYYY or MMM-DD-YYYY (e.g., Aug/20/2000, jan-15-2023)
+    const monthFirstSlashMatch = trimmedDate.match(/^([a-zA-Z]+)[-/](\d{1,2})[-/](\d{4})$/);
+    if (monthFirstSlashMatch) {
+        const monthName = monthFirstSlashMatch[1];
+        const day = monthFirstSlashMatch[2].padStart(2, '0');
+        const year = monthFirstSlashMatch[3];
+        
+        let month: string | undefined;
+        for (const key in monthMap) {
+            if (monthName.startsWith(key)) {
+                month = monthMap[key];
+                break;
+            }
+        }
+
+        if (day && month && year) {
+            return `${day}/${month}/${year}`;
+        }
+    }
+
+    // Try parsing DD-MMM-YYYY or DD/MMM/YYYY (e.g., 20-jan-2000, 20/jan/2000)
+    const dashSlashMonthMatch = trimmedDate.match(/^(\d{1,2})[-/]([a-zA-Z]+)[-/](\d{4})$/);
+    if (dashSlashMonthMatch) {
+        const day = dashSlashMonthMatch[1].padStart(2, '0');
+        const monthName = dashSlashMonthMatch[2];
+        const year = dashSlashMonthMatch[3];
+
+        let month: string | undefined;
+        for (const key in monthMap) {
+            if (monthName.startsWith(key)) {
+                month = monthMap[key];
+                break;
+            }
+        }
+        if (day && month && year) {
+            return `${day}/${month}/${year}`;
+        }
     }
 
     // Try parsing DD NamaBulan YYYY (e.g., 21 januari 2000 or 12 dec 2025)
@@ -190,6 +231,15 @@ export function MigrasiMurid() {
 
     const tableContainerRef = useRef<HTMLDivElement>(null);
     
+    // State untuk menyimpan informasi duplikat
+    const [duplicates, setDuplicates] = useState<Map<number, Set<string>>>(new Map());
+    
+    // State untuk menghindari hydration mismatch
+    const [isMounted, setIsMounted] = useState(false);
+    
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const recordHistory = (newRows: MuridData[]) => {
         const newHistory = history.slice(0, historyIndex + 1);
@@ -212,6 +262,47 @@ export function MigrasiMurid() {
             setRows(history[newIndex]);
         }
     };
+
+    // Fungsi untuk mengecek duplikat
+    const checkDuplicates = useCallback((data: MuridData[]) => {
+        const duplicateMap = new Map<number, Set<string>>();
+        
+        UNIQUE_COLUMNS.forEach(column => {
+            const valueMap = new Map<string, number[]>();
+            
+            data.forEach((row, index) => {
+                const value = String(row[column] || '').trim();
+                
+                // Hanya cek jika value tidak kosong
+                if (value !== '') {
+                    if (!valueMap.has(value)) {
+                        valueMap.set(value, []);
+                    }
+                    valueMap.get(value)!.push(index);
+                }
+            });
+            
+            // Tandai baris yang memiliki duplikat
+            valueMap.forEach((indices, value) => {
+                if (indices.length > 1) {
+                    indices.forEach(index => {
+                        if (!duplicateMap.has(index)) {
+                            duplicateMap.set(index, new Set());
+                        }
+                        duplicateMap.get(index)!.add(column);
+                    });
+                }
+            });
+        });
+        
+        setDuplicates(duplicateMap);
+        return duplicateMap;
+    }, []);
+
+    // Cek duplikat setiap kali rows berubah
+    useEffect(() => {
+        checkDuplicates(rows);
+    }, [rows, checkDuplicates]);
 
     const handleRowsChange = (newRows: MuridData[], record: boolean = true) => {
         setRows(newRows);
@@ -311,7 +402,7 @@ export function MigrasiMurid() {
     };
 
 
-    const handleCopy = useCallback((showToast = true) => {
+    const handleCopy = useCallback(() => {
         if (!selectedRange.start) {
             return;
         }
@@ -332,34 +423,18 @@ export function MigrasiMurid() {
         }
 
         navigator.clipboard.writeText(copyString).then(() => {
-            if (showToast) {
-                toast({
-                    title: "Copied to Clipboard",
-                    description: `Selected data has been copied.`,
-                });
-            }
+            toast({
+                title: "Copied to Clipboard",
+                description: `Selected data has been copied.`,
+            });
         }, () => {
-            if (showToast) {
-                toast({
-                    variant: "destructive",
-                    title: "Copy Failed",
-                    description: "Could not copy data to clipboard.",
-                });
-            }
+            toast({
+                variant: "destructive",
+                title: "Copy Failed",
+                description: "Could not copy data to clipboard.",
+            });
         });
     }, [rows, normalizedSelectedRange, toast, selectedRange]);
-
-    const handleCut = useCallback(() => {
-        if (!selectedRange.start) {
-            return;
-        }
-        handleCopy(false); // Copy without showing a toast
-        handleClearSelectedCells();
-        toast({
-            title: "Cut to Clipboard",
-            description: "Selected data has been cut.",
-        });
-    }, [selectedRange, handleCopy, handleClearSelectedCells, toast]);
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, { row, col }: CellSelection) => {
         const move = (dRow: number, dCol: number) => {
@@ -440,13 +515,7 @@ export function MigrasiMurid() {
 
         if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
             e.preventDefault();
-            handleCopy(true);
-            return;
-        }
-
-        if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
-            e.preventDefault();
-            handleCut();
+            handleCopy();
             return;
         }
         
@@ -502,7 +571,7 @@ export function MigrasiMurid() {
         }
     };
 
-    const handleMouseOver = (e: MouseEvent<HTMLDivElement>, { row, col }: CellSelection) => {
+    const handleMouseOver = (e: MouseEvent<HTMLInputElement>, { row, col }: CellSelection) => {
         if (isSelecting.current) {
             e.preventDefault();
             if (tableHeaders[col] === "No") return;
@@ -540,16 +609,12 @@ export function MigrasiMurid() {
                     }
                     sourceData.push(rowData);
                 }
-                
-                const sourceHeight = selEndRow - selStartRow + 1;
-                const sourceWidth = selEndCol - selStartCol + 1;
 
                 for (let r = fillStartRow; r <= fillEndRow; r++) {
                     for (let c = fillStartCol; c <= fillEndCol; c++) {
                         if (r < selStartRow || r > selEndRow || c < selStartCol || c > selEndCol) { // Don't overwrite source
-                            const sourceRowIndex = (r - selStartRow + sourceHeight) % sourceHeight;
-                            const sourceColIndex = (c - selStartCol + sourceWidth) % sourceWidth;
-                            const sourceValue = sourceData[sourceRowIndex][sourceColIndex];
+                            const sourceRow = sourceData[(r - fillStartRow) % sourceData.length];
+                            const sourceValue = sourceRow[(c - fillStartCol) % sourceRow.length];
                             newRows[r] = { ...newRows[r], [tableHeaders[c]]: sourceValue };
                         }
                     }
@@ -670,6 +735,25 @@ export function MigrasiMurid() {
     };
     
     const handleExportExcel = () => {
+        // Cek apakah ada duplikat
+        if (duplicates.size > 0) {
+            const duplicateColumns: string[] = [];
+            duplicates.forEach((columns) => {
+                columns.forEach(col => {
+                    if (!duplicateColumns.includes(col)) {
+                        duplicateColumns.push(col);
+                    }
+                });
+            });
+            
+            toast({
+                variant: "destructive",
+                title: "Ada Data Duplikat!",
+                description: `Terdapat data duplikat pada kolom: ${duplicateColumns.join(', ')}. Silakan perbaiki terlebih dahulu.`,
+            });
+            return;
+        }
+        
         if (typeof XLSX === 'undefined') {
             toast({ variant: 'destructive', title: "Library Not Loaded", description: "The Excel library is still loading. Please try again in a moment."});
             return;
@@ -697,16 +781,17 @@ export function MigrasiMurid() {
                         const parts = dateStr.split('/');
                         if (parts.length === 3) {
                             const day = parseInt(parts[0], 10);
-                            const month = parseInt(parts[1], 10) - 1;
+                            const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
                             const year = parseInt(parts[2], 10);
+                            // Use Date.UTC to avoid timezone issues
                             const utcDate = new Date(Date.UTC(year, month, day));
                             if (!isNaN(utcDate.getTime())) {
                                 newRow.push(utcDate);
                             } else {
-                                newRow.push(dateStr);
+                                newRow.push(dateStr); // Push original string if invalid
                             }
                         } else {
-                            newRow.push(dateStr);
+                            newRow.push(dateStr); // Push original string if not DD/MM/YYYY
                         }
                     } else {
                         newRow.push(null);
@@ -720,10 +805,11 @@ export function MigrasiMurid() {
 
         const worksheet = XLSX.utils.aoa_to_sheet([tableHeaders, ...dataForSheet], { cellDates: true });
 
+        // Apply date format to the "Tanggal Lahir" column
         const dateColumnIndex = tableHeaders.indexOf("Tanggal Lahir");
         if (dateColumnIndex > -1) {
             const columnLetter = XLSX.utils.encode_col(dateColumnIndex);
-            for (let i = 2; i <= dataForSheet.length + 1; i++) {
+            for (let i = 2; i <= dataForSheet.length + 1; i++) { // Start from row 2 (data starts at A2)
                 const cellAddress = `${columnLetter}${i}`;
                 if (worksheet[cellAddress] && worksheet[cellAddress].t === 'd') {
                     worksheet[cellAddress].z = 'dd/mm/yyyy';
@@ -754,29 +840,18 @@ export function MigrasiMurid() {
     const rowVirtualizer = useVirtualizer({
         count: rows.length,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 28,
-        overscan: 20,
-        enableSmoothScroll: false,
+        estimateSize: () => 28, // Corresponds to h-7
+        overscan: 5,
     });
     
-    const colVirtualizer = useVirtualizer({
-        horizontal: true,
-        count: tableHeaders.length,
-        getScrollElement: () => tableContainerRef.current,
-        estimateSize: (index) => columnWidths[tableHeaders[index]] || 120,
-        overscan: 10,
-        enableSmoothScroll: false,
-    });
-
     const virtualRows = rowVirtualizer.getVirtualItems();
-    const virtualCols = colVirtualizer.getVirtualItems();
     const totalHeight = rowVirtualizer.getTotalSize();
-    const totalWidth = colVirtualizer.getTotalSize();
-    
-    const HEADER_HEIGHT = 36;
     
     const getRowNumberValue = (row: MuridData, index: number) => {
-        return String(index + 1);
+        if (index === 0) {
+            return "1";
+        }
+        return row["Username"] ? String(index + 1) : "";
     };
 
     const handleFillHandleMouseDown = (e: MouseEvent) => {
@@ -788,52 +863,35 @@ export function MigrasiMurid() {
         }
     };
 
-    useEffect(() => {
-        const handleGlobalMouseUp = () => {
-            if (isSelecting.current) {
-                isSelecting.current = false;
-            }
-            if (isDraggingFill) {
-                handleMouseUp();
-            }
-        };
-
-        window.addEventListener('mouseup', handleGlobalMouseUp);
-        return () => {
-            window.removeEventListener('mouseup', handleGlobalMouseUp);
-        };
-    }, [isDraggingFill, handleMouseUp]);
-
+    // Fungsi untuk mengecek apakah cell memiliki duplikat
+    const isCellDuplicate = (rowIndex: number, header: string) => {
+        return duplicates.has(rowIndex) && duplicates.get(rowIndex)!.has(header);
+    };
 
     return (
-        <div 
-            className="flex flex-col h-screen p-4 gap-4 bg-background overflow-hidden" 
-            onPaste={handlePaste}
-        >
-            <header className="flex-shrink-0">
+        <div className="h-full flex flex-col bg-background" onMouseUp={handleMouseUp} onPaste={handlePaste}>
+            <div className="flex-shrink-0 p-4 border-b">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                     <div className="flex items-center gap-4">
-                        <Link href="/dashboard" passHref>
-                            <Button variant="outline" size="sm">
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Back
-                            </Button>
-                        </Link>
-                        <div>
-                            <h1 className="text-xl font-bold tracking-tight">Data Murid</h1>
-                            <p className="text-sm text-muted-foreground mt-1">Input dan format data migrasi siswa seperti menggunakan spreadsheet.</p>
-                        </div>
+                    <div>
+                        <h1 className="text-xl font-bold tracking-tight">Data Murid</h1>
+                        <p className="text-sm text-muted-foreground mt-1">Input dan format data migrasi siswa seperti menggunakan spreadsheet.</p>
+                        {duplicates.size > 0 && (
+                            <p className="text-sm text-red-600 dark:text-red-400 mt-1 font-medium">
+                                ⚠️ Terdapat {duplicates.size} baris dengan data duplikat pada kolom Username, NIS, NISN, atau Kode
+                            </p>
+                        )}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                         <Button onClick={handleUndo} size="sm" variant="outline" disabled={historyIndex === 0}>
                             <Undo2 className="mr-2 h-4 w-4" /> Undo
                         </Button>
-                        <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex >= history.length - 1}>
+                        <Button onClick={handleRedo} size="sm" variant="outline" disabled={historyIndex === history.length - 1}>
                             <Redo2 className="mr-2 h-4 w-4" /> Redo
                         </Button>
+                        {isMounted && (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="destructive" suppressHydrationWarning>
+                            <Button size="sm" variant="destructive">
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete All
                             </Button>
                             </AlertDialogTrigger>
@@ -850,166 +908,152 @@ export function MigrasiMurid() {
                             </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
+                        )}
                         <Button
                             onClick={handleExportExcel}
                             size="sm"
                             className="bg-green-600 text-white hover:bg-green-700"
-                            suppressHydrationWarning
+                            disabled={duplicates.size > 0}
                         >
                             <Download className="mr-2 h-4 w-4" />
                             Export
                         </Button>
                     </div>
                 </div>
-            </header>
+            </div>
 
-            {/* Table Area */}
-            <main 
-                className="flex-grow relative overflow-auto bg-card border rounded-lg" 
-                ref={tableContainerRef}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-            >
+            <div className="flex-grow overflow-auto" ref={tableContainerRef}>
                  <div 
                     style={{ 
-                        width: `${totalWidth}px`,
-                        height: `${totalHeight + HEADER_HEIGHT}px`,
+                        width: `${tableHeaders.reduce((acc, h) => acc + columnWidths[h], 0)}px`,
+                        height: `${totalHeight + 36}px`,
                         position: 'relative',
-                        minWidth: '100%',
-                        minHeight: '100%',
                     }}
                 >
-                    {/* Header Row */}
-                    <header className="sticky top-0 z-20 bg-secondary" style={{height: `${HEADER_HEIGHT}px`, width: `${totalWidth}px`}}>
-                        {virtualCols.map((virtualCol) => {
-                            const header = tableHeaders[virtualCol.index];
-                            const isNoColumn = header === "No";
-                            return (
-                                <div
-                                    key={virtualCol.key}
-                                    style={{ 
-                                        width: `${virtualCol.size}px`,
-                                        transform: isNoColumn ? undefined : `translateX(${virtualCol.start}px)`,
-                                        position: isNoColumn ? 'sticky' : 'absolute',
-                                        left: isNoColumn ? 0 : undefined,
-                                        top: 0,
-                                        zIndex: isNoColumn ? 21 : 'auto',
-                                    }}
-                                    className="h-full select-none border-r border-b px-2 py-2 flex items-center justify-center font-semibold text-xs text-foreground bg-secondary"
-                                >
-                                    <span className="truncate">{header}</span>
-                                    {header === "Tanggal Lahir" && (
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-5 w-5 ml-1">
-                                                    <Wand2 className="h-3 w-3" />
-                                                    <span className="sr-only">Format Menu</span>
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
-                                                <DropdownMenuItem onClick={handleFormatDates}>
-                                                    Format ke DD/MM/YYYY
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    )}
-                                    <div
-                                        onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
-                                        className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-30"
-                                    />
-                                </div>
-                            );
-                        })}
-                    </header>
-                    
-                    {/* Body Rows */}
-                    <div className="relative" style={{ height: `${totalHeight}px`, width: `${totalWidth}px` }}>
-                        {virtualRows.map((virtualRow) => (
-                           <div
-                                key={virtualRow.key}
-                                style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    height: `${virtualRow.size}px`,
-                                    width: '100%',
-                                    transform: `translateY(${virtualRow.start}px)`,
+                    <div className="sticky top-0 z-30 flex bg-secondary" style={{height: '36px'}}>
+                        {tableHeaders.map((header) => (
+                            <div
+                                key={header}
+                                style={{ 
+                                    width: columnWidths[header],
+                                    left: header === "No" ? 0 : 'auto',
                                 }}
+                                className={cn(
+                                    "relative select-none border-r border-b px-2 py-2 flex items-center justify-center font-semibold text-xs text-foreground",
+                                    header === "No" && "sticky z-40 bg-secondary",
+                                    UNIQUE_COLUMNS.includes(header) && "bg-blue-50 dark:bg-blue-950/30"
+                                )}
                             >
-                                {virtualCols.map((virtualCol) => {
-                                    const row = rows[virtualRow.index];
-                                    const colIndex = virtualCol.index;
-                                    const header = tableHeaders[colIndex];
-                                    const isSelected = isCellSelected(virtualRow.index, colIndex);
-                                    const isFillPreviewing = isDraggingFill && isCellInFillRange(virtualRow.index, colIndex) && !isSelected;
-                                    const isBottomRightCell = selectedRange.start && normalizedSelectedRange.endRow === virtualRow.index && normalizedSelectedRange.endCol === colIndex;
-                                    const isNoColumn = header === "No";
-
-                                    const cellValue = row[header];
-                                    let displayValue = "";
-                                     if (header === "No") {
-                                        displayValue = getRowNumberValue(row, virtualRow.index);
-                                    } else if (cellValue instanceof Date) {
-                                        const day = String(cellValue.getUTCDate()).padStart(2, '0');
-                                        const month = String(cellValue.getUTCMonth() + 1).padStart(2, '0');
-                                        const year = cellValue.getUTCFullYear();
-                                        displayValue = `${day}/${month}/${year}`;
-                                    } else {
-                                        displayValue = String(cellValue || "");
-                                    }
-                                    
-                                    return (
-                                        <div
-                                            key={virtualCol.key}
-                                            style={{
-                                                position: isNoColumn ? 'sticky' : 'absolute',
-                                                top: 0,
-                                                left: isNoColumn ? 0 : 'auto',
-                                                height: '100%',
-                                                width: `${virtualCol.size}px`,
-                                                transform: isNoColumn ? undefined : `translateX(${virtualCol.start}px)`,
-                                                zIndex: isNoColumn ? 11 : 'auto',
-                                            }}
-                                            className={cn(
-                                                "p-0 m-0 border-r border-b relative flex items-center",
-                                                isNoColumn && "bg-background"
-                                            )}
-                                            onMouseOver={(e: MouseEvent<HTMLDivElement>) => handleMouseOver(e, { row: virtualRow.index, col: colIndex })}
-                                        >
-                                            <Input
-                                                type="text"
-                                                value={displayValue}
-                                                readOnly={header === "No"}
-                                                onChange={(e) => handleCellChange(virtualRow.index, header, e.target.value)}
-                                                onKeyDown={(e) => handleKeyDown(e, { row: virtualRow.index, col: colIndex })}
-                                                onMouseDown={(e) => handleMouseDown(e, { row: virtualRow.index, col: colIndex })}
-                                                data-row={virtualRow.index}
-                                                data-col={colIndex}
-                                                suppressHydrationWarning
-                                                className={cn(
-                                                    "w-full h-7 text-xs px-1 rounded-none border-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
-                                                    header === "No" ? "bg-muted/30 cursor-default focus-visible:ring-0 text-center" : "bg-transparent",
-                                                    isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
-                                                    isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50"
-                                                )}
-                                            />
-                                            {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
-                                            {isBottomRightCell && !isDraggingFill && (
-                                                <div 
-                                                    onMouseDown={handleFillHandleMouseDown}
-                                                    className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
-                                                />
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                <span className="truncate">{header}</span>
+                                {UNIQUE_COLUMNS.includes(header) && (
+                                    <span className="ml-1 text-red-500" title="Kolom ini harus unik">*</span>
+                                )}
+                                {isMounted && header === "Tanggal Lahir" && (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild suppressHydrationWarning>
+                                            <Button variant="ghost" size="icon" className="h-5 w-5 ml-1" suppressHydrationWarning>
+                                                <Wand2 className="h-3 w-3" />
+                                                <span className="sr-only">Format Menu</span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent suppressHydrationWarning>
+                                            <DropdownMenuItem onClick={handleFormatDates}>
+                                                Format ke DD/MM/YYYY
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
+                                <div
+                                    onMouseDown={(e: MouseEvent) => handleResizeMouseDown(header, e)}
+                                    className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-10"
+                                />
                             </div>
                         ))}
                     </div>
-                </div>
-            </main>
+                     
+                    <div style={{ paddingTop: '36px', height: totalHeight, position: 'relative' }}>
+                        {virtualRows.map(virtualRow => {
+                            const row = rows[virtualRow.index];
+                            const rowHasDuplicate = duplicates.has(virtualRow.index);
+                            
+                            return (
+                                <div
+                                    key={virtualRow.key}
+                                    className="flex absolute top-0 left-0"
+                                    style={{
+                                        width: '100%',
+                                        height: `${virtualRow.size}px`,
+                                        transform: `translateY(${virtualRow.start}px)`,
+                                    }}
+                                >
+                                    {tableHeaders.map((header, colIndex) => {
+                                        const isSelected = isCellSelected(virtualRow.index, colIndex);
+                                        const isFillPreviewing = isDraggingFill && isCellInFillRange(virtualRow.index, colIndex) && !isSelected;
+                                        const isBottomRightCell = selectedRange.start && normalizedSelectedRange.endRow === virtualRow.index && normalizedSelectedRange.endCol === colIndex;
+                                        const isDuplicate = isCellDuplicate(virtualRow.index, header);
+                                        
+                                        const cellValue = row[header];
+                                        let displayValue = "";
+                                        if (cellValue instanceof Date) {
+                                            const day = String(cellValue.getUTCDate()).padStart(2, '0');
+                                            const month = String(cellValue.getUTCMonth() + 1).padStart(2, '0');
+                                            const year = cellValue.getUTCFullYear();
+                                            displayValue = `${day}/${month}/${year}`;
+                                        } else {
+                                            displayValue = String(cellValue || "");
+                                        }
 
-            <footer className="flex-shrink-0">
+                                        return (
+                                            <div
+                                                key={`${virtualRow.index}-${colIndex}`}
+                                                style={{ 
+                                                    width: columnWidths[header],
+                                                    left: header === "No" ? 0 : 'auto',
+                                                }}
+                                                className={cn(
+                                                    "p-0 m-0 border-r border-b relative flex items-center",
+                                                    header === "No" && "sticky z-20 bg-background",
+                                                    isDuplicate && "bg-red-50 dark:bg-red-950/30"
+                                                )}
+                                            >
+                                                <Input
+                                                    type="text"
+                                                    value={header === "No" ? getRowNumberValue(row, virtualRow.index) : displayValue}
+                                                    readOnly={header === "No"}
+                                                    onChange={(e) => handleCellChange(virtualRow.index, header, e.target.value)}
+                                                    onKeyDown={(e) => handleKeyDown(e, { row: virtualRow.index, col: colIndex })}
+                                                    onMouseDown={(e) => handleMouseDown(e, { row: virtualRow.index, col: colIndex })}
+                                                    onMouseOver={(e) => handleMouseOver(e, { row: virtualRow.index, col: colIndex })}
+                                                    data-row={virtualRow.index}
+                                                    data-col={colIndex}
+                                                    className={cn(
+                                                        "w-full h-7 text-xs px-1 rounded-none border-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
+                                                        header === "No" ? "bg-muted/30 cursor-default focus-visible:ring-0 text-center" : "bg-transparent",
+                                                        isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
+                                                        isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50",
+                                                        isDuplicate && "bg-red-100/70 dark:bg-red-900/70 border-red-300 dark:border-red-700"
+                                                    )}
+                                                />
+                                                {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
+                                                {isDuplicate && <div className="absolute inset-0 border-2 border-red-500 pointer-events-none z-10" />}
+                                                {isBottomRightCell && !isDraggingFill && (
+                                                    <div 
+                                                        onMouseDown={handleFillHandleMouseDown}
+                                                        className="absolute -bottom-1 -right-1 h-2 w-2 bg-primary cursor-crosshair z-20 border border-background"
+                                                    />
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+
+            <div className="flex-shrink-0 p-2 border-t">
                 <div className="flex items-center gap-2">
                     <Input
                         type="number"
@@ -1019,15 +1063,13 @@ export function MigrasiMurid() {
                         }}
                         placeholder=""
                         className="w-24 h-9"
-                        suppressHydrationWarning
                     />
-                    <Button onClick={handleAddRows} size="sm" variant="outline" suppressHydrationWarning>
+                    <Button onClick={handleAddRows} size="sm" variant="outline">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Tambah Baris
                     </Button>
                 </div>
-            </footer>
+            </div>
         </div>
     );
 }
-    

@@ -1,7 +1,6 @@
-
 "use client";
 
-import { AlertTriangle, Database, RefreshCw, Search, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, ChevronDown, Download, Check, Copy, UserPlus, Calendar as CalendarIcon, Trash2 } from "lucide-react";
+import { AlertTriangle, Database, RefreshCw, Search, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, ChevronDown, Download, Check, Copy, UserPlus, Calendar as CalendarIcon, Trash2, GripVertical } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -95,6 +94,23 @@ const ALL_STATUSES = ['Solved', 'L3', 'L2', 'L1', 'PM', 'Move to Issue Tracker']
 const ALL_MODULES = ['PPDP/PMB', 'LMS/KBM', 'Administrasi Akademik', 'CBT', 'Penilaian/Raport', 'Payment', 'Perpustakaan', 'Pesantren', 'Pintro Pay', 'Boarding', 'Migrasi Data', 'Aplikasi/Mobile', 'Akses Portal'];
 const ALL_DETAIL_MODULES = ['Payment - Angsuran', 'Payment - Daftar Ulang', 'Payment - Diskon', 'Payment - Double Bayar / Refund', 'Payment - Gagal Transaksi', 'Payment - Laporan / Selisih', 'Payment - Pintro Cash', 'Payment - SPPK', 'Payment - Tagihan tidak terupdate', 'Payment - Tambah Tagihan', 'Payment - Hapus Data', 'Payment - Update Tagihan', 'PPDB - Setup PPDB', 'PPDB - Jadwal PPDB', 'PPDB - Form Pendaftar', 'PPDB - Data Pendaftar', 'PPDB - Status Pendaftar', 'PPDB - Proses Kelulusan', 'PPDB - Ujian Online', 'PPDB - Laporan', 'LMS - Materi', 'LMS - Tugas', 'LMS - Ujian / Quiz', 'LMS - Absensi', 'LMS - Forum Diskusi', 'Akademik - Kalender Akademik', 'Akademik - Kurikulum', 'Akademik - Jadwal Pelajaran', 'Akademik - Data Siswa', 'Akademik - Data Guru', 'CBT - Bank Soal', 'CBT - Jadwal Ujian', 'CBT - Pelaksanaan Ujian', 'CBT - Hasil Ujian', 'Penilaian - Input Nilai', 'Penilaian - Proses Rapor', 'Penilaian - Cetak Rapor', 'Penilaian - Leger Nilai', 'Mobile - Notifikasi', 'Mobile - Login/Logout'];
 const ALL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+// Helper function to format date as DD/MM/YYYY
+const formatDateDDMMYYYY = (dateString: string | null | undefined): string => {
+    if (!dateString) return '-';
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '-';
+        
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        
+        return `${day}/${month}/${year}`;
+    } catch {
+        return '-';
+    }
+};
 
 const moduleColorMap: Record<string, string> = {
     'Payment': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
@@ -426,10 +442,20 @@ const LazyEditableCell = memo(({
         borderRight: '1px solid hsl(var(--border))'
     };
 
+    // Frozen column styling for 'no'
+    const frozenCellStyle = header === 'no' ? {
+        ...cellStyle,
+        position: 'sticky' as const,
+        left: 0,
+        zIndex: 5,
+        backgroundColor: 'hsl(var(--background))',
+        boxShadow: '2px 0 4px -2px rgba(0, 0, 0, 0.1)',
+    } : cellStyle;
+
     if (header === 'no') {
         return (
-            <div className="align-middle flex items-center justify-center" style={cellStyle}>
-                <span className="truncate text-xs">{rowNumber}</span>
+            <div className="align-middle flex items-center justify-center border-r-2" style={frozenCellStyle}>
+                <span className="truncate text-xs font-medium">{rowNumber}</span>
             </div>
         );
     }
@@ -438,9 +464,14 @@ const LazyEditableCell = memo(({
         const cellValueStr = (value as string) || '';
         const isValid = availableClientsSet.has(cellValueStr.toLowerCase());
 
+        // Frozen column styling
+        const clientCellStyle = {
+            ...cellStyle,
+        };
+
         if (isActive) {
             return (
-                <div className="align-middle relative" style={cellStyle}>
+                <div className="align-middle relative" style={clientCellStyle}>
                     <Select
                         value={localValue}
                         onValueChange={(newValue) => {
@@ -481,7 +512,7 @@ const LazyEditableCell = memo(({
         return (
             <div 
                 className="align-middle relative cursor-pointer hover:bg-accent/50" 
-                style={cellStyle}
+                style={clientCellStyle}
                 onClick={() => isEditable && onCellClick(rowId, header)}
             >
                 <div className="py-1 px-2 flex items-center h-full justify-center">
@@ -504,7 +535,7 @@ const LazyEditableCell = memo(({
             header === 'detail_module' ? ALL_DETAIL_MODULES : [];
 
         return (
-            <div className="align-middle" style={cellStyle}>
+            <div className="align-middle" style={frozenCellStyle}>
                 <Select
                     value={localValue ?? ''}
                     onValueChange={(newValue) => {
@@ -539,7 +570,7 @@ const LazyEditableCell = memo(({
 
     if (isEditable && isActive) {
         return (
-            <div className="align-middle" style={cellStyle}>
+            <div className="align-middle" style={frozenCellStyle}>
                 <Input
                     ref={inputRef}
                     type="text"
@@ -556,11 +587,14 @@ const LazyEditableCell = memo(({
     return (
         <div 
             className={cn("align-middle", isEditable && "cursor-pointer hover:bg-accent/50")}
-            style={cellStyle}
+            style={frozenCellStyle}
             onClick={() => isEditable && onCellClick(rowId, header)}
         >
             <div className={cn("py-1 px-2 flex items-center h-full", !['title', 'note'].includes(header) && 'justify-center')}>
                 {(() => {
+                    if (header === 'date') {
+                        return <span className="truncate text-xs">{formatDateDDMMYYYY(value)}</span>;
+                    }
                     if (header === 'created_at' || header === 'resolved_at') {
                         return <span className="truncate text-xs">{value ? formatDateTime(value, 'report') : '-'}</span>;
                     }
@@ -718,6 +752,11 @@ export function DbViewer({
     const [isDeleting, setIsDeleting] = useState(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout>();
     
+    // 🎯 Column resizing state
+    const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+    const [startX, setStartX] = useState(0);
+    const [startWidth, setStartWidth] = useState(0);
+    
     const availableClientsSet = useMemo(
         () => new Set(availableClients.map(c => c.toLowerCase())), 
         [availableClients]
@@ -777,6 +816,37 @@ export function DbViewer({
     }, [headers, initialColumnWidths]);
 
     const totalWidth = useMemo(() => Object.values(columnWidths).reduce((acc, width) => acc + width, 0), [columnWidths]);
+
+    // 🎯 Column resize handlers
+    const handleResizeStart = useCallback((e: MouseEvent<HTMLDivElement>, header: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setResizingColumn(header);
+        setStartX(e.clientX);
+        setStartWidth(columnWidths[header]);
+    }, [columnWidths]);
+
+    const handleResizeMove = useCallback((e: globalThis.MouseEvent) => {
+        if (!resizingColumn) return;
+        const delta = e.clientX - startX;
+        const newWidth = Math.max(60, startWidth + delta); // Minimum width 60px
+        setColumnWidths(prev => ({ ...prev, [resizingColumn]: newWidth }));
+    }, [resizingColumn, startX, startWidth]);
+
+    const handleResizeEnd = useCallback(() => {
+        setResizingColumn(null);
+    }, []);
+
+    useEffect(() => {
+        if (resizingColumn) {
+            document.addEventListener('mousemove', handleResizeMove);
+            document.addEventListener('mouseup', handleResizeEnd);
+            return () => {
+                document.removeEventListener('mousemove', handleResizeMove);
+                document.removeEventListener('mouseup', handleResizeEnd);
+            };
+        }
+    }, [resizingColumn, handleResizeMove, handleResizeEnd]);
 
     // ── Filter helpers ──
     const activeFilterCount = useMemo(
@@ -1103,24 +1173,39 @@ export function DbViewer({
                             </div>
                         ) : (
                             <div style={{ width: `${totalWidth}px` }}>
-                                {/* ── Sticky header row with inline filter popovers ── */}
+                                {/* ── Sticky header row with inline filter popovers & resize handles ── */}
                                 <div className="sticky top-0 z-10 flex bg-muted">
-                                    {headers.map(header => {
+                                    {headers.map((header, idx) => {
                                         const isFilterable = FILTERABLE_SET.has(header);
                                         const isDateCol = header === 'date';
+                                        const isLastColumn = idx === headers.length - 1;
+                                        const isNoColumn = header === 'no';
+
+                                        // Frozen column styling for 'no'
+                                        const headerStyle: React.CSSProperties = isNoColumn ? {
+                                            width: columnWidths[header],
+                                            flexShrink: 0,
+                                            borderBottom: '1px solid hsl(var(--border))',
+                                            borderRight: '2px solid hsl(var(--border))',
+                                            position: 'sticky',
+                                            left: 0,
+                                            zIndex: 20,
+                                            backgroundColor: 'hsl(var(--muted))',
+                                            boxShadow: '2px 0 4px -2px rgba(0, 0, 0, 0.2)',
+                                        } : {
+                                            width: columnWidths[header],
+                                            flexShrink: 0,
+                                            borderBottom: '1px solid hsl(var(--border))',
+                                            borderRight: '1px solid hsl(var(--border))',
+                                        };
 
                                         return (
                                             <div
                                                 key={header}
-                                                className="h-12 flex items-center justify-center relative text-xs font-semibold"
-                                                style={{ 
-                                                    width: columnWidths[header], 
-                                                    flexShrink: 0, 
-                                                    borderBottom: '1px solid hsl(var(--border))', 
-                                                    borderRight: '1px solid hsl(var(--border))' 
-                                                }}
+                                                className="h-12 flex items-center justify-center relative text-xs font-semibold group"
+                                                style={headerStyle}
                                             >
-                                                {/* Date column → DateRange popover */}
+                                                {/* Header content */}
                                                 {isDateCol ? (
                                                     <DateRangeHeaderPopover
                                                         dateRange={dateRange}
@@ -1130,7 +1215,6 @@ export function DbViewer({
                                                         }}
                                                     />
                                                 )
-                                                /* Filterable columns → multi-select popover */
                                                 : isFilterable ? (
                                                     <HeaderFilterPopover
                                                         label={headerDisplayMapping[header] || header}
@@ -1142,9 +1226,24 @@ export function DbViewer({
                                                         onAddClient={header === 'client_name' ? () => setIsAddClientOpen(true) : undefined}
                                                     />
                                                 )
-                                                /* Plain non-filterable header */
                                                 : (
                                                     <span className="truncate px-2">{headerDisplayMapping[header] || header}</span>
+                                                )}
+
+                                                {/* 🎯 Resize handle - skip for last column and No column */}
+                                                {!isLastColumn && !isNoColumn && (
+                                                    <div
+                                                        className={cn(
+                                                            "absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 transition-colors",
+                                                            resizingColumn === header && "bg-primary"
+                                                        )}
+                                                        onMouseDown={(e) => handleResizeStart(e, header)}
+                                                        title="Drag to resize"
+                                                    >
+                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <GripVertical className="h-4 w-4 text-muted-foreground -ml-1.5" />
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </div>
                                         );
