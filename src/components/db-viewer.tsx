@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AlertTriangle, Database, RefreshCw, Search, FilterX, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, ChevronDown, Download, Check, Copy, UserPlus, Calendar as CalendarIcon, Trash2, GripVertical } from "lucide-react";
@@ -850,8 +851,8 @@ export function DbViewer({
 
     // ── Filter helpers ──
     const activeFilterCount = useMemo(
-        () => Object.values(columnFilters).reduce((sum, arr) => sum + arr.length, 0) + (dateRange ? 1 : 0),
-        [columnFilters, dateRange]
+        () => Object.values(columnFilters).reduce((sum, arr) => sum + arr.length, 0) + (dateRange ? 1 : 0) + (yearFilter ? 1 : 0),
+        [columnFilters, dateRange, yearFilter]
     );
 
     const setFilterForColumn = useCallback((column: string, values: string[]) => {
@@ -868,6 +869,7 @@ export function DbViewer({
         setColumnFilters({});
         setDateRange(undefined);
         setCurrentPage(1);
+        setYearFilter('');
     }, []);
 
     const filterOptionsMap: Record<string, string[]> = useMemo(() => ({
@@ -1132,6 +1134,17 @@ export function DbViewer({
                                     className="pl-8 sm:w-[280px]"
                                 />
                             </div>
+                             <Select value={yearFilter} onValueChange={setYearFilter}>
+                                <SelectTrigger className="w-[120px] h-10">
+                                    <SelectValue placeholder="Year" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">All Years</SelectItem>
+                                    {availableYears.map(year => (
+                                        <SelectItem key={year} value={year}>{year}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             {/* Clear All — shown inline next to search when any filter is active */}
                             {activeFilterCount > 0 && (
                                 <button
@@ -1307,3 +1320,5 @@ export function DbViewer({
         </div>
     );
 }
+
+    
