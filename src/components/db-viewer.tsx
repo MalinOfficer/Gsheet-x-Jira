@@ -30,6 +30,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Label } from "./ui/label";
 import { formatDateTime } from "@/lib/date-utils";
+import { Checkbox } from "./ui/checkbox";
 
 declare const XLSX: any;
 
@@ -388,6 +389,8 @@ const LazyEditableCell = memo(({
     availableClientsSet,
     activeCell,
     onCellClick,
+    isSelected,
+    onToggleSelect,
 }: {
     header: string;
     value: any;
@@ -400,6 +403,8 @@ const LazyEditableCell = memo(({
     availableClientsSet: Set<string>;
     activeCell: { rowId: number; header: string } | null;
     onCellClick: (rowId: number, header: string) => void;
+    isSelected: boolean;
+    onToggleSelect: (rowId: number) => void;
 }) => {
     const [localValue, setLocalValue] = useState(value);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -455,8 +460,22 @@ const LazyEditableCell = memo(({
 
     if (header === 'no') {
         return (
-            <div className="align-middle flex items-center justify-center border-r-2" style={frozenCellStyle}>
-                <span className="truncate text-xs font-medium">{rowNumber}</span>
+            <div 
+                className={cn(
+                    "align-middle flex items-center justify-center border-r-2 cursor-pointer hover:bg-accent/50",
+                    isSelected && "bg-primary/10"
+                )} 
+                style={frozenCellStyle}
+                onClick={() => onToggleSelect(rowId)}
+            >
+                <div className="flex items-center gap-2">
+                    <Checkbox 
+                        checked={isSelected}
+                        onCheckedChange={() => onToggleSelect(rowId)}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                    <span className="truncate text-xs font-medium">{rowNumber}</span>
+                </div>
             </div>
         );
     }
@@ -653,6 +672,7 @@ const MemoizedRow = memo(({
     handleCellChange, handleCellSave,
     availableClients, availableClientsSet,
     activeCell, onCellClick, onDeleteRow,
+    isSelected, onToggleSelect,
 }: {
     row: any;
     headers: string[];
@@ -665,9 +685,11 @@ const MemoizedRow = memo(({
     activeCell: { rowId: number; header: string } | null;
     onCellClick: (rowId: number, header: string) => void;
     onDeleteRow: (id: number) => void;
+    isSelected: boolean;
+    onToggleSelect: (rowId: number) => void;
 }) => {
     return (
-        <div className="group relative flex border-b transition-colors hover:bg-muted/50 h-full">
+        <div className={cn("group relative flex border-b transition-colors hover:bg-muted/50 h-full", isSelected && "bg-primary/5")}>
             {headers.map(header => (
                 <LazyEditableCell
                     key={`${row.id}-${header}`}
@@ -682,6 +704,8 @@ const MemoizedRow = memo(({
                     availableClientsSet={availableClientsSet}
                     activeCell={activeCell}
                     onCellClick={onCellClick}
+                    isSelected={isSelected}
+                    onToggleSelect={onToggleSelect}
                 />
             ))}
             <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center justify-center w-10 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-background">
@@ -727,7 +751,7 @@ export function DbViewer({
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
-    const [yearFilter, setYearFilter] = useState<string>('');
+    const [yearFilter, setYearFilter] = useState<string>('all');
     
     const [pageSize, setPageSize] = useState(50);
     const [currentPage, setCurrentPage] = useState(1);
@@ -753,6 +777,10 @@ export function DbViewer({
     const [isDeleting, setIsDeleting] = useState(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout>();
     
+    // 🎯 Selection state for bulk delete
+    const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    
     // 🎯 Column resizing state
     const [resizingColumn, setResizingColumn] = useState<string | null>(null);
     const [startX, setStartX] = useState(0);
@@ -762,6 +790,30 @@ export function DbViewer({
         () => new Set(availableClients.map(c => c.toLowerCase())), 
         [availableClients]
     );
+
+    // 🎯 Extract all available years from data
+    const allAvailableYears = useMemo(() => {
+        const yearsFromProps = new Set(availableYears);
+        
+        // Extract years from current data
+        if (state.data && state.data.length > 0) {
+            state.data.forEach(row => {
+                if (row.date) {
+                    try {
+                        const date = new Date(row.date);
+                        if (!isNaN(date.getTime())) {
+                            yearsFromProps.add(date.getFullYear().toString());
+                        }
+                    } catch (e) {
+                        // Ignore invalid dates
+                    }
+                }
+            });
+        }
+        
+        // Convert to sorted array (descending - newest first)
+        return Array.from(yearsFromProps).sort((a, b) => parseInt(b) - parseInt(a));
+    }, [availableYears, state.data]);
 
     const headers = useMemo(() => {
         if (!state.data || !state.data.length) return ['no'];
@@ -801,7 +853,7 @@ export function DbViewer({
 
     const initialColumnWidths = useCallback(() => {
         const widths: Record<string, number> = {
-            no: 60, date: 120, month: 90, title: 350, client_name: 180,
+            no: 80, date: 120, month: 90, title: 350, client_name: 180,
             customer_name: 180, status: 140, ticket_category: 160, module: 150,
             detail_module: 200, created_at: 150, resolved_at: 150,
             status_case_2: 130, duration: 130, ticket_op: 150, note: 250,
@@ -851,7 +903,7 @@ export function DbViewer({
 
     // ── Filter helpers ──
     const activeFilterCount = useMemo(
-        () => Object.values(columnFilters).reduce((sum, arr) => sum + arr.length, 0) + (dateRange ? 1 : 0) + (yearFilter ? 1 : 0),
+        () => Object.values(columnFilters).reduce((sum, arr) => sum + arr.length, 0) + (dateRange ? 1 : 0) + (yearFilter && yearFilter !== 'all' ? 1 : 0),
         [columnFilters, dateRange, yearFilter]
     );
 
@@ -869,7 +921,7 @@ export function DbViewer({
         setColumnFilters({});
         setDateRange(undefined);
         setCurrentPage(1);
-        setYearFilter('');
+        setYearFilter('all');
     }, []);
 
     const filterOptionsMap: Record<string, string[]> = useMemo(() => ({
@@ -896,7 +948,7 @@ export function DbViewer({
             if (isRefresh) { setIsRefreshing(true); setProgress(0); }
             
             const dataResult = await getAllCaseData({
-                year: yearFilter || undefined,
+                year: yearFilter && yearFilter !== 'all' ? yearFilter : undefined,
                 dateRange: dateRange,
                 category: columnFilters['ticket_category'],
                 client: columnFilters['client_name'],
@@ -984,6 +1036,53 @@ export function DbViewer({
         });
     }, [state.data]);
 
+    // 🎯 Selection handlers - MOVED HERE AFTER displayData
+    const handleToggleSelect = useCallback((rowId: number) => {
+        setSelectedRows(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(rowId)) {
+                newSet.delete(rowId);
+            } else {
+                newSet.add(rowId);
+            }
+            return newSet;
+        });
+    }, []);
+
+    const handleSelectAll = useCallback(() => {
+        if (selectedRows.size === displayData.length) {
+            setSelectedRows(new Set());
+        } else {
+            setSelectedRows(new Set(displayData.map(row => row.id)));
+        }
+    }, [displayData, selectedRows.size]);
+
+    const handleBulkDelete = useCallback(async () => {
+        if (selectedRows.size === 0) return;
+        
+        setIsBulkDeleting(true);
+        const idsToDelete = Array.from(selectedRows);
+        const result = await deleteCases(idsToDelete);
+        
+        if (result.success) {
+            toast({ 
+                title: "Rows Deleted", 
+                description: `${idsToDelete.length} row(s) have been deleted.`, 
+                duration: 2000 
+            });
+            setState(prev => ({
+                ...prev,
+                data: prev.data?.filter(r => !selectedRows.has(r.id)) || null,
+            }));
+            setTotalRows(prev => prev - idsToDelete.length);
+            setSelectedRows(new Set());
+        } else {
+            toast({ variant: "destructive", title: "Delete Failed", description: result.error });
+        }
+        
+        setIsBulkDeleting(false);
+    }, [selectedRows, toast]);
+
     const rowVirtualizer = useVirtualizer({
         count: displayData.length,
         getScrollElement: () => tableContainerRef.current,
@@ -1068,7 +1167,18 @@ export function DbViewer({
             return;
         }
         const exportHeaders = headers.map(h => headerDisplayMapping[h] || h);
-        const dataForSheet = displayData.map(row => headers.map(header => row[header] ?? ''));
+        const dataForSheet = displayData.map(row => {
+            return headers.map(header => {
+                const value = row[header];
+                if ((header === 'created_at' || header === 'resolved_at') && value) {
+                    return formatDateTime(value, 'report');
+                }
+                if (header === 'date' && value) {
+                    return formatDateDDMMYYYY(value);
+                }
+                return value ?? '';
+            });
+        });
         const worksheet = XLSX.utils.aoa_to_sheet([exportHeaders, ...dataForSheet]);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "All Cases");
@@ -1139,8 +1249,8 @@ export function DbViewer({
                                     <SelectValue placeholder="Year" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">All Years</SelectItem>
-                                    {availableYears.map(year => (
+                                    <SelectItem value="all">All Years</SelectItem>
+                                    {allAvailableYears.map(year => (
                                         <SelectItem key={year} value={year}>{year}</SelectItem>
                                     ))}
                                 </SelectContent>
@@ -1162,6 +1272,21 @@ export function DbViewer({
                                     <RefreshCw className="h-3 w-3 animate-spin" />
                                     Saving...
                                 </span>
+                            )}
+                            {selectedRows.size > 0 && (
+                                <Button 
+                                    onClick={handleBulkDelete} 
+                                    size="sm" 
+                                    variant="destructive"
+                                    disabled={isBulkDeleting}
+                                >
+                                    {isBulkDeleting ? (
+                                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                    )}
+                                    Delete ({selectedRows.size})
+                                </Button>
                             )}
                             <Button onClick={handleExport} size="sm" variant="outline">
                                 <Download className="mr-2 h-4 w-4" />
@@ -1219,7 +1344,15 @@ export function DbViewer({
                                                 style={headerStyle}
                                             >
                                                 {/* Header content */}
-                                                {isDateCol ? (
+                                                {isNoColumn ? (
+                                                    <div className="flex items-center gap-2 cursor-pointer" onClick={handleSelectAll}>
+                                                        <Checkbox 
+                                                            checked={selectedRows.size === displayData.length && displayData.length > 0}
+                                                            onCheckedChange={handleSelectAll}
+                                                        />
+                                                        <span className="truncate text-xs font-semibold">No</span>
+                                                    </div>
+                                                ) : isDateCol ? (
                                                     <DateRangeHeaderPopover
                                                         dateRange={dateRange}
                                                         onDateRangeChange={(range) => {
@@ -1288,8 +1421,10 @@ export function DbViewer({
                                                     availableClients={availableClients}
                                                     availableClientsSet={availableClientsSet}
                                                     activeCell={activeCell}
-                                                    onCellClick={handleCellClick}
+                                                    onCellClick={onCellClick}
                                                     onDeleteRow={handleDeleteRow}
+                                                    isSelected={selectedRows.has(row.id)}
+                                                    onToggleSelect={handleToggleSelect}
                                                 />
                                             </div>
                                         );
@@ -1304,6 +1439,11 @@ export function DbViewer({
                     <div className="flex items-center justify-between w-full">
                         <div className="flex-1 text-sm text-muted-foreground">
                             Showing {totalRows > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRows)} of {totalRows.toLocaleString()} rows
+                            {selectedRows.size > 0 && (
+                                <span className="ml-2 text-primary font-medium">
+                                    ({selectedRows.size} selected)
+                                </span>
+                            )}
                         </div>
                         <div className="flex items-center space-x-2">
                             <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
