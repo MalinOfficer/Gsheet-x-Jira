@@ -79,7 +79,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [error, setError] = useState<string | null>(initialError || null);
     const [isApplyingFilters, startApplyingFilters] = useTransition();
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const isInitialMount = useRef(true);
 
     // Filter states
     const [selectedYear, setSelectedYear] = useState<string>('all');
@@ -158,6 +157,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         
         const url = `/api/dashboard?${params.toString()}`;
         console.log('🌐 [Fetcher] Fetching URL:', url);
+        console.log('📋 [Fetcher] Filters:', filters);
         
         const response = await fetch(url);
         console.log('📡 [Fetcher] Response status:', response.status);
@@ -177,16 +177,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         return result.data;
     }, []);
 
-    // Effect to fetch data
+    // Effect to fetch data when filters change
     useEffect(() => {
-        // Skip pada mount pertama jika ada initialStats
-        if (isInitialMount.current) {
-            isInitialMount.current = false;
-            if (initialStats) {
-                return; // Ada initial data, skip fetch
-            }
-        }
-
         console.log('🔄 [Dashboard] useEffect triggered with filters:', {
             selectedYear,
             categoryFilter,
@@ -219,7 +211,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 });
             }
         });
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, fetcher, toast]);
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, fetcher]);
 
     const handleRefresh = useCallback(() => {
         console.log('🔄 [Dashboard] Refresh button clicked');
@@ -236,9 +228,15 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     dateRange 
                 });
                 setStats(data);
+                toast({ title: "Refreshed!", description: "Dashboard data has been updated." });
             } catch (err: any) {
                 setError(err.message);
                 setStats(null);
+                toast({
+                    variant: "destructive",
+                    title: "Refresh failed",
+                    description: err.message,
+                });
             } finally {
                 setIsRefreshing(false);
             }
@@ -253,7 +251,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 }
             });
         });
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, toast, fetcher]);
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, fetcher]);
 
     if (isApplyingFilters && !stats) {
         return (
@@ -372,6 +370,17 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div>
                             <CardTitle className="text-xl font-bold">Total Case</CardTitle>
+                            {areFiltersActive && (
+                                <CardDescription className="text-xs text-muted-foreground mt-1">
+                                    Filters active: {[
+                                        selectedYear !== 'all' && `Year: ${selectedYear}`,
+                                        categoryFilter.length > 0 && `Categories: ${categoryFilter.length}`,
+                                        clientFilter.length > 0 && `Clients: ${clientFilter.length}`,
+                                        moduleFilter.length > 0 && `Modules: ${moduleFilter.length}`,
+                                        dateRange && 'Date range set'
+                                    ].filter(Boolean).join(', ')}
+                                </CardDescription>
+                            )}
                         </div>
                         <div className="flex w-full sm:w-auto items-center justify-end gap-2 flex-wrap">
                             <Popover>
@@ -379,6 +388,11 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     <Button size="sm" variant="outline">
                                         <Filter className="mr-2 h-4 w-4" />
                                         Filter
+                                        {areFiltersActive && (
+                                            <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs font-semibold">
+                                                {[categoryFilter.length, clientFilter.length, moduleFilter.length, dateRange ? 1 : 0].reduce((a, b) => a + b, 0)}
+                                            </span>
+                                        )}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-80 space-y-4">
@@ -422,30 +436,36 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     <Separator />
                                     <div className="space-y-2">
                                         <h4 className="font-medium leading-none">Filter by Category</h4>
-                                        <MultiSelect
-                                            options={filterOptions?.categories || []}
-                                            selected={categoryFilter}
-                                            onChange={setCategoryFilter}
-                                            placeholder="Select categories..."
-                                        />
+                                        <div className={cn(!categoryFilter.length && "text-muted-foreground")}>
+                                            <MultiSelect
+                                                options={filterOptions?.categories || []}
+                                                selected={categoryFilter}
+                                                onChange={setCategoryFilter}
+                                                placeholder="Select categories..."
+                                            />
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
                                         <h4 className="font-medium leading-none">Filter by Client</h4>
-                                        <MultiSelect
-                                            options={filterOptions?.clients || []}
-                                            selected={clientFilter}
-                                            onChange={setClientFilter}
-                                            placeholder="Select clients..."
-                                        />
+                                        <div className={cn(!clientFilter.length && "text-muted-foreground")}>
+                                            <MultiSelect
+                                                options={filterOptions?.clients || []}
+                                                selected={clientFilter}
+                                                onChange={setClientFilter}
+                                                placeholder="Select clients..."
+                                            />
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
                                         <h4 className="font-medium leading-none">Filter by Module</h4>
-                                        <MultiSelect
-                                            options={filterOptions?.modules || []}
-                                            selected={moduleFilter}
-                                            onChange={setModuleFilter}
-                                            placeholder="Select modules..."
-                                        />
+                                        <div className={cn(!moduleFilter.length && "text-muted-foreground")}>
+                                            <MultiSelect
+                                                options={filterOptions?.modules || []}
+                                                selected={moduleFilter}
+                                                onChange={setModuleFilter}
+                                                placeholder="Select modules..."
+                                            />
+                                        </div>
                                     </div>
                                 </PopoverContent>
                             </Popover>
@@ -462,6 +482,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             <Select 
                                 value={selectedYear} 
                                 onValueChange={(value) => {
+                                    console.log('📅 [Dashboard] Year changed to:', value);
                                     setSelectedYear(value);
                                 }}
                             >
@@ -593,4 +614,3 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         </div>
     );
 }
-    

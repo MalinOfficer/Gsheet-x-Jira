@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useTransition, useEffect, useContext, useCallback, useRef, MouseEvent } from 'react';
@@ -620,7 +619,7 @@ export function ImportFlow() {
                 </CardDescription>
             </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-10">
           <div className="grid grid-cols-1 gap-4 items-start">
               <div className="grid gap-2">
                   <Label htmlFor="json-input">Paste Content (JSON or CSV)</Label>
@@ -630,7 +629,7 @@ export function ImportFlow() {
                       value={jsonInput}
                       onChange={(e) => { setJsonInput(e.target.value); setTableData(null); setJsonError(null); }}
                       rows={8}
-                      className="font-mono text-xs"
+                      className="font-mono text-xs px-4"
                       disabled={isProcessing || !!tableData}
                   />
               </div>
@@ -641,7 +640,7 @@ export function ImportFlow() {
           
           {jsonError && <JsonErrorAlert message={jsonError} />}
         </CardContent>
-        <CardFooter className="flex items-center justify-between">
+        <CardFooter className="flex items-center justify-between px-10">
              <div className="flex flex-wrap gap-2">
                 <Button onClick={handleJsonImportClick} variant="outline" size="sm" disabled={isProcessing || !!tableData}>
                   <Upload className="mr-2 h-4 w-4" /> Import Json
@@ -810,7 +809,7 @@ function PreviewTable({
         const currentWidth = startWidth.current + e.clientX - startX.current;
         setColumnWidths(prev => ({
             ...prev,
-            [isResizing.current as string]: Math.max(40, currentWidth) // Minimum width 40px
+            [isResizing.current as string]: Math.max(40, currentWidth)
         }));
     }, []);
 

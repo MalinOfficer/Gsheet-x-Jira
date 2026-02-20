@@ -1,4 +1,3 @@
-
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase";
@@ -18,9 +17,6 @@ const formatDate = (date: any) => {
     if (!date) return null;
     try {
         const d = new Date(date);
-        // Heuristic to correct for timezone shifts.
-        // If the date from the client is past noon in UTC, it's likely the next day in the user's timezone.
-        // This happens for users in timezones ahead of UTC (e.g., Asia).
         if (d.getUTCHours() >= 12) {
           d.setUTCDate(d.getUTCDate() + 1);
         }
@@ -38,9 +34,6 @@ const formatDate = (date: any) => {
 // FETCH ALL CASES DATA (Not used by dashboard, for DB viewer)
 // ============================================
 
-// File: actions.ts - Update getAllCaseData function
-// File: app/actions.ts
-
 export async function getAllCaseData(filters?: {
   year?: string;
   category?: string[];
@@ -50,38 +43,33 @@ export async function getAllCaseData(filters?: {
   detailModule?: string[];
   month?: string[];
   dateRange?: { from?: Date; to?: Date };
-  search?: string;           // 🔥 NEW: Global search
-  page?: number;              // 🔥 NEW: Current page (1-based)
-  pageSize?: number;          // 🔥 NEW: Rows per page
-  sortBy?: string;            // 🔥 NEW: Sort column
-  sortOrder?: 'asc' | 'desc'; // 🔥 NEW: Sort direction
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }) {
   try {
-    // Pagination params with safe defaults
     const page = Math.max(1, filters?.page || 1);
-    const pageSize = Math.min(filters?.pageSize || 100, 500); // Max 500 rows
+    const pageSize = Math.min(filters?.pageSize || 100, 500);
     const offset = (page - 1) * pageSize;
 
     console.log('📊 Pagination:', { page, pageSize, offset });
 
-    // Build base query
     let query = supabaseAdmin
       .from("all_cases")
       .select(getSelectColumns(), { count: "exact" })
       .is('deleted_at', null);
 
-    // Apply sorting
     const sortBy = filters?.sortBy || 'date';
     const sortOrder = filters?.sortOrder || 'desc';
     query = query.order(sortBy, { ascending: sortOrder === 'asc' });
 
-    // Apply date range filter OR year filter, with date range taking precedence.
     if (filters?.dateRange?.from) {
       const fromDate = formatDate(filters.dateRange.from);
       const toDate = filters?.dateRange?.to
         ? formatDate(filters.dateRange.to)
         : formatDate(filters.dateRange.from);
-
       query = query.gte('date', fromDate).lte('date', toDate);
     } else if (filters?.year && filters.year !== 'all') {
       const yearNum = parseInt(filters.year, 10);
@@ -90,32 +78,13 @@ export async function getAllCaseData(filters?: {
         .lte('date', `${yearNum}-12-31`);
     }
 
-    // Apply multi-select filters
-    if (filters?.category?.length) {
-      query = query.in('category_case', filters.category);
-    }
+    if (filters?.category?.length) query = query.in('category_case', filters.category);
+    if (filters?.client?.length) query = query.in('client_name', filters.client);
+    if (filters?.module?.length) query = query.in('module_case', filters.module);
+    if (filters?.status?.length) query = query.in('status_case', filters.status);
+    if (filters?.detailModule?.length) query = query.in('detail_module', filters.detailModule);
+    if (filters?.month?.length) query = query.in('month', filters.month);
 
-    if (filters?.client?.length) {
-      query = query.in('client_name', filters.client);
-    }
-
-    if (filters?.module?.length) {
-      query = query.in('module_case', filters.module);
-    }
-
-    if (filters?.status?.length) {
-      query = query.in('status_case', filters.status);
-    }
-
-    if (filters?.detailModule?.length) {
-      query = query.in('detail_module', filters.detailModule);
-    }
-
-    if (filters?.month?.length) {
-        query = query.in('month', filters.month);
-    }
-
-    // 🔥 NEW: Global search (server-side)
     if (filters?.search && filters.search.trim()) {
       const searchTerm = `%${filters.search.trim()}%`;
       query = query.or(
@@ -129,7 +98,6 @@ export async function getAllCaseData(filters?: {
       );
     }
 
-    // 🔥 Apply pagination (CRITICAL!)
     query = query.range(offset, offset + pageSize - 1);
 
     const { data, error, count } = await query;
@@ -166,21 +134,20 @@ export async function getAllCaseData(filters?: {
 // ============================================
 export async function updateCase(caseId: number, data: Record<string, any>) {
   try {
-    // Map frontend-friendly names back to actual DB column names
     const dbData = {
       date: data.date,
       month: data.month,
       client_name: normalizeClientName(data.client_name),
-      pic_client: data.customer_name, // customer_name -> pic_client
-      status_case: data.status, // status -> status_case
-      category_case: data.ticket_category, // ticket_category -> category_case
-      module_case: data.module, // module -> module_case
+      pic_client: data.customer_name,
+      status_case: data.status,
+      category_case: data.ticket_category,
+      module_case: data.module,
       detail_module: data.detail_module,
-      check_in: data.created_at, // created_at -> check_in
-      detail_case: data.title, // title -> detail_case
-      check_out: data.resolved_at, // resolved_at -> check_out
-      status_case_solved: data.status_case_2, // status_case_2 -> status_case_solved
-      source_link_op: data.ticket_op, // ticket_op -> source_link_op
+      check_in: data.created_at,
+      detail_case: data.title,
+      check_out: data.resolved_at,
+      status_case_solved: data.status_case_2,
+      source_link_op: data.ticket_op,
       note: data.note,
     };
 
@@ -261,12 +228,8 @@ export async function deleteCases(caseIds: number[]) {
 
 export async function refreshDashboardViews() {
   try {
-    // This function calls the RPC in supabase to refresh the materialized views
     await supabaseAdmin.rpc('refresh_dashboard_views');
-
-    // Revalidate the cache tag to force a refetch of stats and options
     revalidatePath('/dashboard');
-    
     return { success: true, message: "Views refreshed and cache revalidated." };
   } catch (error: any) {
     console.error("Error refreshing dashboard views:", error);
@@ -282,50 +245,35 @@ const _getDashboardFilterOptions = async () => {
   try {
     console.log('🔍 [FILTER OPTIONS] Starting fetch...');
     
-    // Fetch data menggunakan Promise.all untuk parallel execution
-    const [casesResult, yearsResult] = await Promise.all([
+    const [categoriesResult, casesResult, yearsResult] = await Promise.all([
+      supabaseAdmin
+        .from("ticket_categories")
+        .select("name")
+        .order('name', { ascending: true }),
       supabaseAdmin
         .from("all_cases")
-        .select("category_case, client_name, module_case"),
+        .select("client_name, module_case")
+        .is('deleted_at', null),
       supabaseAdmin.rpc('get_distinct_years')
     ]);
 
     console.log('📦 [RAW YEARS RESULT]:', yearsResult);
     
-    if (casesResult.error) {
-      console.error('❌ Error fetching cases:', casesResult.error);
-      throw casesResult.error;
-    }
-    
-    if (yearsResult.error) {
-      console.error('⚠️ Error fetching years:', yearsResult.error);
-      // Continue with empty years array instead of throwing
-    }
+    if (categoriesResult.error) throw categoriesResult.error;
+    if (casesResult.error) throw casesResult.error;
+    if (yearsResult.error) console.error('⚠️ Error fetching years:', yearsResult.error);
 
+    const categoriesData = categoriesResult.data || [];
     const casesData = casesResult.data || [];
     const yearsData = yearsResult.data || [];
 
-    console.log('📊 Total cases fetched:', casesData.length);
-    console.log('📅 Years data:', yearsData);
+    const uniqueCategories = categoriesData.map((c) => c.name).filter(Boolean);
+    const uniqueClients = [...new Set(casesData.map((c) => c.client_name).filter(Boolean))];
+    const uniqueModules = [...new Set(casesData.map((m) => m.module_case).filter(Boolean))];
 
-    // Extract unique values
-    const uniqueCategories = [
-      ...new Set(casesData.map((c) => c.category_case).filter(Boolean)),
-    ];
-    const uniqueClients = [
-      ...new Set(casesData.map((c) => c.client_name).filter(Boolean)),
-    ];
-    const uniqueModules = [
-      ...new Set(casesData.map((m) => m.module_case).filter(Boolean)),
-    ];
-
-    // Convert years dari database function
-    // Function returns: [{ year: 2024 }, { year: 2025 }, etc.]
     const sortedYears = yearsData
       .map((item: any) => String(item.year))
       .filter((year: string | null) => year && !['null', 'undefined', 'NaN'].includes(year));
-
-    console.log('✅ Final years array:', sortedYears);
 
     const result = {
       success: true,
@@ -336,8 +284,6 @@ const _getDashboardFilterOptions = async () => {
         years: sortedYears,
       },
     };
-
-    console.log('📤 [RETURNING RESULT]:', JSON.stringify(result, null, 2));
 
     return result;
   } catch (error: any) {
@@ -350,11 +296,12 @@ const _getDashboardFilterOptions = async () => {
 };
 
 export async function getDashboardFilterOptions() {
-  console.log('🚀 getDashboardFilterOptions called');
-  const result = await _getDashboardFilterOptions();
-  console.log('📤 getDashboardFilterOptions returning:', result);
-  return result;
+  return await _getDashboardFilterOptions();
 }
+
+// ============================================
+// L3 REPORT
+// ============================================
 
 export async function getL3ReportFromDB() {
   try {
@@ -389,36 +336,26 @@ export async function getL3ReportFromDB() {
     const header = `*Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})*`;
     const totalCases = data.length;
 
-    // --- New Grouping Logic ---
     const getGroupForModule = (moduleName: string | null | undefined): string => {
         const upperCaseModule = (moduleName || '').toUpperCase();
-        if (upperCaseModule === 'PAYMENT' || upperCaseModule === 'PINTRO PAY') {
-            return 'Payment';
-        }
-        if (upperCaseModule === 'APLIKASI/MOBILE' || upperCaseModule === 'AKSES PORTAL') {
-            return 'Aplikasi/Mobile';
-        }
+        if (upperCaseModule === 'PAYMENT' || upperCaseModule === 'PINTRO PAY') return 'Payment';
+        if (upperCaseModule === 'APLIKASI/MOBILE' || upperCaseModule === 'AKSES PORTAL') return 'Aplikasi/Mobile';
         return 'Akademik';
     };
 
     const casesByGroup: Record<string, any[]> = {};
     data.forEach(c => {
       const groupName = getGroupForModule(c.module_case);
-      if (!casesByGroup[groupName]) {
-        casesByGroup[groupName] = [];
-      }
+      if (!casesByGroup[groupName]) casesByGroup[groupName] = [];
       casesByGroup[groupName].push(c);
     });
 
-    // --- Create summary of groups ---
     const summaryLines = [`Total : ${totalCases}`];
-    
-    // Custom sort order for groups
     const groupOrder = ['Akademik', 'Payment', 'Aplikasi/Mobile'];
     const sortedGroups = Object.keys(casesByGroup).sort((a, b) => {
         const indexA = groupOrder.indexOf(a);
         const indexB = groupOrder.indexOf(b);
-        if (indexA === -1 && indexB === -1) return a.localeCompare(b); // Fallback for unexpected groups
+        if (indexA === -1 && indexB === -1) return a.localeCompare(b);
         if (indexA === -1) return 1;
         if (indexB === -1) return -1;
         return indexA - indexB;
@@ -430,37 +367,24 @@ export async function getL3ReportFromDB() {
     });
     const summary = summaryLines.join('\n');
 
-    // --- Create detailed list ---
     const detailLines: string[] = [];
     sortedGroups.forEach(groupName => {
       detailLines.push(`\n*${groupName.toUpperCase()} > L3*`);
       const cases = casesByGroup[groupName];
-
       cases.sort((a,b) => (a.client_name || '').localeCompare(b.client_name || '')).forEach((c, index) => {
         const checkInDate = new Date(c.check_in!);
-        
         let age = 0;
         if (!isNaN(checkInDate.getTime())) {
             const ageDiff = Math.ceil((today.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-            age = Math.max(1, ageDiff); // Ensure age is at least 1 day
+            age = Math.max(1, ageDiff);
         }
-
-        const caseLineParts = [
-            c.client_name,
-            c.ticket_number,
-            c.detail_case,
-            c.source_link_op,
-        ].filter(Boolean); // Filter out any null/undefined/empty parts
-
+        const caseLineParts = [c.client_name, c.ticket_number, c.detail_case, c.source_link_op].filter(Boolean);
         const caseLine = caseLineParts.join(' ').trim();
-        
         detailLines.push(`${index + 1}. ${caseLine} (${age} hari)`.trim());
       });
     });
     const details = detailLines.join('\n');
-
     const reportText = `${header}\n\n${summary}\n${details}`;
-
     return { success: true, report: reportText.trim() };
 
   } catch (err: any) {
@@ -469,6 +393,10 @@ export async function getL3ReportFromDB() {
   }
 }
 
+// ============================================
+// CLIENT MANAGEMENT
+// ============================================
+
 export async function getDistinctClientsFromDB(): Promise<{ success: boolean; clients?: string[]; error?: string }> {
   try {
     const { data, error } = await supabaseAdmin
@@ -476,19 +404,13 @@ export async function getDistinctClientsFromDB(): Promise<{ success: boolean; cl
       .select('name')
       .order('name', { ascending: true });
 
-    if (error) {
-      throw error;
-    }
-    
-    // Assuming the column is named 'name' and it returns objects like { name: 'Client A' }
+    if (error) throw error;
     return { success: true, clients: data.map((c: { name: string }) => c.name).filter(Boolean) };
-
   } catch (err: any) {
     console.error("❌ Error fetching distinct clients:", err);
     return { success: false, error: err.message };
   }
 }
-
 
 export async function addClient(clientName: string): Promise<{ success: boolean; client?: { name: string }; error?: string }> {
   try {
@@ -503,36 +425,302 @@ export async function addClient(clientName: string): Promise<{ success: boolean;
       .single();
 
     if (error) {
-      if (error.code === '23505') { // unique violation
-        return { success: false, error: `Client "${clientName}" already exists.` };
-      }
+      if (error.code === '23505') return { success: false, error: `Client "${clientName}" already exists.` };
       throw error;
     }
     
     revalidatePath('/db');
     revalidatePath('/dashboard');
     return { success: true, client: data as { name: string } };
-
   } catch (err: any) {
     console.error("❌ Error adding new client:", err);
     return { success: false, error: err.message };
   }
 }
 
+// ============================================
+// CATEGORY MANAGEMENT
+// ============================================
+
+export async function getAllCategories(): Promise<{ success: boolean; categories?: { id: number; name: string }[]; error?: string }> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('ticket_categories')
+      .select('id, name')
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+    return { success: true, categories: data };
+  } catch (err: any) {
+    console.error("❌ Error fetching categories:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+export async function addCategory(categoryName: string): Promise<{ success: boolean; category?: { id: number; name: string }; error?: string }> {
+  try {
+    if (!categoryName || categoryName.trim() === '') {
+      return { success: false, error: "Category name cannot be empty." };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('ticket_categories')
+      .insert({ name: categoryName.trim() })
+      .select('id, name')
+      .single();
+
+    if (error) {
+      if (error.code === '23505') return { success: false, error: `Category "${categoryName}" already exists.` };
+      throw error;
+    }
+    
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
+    return { success: true, category: data };
+  } catch (err: any) {
+    console.error("❌ Error adding new category:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+// ============================================
+// DELETE CATEGORY
+// Soft-delete master item; data di all_cases tetap aman (tampil badge merah)
+// ============================================
+
+export async function deleteCategory(categoryId: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabaseAdmin
+      .from('ticket_categories')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', categoryId);
+
+    if (error) throw error;
+
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (err: any) {
+    console.error("❌ Error deleting category:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+// ============================================
+// MASTER STATUS MANAGEMENT
+// ============================================
+
+export async function addMasterStatus(name: string): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    if (!name || name.trim() === '') {
+      return { success: false, error: "Status name cannot be empty." };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('master_status')
+      .insert({ name: name.trim() })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') return { success: false, error: `Status "${name}" already exists.` };
+      throw error;
+    }
+
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
+    return { success: true, data };
+  } catch (err: any) {
+    console.error("❌ Error adding master status:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+// ============================================
+// DELETE MASTER STATUS
+// Soft-delete master item; data di all_cases tetap aman (tampil badge merah)
+// ============================================
+
+export async function deleteMasterStatus(id: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabaseAdmin
+      .from('master_status')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) throw error;
+
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (err: any) {
+    console.error("❌ Error deleting master status:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+// ============================================
+// MASTER MODULE MANAGEMENT
+// ============================================
+
+export async function addMasterModule(name: string): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    if (!name || name.trim() === '') {
+      return { success: false, error: "Module name cannot be empty." };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('master_module')
+      .insert({ nama_module: name.trim() })
+      .select('id_module, nama_module')
+      .single();
+
+    if (error) {
+      if (error.code === '23505') return { success: false, error: `Module "${name}" already exists.` };
+      throw error;
+    }
+
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
+    return { success: true, data: { id: data.id_module, name: data.nama_module } };
+  } catch (err: any) {
+    console.error("❌ Error adding master module:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+// ============================================
+// DELETE MASTER MODULE
+// Soft-delete master item; data di all_cases tetap aman (tampil badge merah)
+// ============================================
+
+export async function deleteMasterModule(id: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabaseAdmin
+      .from('master_module')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id_module', id);
+
+    if (error) throw error;
+
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (err: any) {
+    console.error("❌ Error deleting master module:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+// ============================================
+// MASTER DETAIL MODULE MANAGEMENT
+// ============================================
+
+export async function addMasterDetailModule(name: string): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    if (!name || name.trim() === '') {
+      return { success: false, error: "Detail module name cannot be empty." };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('master_detail_module')
+      .insert({ detail_module: name.trim() })
+      .select('id_module, detail_module')
+      .single();
+
+    if (error) {
+      if (error.code === '23505') return { success: false, error: `Detail module "${name}" already exists.` };
+      throw error;
+    }
+
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
+    return { success: true, data: { id: data.id_module, name: data.detail_module } };
+  } catch (err: any) {
+    console.error("❌ Error adding master detail module:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+// ============================================
+// DELETE MASTER DETAIL MODULE
+// Soft-delete master item; data di all_cases tetap aman (tampil badge merah)
+// ============================================
+
+export async function deleteMasterDetailModule(id: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabaseAdmin
+      .from('master_detail_module')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id_module', id);
+
+    if (error) throw error;
+
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (err: any) {
+    console.error("❌ Error deleting master detail module:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+// ============================================
+// GET ALL MASTER DATA (for DB item tracking)
+// ============================================
+
+export async function getMasterData(): Promise<{
+  success: boolean;
+  data?: {
+    statuses: { id: number; name: string }[];
+    categories: { id: number; name: string }[];
+    modules: { id: number; name: string }[];
+    detailModules: { id: number; name: string }[];
+  };
+  error?: string;
+}> {
+  try {
+    const [statusRes, categoryRes, moduleRes, detailModuleRes] = await Promise.all([
+      supabaseAdmin.from('master_status').select('id, name').is('deleted_at', null).order('name'),
+      supabaseAdmin.from('ticket_categories').select('id, name').is('deleted_at', null).order('name'),
+      supabaseAdmin.from('master_module').select('id_module, nama_module').is('deleted_at', null).order('nama_module'),
+      supabaseAdmin.from('master_detail_module').select('id_module, detail_module').is('deleted_at', null).order('detail_module'),
+    ]);
+
+    const modules = (moduleRes.data || []).map((row: any) => ({
+      id: row.id_module as number,
+      name: row.nama_module as string,
+    }));
+
+    const detailModules = (detailModuleRes.data || []).map((row: any) => ({
+      id: row.id_module as number,
+      name: row.detail_module as string,
+    }));
+
+    return {
+      success: true,
+      data: {
+        statuses: statusRes.data || [],
+        categories: categoryRes.data || [],
+        modules,
+        detailModules,
+      },
+    };
+  } catch (err: any) {
+    console.error("❌ Error fetching master data:", err);
+    return { success: false, error: err.message };
+  }
+}
 
 // ============================================
 // DUMMY FUNCTION IMPLEMENTATIONS
 // ============================================
 
 export async function getSpreadsheetTitle(url: string) {
-  // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 500));
-  
   if (!url || !url.includes('docs.google.com/spreadsheets')) {
     return { error: 'Invalid Google Sheet URL' };
   }
-  
-  // Simulate finding a title
   const dummyId = url.split('/d/')[1]?.split('/')[0];
   return { success: true, title: `Dummy Sheet (${dummyId?.slice(0, 6) || 'unknown'})` };
 }
@@ -542,59 +730,29 @@ export async function getProjectFileContents(): Promise<{
   data?: { path: string; content: string; name: string }[]; 
   error?: string 
 }> {
-  return { 
-    success: false, 
-    error: "This function is not implemented in the live demo." 
-  };
+  return { success: false, error: "This function is not implemented in the live demo." };
 }
 
 export async function importToSheet(data: any, url: string): Promise<any> {
-  return { 
-    success: false, 
-    error: "This function is not implemented in the live demo." 
-  };
+  return { success: false, error: "This function is not implemented in the live demo." };
 }
 
 export async function updateSheetStatus(data: any, url: string): Promise<any> {
-  return { 
-    success: false, 
-    error: "This function is not implemented in the live demo." 
-  };
+  return { success: false, error: "This function is not implemented in the live demo." };
 }
 
 export async function getUpdatePreview(data: any, url: string): Promise<any> {
-  return { 
-    success: false, 
-    error: "This function is not implemented in the live demo." 
-  };
+  return { success: false, error: "This function is not implemented in the live demo." };
 }
 
 export async function undoLastAction(data: any, url: string): Promise<any> {
-  return { 
-    success: false, 
-    error: "This function is not implemented in the live demo." 
-  };
+  return { success: false, error: "This function is not implemented in the live demo." };
 }
 
 export async function fetchL3ReportData(url: string): Promise<any> {
-  return { 
-    success: false, 
-    error: "This function is not implemented in the live demo." 
-  };
+  return { success: false, error: "This function is not implemented in the live demo." };
 }
 
-export async function mergeFilesOnServer(
-  fileA: any, 
-  fileB: any, 
-  editMode: any
-): Promise<any> {
-  return { 
-    success: false, 
-    error: "This function is not implemented in the live demo." 
-  };
+export async function mergeFilesOnServer(fileA: any, fileB: any, editMode: any): Promise<any> {
+  return { success: false, error: "This function is not implemented in the live demo." };
 }
-
-    
-
-    
-

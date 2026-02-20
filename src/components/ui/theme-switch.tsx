@@ -36,7 +36,6 @@ export function ThemeSwitch() {
             <div className="star star_1"></div>
             <div className="star star_2"></div>
             <div className="star star_3"></div>
-            <img className="cloud" src="https://i.ibb.co/rpJ1ZTP/cloud.png" alt="cloud" />
         </span>
     </label>
   );
