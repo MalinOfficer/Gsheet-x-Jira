@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -7,7 +6,7 @@ import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose 
 import { Button } from "@/components/ui/button";
 import { Menu, Settings, GanttChartSquare, LayoutDashboard, ListTree, BarChart, BookOpen, Database, GitBranch, Files, Combine, PackageSearch, CodeXml, RefreshCw, HardHat } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -41,7 +40,6 @@ type NavCategory = keyof typeof navItems;
 function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
     const pathname = usePathname();
     const { isCodeViewerEnabled, areSecondaryToolsEnabled } = useContext(SettingsContext);
-    const { setIsProcessing } = useContext(TableDataContext);
     
     const isVisible = (item: { featureFlag?: string }) => {
         if (!item.featureFlag) return true;
@@ -50,14 +48,6 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
         return true;
     };
 
-    const handleHeavyLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (e.currentTarget.pathname === pathname) {
-            e.preventDefault();
-            return;
-        }
-        setIsProcessing(true);
-    };
-    
     const Wrapper = isMobile ? SheetClose : 'div';
 
     return (
@@ -72,14 +62,12 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                             {category}
                         </h2>
                         {visibleItems.map((item) => {
-                            const isHeavy = item.href === '/dashboard' || item.href === '/db';
                             const isActive = pathname === item.href;
 
                             return (
                                 <Wrapper key={item.label} asChild>
                                     <Link
                                         href={item.href}
-                                        onClick={isHeavy ? handleHeavyLinkClick : undefined}
                                         className={cn(
                                             "flex items-center gap-3 px-5 py-2.5 text-sm font-medium transition-all duration-200",
                                             "border-r-[3px]",
@@ -117,9 +105,9 @@ function ProcessingIndicator() {
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const [isClient, setIsClient] = useState(false);
     const isMobile = useIsMobile();
-    
+    const { setIsProcessing } = useContext(TableDataContext);
+
     const pageTitles: Record<string, string> = {
         "/": "Import Data",
         "/dashboard": "Dashboard",
@@ -136,28 +124,19 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
     const currentPageTitle = pageTitles[pathname] || "Gsheet Case";
 
-
+    // Auto-reset isProcessing setiap kali route berubah.
+    // Ini memastikan state tidak stuck "true" jika halaman tujuan
+    // tidak mereset sendiri.
     useEffect(() => {
-        setIsClient(true);
-    }, []);
-    
-    const isProcessing = useContext(TableDataContext).isProcessing;
-
-
-    if (!isClient) {
-        return (
-             <div className="flex-1 flex flex-col bg-background">
-                {children}
-            </div>
-        );
-    }
+        setIsProcessing(false);
+    }, [pathname, setIsProcessing]);
 
     if (pathname === '/migrasi-murid') {
         return (
-             <div className="h-full flex flex-col bg-background">
+            <div className="h-full flex flex-col bg-background">
                 {children}
             </div>
-        )
+        );
     }
     
     return (
@@ -168,7 +147,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             {/* --- Desktop Sidebar --- */}
             {!isMobile && (
                 <div className="hidden border-r bg-card md:flex flex-col h-screen sticky top-0">
-                    {/* Sidebar Header */}
                     <div className="flex h-auto items-center px-5 py-5 border-b flex-shrink-0">
                         <Link href="/" className="flex items-center gap-2 font-bold text-primary text-base">
                             <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-primary-foreground text-sm">
@@ -178,12 +156,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         </Link>
                     </div>
                     
-                    {/* Navigation Links */}
                     <div className="flex-1 overflow-y-auto">
                         <NavLinks />
                     </div>
                     
-                    {/* Sidebar Footer */}
                     <div className="mt-auto flex-shrink-0 border-t p-5">
                         <Link
                             href="/settings"
@@ -203,9 +179,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             
             {/* --- Main Content Area --- */}
             <div className="flex flex-col h-screen overflow-hidden">
-                 {/* --- Mobile/Main Header --- */}
                 <header className="flex h-16 items-center gap-4 border-b bg-background px-4 lg:px-6 flex-shrink-0 z-40">
-                    {/* Hamburger Menu for Mobile */}
                     {isMobile && (
                         <Sheet>
                             <SheetTrigger asChild>
