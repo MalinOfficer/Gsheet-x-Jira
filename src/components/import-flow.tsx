@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Upload, Import, Database, Save, CheckCircle2, XCircle, ShieldCheck, Undo, Braces, Trash2, Pencil, Copy, Check, BarChart, RefreshCw, AlertCircle } from 'lucide-react';
-import { importOrUpdateCases, updateCaseStatus } from '@/app/supabase-actions-import';
+import { importOrUpdateCases, updateCaseStatus, previewImportCases } from '@/app/supabase-actions-import';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -31,7 +31,6 @@ import { cn } from '@/lib/utils';
 import { Spinner } from './ui/spinner';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog";
-import { ScrollArea } from "./ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { normalizeClientName } from '@/lib/db-mapper';
 
@@ -111,13 +110,22 @@ export function ImportFlow() {
     'Created At': 'jam',
     'Resolved At': 'jam',
   });
-   const [isCopied, setIsCopied] = useState(false);
-   const [importResult, setImportResult] = useState<{
-        inserted: any[];
-        skipped: any[];
-        conflicts: any[];
-    } | null>(null);
-    const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const [importResult, setImportResult] = useState<{
+      inserted: any[];
+      skipped: any[];
+      conflicts: any[];
+  } | null>(null);
+  const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
+
+  // ── Preview / Confirm Import state ──────────────────────────────────────
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [importPreview, setImportPreview] = useState<{
+      newCount: number;
+      duplicates: { ticket_number: string; title?: string }[];
+  } | null>(null);
+  const [isFetchingPreview, startFetchingPreview] = useTransition();
+  // ────────────────────────────────────────────────────────────────────────
 
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
   const csvFileInputRef = useRef<HTMLInputElement>(null);
@@ -125,68 +133,66 @@ export function ImportFlow() {
   const [isConverting, startConverting] = useTransition();
   const [isImportingToDb, startImportingToDb] = useTransition();
   
-  const isAnyProcessing = isConverting || isImportingToDb;
+  const isAnyProcessing = isConverting || isImportingToDb || isFetchingPreview;
 
-    // States for result dialog
-    const [activeConflicts, setActiveConflicts] = useState<any[]>([]);
-    const [newlyInserted, setNewlyInserted] = useState<any[]>([]);
-    const [updatedItems, setUpdatedItems] = useState<any[]>([]);
-    const [isUpdatingAll, startUpdatingAll] = useTransition();
+  // States for result dialog
+  const [activeConflicts, setActiveConflicts] = useState<any[]>([]);
+  const [newlyInserted, setNewlyInserted] = useState<any[]>([]);
+  const [updatedItems, setUpdatedItems] = useState<any[]>([]);
+  const [isUpdatingAll, startUpdatingAll] = useTransition();
 
-    useEffect(() => {
-        if (importResult) {
-            setActiveConflicts(importResult.conflicts);
-            setNewlyInserted(importResult.inserted);
-            setUpdatedItems([]); // Reset on new import
-        }
-    }, [importResult]);
+  useEffect(() => {
+      if (importResult) {
+          setActiveConflicts(importResult.conflicts);
+          setNewlyInserted(importResult.inserted);
+          setUpdatedItems([]);
+      }
+  }, [importResult]);
 
-    const handleUpdateSuccess = (ticketNumber: string) => {
-        const item = activeConflicts.find(c => c.ticket_number === ticketNumber);
-        if (item) {
-            setActiveConflicts(prev => prev.filter(c => c.ticket_number !== ticketNumber));
-            setUpdatedItems(prev => [...prev, item]);
-        }
-    };
+  const handleUpdateSuccess = (ticketNumber: string) => {
+      const item = activeConflicts.find(c => c.ticket_number === ticketNumber);
+      if (item) {
+          setActiveConflicts(prev => prev.filter(c => c.ticket_number !== ticketNumber));
+          setUpdatedItems(prev => [...prev, item]);
+      }
+  };
 
-    const handleUpdateAll = () => {
-        if (activeConflicts.length === 0) return;
+  const handleUpdateAll = () => {
+      if (activeConflicts.length === 0) return;
 
-        startUpdatingAll(async () => {
-            const updatePromises = activeConflicts.map(item =>
-                updateCaseStatus(item.ticket_number, item.new_status).then(result => ({ ...item, ...result }))
-            );
+      startUpdatingAll(async () => {
+          const updatePromises = activeConflicts.map(item =>
+              updateCaseStatus(item.ticket_number, item.new_status).then(result => ({ ...item, ...result }))
+          );
 
-            const results = await Promise.all(updatePromises);
-            
-            const successfulUpdates = results.filter(r => r.success);
-            const failedUpdates = results.filter(r => !r.success);
-            
-            if (successfulUpdates.length > 0) {
-                toast({
-                    title: `${successfulUpdates.length} Statuses Updated`,
-                    description: `Successfully updated status for ${successfulUpdates.length} items.`
-                });
-                const successfulTicketNumbers = new Set(successfulUpdates.map(item => item.ticket_number));
-                setActiveConflicts(prev => prev.filter(item => !successfulTicketNumbers.has(item.ticket_number)));
-                setUpdatedItems(prev => [...prev, ...successfulUpdates]);
-            }
-            
-            if (failedUpdates.length > 0) {
-                toast({
-                    variant: 'destructive',
-                    title: `${failedUpdates.length} Updates Failed`,
-                    description: 'Some items could not be updated.'
-                });
-            }
-        });
-    };
-
+          const results = await Promise.all(updatePromises);
+          
+          const successfulUpdates = results.filter(r => r.success);
+          const failedUpdates = results.filter(r => !r.success);
+          
+          if (successfulUpdates.length > 0) {
+              toast({
+                  title: `${successfulUpdates.length} Statuses Updated`,
+                  description: `Successfully updated status for ${successfulUpdates.length} items.`
+              });
+              const successfulTicketNumbers = new Set(successfulUpdates.map(item => item.ticket_number));
+              setActiveConflicts(prev => prev.filter(item => !successfulTicketNumbers.has(item.ticket_number)));
+              setUpdatedItems(prev => [...prev, ...successfulUpdates]);
+          }
+          
+          if (failedUpdates.length > 0) {
+              toast({
+                  variant: 'destructive',
+                  title: `${failedUpdates.length} Updates Failed`,
+                  description: 'Some items could not be updated.'
+              });
+          }
+      });
+  };
 
   useEffect(() => {
     setIsProcessing(isAnyProcessing);
   }, [isAnyProcessing, setIsProcessing]);
-
 
   useEffect(() => {
     const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY_INPUT);
@@ -194,6 +200,31 @@ export function ImportFlow() {
         setJsonInput(savedJson);
     }
   }, []);
+
+  // ── Open preview/confirm dialog ──────────────────────────────────────────
+  const handleOpenImportConfirm = () => {
+    if (!tableData) return;
+    startFetchingPreview(async () => {
+      const payload = tableData.rows
+        .map(row => ({
+          ticket_number: String(row['Ticket Number'] || ''),
+          title: String(row['Title'] || ''),
+        }))
+        .filter(p => p.ticket_number);
+
+      const result = await previewImportCases(payload);
+      if (result.success) {
+        setImportPreview({
+          newCount: result.newCount ?? 0,
+          duplicates: result.duplicates ?? [],
+        });
+        setIsPreviewDialogOpen(true);
+      } else {
+        toast({ variant: 'destructive', title: 'Preview Gagal', description: result.error });
+      }
+    });
+  };
+  // ────────────────────────────────────────────────────────────────────────
 
   const handleImportToDb = () => {
     if (!tableData) {
@@ -209,7 +240,7 @@ export function ImportFlow() {
             let date = '';
             let month = '';
             if (createdAt && !isNaN(createdAt.getTime())) {
-                date = createdAt.toISOString().split('T')[0]; // YYYY-MM-DD
+                date = createdAt.toISOString().split('T')[0];
                 const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
                 month = monthNames[createdAt.getMonth()];
             }
@@ -256,15 +287,15 @@ export function ImportFlow() {
     });
   };
   
-    const handleDateFormatChange = (header: string, format: string) => {
-        if (format === 'origin' || format === 'jam' || format === 'report') {
-            setDateFormats(prev => ({
-                ...prev,
-                'Created At': format as DateFormat,
-                'Resolved At': format as DateFormat,
-            }));
-        }
-    };
+  const handleDateFormatChange = (header: string, format: string) => {
+      if (format === 'origin' || format === 'jam' || format === 'report') {
+          setDateFormats(prev => ({
+              ...prev,
+              'Created At': format as DateFormat,
+              'Resolved At': format as DateFormat,
+          }));
+      }
+  };
 
   const flattenJson = (obj: any, path: string = '', res: Record<string, any> = {}): Record<string, any> => {
       if (obj === null || typeof obj !== 'object') {
@@ -347,183 +378,180 @@ export function ImportFlow() {
     return jsonResult;
   };
 
+  const processAndSetTableData = (data: any[], isCsv: boolean = false) => {
+      if (!Array.isArray(data)) data = [data];
+      if (data.length === 0) {
+          setJsonError("Input data is empty.");
+          return;
+      }
 
-    const processAndSetTableData = (data: any[], isCsv: boolean = false) => {
-        if (!Array.isArray(data)) data = [data];
-        if (data.length === 0) {
-            setJsonError("Input data is empty.");
-            return;
-        }
+      let processedData = data;
+      if (isCsv) {
+           const csvHeaderMapping: Record<string, string> = {
+              'Issue key': 'Ticket Number',
+              'Summary': 'Summary',
+              'Issue Type': 'Ticket Category',
+              'Custom field (Client Name)': 'Client Name',
+              'Custom field (Client Name)_1': 'Client Name',
+              'Custom field (Client Name)_2': 'Client Name',
+              'Custom field (Client Name)_3': 'Client Name',
+              'Custom field (Customer Name)': 'Customer Name',
+              'Custom field (Customer Name)_1': 'Customer Name',
+              'Client Name': 'Client Name',
+              'Customer Name': 'Customer Name',
+              'Status': 'Status',
+              'Custom field (Module)': 'Module',
+              'Custom field (Detail Module)': 'Detail Module',
+              'Custom field (Detail Module)_1': 'Detail Module',
+              'Custom field (Detail Module)_2': 'Detail Module',
+              'Created': 'Created At',
+              'Resolved': 'Resolved At',
+              'Resolve': 'Resolved At',
+          };
 
-        let processedData = data;
-        if (isCsv) {
-             const csvHeaderMapping: Record<string, string> = {
-                'Issue key': 'Ticket Number',
-                'Summary': 'Summary', // Temporary key
-                'Issue Type': 'Ticket Category',
-                'Custom field (Client Name)': 'Client Name',
-                'Custom field (Client Name)_1': 'Client Name',
-                'Custom field (Client Name)_2': 'Client Name',
-                'Custom field (Client Name)_3': 'Client Name',
-                'Custom field (Customer Name)': 'Customer Name',
-                'Custom field (Customer Name)_1': 'Customer Name',
-                'Client Name': 'Client Name',
-                'Customer Name': 'Customer Name',
-                'Status': 'Status',
-                'Custom field (Module)': 'Module',
-                'Custom field (Detail Module)': 'Detail Module',
-                'Custom field (Detail Module)_1': 'Detail Module',
-                'Custom field (Detail Module)_2': 'Detail Module',
-                'Created': 'Created At',
-                'Resolved': 'Resolved At',
-                'Resolve': 'Resolved At',
-            };
+          processedData = data.map(row => {
+              const newRow: Record<string, any> = {};
+              for (const originalKey in row) {
+                  const cleanOriginalKey = originalKey.trim().replace(/^"|"$/g, '');
+                  const mappedKey = csvHeaderMapping[cleanOriginalKey];
+                  if (mappedKey) {
+                     if (!newRow[mappedKey]) {
+                         newRow[mappedKey] = row[originalKey];
+                      }
+                  } else if (row.hasOwnProperty(originalKey)) {
+                      newRow[cleanOriginalKey] = row[originalKey];
+                  }
+              }
+               if (newRow['Ticket Number'] && newRow['Summary']) {
+                  newRow['Title'] = `${newRow['Ticket Number']} ${newRow['Summary']}`.trim();
+              } else if (newRow['Summary']) {
+                  newRow['Title'] = newRow['Summary'];
+              }
+              delete newRow['Summary'];
+              return newRow;
+          });
+      }
+      
+      const flattenedData = processedData.map((item: any) => flattenJson(item));
+      const headers = DEFAULT_TEMPLATE.split(',').map(h => {
+          const trimmed = h.trim();
+          return toTitleCase(trimmed);
+      });
+      
+      let processedRows = flattenedData.map(flatRow => {
+          const newRow: Record<string, any> = {};
+          headers.forEach(header => {
+              if (header.toLowerCase().startsWith('kolom kosong')) {
+                  newRow[header] = '';
+                  return;
+              }
 
-            processedData = data.map(row => {
-                const newRow: Record<string, any> = {};
-                for (const originalKey in row) {
-                    const cleanOriginalKey = originalKey.trim().replace(/^"|"$/g, '');
-                    const mappedKey = csvHeaderMapping[cleanOriginalKey];
-                    if (mappedKey) {
-                       if (!newRow[mappedKey]) {
-                           newRow[mappedKey] = row[originalKey];
-                        }
-                    } else if (row.hasOwnProperty(originalKey)) {
-                        newRow[cleanOriginalKey] = row[originalKey];
-                    }
-                }
-                 if (newRow['Ticket Number'] && newRow['Summary']) {
-                    newRow['Title'] = `${newRow['Ticket Number']} ${newRow['Summary']}`.trim();
-                } else if (newRow['Summary']) {
-                    newRow['Title'] = newRow['Summary'];
-                }
-                delete newRow['Summary'];
-                return newRow;
-            });
-        }
-        
-        const flattenedData = processedData.map((item: any) => flattenJson(item));
-        const headers = DEFAULT_TEMPLATE.split(',').map(h => {
-            const trimmed = h.trim();
-            return toTitleCase(trimmed);
-        });
-        
-        let processedRows = flattenedData.map(flatRow => {
-            const newRow: Record<string, any> = {};
-            headers.forEach(header => {
-                if (header.toLowerCase().startsWith('kolom kosong')) {
-                    newRow[header] = '';
-                    return;
-                }
+              const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
+              
+              let value = matchingKey ? flatRow[matchingKey] : '';
 
-                const matchingKey = Object.keys(flatRow).find(k => k.toLowerCase() === header.toLowerCase());
-                
-                let value = matchingKey ? flatRow[matchingKey] : '';
+              if (header === 'Client Name') {
+                  value = normalizeClientName(String(value || ''));
+              }
 
-                if (header === 'Client Name') {
-                    value = normalizeClientName(String(value || ''));
-                }
+              if (header.toLowerCase() === 'status') {
+                  const lowerCaseValue = String(value).toLowerCase();
+                  switch (lowerCaseValue) {
+                      case 'resolve':
+                      case 'resolved': value = 'Solved'; break;
+                      case 'open': value = 'L2'; break;
+                      case 'pending': value = 'L1'; break;
+                      case 'on hold':
+                      case 'on-hold':
+                      case 'in progress l3':
+                      case 'l3 (on progress)':
+                      case 'l3 need release':
+                      case 'l3 review':
+                      case 'queue l3': value = 'L3'; break;
+                      case 'new': value = 'L1'; break;
+                      case 'in progress l1': value = 'L1'; break;
+                      case 'in progress l2': value = 'L2'; break;
+                      case 'client review l1': value = 'L1'; break;
+                      default: break;
+                  }
+                  if (!value) {
+                      value = 'L1';
+                  }
+              }
+              newRow[header] = value;
+          });
 
-                if (header.toLowerCase() === 'status') {
-                    const lowerCaseValue = String(value).toLowerCase();
-                    switch (lowerCaseValue) {
-                        case 'resolve':
-                        case 'resolved': value = 'Solved'; break;
-                        case 'open': value = 'L2'; break;
-                        case 'pending': value = 'L1'; break;
-                        case 'on hold':
-                        case 'on-hold':
-                        case 'in progress l3':
-                        case 'l3 (on progress)':
-                        case 'l3 need release':
-                        case 'l3 review':
-                        case 'queue l3': value = 'L3'; break;
-                        case 'new': value = 'L1'; break;
-                        case 'in progress l1': value = 'L1'; break;
-                        case 'in progress l2': value = 'L2'; break;
-                        case 'client review l1': value = 'L1'; break;
-                        default: break;
-                    }
-                    if (!value) {
-                        value = 'L1';
-                    }
-                }
-                newRow[header] = value;
-            });
+          if (!newRow['Ticket Number'] && newRow['Title']) {
+              const match = String(newRow['Title']).match(/(IHO-\d+)/);
+              if (match) {
+                  newRow['Ticket Number'] = match[0];
+              }
+          }
 
-            // Fallback to extract Ticket Number from Title
-            if (!newRow['Ticket Number'] && newRow['Title']) {
-                const match = String(newRow['Title']).match(/(IHO-\d+)/);
-                if (match) {
-                    newRow['Ticket Number'] = match[0];
-                }
-            }
+          if (newRow['Ticket Number'] && newRow['Title']) {
+              const ticketNumber = String(newRow['Ticket Number']);
+              const title = String(newRow['Title']);
+              if (title.startsWith(ticketNumber)) {
+                  newRow['Title'] = title.substring(ticketNumber.length).trim();
+              }
+          }
 
-            // Remove ticket number from title to avoid redundancy
-            if (newRow['Ticket Number'] && newRow['Title']) {
-                const ticketNumber = String(newRow['Ticket Number']);
-                const title = String(newRow['Title']);
-                if (title.startsWith(ticketNumber)) {
-                    newRow['Title'] = title.substring(ticketNumber.length).trim();
-                }
-            }
+          return newRow;
+      });
 
-            return newRow;
-        });
+      const extractTicketNumber = (title: string) => {
+          if (typeof title !== 'string') return null;
+          const match = title.match(/#(\d+)/);
+          return match ? parseInt(match[1], 10) : null;
+      };
 
-        const extractTicketNumber = (title: string) => {
-            if (typeof title !== 'string') return null;
-            const match = title.match(/#(\d+)/);
-            return match ? parseInt(match[1], 10) : null;
-        };
+      processedRows.sort((a, b) => {
+          const dateA = new Date(a['Created At']);
+          const dateB = new Date(b['Created At']);
+          
+          if (dateA.getTime() !== dateB.getTime()) {
+              return dateA.getTime() - dateB.getTime();
+          }
 
-        processedRows.sort((a, b) => {
-            const dateA = new Date(a['Created At']);
-            const dateB = new Date(b['Created At']);
-            
-            if (dateA.getTime() !== dateB.getTime()) {
-                return dateA.getTime() - dateB.getTime();
-            }
+          const numA = extractTicketNumber(a.Title);
+          const numB = extractTicketNumber(b.Title);
+          if (numA === null && numB === null) return 0;
+          if (numA === null) return 1;
+          if (numB === null) return -1;
+          return numA - numB;
+      });
+      
+      setTableData({ headers, rows: processedRows });
+      toast({ title: "Conversion Successful", description: "Your data has been converted and sorted." });
+  };
 
-            const numA = extractTicketNumber(a.Title);
-            const numB = extractTicketNumber(b.Title);
-            if (numA === null && numB === null) return 0;
-            if (numA === null) return 1;
-            if (numB === null) return -1;
-            return numA - numB;
-        });
-        
-        setTableData({ headers, rows: processedRows });
-        toast({ title: "Conversion Successful", description: "Your data has been converted and sorted." });
-    };
+  const handleConvert = (input: string, format: 'json' | 'csv') => {
+      startConverting(async () => {
+          setJsonError(null);
+          setTableData(null);
 
-    const handleConvert = (input: string, format: 'json' | 'csv') => {
-        startConverting(async () => {
-            setJsonError(null);
-            setTableData(null);
+          if (!input.trim()) {
+              setJsonError("Input cannot be empty.");
+              return;
+          }
 
-            if (!input.trim()) {
-                setJsonError("Input cannot be empty.");
-                return;
-            }
+          try {
+              let data: any[];
+              if (format === 'json') {
+                  data = JSON.parse(input);
+              } else {
+                  data = parseCsvToJson(input);
+              }
+              processAndSetTableData(data, format === 'csv');
+              
+              setJsonInput(input);
+              localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, input);
 
-            try {
-                let data: any[];
-                if (format === 'json') {
-                    data = JSON.parse(input);
-                } else { // csv
-                    data = parseCsvToJson(input);
-                }
-                processAndSetTableData(data, format === 'csv');
-                
-                setJsonInput(input); // Store the raw input for reference
-                localStorage.setItem(LOCAL_STORAGE_KEY_INPUT, input);
-
-            } catch (e) {
-                setJsonError(e instanceof Error ? `Invalid ${format.toUpperCase()} format: ${e.message}` : "An unknown error occurred during conversion.");
-            }
-        });
-    };
+          } catch (e) {
+              setJsonError(e instanceof Error ? `Invalid ${format.toUpperCase()} format: ${e.message}` : "An unknown error occurred during conversion.");
+          }
+      });
+  };
     
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, format: 'json' | 'csv') => {
     const file = event.target.files?.[0];
@@ -538,7 +566,7 @@ export function ImportFlow() {
     };
     reader.onerror = () => setJsonError("Failed to read file.");
     reader.readAsText(file);
-    event.target.value = ''; // Reset file input
+    event.target.value = '';
   };
 
   const handleJsonImportClick = () => jsonFileInputRef.current?.click();
@@ -552,42 +580,42 @@ export function ImportFlow() {
     toast({ title: "Input Cleared", description: "JSON or CSV input has been cleared." });
   };
   
-   const handleCopyToClipboard = () => {
-        if (!tableData) return;
+  const handleCopyToClipboard = () => {
+      if (!tableData) return;
 
-        const { headers, rows } = tableData;
-        const tsv = [
-            ...rows.map(row => headers.map(header => {
-                let value = row[header];
-                 if (header === 'Created At' || header === 'Resolved At') {
-                    value = formatDateTime(value, dateFormats[header] || 'report');
-                }
-                if (value === null || value === undefined) return '';
-                let stringValue = String(value);
-                if (stringValue.includes('\t') || stringValue.includes('\n') || stringValue.includes('"')) {
-                    stringValue = `"${stringValue.replace(/"/g, '""')}"`;
-                }
-                return stringValue;
-            }).join('\t'))
-        ].join('\n');
+      const { headers, rows } = tableData;
+      const tsv = [
+          ...rows.map(row => headers.map(header => {
+              let value = row[header];
+               if (header === 'Created At' || header === 'Resolved At') {
+                  value = formatDateTime(value, dateFormats[header] || 'report');
+              }
+              if (value === null || value === undefined) return '';
+              let stringValue = String(value);
+              if (stringValue.includes('\t') || stringValue.includes('\n') || stringValue.includes('"')) {
+                  stringValue = `"${stringValue.replace(/"/g, '""')}"`;
+              }
+              return stringValue;
+          }).join('\t'))
+      ].join('\n');
 
-        navigator.clipboard.writeText(tsv).then(() => {
-            setIsCopied(true);
-            toast({
-                title: "Copied to clipboard!",
-                description: "You can now paste the data into Google Sheets, Excel, or other spreadsheet software.",
-            });
-            setTimeout(() => setIsCopied(false), 2000);
-        }, () => {
-            toast({
-                variant: "destructive",
-                title: "Copy failed",
-                description: "Could not copy data to clipboard. Please try again.",
-            });
-        });
-    };
+      navigator.clipboard.writeText(tsv).then(() => {
+          setIsCopied(true);
+          toast({
+              title: "Copied to clipboard!",
+              description: "You can now paste the data into Google Sheets, Excel, or other spreadsheet software.",
+          });
+          setTimeout(() => setIsCopied(false), 2000);
+      }, () => {
+          toast({
+              variant: "destructive",
+              title: "Copy failed",
+              description: "Could not copy data to clipboard. Please try again.",
+          });
+      });
+  };
     
-   const handleNavigateToReport = () => {
+  const handleNavigateToReport = () => {
     if (!tableData) {
         toast({
             variant: "destructive",
@@ -598,7 +626,6 @@ export function ImportFlow() {
     }
     router.push('/report-harian');
   };
-
 
   const JsonErrorAlert = ({ message }: { message: string }) => (
       <Alert variant="destructive" className="mt-4">
@@ -672,10 +699,84 @@ export function ImportFlow() {
               handleNavigateToReport={handleNavigateToReport}
               handleImportToDb={handleImportToDb}
               isImportingToDb={isImportingToDb}
+              onOpenImportConfirm={handleOpenImportConfirm}
+              isFetchingPreview={isFetchingPreview}
           />
         </div>
       )}
-       <Dialog open={isResultDialogOpen} onOpenChange={setIsResultDialogOpen}>
+
+      {/* ── Preview / Confirm Import Dialog ── */}
+      <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+          <DialogContent className="max-w-lg">
+              <DialogHeader>
+                  <DialogTitle>Konfirmasi Import ke Database</DialogTitle>
+                  <DialogDescription>
+                      Periksa ringkasan data sebelum melanjutkan proses import.
+                  </DialogDescription>
+              </DialogHeader>
+
+              {importPreview && (
+                  <div className="space-y-4">
+                      {/* Summary Cards */}
+                      <div className="grid grid-cols-2 gap-3">
+                          <div className="rounded-lg border-2 border-green-200 bg-green-50 dark:bg-green-950/20 p-4 text-center">
+                              <p className="text-4xl font-bold text-green-600">{importPreview.newCount}</p>
+                              <p className="text-xs text-muted-foreground mt-1">Baris baru siap diimport</p>
+                          </div>
+                          <div className="rounded-lg border-2 border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-4 text-center">
+                              <p className="text-4xl font-bold text-amber-500">{importPreview.duplicates.length}</p>
+                              <p className="text-xs text-muted-foreground mt-1">Duplikat akan dilewati</p>
+                          </div>
+                      </div>
+
+                      {/* Duplicate List */}
+                      {importPreview.duplicates.length > 0 && (
+                          <div className="space-y-2">
+                              <p className="text-sm font-medium">
+                                  Daftar duplikat ({importPreview.duplicates.length}):
+                              </p>
+                              <div className="h-64 overflow-y-auto rounded-md border bg-muted/30 p-2">
+                                  <ul className="space-y-1">
+                                      {importPreview.duplicates.map((item, i) => (
+                                          <li key={i} className="flex items-start gap-2 text-xs p-1.5 rounded-md hover:bg-muted/50">
+                                              <XCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                                              <span>
+                                                  <span className="font-semibold">{item.ticket_number}</span>
+                                                  {item.title && (
+                                                      <span className="text-muted-foreground ml-1.5">{item.title}</span>
+                                                  )}
+                                              </span>
+                                          </li>
+                                      ))}
+                                  </ul>
+                              </div>
+                          </div>
+                      )}
+                  </div>
+              )}
+
+              <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsPreviewDialogOpen(false)}>
+                      Batal
+                  </Button>
+                  <Button
+                      onClick={() => {
+                          setIsPreviewDialogOpen(false);
+                          handleImportToDb();
+                      }}
+                      disabled={isImportingToDb}
+                  >
+                      {isImportingToDb
+                          ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengimpor...</>
+                          : `Ya, Import ${importPreview?.newCount ?? 0} Baris`
+                      }
+                  </Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
+
+      {/* ── Import Result Dialog ── */}
+      <Dialog open={isResultDialogOpen} onOpenChange={setIsResultDialogOpen}>
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Import Data</DialogTitle>
@@ -683,7 +784,7 @@ export function ImportFlow() {
                         The import process has finished. Here's a summary of the results.
                     </DialogDescription>
                 </DialogHeader>
-                <ScrollArea className="max-h-[60vh] -mr-6 pr-6">
+                <div className="max-h-[60vh] overflow-y-auto pr-1">
                   <div className="space-y-6">
                       {(newlyInserted.length > 0 || updatedItems.length > 0) && (
                           <div>
@@ -732,7 +833,7 @@ export function ImportFlow() {
                           </div>
                       )}
                   </div>
-                </ScrollArea>
+                </div>
                 <DialogFooter>
                     <Button onClick={() => setIsResultDialogOpen(false)}>Close</Button>
                 </DialogFooter>
@@ -753,6 +854,8 @@ function PreviewTable({
     handleNavigateToReport,
     handleImportToDb,
     isImportingToDb,
+    onOpenImportConfirm,
+    isFetchingPreview,
 } : {
     initialData: TableDataContext['tableData'];
     dateFormats: Record<string, DateFormat>;
@@ -763,6 +866,8 @@ function PreviewTable({
     handleNavigateToReport: () => void;
     handleImportToDb: () => void;
     isImportingToDb: boolean;
+    onOpenImportConfirm: () => void;
+    isFetchingPreview: boolean;
 }) {
     const { tableData, setTableData } = useContext(TableDataContext);
 
@@ -792,7 +897,6 @@ function PreviewTable({
     useEffect(() => {
         setColumnWidths(initialColumnWidths());
     }, [initialData, initialColumnWidths]);
-
 
     const handleResizeMouseDown = (header: string, e: MouseEvent) => {
         isResizing.current = header;
@@ -826,7 +930,6 @@ function PreviewTable({
         const newRows = [...tableData.rows];
         newRows[rowIndex] = { ...newRows[rowIndex], [header]: value };
         const newTableData = { ...tableData, rows: newRows };
-        
         setTableData(newTableData);
     };
 
@@ -854,27 +957,20 @@ function PreviewTable({
                         <BarChart className="mr-2 h-4 w-4" />
                         Daily Report
                     </Button>
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button size="sm" disabled={isProcessing}>
-                                {isImportingToDb ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengimpor...</> : <><Database className="mr-2 h-4 w-4" />Import File</>}
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Confirm Database Import</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This will insert or update {tableData.rows.length} rows in the 'all_cases' database table. This action cannot be undone through the UI.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleImportToDb} disabled={isImportingToDb}>
-                                    {isImportingToDb ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Importing...</> : "Yes, Import"}
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                    {/* ── Ganti AlertDialog lama dengan tombol ini ── */}
+                    <Button
+                        size="sm"
+                        className="w-full sm:w-auto"
+                        disabled={isProcessing || isFetchingPreview}
+                        onClick={onOpenImportConfirm}
+                    >
+                        {isFetchingPreview
+                            ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Memeriksa...</>
+                            : isImportingToDb
+                                ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Mengimpor...</>
+                                : <><Database className="mr-2 h-4 w-4" />Import File</>
+                        }
+                    </Button>
                 </div>
                 <div className="h-[500px] overflow-hidden">
                     <div

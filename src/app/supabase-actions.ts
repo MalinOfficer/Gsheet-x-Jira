@@ -1,12 +1,7 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabase";
 import { DateRange } from "react-day-picker";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 /* ================= TYPES ================= */
 
@@ -33,11 +28,14 @@ export type DashboardStats = {
 
 function applyFilters(query: any, filter: DashboardFilter) {
   if (filter.selectedYear !== "all") {
-    query = query.eq("year", filter.selectedYear);
+    const yearNum = parseInt(filter.selectedYear, 10);
+    query = query
+      .gte("date", `${yearNum}-01-01`)
+      .lte("date", `${yearNum}-12-31`);
   }
 
   if (filter.categoryFilter.length > 0) {
-    query = query.in("ticket_category", filter.categoryFilter);
+    query = query.in("category_case", filter.categoryFilter);
   }
 
   if (filter.clientFilter.length > 0) {
@@ -45,15 +43,17 @@ function applyFilters(query: any, filter: DashboardFilter) {
   }
 
   if (filter.moduleFilter.length > 0) {
-    query = query.in("module", filter.moduleFilter);
+    query = query.in("module_case", filter.moduleFilter);
   }
 
   if (filter.dateRange?.from) {
-    query = query.gte("date", filter.dateRange.from.toISOString());
+    const from = filter.dateRange.from.toISOString().split("T")[0];
+    query = query.gte("date", from);
   }
 
   if (filter.dateRange?.to) {
-    query = query.lte("date", filter.dateRange.to.toISOString());
+    const to = filter.dateRange.to.toISOString().split("T")[0];
+    query = query.lte("date", to);
   }
 
   return query;
@@ -63,55 +63,68 @@ function applyFilters(query: any, filter: DashboardFilter) {
 
 export async function getDashboardStats(filter: DashboardFilter) {
   try {
-    /* ---------- BASE QUERY ---------- */
-    let baseQuery = supabase.from("all_cases").select("*", { count: "exact" });
+    let baseQuery = supabaseAdmin
+      .from("all_cases")
+      .select(
+        "client_name, status_case, category_case, module_case, month, date",
+        { count: "exact" }
+      )
+      .is("deleted_at", null);
+
     baseQuery = applyFilters(baseQuery, filter);
 
     const { data, count, error } = await baseQuery;
     if (error) throw error;
 
+    const rows = data || [];
     const totalCases = count || 0;
 
     /* ---------- SOLVED ---------- */
-    const solvedCases = data.filter(
-      (d) => d.status === "RESOLVED" || d.status_case_2 === "SOLVED"
+    const solvedCases = rows.filter(
+      (d) =>
+        (d.status_case || "").toLowerCase() === "solved" ||
+        (d.status_case || "").toLowerCase() === "resolved"
     );
 
-    /* ---------- CLIENT AGG ---------- */
+    /* ---------- AGGREGATIONS ---------- */
     const clientMap: Record<string, number> = {};
     const moduleMap: Record<string, number> = {};
     const categoryMap: Record<string, number> = {};
     const monthMap: Record<string, any> = {};
 
-    data.forEach((row) => {
+    const monthOrder = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+    ];
+
+    rows.forEach((row) => {
       // Client
       if (row.client_name) {
         clientMap[row.client_name] = (clientMap[row.client_name] || 0) + 1;
       }
 
       // Module
-      if (row.module) {
-        moduleMap[row.module] = (moduleMap[row.module] || 0) + 1;
+      if (row.module_case) {
+        moduleMap[row.module_case] = (moduleMap[row.module_case] || 0) + 1;
       }
 
       // Category
-      if (row.ticket_category) {
-        categoryMap[row.ticket_category] =
-          (categoryMap[row.ticket_category] || 0) + 1;
+      if (row.category_case) {
+        categoryMap[row.category_case] =
+          (categoryMap[row.category_case] || 0) + 1;
       }
 
-      // Monthly
+      // Monthly — group by month + year
       if (row.month && row.date) {
         const year = new Date(row.date).getFullYear();
         if (!monthMap[row.month]) {
           monthMap[row.month] = { month: row.month };
         }
-        monthMap[row.month][year] =
-          (monthMap[row.month][year] || 0) + 1;
+        monthMap[row.month][year] = (monthMap[row.month][year] || 0) + 1;
       }
     });
 
-    /* ---------- SORTED RESULT ---------- */
+    /* ---------- SORTED RESULTS ---------- */
     const allClients = Object.entries(clientMap)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
@@ -123,7 +136,15 @@ export async function getDashboardStats(filter: DashboardFilter) {
     const categoryTrend =
       Object.entries(categoryMap).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
 
-    const monthlyData = Object.values(monthMap);
+    // Sort monthly data sesuai urutan bulan
+    const monthlyData = Object.values(monthMap).sort((a, b) => {
+      const indexA = monthOrder.indexOf(a.month);
+      const indexB = monthOrder.indexOf(b.month);
+      if (indexA === -1 && indexB === -1) return 0;
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
 
     return {
       totalCases,
@@ -139,6 +160,7 @@ export async function getDashboardStats(filter: DashboardFilter) {
       ],
     } satisfies DashboardStats;
   } catch (err: any) {
+    console.error("❌ getDashboardStats error:", err);
     return { error: err.message };
   }
 }

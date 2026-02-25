@@ -61,6 +61,7 @@ type FilterOptions = {
     categories: { label: string; value: string }[];
     clients: { label: string; value: string }[];
     modules: { label: string; value: string }[];
+    detailModules: { label: string; value: string }[];
     years: string[];
 };
 
@@ -85,10 +86,10 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
     const [clientFilter, setClientFilter] = useState<string[]>([]);
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
+    const [detailModuleFilter, setDetailModuleFilter] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
     // Create a stable color mapping for all years available in the filter options.
-    // This ensures that "2024" always has the same color, regardless of whether "2023" is present.
     const yearColorConfig = useMemo(() => {
         const allYears = filterOptions?.years?.sort((a, b) => parseInt(a) - parseInt(b)) || [];
         const chartColors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
@@ -104,7 +105,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
 
     const { chartKeys, dynamicChartConfig } = useMemo(() => {
         if (!stats?.monthly_stats || stats.monthly_stats.length === 0) {
-            // Even with no stats, we pass the yearColorConfig to avoid color shifts on first load.
             return { chartKeys: [], dynamicChartConfig: { ...chartConfig, ...yearColorConfig } };
         }
         
@@ -118,8 +118,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         });
         
         const sortedKeys = Array.from(keys).sort((a, b) => parseInt(a) - parseInt(b));
-
-        // Merge the stable yearColorConfig with the base config.
         const newDynamicConfig = { ...chartConfig, ...yearColorConfig };
 
         return { chartKeys: sortedKeys, dynamicChartConfig: newDynamicConfig };
@@ -135,15 +133,17 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             selectedYear !== 'all' ||
             categoryFilter.length > 0 ||
             clientFilter.length > 0 ||
-            moduleFilter.length > 0
+            moduleFilter.length > 0 ||
+            detailModuleFilter.length > 0
         );
-    }, [dateRange, selectedYear, categoryFilter, clientFilter, moduleFilter]);
+    }, [dateRange, selectedYear, categoryFilter, clientFilter, moduleFilter, detailModuleFilter]);
 
     const handleClearAllFilters = () => {
         setSelectedYear('all');
         setCategoryFilter([]);
         setClientFilter([]);
         setModuleFilter([]);
+        setDetailModuleFilter([]);
         setDateRange(undefined);
     };
 
@@ -154,22 +154,17 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         params.append('categoryFilter', filters.categoryFilter.join(','));
         params.append('clientFilter', filters.clientFilter.join(','));
         params.append('moduleFilter', filters.moduleFilter.join(','));
+        params.append('detailModuleFilter', filters.detailModuleFilter.join(','));
         
         const url = `/api/dashboard?${params.toString()}`;
-        console.log('🌐 [Fetcher] Fetching URL:', url);
-        console.log('📋 [Fetcher] Filters:', filters);
-        
         const response = await fetch(url);
-        console.log('📡 [Fetcher] Response status:', response.status);
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ [Fetcher] Error response:', errorText);
             throw new Error(`Failed to fetch dashboard data: ${response.status} ${errorText}`);
         }
         
         const result = await response.json();
-        console.log('📦 [Fetcher] Result:', result);
         
         if (!result.success) {
             throw new Error(result.error || 'An unknown error occurred');
@@ -177,31 +172,20 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         return result.data;
     }, []);
 
-    // Effect to fetch data when filters change
     useEffect(() => {
-        console.log('🔄 [Dashboard] useEffect triggered with filters:', {
-            selectedYear,
-            categoryFilter,
-            clientFilter,
-            moduleFilter,
-            dateRange
-        });
-
         startApplyingFilters(async () => {
             setError(null);
             try {
-                console.log('📞 [Dashboard] Calling fetcher...');
                 const data = await fetcher({ 
                     selectedYear, 
                     categoryFilter, 
                     clientFilter, 
-                    moduleFilter, 
+                    moduleFilter,
+                    detailModuleFilter,
                     dateRange 
                 });
-                console.log('✅ [Dashboard] Data received:', data?.summary?.total_cases, 'cases');
                 setStats(data);
             } catch (err: any) {
-                console.error('❌ [Dashboard] Fetch error:', err);
                 setError(err.message);
                 setStats(null);
                 toast({
@@ -211,10 +195,9 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 });
             }
         });
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, fetcher]);
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, fetcher]);
 
     const handleRefresh = useCallback(() => {
-        console.log('🔄 [Dashboard] Refresh button clicked');
         setIsRefreshing(true);
         toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
         
@@ -224,7 +207,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     selectedYear, 
                     categoryFilter, 
                     clientFilter, 
-                    moduleFilter, 
+                    moduleFilter,
+                    detailModuleFilter,
                     dateRange 
                 });
                 setStats(data);
@@ -241,10 +225,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 setIsRefreshing(false);
             }
                 
-            // Refresh filter options
             getDashboardFilterOptions().then((optionsResult) => {
                 if (optionsResult.error || !optionsResult.data) {
-                    console.error("Could not load filter options:", optionsResult.error);
                     setFilterOptions({ categories: [], clients: [], modules: [], years: [] });
                 } else {
                     setFilterOptions(optionsResult.data);
@@ -253,6 +235,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         });
     }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, fetcher]);
 
+    // ── Skeleton loading state (matches exact card sizes below) ──────────────
     if (isApplyingFilters && !stats) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -263,7 +246,9 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         <Skeleton className="h-[88px]" />
                         <Skeleton className="h-[88px]" />
                     </div>
+                    {/* Chart card: CardHeader(~60px) + h-[216px] chart + CardContent padding(~24px) = ~300px */}
                     <Skeleton className="h-[300px] w-full" />
+                    {/* Bottom cards: CardHeader(~60px) + h-[166px] scroll + padding(~24px) = ~250px */}
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                         <Skeleton className="h-[250px]" />
                         <Skeleton className="h-[250px]" />
@@ -316,10 +301,12 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const maxModuleValue = module_rankings.length > 0 ? module_rankings[0].value : 1;
 
     return (
-        <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
-            <div className="max-w-7xl mx-auto space-y-6">
-                {/* Header Cards */}
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="flex-1 bg-background text-foreground p-2 sm:p-3 md:p-4">
+            {/* space-y-3 agar gap antar card lebih compact */}
+            <div className="max-w-7xl mx-auto space-y-3">
+
+                {/* ── Header Cards ─────────────────────────────────────────── */}
+                <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-base font-medium">Total Cases</CardTitle>
@@ -365,11 +352,12 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </Card>
                 </div>
                 
-                {/* Main Content */}
+                {/* ── Chart Card ───────────────────────────────────────────── */}
+                {/* Total height target: ~300px (sama dengan skeleton h-[300px]) */}
                 <Card>
-                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 py-3 px-4">
                         <div>
-                            <CardTitle className="text-xl font-bold">Total Case</CardTitle>
+                            <CardTitle className="text-base font-bold">Total Case</CardTitle>
                             {areFiltersActive && (
                                 <CardDescription className="text-xs text-muted-foreground mt-1">
                                     Filters active: {[
@@ -377,6 +365,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                         categoryFilter.length > 0 && `Categories: ${categoryFilter.length}`,
                                         clientFilter.length > 0 && `Clients: ${clientFilter.length}`,
                                         moduleFilter.length > 0 && `Modules: ${moduleFilter.length}`,
+                                        detailModuleFilter.length > 0 && `Detail Modules: ${detailModuleFilter.length}`,
                                         dateRange && 'Date range set'
                                     ].filter(Boolean).join(', ')}
                                 </CardDescription>
@@ -390,12 +379,12 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                         Filter
                                         {areFiltersActive && (
                                             <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs font-semibold">
-                                                {[categoryFilter.length, clientFilter.length, moduleFilter.length, dateRange ? 1 : 0].reduce((a, b) => a + b, 0)}
+                                                {[categoryFilter.length, clientFilter.length, moduleFilter.length, detailModuleFilter.length, dateRange ? 1 : 0].reduce((a, b) => a + b, 0)}
                                             </span>
                                         )}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-80 space-y-4">
+                                <PopoverContent className="w-80 space-y-4" align="end" side="bottom" sideOffset={8}>
                                     <div className="space-y-2">
                                         <h4 className="font-medium leading-none">Filter by Date</h4>
                                         <Popover>
@@ -467,6 +456,17 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                             />
                                         </div>
                                     </div>
+                                    <div className="space-y-2">
+                                        <h4 className="font-medium leading-none">Filter by Detail Module</h4>
+                                        <div className={cn(!detailModuleFilter.length && "text-muted-foreground")}>
+                                            <MultiSelect
+                                                options={filterOptions?.detailModules || []}
+                                                selected={detailModuleFilter}
+                                                onChange={setDetailModuleFilter}
+                                                placeholder="Select detail modules..."
+                                            />
+                                        </div>
+                                    </div>
                                 </PopoverContent>
                             </Popover>
                             {areFiltersActive && (
@@ -481,10 +481,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             </Button>
                             <Select 
                                 value={selectedYear} 
-                                onValueChange={(value) => {
-                                    console.log('📅 [Dashboard] Year changed to:', value);
-                                    setSelectedYear(value);
-                                }}
+                                onValueChange={(value) => setSelectedYear(value)}
                             >
                                 <SelectTrigger className="w-full sm:w-[180px]">
                                     <SelectValue placeholder="Select a year" />
@@ -499,7 +496,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         </div>
                     </CardHeader>
                     <CardContent>
-                       <ChartContainer config={dynamicChartConfig} className="h-[250px] w-full">
+                        {/* h-[216px] → total card ≈ 300px sesuai skeleton */}
+                        <ChartContainer config={dynamicChartConfig} className="h-[216px] w-full">
                             <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 10 }}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                 <XAxis
@@ -540,14 +538,17 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </CardContent>
                 </Card>
 
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+                {/* ── Bottom Cards ─────────────────────────────────────────── */}
+                {/* Total height target: ~250px (sama dengan skeleton h-[250px]) */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="text-xl font-bold">All Clients</CardTitle>
+                        <CardHeader className="py-3 px-4">
+                            <CardTitle className="text-base font-bold">All Clients</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <ScrollArea className="h-48 pr-4">
-                                <div className="space-y-4">
+                            {/* h-[166px] → total card ≈ 250px sesuai skeleton */}
+                            <ScrollArea className="h-[166px] pr-4">
+                                <div className="space-y-2">
                                     {client_rankings.map((item, index) => (
                                         <TooltipProvider key={index} delayDuration={0}>
                                             <Tooltip>
@@ -555,13 +556,13 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-32 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
                                                         <div className="flex-1 flex items-center gap-2 min-w-0">
-                                                            <div className="flex-1 bg-muted rounded-full h-8 relative overflow-hidden">
+                                                            <div className="flex-1 bg-muted rounded-full h-5 relative overflow-hidden">
                                                                 <div 
                                                                     className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500"
                                                                     style={{ width: `${(item.value / maxClientValue) * 100}%` }}
                                                                 ></div>
                                                             </div>
-                                                            <span className="text-sm font-semibold text-foreground w-16 flex-shrink-0">{item.value.toLocaleString()}</span>
+                                                            <span className="text-xs font-semibold text-foreground w-14 flex-shrink-0">{item.value.toLocaleString()}</span>
                                                         </div>
                                                     </div>
                                                 </TooltipTrigger>
@@ -576,12 +577,13 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="text-xl font-bold">All Modules</CardTitle>
+                        <CardHeader className="py-3 px-4">
+                            <CardTitle className="text-base font-bold">All Modules</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <ScrollArea className="h-48 pr-4">
-                                <div className="space-y-4">
+                            {/* h-[166px] → total card ≈ 250px sesuai skeleton */}
+                            <ScrollArea className="h-[166px] pr-4">
+                                <div className="space-y-2">
                                     {module_rankings.map((item, index) => (
                                         <TooltipProvider key={index} delayDuration={0}>
                                             <Tooltip>
@@ -589,13 +591,13 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-48 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
                                                         <div className="flex-1 flex items-center gap-2 min-w-0">
-                                                            <div className="flex-1 bg-muted rounded-full h-8 relative overflow-hidden">
+                                                            <div className="flex-1 bg-muted rounded-full h-5 relative overflow-hidden">
                                                                 <div 
                                                                     className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
                                                                     style={{ width: `${(item.value / maxModuleValue) * 100}%` }}
                                                                 ></div>
                                                             </div>
-                                                            <span className="text-sm font-semibold text-foreground w-16 flex-shrink-0">{item.value.toLocaleString()}</span>
+                                                            <span className="text-xs font-semibold text-foreground w-14 flex-shrink-0">{item.value.toLocaleString()}</span>
                                                         </div>
                                                     </div>
                                                 </TooltipTrigger>
@@ -610,6 +612,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         </CardContent>
                     </Card>
                 </div>
+
             </div>
         </div>
     );

@@ -483,11 +483,6 @@ export async function addCategory(categoryName: string): Promise<{ success: bool
   }
 }
 
-// ============================================
-// DELETE CATEGORY
-// Soft-delete master item; data di all_cases tetap aman (tampil badge merah)
-// ============================================
-
 export async function deleteCategory(categoryId: number): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabaseAdmin
@@ -535,11 +530,6 @@ export async function addMasterStatus(name: string): Promise<{ success: boolean;
     return { success: false, error: err.message };
   }
 }
-
-// ============================================
-// DELETE MASTER STATUS
-// Soft-delete master item; data di all_cases tetap aman (tampil badge merah)
-// ============================================
 
 export async function deleteMasterStatus(id: number): Promise<{ success: boolean; error?: string }> {
   try {
@@ -589,11 +579,6 @@ export async function addMasterModule(name: string): Promise<{ success: boolean;
   }
 }
 
-// ============================================
-// DELETE MASTER MODULE
-// Soft-delete master item; data di all_cases tetap aman (tampil badge merah)
-// ============================================
-
 export async function deleteMasterModule(id: number): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabaseAdmin
@@ -641,11 +626,6 @@ export async function addMasterDetailModule(name: string): Promise<{ success: bo
     return { success: false, error: err.message };
   }
 }
-
-// ============================================
-// DELETE MASTER DETAIL MODULE
-// Soft-delete master item; data di all_cases tetap aman (tampil badge merah)
-// ============================================
 
 export async function deleteMasterDetailModule(id: number): Promise<{ success: boolean; error?: string }> {
   try {
@@ -755,4 +735,209 @@ export async function fetchL3ReportData(url: string): Promise<any> {
 
 export async function mergeFilesOnServer(fileA: any, fileB: any, editMode: any): Promise<any> {
   return { success: false, error: "This function is not implemented in the live demo." };
+}
+
+// ============================================
+// SYNC GSHEET → DB
+// Fetch rows from GSheet CSV, insert new tickets, skip existing ones
+// ============================================
+
+const _SYNC_COLUMN_MAP: Record<string, string> = {
+  "no ticket"         : "ticket_number",
+  "ticket number"     : "ticket_number",
+  "ticket_number"     : "ticket_number",
+  "no. ticket"        : "ticket_number",
+  "tanggal"           : "date",
+  "date"              : "date",
+  "bulan"             : "month",
+  "month"             : "month",
+  "client"            : "client_name",
+  "client name"       : "client_name",
+  "nama client"       : "client_name",
+  "client_name"       : "client_name",
+  "pic client"        : "pic_client",
+  "pic"               : "pic_client",
+  "pic_client"        : "pic_client",
+  "status"            : "status_case",
+  "status case"       : "status_case",
+  "status_case"       : "status_case",
+  "kategori"          : "category_case",
+  "category"          : "category_case",
+  "category case"     : "category_case",
+  "category_case"     : "category_case",
+  "modul"             : "module_case",
+  "module"            : "module_case",
+  "module case"       : "module_case",
+  "module_case"       : "module_case",
+  "detail modul"      : "detail_module",
+  "detail module"     : "detail_module",
+  "detail_module"     : "detail_module",
+  "check in"          : "check_in",
+  "check_in"          : "check_in",
+  "masuk"             : "check_in",
+  "detail case"       : "detail_case",
+  "detail_case"       : "detail_case",
+  "judul"             : "detail_case",
+  "title"             : "detail_case",
+  "check out"         : "check_out",
+  "check_out"         : "check_out",
+  "selesai"           : "check_out",
+  "status solved"     : "status_case_solved",
+  "status_case_solved": "status_case_solved",
+  "link op"           : "source_link_op",
+  "source link op"    : "source_link_op",
+  "source_link_op"    : "source_link_op",
+  "link"              : "source_link_op",
+  "catatan"           : "note",
+  "note"              : "note",
+  "notes"             : "note",
+};
+
+function _extractSheetId(url: string): string | null {
+  const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  return match ? match[1] : null;
+}
+
+function _parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const row: string[] = [];
+    let inQuotes = false;
+    let field = '';
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        row.push(field.trim()); field = '';
+      } else {
+        field += ch;
+      }
+    }
+    row.push(field.trim());
+    rows.push(row);
+  }
+  return rows;
+}
+
+function _normalizeSyncDate(raw: string): string | null {
+  if (!raw?.trim()) return null;
+  raw = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  const parts = raw.split('/');
+  if (parts.length === 3) {
+    const [a, b, c] = parts.map(Number);
+    if (c > 1900) return `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
+  }
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+export async function syncGSheetToDB(sheetUrl: string): Promise<{
+  success: boolean;
+  inserted?: number;
+  skipped?: number;
+  error?: string;
+}> {
+  try {
+    if (!sheetUrl?.includes('docs.google.com/spreadsheets')) {
+      return { success: false, error: 'URL GSheet tidak valid.' };
+    }
+
+    const sheetId = _extractSheetId(sheetUrl);
+    if (!sheetId) return { success: false, error: 'Tidak dapat mengekstrak Sheet ID dari URL.' };
+
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+    console.log('🔄 [SYNC] Fetching CSV from:', csvUrl);
+
+    const response = await fetch(csvUrl, { cache: 'no-store' });
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `Gagal fetch GSheet (HTTP ${response.status}). Pastikan sheet bersifat publik.`,
+      };
+    }
+
+    const csvText = await response.text();
+    const rows = _parseCsv(csvText);
+    if (rows.length < 2) return { success: true, inserted: 0, skipped: 0 };
+
+    const headers: (string | null)[] = rows[0].map(h => _SYNC_COLUMN_MAP[h.toLowerCase().trim()] ?? null);
+    const ticketColIdx = headers.indexOf('ticket_number');
+    if (ticketColIdx === -1) {
+      return { success: false, error: 'Kolom nomor tiket tidak ditemukan di GSheet. Periksa _SYNC_COLUMN_MAP.' };
+    }
+
+    const dataRows = rows.slice(1);
+    const sheetTickets = dataRows.map(r => (r[ticketColIdx] || '').trim()).filter(Boolean);
+    if (!sheetTickets.length) return { success: true, inserted: 0, skipped: 0 };
+
+    console.log(`🔄 [SYNC] GSheet has ${sheetTickets.length} rows. Checking DB for existing tickets...`);
+
+    const { data: existing, error: fetchErr } = await supabaseAdmin
+      .from('all_cases')
+      .select('ticket_number')
+      .in('ticket_number', sheetTickets)
+      .is('deleted_at', null);
+
+    if (fetchErr) return { success: false, error: `DB error: ${fetchErr.message}` };
+
+    const existingSet = new Set((existing || []).map((r: any) => r.ticket_number));
+    console.log(`🔄 [SYNC] Found ${existingSet.size} existing tickets in DB.`);
+
+    const toInsert: Record<string, any>[] = [];
+    for (const row of dataRows) {
+      const ticket = (row[ticketColIdx] || '').trim();
+      if (!ticket || existingSet.has(ticket)) continue;
+
+      const record: Record<string, any> = {};
+      headers.forEach((col, i) => {
+        if (!col) return;
+        let val: string | null = (row[i] || '').trim() || null;
+        if (['date', 'check_in', 'check_out'].includes(col) && val) val = _normalizeSyncDate(val);
+        if (col === 'client_name' && val) val = normalizeClientName(val);
+        record[col] = val;
+      });
+      toInsert.push(record);
+    }
+
+    if (!toInsert.length) {
+      console.log('✅ [SYNC] Nothing new to insert – all tickets already in DB.');
+      return { success: true, inserted: 0, skipped: sheetTickets.length };
+    }
+
+    let insertedCount = 0;
+    const BATCH = 500;
+    for (let i = 0; i < toInsert.length; i += BATCH) {
+      const { error: insErr } = await supabaseAdmin
+        .from('all_cases')
+        .insert(toInsert.slice(i, i + BATCH));
+      if (insErr) {
+        return {
+          success: false,
+          inserted: insertedCount,
+          skipped: existingSet.size,
+          error: `Insert error pada batch ${Math.floor(i / BATCH) + 1}: ${insErr.message}`,
+        };
+      }
+      insertedCount += Math.min(BATCH, toInsert.length - i);
+    }
+
+    console.log(`✅ [SYNC] Done. Inserted ${insertedCount}, skipped ${existingSet.size}.`);
+
+    revalidatePath('/db');
+    revalidatePath('/dashboard');
+
+    return {
+      success: true,
+      inserted: insertedCount,
+      skipped: sheetTickets.length - insertedCount,
+    };
+
+  } catch (err: any) {
+    console.error('❌ [SYNC] Unexpected error:', err);
+    return { success: false, error: err.message || 'Terjadi kesalahan tak terduga.' };
+  }
 }
