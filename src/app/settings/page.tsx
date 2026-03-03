@@ -1,17 +1,20 @@
-//Supabase_DB
 'use client';
 
 import { useState, useEffect, useContext, useTransition } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
+  Card, CardContent, CardDescription, CardHeader,
+  CardTitle, CardFooter,
 } from '@/components/ui/card';
-import { CodeXml, Files, Link, Save, CheckCircle2, XCircle, RefreshCw, Pencil, RefreshCcw, Clock, Play, Pause, ChevronDown } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  CodeXml, Files, Link, Save, CheckCircle2, XCircle, RefreshCw,
+  Pencil, RefreshCcw, Clock, Play, Pause, ChevronDown,
+  Eye, ArrowRight, AlertCircle, Database,
+} from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SettingsContext } from '@/contexts/settings-provider';
 import { Switch } from '@/components/ui/switch';
@@ -20,21 +23,18 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuLabel,
+  DropdownMenuRadioGroup, DropdownMenuRadioItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { getSpreadsheetTitle, syncGSheetToDB } from '@/app/actions';
+import { getSpreadsheetTitle, syncGSheetToDB, saveAppSetting, getAppSetting } from '@/app/actions';
+import { previewGSheetSync, type PreviewRow } from '@/app/preview-sync';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type CronInterval = '5m' | '15m' | '30m' | '1h' | '6h' | '24h' | 'off';
-
 interface CronConfig {
   interval: CronInterval;
   enabled: boolean;
@@ -43,25 +43,16 @@ interface CronConfig {
 }
 
 const CRON_LABELS: Record<CronInterval, string> = {
-  '5m':  'Every 5 minutes',
-  '15m': 'Every 15 minutes',
-  '30m': 'Every 30 minutes',
-  '1h':  'Every 1 hour',
-  '6h':  'Every 6 hours',
-  '24h': 'Every 24 hours',
-  'off': 'Off',
+  '5m': 'Every 5 minutes', '15m': 'Every 15 minutes',
+  '30m': 'Every 30 minutes', '1h': 'Every 1 hour',
+  '6h': 'Every 6 hours', '24h': 'Every 24 hours', 'off': 'Off',
 };
-
 const CRON_MS: Record<Exclude<CronInterval, 'off'>, number> = {
-  '5m':  5 * 60 * 1000,
-  '15m': 15 * 60 * 1000,
-  '30m': 30 * 60 * 1000,
-  '1h':  60 * 60 * 1000,
-  '6h':  6 * 60 * 60 * 1000,
-  '24h': 24 * 60 * 60 * 1000,
+  '5m': 5*60*1000, '15m': 15*60*1000, '30m': 30*60*1000,
+  '1h': 60*60*1000, '6h': 6*60*60*1000, '24h': 24*60*60*1000,
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatRelativeTime(isoString: string | null): string {
   if (!isoString) return '—';
@@ -71,7 +62,6 @@ function formatRelativeTime(isoString: string | null): string {
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
   return `${Math.floor(diff / 86_400_000)}d ago`;
 }
-
 function formatNextRun(isoString: string | null): string {
   if (!isoString) return '—';
   const diff = new Date(isoString).getTime() - Date.now();
@@ -83,7 +73,9 @@ function formatNextRun(isoString: string | null): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ValidationResult({ isLoading, title, error }: { isLoading: boolean; title: string | null; error: string | null }) {
+function ValidationResult({ isLoading, title, error }: {
+  isLoading: boolean; title: string | null; error: string | null;
+}) {
   if (isLoading) return (
     <div className="flex items-center text-xs text-muted-foreground">
       <RefreshCw className="w-3 h-3 mr-1.5 animate-spin" /><span>Validating...</span>
@@ -107,13 +99,194 @@ function SyncResultBadge({ result }: { result: { inserted: number; skipped: numb
   return (
     <div className="flex items-center gap-2 text-xs">
       <Badge variant="default" className="bg-green-600 hover:bg-green-700 gap-1">
-        <CheckCircle2 className="w-3 h-3" />
-        {result.inserted} inserted
+        <CheckCircle2 className="w-3 h-3" />{result.inserted} inserted
       </Badge>
-      <Badge variant="secondary" className="gap-1">
-        {result.skipped} skipped
-      </Badge>
+      <Badge variant="secondary" className="gap-1">{result.skipped} skipped</Badge>
     </div>
+  );
+}
+
+// ─── Preview Dialog ───────────────────────────────────────────────────────────
+
+interface SyncPreviewDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  previewRows: PreviewRow[];
+  updateCount: number;
+  skippedCount: number;
+  totalSheetRows: number;
+  isConfirming: boolean;
+  unmappedHeaders?: string[];
+}
+
+function SyncPreviewDialog({
+  open, onClose, onConfirm,
+  previewRows, updateCount, skippedCount, totalSheetRows,
+  isConfirming, unmappedHeaders = [],
+}: SyncPreviewDialogProps) {
+  const newCount = previewRows.length;
+  const totalActions = newCount + updateCount;
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-4xl w-full max-h-[90vh] flex flex-col p-0 gap-0">
+
+        {/* Header */}
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <Eye className="h-5 w-5 text-primary" />
+            Preview Data Sebelum Sync
+          </DialogTitle>
+          <DialogDescription className="text-sm mt-1">
+            Periksa data di bawah sebelum di-insert ke database. Klik{' '}
+            <strong>Lanjut & Sync</strong> untuk melanjutkan.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-3 px-6 py-4 bg-muted/30 border-b flex-wrap">
+          <div className="flex items-center gap-2 rounded-lg bg-background border px-3 py-2">
+            <Database className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Total GSheet</span>
+            <span className="text-sm font-bold">{totalSheetRows}</span>
+          </div>
+
+          <ArrowRight className="h-4 w-4 text-muted-foreground hidden sm:block" />
+
+          <div className="flex items-center gap-2 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 px-3 py-2">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <span className="text-xs text-green-700 dark:text-green-400">Akan Di-insert</span>
+            <span className="text-sm font-bold text-green-700 dark:text-green-400">{newCount}</span>
+          </div>
+
+          {updateCount > 0 && (
+            <div className="flex items-center gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-3 py-2">
+              <RefreshCw className="h-4 w-4 text-blue-600" />
+              <span className="text-xs text-blue-700 dark:text-blue-400">Akan Di-update</span>
+              <span className="text-sm font-bold text-blue-700 dark:text-blue-400">{updateCount}</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 rounded-lg bg-muted border px-3 py-2">
+            <XCircle className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Sudah Ada (Skip)</span>
+            <span className="text-sm font-bold">{skippedCount}</span>
+          </div>
+
+          {unmappedHeaders.length > 0 && (
+            <div className="flex items-center gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 px-3 py-2 ml-auto">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <span className="text-xs text-amber-700 dark:text-amber-400">
+                Kolom tidak ter-map: {unmappedHeaders.join(', ')}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Table area */}
+        <div className="flex-1 overflow-hidden px-6 py-4">
+          {newCount === 0 && updateCount === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 text-center">
+              <CheckCircle2 className="h-12 w-12 text-green-500 mb-3" />
+              <p className="font-semibold text-lg">Semua data sudah tersync!</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Tidak ada tiket baru dan tidak ada data yang perlu diperbarui.
+              </p>
+            </div>
+          ) : newCount === 0 && updateCount > 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 text-center">
+              <RefreshCw className="h-12 w-12 text-blue-500 mb-3" />
+              <p className="font-semibold text-lg">Ada {updateCount} data yang perlu diperbarui</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Tidak ada tiket baru, tapi {updateCount} tiket akan diisi <strong>Created At</strong>, <strong>Resolved At</strong>, atau status-nya diperbarui.
+              </p>
+            </div>
+          ) : (
+            <ScrollArea className="h-[340px] rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
+                  <tr className="border-b">
+                    <th className="text-left py-2.5 px-3 font-medium text-xs text-muted-foreground w-6">#</th>
+                    <th className="text-left py-2.5 px-3 font-medium text-xs text-muted-foreground whitespace-nowrap">Ticket</th>
+                    <th className="text-left py-2.5 px-3 font-medium text-xs text-muted-foreground whitespace-nowrap">Tanggal</th>
+                    <th className="text-left py-2.5 px-3 font-medium text-xs text-muted-foreground whitespace-nowrap">Client</th>
+                    <th className="text-left py-2.5 px-3 font-medium text-xs text-muted-foreground whitespace-nowrap">Status</th>
+                    <th className="text-left py-2.5 px-3 font-medium text-xs text-muted-foreground whitespace-nowrap">Modul</th>
+                    <th className="text-left py-2.5 px-3 font-medium text-xs text-muted-foreground min-w-[200px]">Detail Case</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewRows.map((row, i) => (
+                    <tr
+                      key={row.ticket_number ?? i}
+                      className={cn(
+                        'border-b last:border-0 transition-colors',
+                        i % 2 === 0 ? 'bg-background' : 'bg-muted/20',
+                        'hover:bg-primary/5'
+                      )}
+                    >
+                      <td className="py-2 px-3 text-muted-foreground text-xs">{i + 1}</td>
+                      <td className="py-2 px-3">
+                        <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded font-medium">
+                          {row.ticket_number || '—'}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {row.date || '—'}
+                      </td>
+                      <td className="py-2 px-3 text-xs font-medium max-w-[120px] truncate" title={row.client_name ?? ''}>
+                        {row.client_name || '—'}
+                      </td>
+                      <td className="py-2 px-3">
+                        {row.status_case ? (
+                          <Badge
+                            variant={row.status_case.toLowerCase() === 'solved' ? 'default' : 'secondary'}
+                            className={cn(
+                              'text-[10px] px-1.5 py-0',
+                              row.status_case.toLowerCase() === 'solved' && 'bg-green-600 hover:bg-green-700'
+                            )}
+                          >
+                            {row.status_case}
+                          </Badge>
+                        ) : '—'}
+                      </td>
+                      <td className="py-2 px-3 text-xs text-muted-foreground max-w-[100px] truncate" title={row.module_case ?? ''}>
+                        {row.module_case || '—'}
+                      </td>
+                      <td className="py-2 px-3 text-xs max-w-[200px] truncate text-muted-foreground" title={row.detail_case ?? ''}>
+                        {row.detail_case || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ScrollArea>
+          )}
+        </div>
+
+        {/* Footer */}
+        <DialogFooter className="px-6 py-4 border-t bg-muted/20 gap-2">
+          <Button variant="outline" onClick={onClose} disabled={isConfirming}>
+            Batal
+          </Button>
+
+          {totalActions > 0 && (
+            <Button
+              onClick={onConfirm}
+              disabled={isConfirming}
+              className="gap-2 min-w-[140px]"
+            >
+              {isConfirming ? (
+                <><RefreshCw className="h-4 w-4 animate-spin" />Menyimpan...</>
+              ) : (
+                <><CheckCircle2 className="h-4 w-4" />Lanjut &amp; Sync ({totalActions})</>
+              )}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -121,12 +294,9 @@ function SyncResultBadge({ result }: { result: { inserted: number; skipped: numb
 
 export default function SettingsPage() {
   const {
-    isCodeViewerEnabled,
-    toggleCodeViewer,
-    areSecondaryToolsEnabled,
-    toggleSecondaryTools,
-    sheetUrl: contextSheetUrl,
-    setSheetUrl: setContextSheetUrl,
+    isCodeViewerEnabled, toggleCodeViewer,
+    areSecondaryToolsEnabled, toggleSecondaryTools,
+    sheetUrl: contextSheetUrl, setSheetUrl: setContextSheetUrl,
     verifiedUrl, setVerifiedUrl,
     spreadsheetTitle, setSpreadsheetTitle,
   } = useContext(SettingsContext);
@@ -137,65 +307,85 @@ export default function SettingsPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
 
-  // Local state for URL input
   const [sheetUrl, setSheetUrl] = useState('');
   const [mainSheetError, setMainSheetError] = useState<string | null>(null);
-
-  // Sync state
   const [lastSyncResult, setLastSyncResult] = useState<{ inserted: number; skipped: number } | null>(null);
   const [isSyncRunning, setIsSyncRunning] = useState(false);
 
-  // Cron state (persisted in localStorage)
+  // ── Preview dialog state ────────────────────────────────────────────────
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isFetchingPreview, setIsFetchingPreview] = useState(false);
+  const [isConfirmingSyncRef, setIsConfirmingSyncRef] = useState(false);
+  const [previewData, setPreviewData] = useState<{
+    rows: PreviewRow[];
+    updateRows: any[];
+    skippedCount: number;
+    totalSheetRows: number;
+    unmappedHeaders: string[];
+  } | null>(null);
+
+  // ── Cron state ──────────────────────────────────────────────────────────
   const [cronConfig, setCronConfig] = useState<CronConfig>({
-    interval: 'off',
-    enabled: false,
-    lastRun: null,
-    nextRun: null,
+    interval: 'off', enabled: false, lastRun: null, nextRun: null,
   });
   const [cronTimerId, setCronTimerId] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   const { toast } = useToast();
 
-  // ── Init ──────────────────────────────────────────────────────────────────
+  // ── Init ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     setIsClient(true);
-    setSheetUrl(contextSheetUrl);
 
-    if (spreadsheetTitle && contextSheetUrl === verifiedUrl) setMainSheetError(null);
-    setIsEditing(!spreadsheetTitle);
+    // Load URL: prioritas context → localStorage → Supabase (global default)
+    const initUrl = async () => {
+      let url = contextSheetUrl;
 
-    // Restore cron config from localStorage
+      // Coba dari localStorage dulu (lebih cepat)
+      if (!url) {
+        try { url = localStorage.getItem('globalSheetUrl') || ''; } catch (_) {}
+      }
+
+      // Coba dari Supabase jika masih kosong (global default lintas device)
+      if (!url) {
+        try {
+          const res = await getAppSetting('global_sheet_url');
+          if (res.success && res.value) url = res.value;
+        } catch (_) {}
+      }
+
+      if (url) {
+        setSheetUrl(url);
+        setContextSheetUrl(url);
+      }
+
+      if (spreadsheetTitle && contextSheetUrl === verifiedUrl) setMainSheetError(null);
+      setIsEditing(!spreadsheetTitle && !url);
+    };
+
+    initUrl();
+
     try {
       const saved = localStorage.getItem('cronConfig');
-      if (saved) {
-        const parsed: CronConfig = JSON.parse(saved);
-        setCronConfig(parsed);
-      }
+      if (saved) setCronConfig(JSON.parse(saved));
     } catch (_) {}
   }, []);
 
-  // ── Cron job scheduler ────────────────────────────────────────────────────
+  // ── Cron scheduler ──────────────────────────────────────────────────────
 
   useEffect(() => {
-    // Clear existing timer when config changes
     if (cronTimerId) clearTimeout(cronTimerId);
-
     if (!cronConfig.enabled || cronConfig.interval === 'off') return;
 
     const intervalMs = CRON_MS[cronConfig.interval as Exclude<CronInterval, 'off'>];
-    const nextRunTime = new Date(Date.now() + intervalMs);
-    updateCronConfig({ nextRun: nextRunTime.toISOString() });
+    updateCronConfig({ nextRun: new Date(Date.now() + intervalMs).toISOString() });
 
-    const id = setTimeout(async () => {
-      await runSync(true);
-    }, intervalMs);
-
+    const id = setTimeout(async () => { await runSync(true); }, intervalMs);
     setCronTimerId(id);
     return () => clearTimeout(id);
   }, [cronConfig.enabled, cronConfig.interval]);
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── Helpers ─────────────────────────────────────────────────────────────
 
   function updateCronConfig(patch: Partial<CronConfig>) {
     setCronConfig(prev => {
@@ -205,33 +395,111 @@ export default function SettingsPage() {
     });
   }
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // ── Handlers ────────────────────────────────────────────────────────────
 
   const handleSaveUrls = () => {
     startSaving(async () => {
       setIsValidating(true);
       setContextSheetUrl(sheetUrl);
-      toast({ title: 'Settings Saved', description: 'Verifying your Google Sheet URL...' });
-
       setSpreadsheetTitle(null);
       setMainSheetError(null);
 
+      // Validasi URL terlebih dahulu
       const result = await getSpreadsheetTitle(sheetUrl);
-
       if (result.error) {
         setMainSheetError(result.error);
         setVerifiedUrl('');
         setSpreadsheetTitle(null);
+        setIsValidating(false);
+        return;
+      }
+
+      // URL valid → simpan sebagai global default
+      setSpreadsheetTitle(result.title || null);
+      setVerifiedUrl(sheetUrl);
+      setIsEditing(false);
+
+      // 1. localStorage — persisten di browser ini
+      try { localStorage.setItem('globalSheetUrl', sheetUrl); } catch (_) {}
+
+      // 2. Supabase — global default untuk semua user/device
+      const saveRes = await saveAppSetting('global_sheet_url', sheetUrl);
+
+      if (saveRes.success) {
+        toast({
+          title: '✅ URL Disimpan sebagai Default Global',
+          description: `"${result.title}" akan digunakan sebagai URL default di semua perangkat.`,
+        });
       } else {
-        setSpreadsheetTitle(result.title || null);
-        setVerifiedUrl(sheetUrl);
-        setIsEditing(false);
+        // Supabase gagal (mungkin tabel belum dibuat), tapi localStorage sudah tersimpan
+        toast({
+          title: '⚠️ URL Disimpan Lokal',
+          description: 'Tersimpan di browser ini. Gagal simpan ke server: ' + saveRes.error,
+        });
       }
 
       setIsValidating(false);
     });
   };
 
+  // ── STEP 1: Klik "Sync Now" → fetch preview dulu ────────────────────────
+  const handleSyncNowClick = async () => {
+    const targetUrl = verifiedUrl || sheetUrl;
+    if (!targetUrl) return;
+
+    setIsFetchingPreview(true);
+    try {
+      const result = await previewGSheetSync(targetUrl);
+      if (!result.success) {
+        toast({
+          variant: 'destructive',
+          title: 'Gagal Fetch Preview',
+          description: result.error,
+        });
+        return;
+      }
+
+      setPreviewData({
+        rows: result.toInsert ?? [],
+        updateRows: result.toUpdate ?? [],
+        skippedCount: result.skippedCount ?? 0,
+        totalSheetRows: result.totalSheetRows ?? 0,
+        unmappedHeaders: result.unmappedHeaders ?? [],
+      });
+      setIsPreviewOpen(true);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } finally {
+      setIsFetchingPreview(false);
+    }
+  };
+
+  // ── STEP 2: User konfirmasi → lakukan sync sungguhan ────────────────────
+  const handleConfirmSync = async () => {
+    setIsConfirmingSyncRef(true);
+    try {
+      const res = await syncGSheetToDB(verifiedUrl || sheetUrl);
+      if (res.success) {
+        setLastSyncResult({ inserted: res.inserted ?? 0, skipped: res.skipped ?? 0 });
+        const now = new Date().toISOString();
+        toast({
+          title: '✅ Sync Complete',
+          description: `${res.inserted} rows inserted, ${res.skipped} skipped.`,
+        });
+        updateCronConfig({ lastRun: now });
+        setIsPreviewOpen(false);
+        setPreviewData(null);
+      } else {
+        toast({ variant: 'destructive', title: 'Sync Failed', description: res.error });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Sync Error', description: e.message });
+    } finally {
+      setIsConfirmingSyncRef(false);
+    }
+  };
+
+  // ── Auto-sync (cron) — langsung sync tanpa preview ──────────────────────
   const runSync = async (isCron = false) => {
     setIsSyncRunning(true);
     try {
@@ -245,10 +513,7 @@ export default function SettingsPage() {
         });
         if (isCron && cronConfig.enabled && cronConfig.interval !== 'off') {
           const intervalMs = CRON_MS[cronConfig.interval as Exclude<CronInterval, 'off'>];
-          updateCronConfig({
-            lastRun: now,
-            nextRun: new Date(Date.now() + intervalMs).toISOString(),
-          });
+          updateCronConfig({ lastRun: now, nextRun: new Date(Date.now() + intervalMs).toISOString() });
         } else {
           updateCronConfig({ lastRun: now });
         }
@@ -260,10 +525,6 @@ export default function SettingsPage() {
     } finally {
       setIsSyncRunning(false);
     }
-  };
-
-  const handleManualSync = () => {
-    startSyncing(() => runSync(false));
   };
 
   const handleToggleCron = () => {
@@ -291,8 +552,6 @@ export default function SettingsPage() {
     });
   };
 
-  // ── Feature toggles ───────────────────────────────────────────────────────
-
   const featureToggles = [
     {
       id: 'secondary-tools-toggle',
@@ -311,8 +570,6 @@ export default function SettingsPage() {
       onCheckedChange: toggleCodeViewer,
     },
   ];
-
-  // ── Render ────────────────────────────────────────────────────────────────
 
   if (!isClient) {
     return (
@@ -337,7 +594,8 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>URL Configuration</CardTitle>
             <CardDescription>
-              Atur URL Google Sheet untuk sinkronisasi data. Data baru dari GSheet akan di-insert ke DB; data yang sudah ada (berdasarkan nomor tiket) akan di-skip.
+              Atur URL Google Sheet untuk sinkronisasi data. Data baru dari GSheet akan di-insert ke DB;
+              data yang sudah ada (berdasarkan nomor tiket) akan di-skip.
             </CardDescription>
           </CardHeader>
 
@@ -359,11 +617,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="mt-1 pl-11">
-                <ValidationResult
-                  isLoading={isValidating}
-                  title={spreadsheetTitle}
-                  error={mainSheetError}
-                />
+                <ValidationResult isLoading={isValidating} title={spreadsheetTitle} error={mainSheetError} />
               </div>
             </div>
 
@@ -385,22 +639,21 @@ export default function SettingsPage() {
               {/* Action row */}
               <div className="flex flex-wrap items-center gap-3">
 
-                {/* Manual Sync */}
+                {/* ── MODIFIED: Sync Now → buka preview dialog ── */}
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={handleManualSync}
-                  disabled={isSyncRunning || isSaving}
+                  onClick={handleSyncNowClick}
+                  disabled={isFetchingPreview || isSyncRunning || isSaving}
                   className="gap-2"
                 >
-                  {isSyncRunning
-                    ? <RefreshCw className="h-4 w-4 animate-spin" />
-                    : <RefreshCcw className="h-4 w-4" />
+                  {isFetchingPreview
+                    ? <><RefreshCw className="h-4 w-4 animate-spin" />Memuat Preview...</>
+                    : <><Eye className="h-4 w-4" />Sync Now</>
                   }
-                  {isSyncRunning ? 'Syncing...' : 'Sync Now'}
                 </Button>
 
-                {/* Cron Interval Selector */}
+                {/* Cron Interval */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
@@ -414,15 +667,13 @@ export default function SettingsPage() {
                     <DropdownMenuSeparator />
                     <DropdownMenuRadioGroup value={cronConfig.interval} onValueChange={handleIntervalChange}>
                       {(Object.keys(CRON_LABELS) as CronInterval[]).map(key => (
-                        <DropdownMenuRadioItem key={key} value={key}>
-                          {CRON_LABELS[key]}
-                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem key={key} value={key}>{CRON_LABELS[key]}</DropdownMenuRadioItem>
                       ))}
                     </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {/* Toggle cron on/off */}
+                {/* Toggle cron */}
                 <Button
                   variant={cronIsActive ? 'secondary' : 'outline'}
                   size="sm"
@@ -450,9 +701,7 @@ export default function SettingsPage() {
                     </span>
                   )}
                   {cronConfig.lastRun && (
-                    <span>
-                      Last run: <span className="font-medium text-foreground">{formatRelativeTime(cronConfig.lastRun)}</span>
-                    </span>
+                    <span>Last run: <span className="font-medium text-foreground">{formatRelativeTime(cronConfig.lastRun)}</span></span>
                   )}
                 </div>
               )}
@@ -470,8 +719,7 @@ export default function SettingsPage() {
               </Button>
             ) : (
               <Button onClick={() => setIsEditing(true)} variant="destructive">
-                <Pencil className="mr-2 h-4 w-4" />
-                Change URL
+                <Pencil className="mr-2 h-4 w-4" />Change URL
               </Button>
             )}
           </CardFooter>
@@ -481,9 +729,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Feature Activation</CardTitle>
-            <CardDescription>
-              Aktifkan atau nonaktifkan fitur-fitur tertentu dalam aplikasi.
-            </CardDescription>
+            <CardDescription>Aktifkan atau nonaktifkan fitur-fitur tertentu dalam aplikasi.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -494,12 +740,8 @@ export default function SettingsPage() {
                       <feature.icon className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div className="space-y-0.5">
-                      <Label htmlFor={feature.id} className="text-base font-medium">
-                        {feature.label}
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        {feature.description}
-                      </p>
+                      <Label htmlFor={feature.id} className="text-base font-medium">{feature.label}</Label>
+                      <p className="text-xs text-muted-foreground">{feature.description}</p>
                     </div>
                   </div>
                   <Switch
@@ -513,8 +755,22 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
-
       </div>
+
+      {/* ── Preview Dialog ── */}
+      {previewData && (
+        <SyncPreviewDialog
+          open={isPreviewOpen}
+          onClose={() => { setIsPreviewOpen(false); setPreviewData(null); }}
+          onConfirm={handleConfirmSync}
+          previewRows={previewData.rows}
+          updateCount={previewData.updateRows.length}
+          skippedCount={previewData.skippedCount}
+          totalSheetRows={previewData.totalSheetRows}
+          unmappedHeaders={previewData.unmappedHeaders}
+          isConfirming={isConfirmingSyncRef}
+        />
+      )}
     </div>
   );
 }

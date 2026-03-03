@@ -38,7 +38,7 @@ const multiSelectVariants = cva(
 );
 
 interface MultiSelectProps
-    extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onChange'>,
     VariantProps<typeof multiSelectVariants> {
     options: {
         label: string;
@@ -46,18 +46,27 @@ interface MultiSelectProps
         icon?: React.ComponentType<{ className?: string }>;
     }[];
     selected: string[];
-    onChange: React.Dispatch<React.SetStateAction<string[]>>;
+    // FIX #3: Use plain function type instead of Dispatch so any handler works correctly
+    onChange: (values: string[]) => void;
     className?: string;
     placeholder?: string;
 }
 
-
 const MultiSelect = React.forwardRef<HTMLButtonElement, MultiSelectProps>(
-    ({ options, selected, onChange, className, variant, ...props }, ref) => {
+    ({ options, selected, onChange, className, variant, placeholder, ...props }, ref) => {
         const [open, setOpen] = React.useState(false);
 
         const handleUnselect = (item: string) => {
             onChange(selected.filter((i) => i !== item));
+        };
+
+        const handleSelect = (value: string) => {
+            const next = selected.includes(value)
+                ? selected.filter((item) => item !== value)
+                : [...selected, value];
+            onChange(next);
+            // Keep dropdown open so user can keep selecting
+            setOpen(true);
         };
 
         return (
@@ -68,44 +77,64 @@ const MultiSelect = React.forwardRef<HTMLButtonElement, MultiSelectProps>(
                         variant="outline"
                         role="combobox"
                         aria-expanded={open}
-                        className={cn("w-full justify-between", className)}
+                        // FIX #1: h-auto + min-h so the button grows with badge tags (no overlap)
+                        className={cn(
+                            "w-full justify-between h-auto min-h-10 py-1.5",
+                            className
+                        )}
                         onClick={() => setOpen(!open)}
                         {...props}
                     >
-                        <div className="flex flex-wrap items-center gap-1">
+                        {/* FIX #1: flex-wrap so badges go to next line instead of overflowing */}
+                        <div className="flex flex-wrap items-center gap-1 flex-1 min-w-0 mr-2">
                             {selected.length > 0
                                 ? options
                                     .filter((option) => selected.includes(option.value))
                                     .map((option) => (
                                         <Badge
                                             key={option.value}
-                                            className={cn("m-1", multiSelectVariants({ variant }))}
-
+                                            className={cn("shrink-0", multiSelectVariants({ variant }))}
                                         >
                                             {option.label}
                                             <span
                                                 className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                                 onKeyDown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        handleUnselect(option.value);
-                                                    }
+                                                    if (e.key === "Enter") handleUnselect(option.value);
                                                 }}
                                                 onMouseDown={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
                                                 }}
-                                                onClick={() => handleUnselect(option.value)}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleUnselect(option.value);
+                                                }}
                                             >
                                                 <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                                             </span>
                                         </Badge>
                                     ))
-                                : <span>{props.placeholder ?? 'Select ...'}</span>}
+                                : <span className="text-muted-foreground font-normal">{placeholder ?? 'Select ...'}</span>
+                            }
                         </div>
                         <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
+                {/* FIX #2: match trigger width + proper z-index so it doesn't hide behind other elements */}
+                <PopoverContent
+                    className="p-0"
+                    style={{ width: "var(--radix-popover-trigger-width)" }}
+                    align="start"
+                    // Stop click from bubbling up to any parent Popover/Panel
+                    onInteractOutside={(e) => {
+                        // Only close if click is truly outside (not on our trigger)
+                        const target = e.target as HTMLElement;
+                        if (target.closest('[role="combobox"]')) {
+                            e.preventDefault();
+                        }
+                    }}
+                >
                     <Command>
                         <CommandInput placeholder="Search ..." />
                         <CommandList>
@@ -114,18 +143,13 @@ const MultiSelect = React.forwardRef<HTMLButtonElement, MultiSelectProps>(
                                 {options.map((option) => (
                                     <CommandItem
                                         key={option.value}
-                                        onSelect={() => {
-                                            onChange(
-                                                selected.includes(option.value)
-                                                    ? selected.filter((item) => item !== option.value)
-                                                    : [...selected, option.value]
-                                            );
-                                            setOpen(true);
-                                        }}
+                                        value={option.value}
+                                        // FIX #3: use handleSelect which always reads latest `selected` array
+                                        onSelect={() => handleSelect(option.value)}
                                     >
                                         <Check
                                             className={cn(
-                                                "mr-2 h-4 w-4",
+                                                "mr-2 h-4 w-4 shrink-0",
                                                 selected.includes(option.value) ? "opacity-100" : "opacity-0"
                                             )}
                                         />

@@ -31,7 +31,7 @@ const formatDate = (date: any) => {
 };
 
 // ============================================
-// FETCH ALL CASES DATA (Not used by dashboard, for DB viewer)
+// FETCH ALL CASES DATA
 // ============================================
 
 export async function getAllCaseData(filters?: {
@@ -78,12 +78,12 @@ export async function getAllCaseData(filters?: {
         .lte('date', `${yearNum}-12-31`);
     }
 
-    if (filters?.category?.length) query = query.in('category_case', filters.category);
-    if (filters?.client?.length) query = query.in('client_name', filters.client);
-    if (filters?.module?.length) query = query.in('module_case', filters.module);
-    if (filters?.status?.length) query = query.in('status_case', filters.status);
+    if (filters?.category?.length)     query = query.in('category_case', filters.category);
+    if (filters?.client?.length)       query = query.in('client_name',   filters.client);
+    if (filters?.module?.length)       query = query.in('module_case',   filters.module);
+    if (filters?.status?.length)       query = query.in('status_case',   filters.status);
     if (filters?.detailModule?.length) query = query.in('detail_module', filters.detailModule);
-    if (filters?.month?.length) query = query.in('month', filters.month);
+    if (filters?.month?.length)        query = query.in('month',         filters.month);
 
     if (filters?.search && filters.search.trim()) {
       const searchTerm = `%${filters.search.trim()}%`;
@@ -252,7 +252,7 @@ const _getDashboardFilterOptions = async () => {
         .order('name', { ascending: true }),
       supabaseAdmin
         .from("all_cases")
-        .select("client_name, module_case")
+        .select("client_name, module_case, detail_module")
         .is('deleted_at', null),
       supabaseAdmin.rpc('get_distinct_years')
     ]);
@@ -264,28 +264,28 @@ const _getDashboardFilterOptions = async () => {
     if (yearsResult.error) console.error('⚠️ Error fetching years:', yearsResult.error);
 
     const categoriesData = categoriesResult.data || [];
-    const casesData = casesResult.data || [];
-    const yearsData = yearsResult.data || [];
+    const casesData      = casesResult.data || [];
+    const yearsData      = yearsResult.data || [];
 
-    const uniqueCategories = categoriesData.map((c) => c.name).filter(Boolean);
-    const uniqueClients = [...new Set(casesData.map((c) => c.client_name).filter(Boolean))];
-    const uniqueModules = [...new Set(casesData.map((m) => m.module_case).filter(Boolean))];
+    const uniqueCategories    = categoriesData.map((c: any) => c.name).filter(Boolean);
+    const uniqueClients       = [...new Set(casesData.map((c: any) => c.client_name).filter(Boolean))];
+    const uniqueModules       = [...new Set(casesData.map((m: any) => m.module_case).filter(Boolean))];
+    const uniqueDetailModules = [...new Set(casesData.map((m: any) => m.detail_module).filter(Boolean))];
 
     const sortedYears = yearsData
       .map((item: any) => String(item.year))
-      .filter((year: string | null) => year && !['null', 'undefined', 'NaN'].includes(year));
+      .filter((year: string) => year && !['null', 'undefined', 'NaN'].includes(year));
 
-    const result = {
+    return {
       success: true,
       data: {
-        categories: uniqueCategories.map((c) => ({ label: c, value: c })),
-        clients: uniqueClients.map((c) => ({ label: c, value: c })),
-        modules: uniqueModules.map((m) => ({ label: m, value: m })),
-        years: sortedYears,
+        categories:    uniqueCategories.map((c: any) => ({ label: c, value: c })),
+        clients:       uniqueClients.map((c: any) => ({ label: c, value: c })),
+        modules:       uniqueModules.map((m: any) => ({ label: m, value: m })),
+        detailModules: uniqueDetailModules.map((d: any) => ({ label: d, value: d })),
+        years:         sortedYears,
       },
     };
-
-    return result;
   } catch (error: any) {
     console.error("❌ Error fetching filter options:", error);
     return {
@@ -321,7 +321,7 @@ export async function getL3ReportFromDB() {
       return { success: true, report: "Tidak ada kasus L3 atau On Hold yang ditemukan." };
     }
 
-    const formatDate = (date: Date) => {
+    const formatDateLocal = (date: Date) => {
       if (!date || isNaN(date.getTime())) return '';
       const day = String(date.getDate()).padStart(2, '0');
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -333,7 +333,7 @@ export async function getL3ReportFromDB() {
     const maxDate = new Date(data[data.length - 1].check_in!);
     const today = new Date();
 
-    const header = `*Update cases yang belum solved L3 on hold (${formatDate(minDate)} - ${formatDate(maxDate)})*`;
+    const header = `*Update cases yang belum solved L3 on hold (${formatDateLocal(minDate)} - ${formatDateLocal(maxDate)})*`;
     const totalCases = data.length;
 
     const getGroupForModule = (moduleName: string | null | undefined): string => {
@@ -344,7 +344,7 @@ export async function getL3ReportFromDB() {
     };
 
     const casesByGroup: Record<string, any[]> = {};
-    data.forEach(c => {
+    data.forEach((c: any) => {
       const groupName = getGroupForModule(c.module_case);
       if (!casesByGroup[groupName]) casesByGroup[groupName] = [];
       casesByGroup[groupName].push(c);
@@ -371,7 +371,7 @@ export async function getL3ReportFromDB() {
     sortedGroups.forEach(groupName => {
       detailLines.push(`\n*${groupName.toUpperCase()} > L3*`);
       const cases = casesByGroup[groupName];
-      cases.sort((a,b) => (a.client_name || '').localeCompare(b.client_name || '')).forEach((c, index) => {
+      cases.sort((a: any, b: any) => (a.client_name || '').localeCompare(b.client_name || '')).forEach((c: any, index: number) => {
         const checkInDate = new Date(c.check_in!);
         let age = 0;
         if (!isNaN(checkInDate.getTime())) {
@@ -646,7 +646,7 @@ export async function deleteMasterDetailModule(id: number): Promise<{ success: b
 }
 
 // ============================================
-// GET ALL MASTER DATA (for DB item tracking)
+// GET ALL MASTER DATA
 // ============================================
 
 export async function getMasterData(): Promise<{
@@ -693,17 +693,8 @@ export async function getMasterData(): Promise<{
 }
 
 // ============================================
-// DUMMY FUNCTION IMPLEMENTATIONS
+// DUMMY FUNCTIONS
 // ============================================
-
-export async function getSpreadsheetTitle(url: string) {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  if (!url || !url.includes('docs.google.com/spreadsheets')) {
-    return { error: 'Invalid Google Sheet URL' };
-  }
-  const dummyId = url.split('/d/')[1]?.split('/')[0];
-  return { success: true, title: `Dummy Sheet (${dummyId?.slice(0, 6) || 'unknown'})` };
-}
 
 export async function getProjectFileContents(): Promise<{ 
   success: boolean; 
@@ -738,64 +729,133 @@ export async function mergeFilesOnServer(fileA: any, fileB: any, editMode: any):
 }
 
 // ============================================
+// GET SPREADSHEET TITLE — REAL IMPLEMENTATION
+// ============================================
+
+export async function getSpreadsheetTitle(url: string) {
+  if (!url || !url.includes('docs.google.com/spreadsheets')) {
+    return { error: 'Invalid Google Sheet URL' };
+  }
+
+  const sheetId = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+  if (!sheetId) {
+    return { error: 'Tidak dapat mengekstrak Sheet ID dari URL.' };
+  }
+
+  // OPSI A: Google Sheets API v4 (tambahkan GOOGLE_API_KEY di .env.local)
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (apiKey) {
+    try {
+      const res = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=properties.title&key=${apiKey}`,
+        { cache: 'no-store' }
+      );
+      if (res.status === 403) return { error: 'Sheet tidak dapat diakses. Pastikan sheet bersifat publik.' };
+      if (res.status === 404) return { error: 'Sheet tidak ditemukan. Periksa kembali URL.' };
+      if (!res.ok) return { error: `Google API error (HTTP ${res.status}).` };
+
+      const data = await res.json();
+      const title = data?.properties?.title;
+      if (!title) return { error: 'Gagal membaca judul sheet.' };
+      return { success: true, title };
+    } catch (e: any) {
+      console.error('getSpreadsheetTitle (API Key) error:', e);
+    }
+  }
+
+  // OPSI B: Parse HTML title (fallback, hanya untuk sheet publik)
+  try {
+    const res = await fetch(
+      `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+      {
+        cache: 'no-store',
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NextJS server-side fetch)' },
+      }
+    );
+
+    if (res.status === 401 || res.status === 403) {
+      return { error: 'Sheet tidak dapat diakses. Pastikan share settings-nya: "Anyone with the link → Viewer".' };
+    }
+    if (!res.ok) return { error: `Gagal mengakses sheet (HTTP ${res.status}).` };
+
+    const html = await res.text();
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      const rawTitle = titleMatch[1]
+        .replace(/ - Google Sheets$/, '')
+        .replace(/ - Google Spreadsheet$/, '')
+        .trim();
+      if (rawTitle && rawTitle.toLowerCase() !== 'google sheets') {
+        return { success: true, title: rawTitle };
+      }
+    }
+
+    return { error: 'Tidak dapat membaca judul sheet. Tambahkan GOOGLE_API_KEY di .env.local, atau pastikan sheet bersifat publik.' };
+  } catch (e: any) {
+    console.error('getSpreadsheetTitle (HTML fallback) error:', e);
+    return { error: `Gagal validasi: ${e.message}` };
+  }
+}
+
+// ============================================
 // SYNC GSHEET → DB
-// Fetch rows from GSheet CSV, insert new tickets, skip existing ones
+// FIX: IHO-XXX di-extract dari kolom "detail_case"
 // ============================================
 
 const _SYNC_COLUMN_MAP: Record<string, string> = {
-  "no ticket"         : "ticket_number",
-  "ticket number"     : "ticket_number",
-  "ticket_number"     : "ticket_number",
-  "no. ticket"        : "ticket_number",
-  "tanggal"           : "date",
-  "date"              : "date",
-  "bulan"             : "month",
-  "month"             : "month",
-  "client"            : "client_name",
-  "client name"       : "client_name",
-  "nama client"       : "client_name",
-  "client_name"       : "client_name",
-  "pic client"        : "pic_client",
-  "pic"               : "pic_client",
-  "pic_client"        : "pic_client",
-  "status"            : "status_case",
-  "status case"       : "status_case",
-  "status_case"       : "status_case",
-  "kategori"          : "category_case",
-  "category"          : "category_case",
-  "category case"     : "category_case",
-  "category_case"     : "category_case",
-  "modul"             : "module_case",
-  "module"            : "module_case",
-  "module case"       : "module_case",
-  "module_case"       : "module_case",
-  "detail modul"      : "detail_module",
-  "detail module"     : "detail_module",
-  "detail_module"     : "detail_module",
-  "check in"          : "check_in",
-  "check_in"          : "check_in",
-  "masuk"             : "check_in",
-  "detail case"       : "detail_case",
-  "detail_case"       : "detail_case",
-  "judul"             : "detail_case",
-  "title"             : "detail_case",
-  "check out"         : "check_out",
-  "check_out"         : "check_out",
-  "selesai"           : "check_out",
-  "status solved"     : "status_case_solved",
-  "status_case_solved": "status_case_solved",
-  "link op"           : "source_link_op",
-  "source link op"    : "source_link_op",
-  "source_link_op"    : "source_link_op",
-  "link"              : "source_link_op",
-  "catatan"           : "note",
-  "note"              : "note",
-  "notes"             : "note",
+  "no ticket": "ticket_number", "ticket number": "ticket_number",
+  "ticket_number": "ticket_number", "no. ticket": "ticket_number",
+  "tiket": "ticket_number", "no tiket": "ticket_number",
+  "tanggal": "date", "date": "date",
+  "bulan": "month", "month": "month",
+  "client": "client_name", "client name": "client_name",
+  "nama client": "client_name", "client_name": "client_name",
+  "pic client": "pic_client", "pic": "pic_client", "pic_client": "pic_client",
+  "customer name": "pic_client", "customer_name": "pic_client",
+  "status": "status_case", "status case": "status_case", "status_case": "status_case",
+  "kategori": "category_case", "category": "category_case",
+  "category case": "category_case", "category_case": "category_case",
+  "ticket category": "category_case", "ticket_category": "category_case",
+  "modul": "module_case", "module": "module_case",
+  "module case": "module_case", "module_case": "module_case",
+  "detail modul": "detail_module", "detail module": "detail_module",
+  "detail_module": "detail_module",
+  "check in": "check_in", "check_in": "check_in", "masuk": "check_in",
+  "created at": "check_in", "created_at": "check_in",
+  "detail case": "detail_case", "detail_case": "detail_case",
+  "judul": "detail_case", "title": "detail_case",
+  "check out": "check_out", "check_out": "check_out", "selesai": "check_out",
+  "resolved at": "check_out", "resolved_at": "check_out",
+  "status solved": "status_case_solved", "status_case_solved": "status_case_solved",
+  "link op": "source_link_op", "source link op": "source_link_op",
+  "source_link_op": "source_link_op", "link": "source_link_op",
+  "ticket op": "source_link_op", "ticket_op": "source_link_op",
+  "catatan": "note", "note": "note", "notes": "note",
 };
 
+const _TICKET_REGEX = /^(IHO-\d+)\s*(.*)/i;
+
+function _extractTicketFromDetail(raw: string | null): {
+  ticketNumber: string | null;
+  detailCase: string | null;
+} {
+  if (!raw?.trim()) return { ticketNumber: null, detailCase: null };
+  const match = raw.trim().match(_TICKET_REGEX);
+  if (match) {
+    return {
+      ticketNumber: match[1].toUpperCase(),
+      detailCase: match[2].trim() || null,
+    };
+  }
+  return { ticketNumber: null, detailCase: raw.trim() };
+}
+
 function _extractSheetId(url: string): string | null {
-  const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  return match ? match[1] : null;
+  return url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1] ?? null;
+}
+
+function _extractGid(url: string): string | null {
+  return url.match(/[?&#]gid=(\d+)/)?.[1] ?? null;
 }
 
 function _parseCsv(text: string): string[][] {
@@ -835,9 +895,47 @@ function _normalizeSyncDate(raw: string): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
+/**
+ * Gabungkan date (YYYY-MM-DD) dengan time-only (H:mm / HH:mm) dari GSheet.
+ * Contoh: date="2026-02-24", rawTime="8:58" → "2026-02-24T08:58:00.000Z"
+ * Jika rawTime sudah berisi tanggal lengkap, langsung parse.
+ */
+function _normalizeSyncDatetime(rawTime: string | null, dateStr: string | null): string | null {
+  if (!rawTime?.trim()) return null;
+  const t = rawTime.trim();
+
+  // Sudah ISO atau dd/mm/yyyy → parse langsung
+  if (/^\d{4}-\d{2}-\d{2}/.test(t)) {
+    const d = new Date(t);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  if (t.includes('/')) {
+    const parts = t.split('/');
+    if (parts.length === 3) {
+      const [a, b, c] = parts.map(Number);
+      if (c > 1900) {
+        const d = new Date(`${c}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`);
+        return isNaN(d.getTime()) ? null : d.toISOString();
+      }
+    }
+  }
+
+  // Hanya waktu H:mm atau HH:mm → gabungkan dengan date
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(t) && dateStr) {
+    const timePadded = t.length === 4 ? `0${t}` : t; // "8:58" → "08:58"
+    const combined = new Date(`${dateStr}T${timePadded}:00`);
+    return isNaN(combined.getTime()) ? null : combined.toISOString();
+  }
+
+  // Fallback
+  const d = new Date(t);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 export async function syncGSheetToDB(sheetUrl: string): Promise<{
   success: boolean;
   inserted?: number;
+  updated?: number;
   skipped?: number;
   error?: string;
 }> {
@@ -849,7 +947,11 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
     const sheetId = _extractSheetId(sheetUrl);
     if (!sheetId) return { success: false, error: 'Tidak dapat mengekstrak Sheet ID dari URL.' };
 
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+    const gid = _extractGid(sheetUrl);
+    const csvUrl = gid
+      ? `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`
+      : `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+
     console.log('🔄 [SYNC] Fetching CSV from:', csvUrl);
 
     const response = await fetch(csvUrl, { cache: 'no-store' });
@@ -864,68 +966,169 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
     const rows = _parseCsv(csvText);
     if (rows.length < 2) return { success: true, inserted: 0, skipped: 0 };
 
-    const headers: (string | null)[] = rows[0].map(h => _SYNC_COLUMN_MAP[h.toLowerCase().trim()] ?? null);
-    const ticketColIdx = headers.indexOf('ticket_number');
-    if (ticketColIdx === -1) {
-      return { success: false, error: 'Kolom nomor tiket tidak ditemukan di GSheet. Periksa _SYNC_COLUMN_MAP.' };
+    const rawHeaders = rows[0];
+    console.log('📋 [SYNC] Raw headers:', rawHeaders);
+
+    const headers: (string | null)[] = rawHeaders.map(
+      h => _SYNC_COLUMN_MAP[h.toLowerCase().trim()] ?? null
+    );
+
+    const detailCaseColIdx = headers.indexOf('detail_case');
+    const ticketColIdx     = headers.indexOf('ticket_number');
+
+    if (detailCaseColIdx === -1 && ticketColIdx === -1) {
+      return {
+        success: false,
+        error: `Kolom "Detail Case" tidak ditemukan. Header GSheet: [${rawHeaders.join(', ')}]`,
+      };
     }
 
     const dataRows = rows.slice(1);
-    const sheetTickets = dataRows.map(r => (r[ticketColIdx] || '').trim()).filter(Boolean);
-    if (!sheetTickets.length) return { success: true, inserted: 0, skipped: 0 };
+    const toProcess: { ticket: string; record: Record<string, any> }[] = [];
 
-    console.log(`🔄 [SYNC] GSheet has ${sheetTickets.length} rows. Checking DB for existing tickets...`);
+    for (const row of dataRows) {
+      const detailCaseRaw = detailCaseColIdx !== -1
+        ? (row[detailCaseColIdx] || '').trim() || null
+        : null;
 
+      const { ticketNumber: ihoTicket, detailCase: cleanDetailCase } =
+        _extractTicketFromDetail(detailCaseRaw);
+
+      const explicitTicket = ticketColIdx !== -1
+        ? (row[ticketColIdx] || '').trim() || null
+        : null;
+
+      const finalTicket = ihoTicket ?? explicitTicket;
+      if (!finalTicket) continue;
+
+      const record: Record<string, any> = {};
+
+      // Pass 1: kumpulkan semua kolom kecuali check_in, check_out, detail_case
+      headers.forEach((col, i) => {
+        if (!col || col === 'detail_case' || col === 'check_in' || col === 'check_out') return;
+        let val: string | null = (row[i] || '').trim() || null;
+        if (col === 'date' && val) val = _normalizeSyncDate(val);
+        if (col === 'client_name' && val) val = normalizeClientName(val);
+        record[col] = val;
+      });
+
+      // Pass 2: check_in & check_out — GSheet menyimpan HANYA waktu (H:mm)
+      // Gabungkan dengan kolom date agar menjadi datetime lengkap
+      const dateStr = record['date'] as string | null;
+      headers.forEach((col, i) => {
+        if (col !== 'check_in' && col !== 'check_out') return;
+        const rawVal = (row[i] || '').trim() || null;
+        record[col] = _normalizeSyncDatetime(rawVal, dateStr);
+      });
+
+      record['ticket_number'] = finalTicket;
+      record['detail_case']   = cleanDetailCase;
+
+      toProcess.push({ ticket: finalTicket, record });
+    }
+
+    const allTickets = toProcess.map(r => r.ticket);
+    console.log(`📊 [SYNC] Total rows valid: ${toProcess.length}`);
+
+    if (!allTickets.length) return { success: true, inserted: 0, skipped: 0 };
+
+    // Fetch tiket yang sudah ada beserta kolom yang perlu dicek
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('all_cases')
-      .select('ticket_number')
-      .in('ticket_number', sheetTickets)
+      .select('ticket_number, status_case, check_in, check_out')
+      .in('ticket_number', allTickets)
       .is('deleted_at', null);
 
     if (fetchErr) return { success: false, error: `DB error: ${fetchErr.message}` };
 
-    const existingSet = new Set((existing || []).map((r: any) => r.ticket_number));
-    console.log(`🔄 [SYNC] Found ${existingSet.size} existing tickets in DB.`);
+    // Map: ticket_number → { status_case, check_in, check_out } di DB
+    const existingMap = new Map<string, { status_case: string | null; check_in: string | null; check_out: string | null }>(
+      (existing || []).map((r: any) => [r.ticket_number, {
+        status_case: r.status_case,
+        check_in: r.check_in,
+        check_out: r.check_out,
+      }])
+    );
 
-    const toInsert: Record<string, any>[] = [];
-    for (const row of dataRows) {
-      const ticket = (row[ticketColIdx] || '').trim();
-      if (!ticket || existingSet.has(ticket)) continue;
+    const toInsert = toProcess
+      .filter(r => !existingMap.has(r.ticket))
+      .map(r => r.record);
 
-      const record: Record<string, any> = {};
-      headers.forEach((col, i) => {
-        if (!col) return;
-        let val: string | null = (row[i] || '').trim() || null;
-        if (['date', 'check_in', 'check_out'].includes(col) && val) val = _normalizeSyncDate(val);
-        if (col === 'client_name' && val) val = normalizeClientName(val);
-        record[col] = val;
-      });
-      toInsert.push(record);
-    }
+    // Tiket sudah ada → update jika ada field yang perlu diisi/diperbarui:
+    // 1. status_case berbeda
+    // 2. check_in kosong di DB tapi ada di GSheet
+    // 3. check_out kosong di DB tapi ada di GSheet
+    const toUpdate = toProcess.filter(r => {
+      const db = existingMap.get(r.ticket);
+      if (!db) return false;
 
-    if (!toInsert.length) {
-      console.log('✅ [SYNC] Nothing new to insert – all tickets already in DB.');
-      return { success: true, inserted: 0, skipped: sheetTickets.length };
-    }
+      const statusChanged = r.record.status_case &&
+        (db.status_case || '').trim().toLowerCase() !== (r.record.status_case || '').trim().toLowerCase();
+      const checkInMissing  = !db.check_in  && !!r.record.check_in;
+      const checkOutMissing = !db.check_out && !!r.record.check_out;
 
+      return statusChanged || checkInMissing || checkOutMissing;
+    });
+
+    console.log(`📊 [SYNC] Insert: ${toInsert.length}, Update: ${toUpdate.length}, Skip: ${existingMap.size - toUpdate.length}`);
+
+    // ── INSERT baris baru ─────────────────────────────────────────────────
     let insertedCount = 0;
     const BATCH = 500;
     for (let i = 0; i < toInsert.length; i += BATCH) {
+      const batch = toInsert.slice(i, i + BATCH);
       const { error: insErr } = await supabaseAdmin
         .from('all_cases')
-        .insert(toInsert.slice(i, i + BATCH));
+        .insert(batch);
+
       if (insErr) {
+        console.error(`❌ [SYNC] Insert error batch ${Math.floor(i / BATCH) + 1}:`, insErr);
         return {
           success: false,
           inserted: insertedCount,
-          skipped: existingSet.size,
-          error: `Insert error pada batch ${Math.floor(i / BATCH) + 1}: ${insErr.message}`,
+          error: `Insert error: ${insErr.message} (code: ${insErr.code})`,
         };
       }
-      insertedCount += Math.min(BATCH, toInsert.length - i);
+      insertedCount += batch.length;
     }
 
-    console.log(`✅ [SYNC] Done. Inserted ${insertedCount}, skipped ${existingSet.size}.`);
+    // ── UPDATE untuk tiket yang sudah ada ────────────────────────────────
+    let updatedCount = 0;
+    for (const item of toUpdate) {
+      const db = existingMap.get(item.ticket)!;
+
+      // Hanya kirim field yang memang berubah / perlu diisi
+      const patch: Record<string, any> = {};
+
+      if (item.record.status_case &&
+          (db.status_case || '').trim().toLowerCase() !== (item.record.status_case || '').trim().toLowerCase()) {
+        patch.status_case = item.record.status_case;
+      }
+      if (!db.check_in && item.record.check_in) {
+        patch.check_in = item.record.check_in;
+      }
+      if (!db.check_out && item.record.check_out) {
+        patch.check_out = item.record.check_out;
+      }
+      // Ikut update status_case_solved jika ada di GSheet
+      if (item.record.status_case_solved) {
+        patch.status_case_solved = item.record.status_case_solved;
+      }
+
+      if (Object.keys(patch).length === 0) continue;
+
+      const { error: updErr } = await supabaseAdmin
+        .from('all_cases')
+        .update(patch)
+        .eq('ticket_number', item.ticket)
+        .is('deleted_at', null);
+
+      if (updErr) {
+        console.error(`❌ [SYNC] Update error untuk ${item.ticket}:`, updErr);
+      } else {
+        updatedCount++;
+      }
+    }
 
     revalidatePath('/db');
     revalidatePath('/dashboard');
@@ -933,11 +1136,54 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
     return {
       success: true,
       inserted: insertedCount,
-      skipped: sheetTickets.length - insertedCount,
+      updated: updatedCount,
+      skipped: existingMap.size - updatedCount,
     };
 
   } catch (err: any) {
     console.error('❌ [SYNC] Unexpected error:', err);
     return { success: false, error: err.message || 'Terjadi kesalahan tak terduga.' };
+  }
+}
+
+// ============================================
+// GLOBAL APP SETTINGS (key-value store di Supabase)
+// Tabel: app_settings (key TEXT PRIMARY KEY, value TEXT)
+//
+// SQL untuk buat tabelnya di Supabase:
+//   create table if not exists app_settings (
+//     key   text primary key,
+//     value text,
+//     updated_at timestamptz default now()
+//   );
+// ============================================
+
+export async function saveAppSetting(key: string, value: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabaseAdmin
+      .from('app_settings')
+      .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error(`❌ Error saving app setting [${key}]:`, err);
+    return { success: false, error: err.message };
+  }
+}
+
+export async function getAppSetting(key: string): Promise<{ success: boolean; value?: string | null; error?: string }> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('app_settings')
+      .select('value')
+      .eq('key', key)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = row not found
+    return { success: true, value: data?.value ?? null };
+  } catch (err: any) {
+    console.error(`❌ Error fetching app setting [${key}]:`, err);
+    return { success: false, error: err.message };
   }
 }

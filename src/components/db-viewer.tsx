@@ -49,49 +49,49 @@ let FILTER_COLUMNS: string[] = [];
 
 const headerDisplayMapping: Record<string, string> = {
     no: 'No', date: 'Date', month: 'Month', client_name: 'Client Name',
-    customer_name: 'Customer Name', status: 'Status', ticket_category: 'Ticket Category',
+    customer_name: 'Customer Name', status: 'Status', ticket_category: 'Category',
     module: 'Module', detail_module: 'Detail Module', created_at: 'Created At',
     title: 'Title', resolved_at: 'Resolved At', ticket_op: 'Ticket OP',
-    status_case_2: 'Umur Case', duration: 'Duration', note: 'Note',
+    status_case_2: 'Case Age', duration: 'Duration', note: 'Note',
 };
 
 const hiddenHeaders: string[] = ['ticket_number', 'url_jira', 'pic_client', 'checkout'];
 
 const categoryColorMap: Record<string, string> = {
-    'Bug Fixing': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-    'Q & A': 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300',
-    'Assistance': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-    'Parameter Setup': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-    'Enhancement': 'bg-rose-600 text-white dark:bg-rose-700',
-    'Adjustment': 'bg-blue-600 text-white dark:bg-blue-700',
-    'default': 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    'Bug Fixing':      'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-900/25 dark:text-red-300 dark:ring-red-800',
+    'Q & A':           'bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-900/25 dark:text-sky-300 dark:ring-sky-800',
+    'Assistance':      'bg-violet-50 text-violet-700 ring-1 ring-violet-200 dark:bg-violet-900/25 dark:text-violet-300 dark:ring-violet-800',
+    'Parameter Setup': 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/25 dark:text-amber-300 dark:ring-amber-800',
+    'Enhancement':     'bg-rose-600 text-white ring-1 ring-rose-700 dark:bg-rose-700',
+    'Adjustment':      'bg-blue-600 text-white ring-1 ring-blue-700 dark:bg-blue-700',
+    'default':         'bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-[#2e2e30] dark:text-[#c8c8cc] dark:ring-[#3a3a3c]',
 };
 
 const statusColorMap: Record<string, string> = {
-    'Solved': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-    'L3': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-    'L2': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-    'L1': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-    'PM': 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
-    'Move to Issue Tracker': 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
-    'default': 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    'Solved':                'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/25 dark:text-emerald-300 dark:ring-emerald-800',
+    'L3':                    'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-900/25 dark:text-red-300 dark:ring-red-800',
+    'L2':                    'bg-blue-50 text-blue-700 ring-1 ring-blue-200 dark:bg-blue-900/25 dark:text-blue-300 dark:ring-blue-800',
+    'L1':                    'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/25 dark:text-amber-300 dark:ring-amber-800',
+    'PM':                    'bg-teal-50 text-teal-700 ring-1 ring-teal-200 dark:bg-teal-900/25 dark:text-teal-300 dark:ring-teal-800',
+    'Move to Issue Tracker': 'bg-pink-50 text-pink-700 ring-1 ring-pink-200 dark:bg-pink-900/25 dark:text-pink-300 dark:ring-pink-800',
+    'default':               'bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-[#2e2e30] dark:text-[#c8c8cc] dark:ring-[#3a3a3c]',
 };
 
 const moduleColorMap: Record<string, string> = {
-    'Payment': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-    'Perpustakaan': 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
-    'Pesantren': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-    'Pintro Pay': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-    'Boarding': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-    'Migrasi Data': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-    'default': 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    'Payment':      'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-900/25 dark:text-red-300 dark:ring-red-800',
+    'Perpustakaan': 'bg-teal-50 text-teal-700 ring-1 ring-teal-200 dark:bg-teal-900/25 dark:text-teal-300 dark:ring-teal-800',
+    'Pesantren':    'bg-blue-50 text-blue-700 ring-1 ring-blue-200 dark:bg-blue-900/25 dark:text-blue-300 dark:ring-blue-800',
+    'Pintro Pay':   'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/25 dark:text-amber-300 dark:ring-amber-800',
+    'Boarding':     'bg-orange-50 text-orange-700 ring-1 ring-orange-200 dark:bg-orange-900/25 dark:text-orange-300 dark:ring-orange-800',
+    'Migrasi Data': 'bg-violet-50 text-violet-700 ring-1 ring-violet-200 dark:bg-violet-900/25 dark:text-violet-300 dark:ring-violet-800',
+    'default':      'bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-[#2e2e30] dark:text-[#c8c8cc] dark:ring-[#3a3a3c]',
 };
 
-const ALL_CATEGORIES = ['Adjustment', 'Assistance', 'Bug Fixing', 'Enhancement', 'Parameter Setup', 'Q & A'];
-const ALL_STATUSES = ['Solved', 'L3', 'L2', 'L1', 'PM', 'Move to Issue Tracker'];
-const ALL_MODULES = ['PPDP/PMB', 'LMS/KBM', 'Administrasi Akademik', 'CBT', 'Penilaian/Raport', 'Payment', 'Perpustakaan', 'Pesantren', 'Pintro Pay', 'Boarding', 'Migrasi Data', 'Aplikasi/Mobile', 'Akses Portal'];
+const ALL_CATEGORIES    = ['Adjustment', 'Assistance', 'Bug Fixing', 'Enhancement', 'Parameter Setup', 'Q & A'];
+const ALL_STATUSES      = ['Solved', 'L3', 'L2', 'L1', 'PM', 'Move to Issue Tracker'];
+const ALL_MODULES       = ['PPDP/PMB', 'LMS/KBM', 'Administrasi Akademik', 'CBT', 'Penilaian/Raport', 'Payment', 'Perpustakaan', 'Pesantren', 'Pintro Pay', 'Boarding', 'Migrasi Data', 'Aplikasi/Mobile', 'Akses Portal'];
 const ALL_DETAIL_MODULES = ['Payment - Angsuran', 'Payment - Daftar Ulang', 'Payment - Diskon', 'Payment - Double Bayar / Refund', 'Payment - Gagal Transaksi', 'Payment - Laporan / Selisih', 'Payment - Pintro Cash', 'Payment - SPPK', 'Payment - Tagihan tidak terupdate', 'Payment - Tambah Tagihan', 'Payment - Hapus Data', 'Payment - Update Tagihan', 'PPDB - Setup PPDB', 'PPDB - Jadwal PPDB', 'PPDB - Form Pendaftar', 'PPDB - Data Pendaftar', 'PPDB - Status Pendaftar', 'PPDB - Proses Kelulusan', 'PPDB - Ujian Online', 'PPDB - Laporan', 'LMS - Materi', 'LMS - Tugas', 'LMS - Ujian / Quiz', 'LMS - Absensi', 'LMS - Forum Diskusi', 'Akademik - Kalender Akademik', 'Akademik - Kurikulum', 'Akademik - Jadwal Pelajaran', 'Akademik - Data Siswa', 'Akademik - Data Guru', 'CBT - Bank Soal', 'CBT - Jadwal Ujian', 'CBT - Pelaksanaan Ujian', 'CBT - Hasil Ujian', 'Penilaian - Input Nilai', 'Penilaian - Proses Rapor', 'Penilaian - Cetak Rapor', 'Penilaian - Leger Nilai', 'Mobile - Notifikasi', 'Mobile - Login/Logout'];
-const ALL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const ALL_MONTHS        = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -174,31 +174,46 @@ const HeaderFilterPopover = memo(({
             if (!v) { setSearch(''); setShowInlineAdd(false); setNewItemInput(''); }
         }}>
             <PopoverTrigger asChild>
-                <button className="inline-flex items-center justify-center gap-1 w-full h-full group">
-                    <span className={cn("truncate text-xs font-semibold", hasActive && "text-primary")}>{label}</span>
-                    <ChevronDown className={cn("h-3 w-3 flex-shrink-0 transition-all",
-                        hasActive ? "text-primary opacity-100" : "text-muted-foreground opacity-50",
+                <button className={cn(
+                    "inline-flex items-center justify-center gap-1 w-full h-full px-2 rounded transition-colors",
+                    "hover:bg-slate-100 dark:hover:bg-[#2e2e30]",
+                    open && "bg-slate-100 dark:bg-[#2e2e30]"
+                )}>
+                    <span className={cn(
+                        "truncate text-[11px] font-semibold tracking-wide uppercase",
+                        hasActive ? "text-primary" : "text-slate-500 dark:text-[#909098]"
+                    )}>
+                        {label}
+                    </span>
+                    <ChevronDown className={cn(
+                        "h-3 w-3 flex-shrink-0 transition-transform duration-150",
+                        hasActive ? "text-primary" : "text-slate-400",
                         open && "rotate-180"
                     )} />
-                    {hasActive && <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" />}
+                    {hasActive && (
+                        <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary shadow-sm" />
+                    )}
                 </button>
             </PopoverTrigger>
 
-            <PopoverContent className="w-[250px] p-0 shadow-lg" align="center">
+            <PopoverContent className="w-[260px] p-0 shadow-xl border-slate-200 dark:border-[#3a3a3c] rounded-xl overflow-hidden" align="center">
                 <Command>
                     {showAddClient && onAddClient && (
-                        <div className="border-b p-1.5 sticky top-0 bg-popover z-10">
-                            <Button onClick={() => { onAddClient(); setOpen(false); }} className="w-full h-7" size="sm" variant="outline">
-                                <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-                                <span className="text-xs">Add New Client</span>
+                        <div className="border-b border-slate-100 dark:border-[#3a3a3c] p-2 bg-slate-50 dark:bg-[#242426]/80">
+                            <Button
+                                onClick={() => { onAddClient(); setOpen(false); }}
+                                className="w-full h-8 text-xs font-medium"
+                                size="sm" variant="outline"
+                            >
+                                <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Add New Client
                             </Button>
                         </div>
                     )}
 
                     {showAdd && onAdd && (
-                        <div className="border-b p-1.5 sticky top-0 bg-popover z-10">
+                        <div className="border-b border-slate-100 dark:border-[#3a3a3c] p-2 bg-slate-50 dark:bg-[#242426]/80">
                             {showInlineAdd ? (
-                                <div className="flex gap-1">
+                                <div className="flex gap-1.5">
                                     <Input
                                         autoFocus value={newItemInput}
                                         onChange={e => setNewItemInput(e.target.value)}
@@ -207,25 +222,29 @@ const HeaderFilterPopover = memo(({
                                             if (e.key === 'Escape') { setShowInlineAdd(false); setNewItemInput(''); }
                                         }}
                                         placeholder={`New ${addLabel || 'item'}...`}
-                                        className="h-7 text-xs flex-1 px-2"
+                                        className="h-7 text-xs flex-1"
                                     />
-                                    <Button onClick={handleAddInline} size="sm" className="h-7 px-2" disabled={!newItemInput.trim()}>
+                                    <Button onClick={handleAddInline} size="sm" className="h-7 px-2.5" disabled={!newItemInput.trim()}>
                                         <Check className="h-3 w-3" />
                                     </Button>
                                 </div>
                             ) : (
-                                <Button onClick={() => setShowInlineAdd(true)} className="w-full h-7" size="sm" variant="outline">
-                                    <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-                                    <span className="text-xs">Add {addLabel || 'New Item'}</span>
+                                <Button onClick={() => setShowInlineAdd(true)} className="w-full h-8 text-xs font-medium" size="sm" variant="outline">
+                                    <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Add {addLabel || 'Item'}
                                 </Button>
                             )}
                         </div>
                     )}
 
-                    <CommandInput placeholder="Search..." value={search} onValueChange={setSearch} className="text-xs h-8" />
+                    <CommandInput
+                        placeholder="Search..."
+                        value={search}
+                        onValueChange={setSearch}
+                        className="text-xs h-9 border-b border-slate-100 dark:border-[#3a3a3c]"
+                    />
 
                     <CommandList className="max-h-[220px]">
-                        <CommandEmpty className="text-xs py-3 text-center text-muted-foreground">No results.</CommandEmpty>
+                        <CommandEmpty className="text-xs py-4 text-center text-slate-400">No results found.</CommandEmpty>
                         <CommandGroup>
                             {filteredOptions.map(option => {
                                 const isSelected = selected.includes(option);
@@ -237,33 +256,35 @@ const HeaderFilterPopover = memo(({
                                     <CommandItem
                                         key={option} value={option}
                                         onSelect={() => toggleOption(option)}
-                                        className="flex items-center gap-2 text-xs cursor-pointer py-1.5 pr-1.5"
+                                        className={cn(
+                                            "flex items-center gap-2 text-xs cursor-pointer py-2 px-3 rounded-none",
+                                            isSelected && "bg-primary/5"
+                                        )}
                                     >
                                         <div className={cn(
-                                            "h-3.5 w-3.5 rounded border flex items-center justify-center flex-shrink-0",
-                                            isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted bg-white dark:bg-slate-950"
+                                            "h-4 w-4 rounded border-[1.5px] flex items-center justify-center flex-shrink-0 transition-colors",
+                                            isSelected
+                                                ? "bg-primary border-primary text-white"
+                                                : "border-slate-300 dark:border-[#3a3a3c] bg-white dark:bg-[#1f1f21]"
                                         )}>
                                             {isSelected && <Check className="h-2.5 w-2.5" />}
                                         </div>
 
-                                        <span className="flex-1 truncate min-w-0">
+                                        <span className="flex-1 truncate min-w-0 font-medium">
                                             {renderOption ? renderOption(option) : option}
                                         </span>
 
-                                        <div className="flex-shrink-0 ml-1">
+                                        <div className="flex-shrink-0">
                                             {!isInDB ? (
-                                                <span
-                                                    title="Data belum di ditambahkan"
-                                                    className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 border border-red-300 dark:border-red-700 leading-none select-none"
-                                                >
-                                                    ● data
+                                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-50 text-red-600 dark:bg-red-900/40 dark:text-red-400 border border-red-200 dark:border-red-800">
+                                                    ● missing
                                                 </span>
                                             ) : isEditMode && onDeleteItem ? (
                                                 <button
                                                     onClick={e => handleDelete(e, option)}
                                                     disabled={isThisDeleting}
-                                                    className="p-0.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
-                                                    title={`Hapus "${option}" dari master DB`}
+                                                    className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-40"
+                                                    title={`Delete "${option}"`}
                                                 >
                                                     {isThisDeleting
                                                         ? <RefreshCw className="h-3 w-3 animate-spin" />
@@ -280,16 +301,19 @@ const HeaderFilterPopover = memo(({
                 </Command>
 
                 {options.length > 0 && (
-                    <div className="border-t px-2 py-1.5 flex items-center justify-between">
+                    <div className="border-t border-slate-100 dark:border-[#3a3a3c] px-3 py-2 flex items-center justify-between bg-slate-50 dark:bg-[#242426]/80">
                         <button
                             onClick={() => onSelectionChange(selected.length === options.length ? [] : [...options])}
-                            className="text-xs text-primary hover:underline"
+                            className="text-xs text-primary font-medium hover:underline"
                         >
                             {selected.length === options.length ? 'Deselect All' : 'Select All'}
                         </button>
                         {hasActive && (
-                            <button onClick={() => onSelectionChange([])} className="text-xs text-muted-foreground hover:text-destructive">
-                                Clear
+                            <button
+                                onClick={() => onSelectionChange([])}
+                                className="text-xs text-slate-400 hover:text-red-500 font-medium transition-colors"
+                            >
+                                Clear ({selected.length})
                             </button>
                         )}
                     </div>
@@ -309,21 +333,37 @@ const DateRangeHeaderPopover = memo(({ dateRange, onDateRangeChange }: {
     const [open, setOpen] = useState(false);
     const [temp, setTemp] = useState<DateRange | undefined>(undefined);
     const hasActive = !!dateRange?.from;
+
     return (
         <Popover open={open} onOpenChange={v => { if (v) setTemp(dateRange); setOpen(v); }}>
             <PopoverTrigger asChild>
-                <button className="inline-flex items-center justify-center gap-1 w-full h-full group">
-                    <span className={cn("truncate text-xs font-semibold", hasActive && "text-primary")}>Date</span>
-                    <ChevronDown className={cn("h-3 w-3 flex-shrink-0 transition-all", hasActive ? "text-primary opacity-100" : "text-muted-foreground opacity-50", open && "rotate-180")} />
-                    {hasActive && <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" />}
+                <button className={cn(
+                    "inline-flex items-center justify-center gap-1 w-full h-full px-2 rounded transition-colors",
+                    "hover:bg-slate-100 dark:hover:bg-[#2e2e30]",
+                    open && "bg-slate-100 dark:bg-[#2e2e30]"
+                )}>
+                    <span className={cn(
+                        "truncate text-[11px] font-semibold tracking-wide uppercase",
+                        hasActive ? "text-primary" : "text-slate-500 dark:text-[#909098]"
+                    )}>Date</span>
+                    <ChevronDown className={cn(
+                        "h-3 w-3 flex-shrink-0 transition-transform duration-150",
+                        hasActive ? "text-primary" : "text-slate-400",
+                        open && "rotate-180"
+                    )} />
+                    {hasActive && <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />}
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 shadow-lg" align="start">
-                <Calendar initialFocus mode="range" defaultMonth={temp?.from ?? dateRange?.from} selected={temp} onSelect={setTemp} numberOfMonths={2} />
-                <div className="flex justify-end gap-2 p-3 border-t">
-                    <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button variant="outline" size="sm" onClick={() => { onDateRangeChange(undefined); setOpen(false); }}>Clear</Button>
-                    <Button size="sm" onClick={() => { onDateRangeChange(temp); setOpen(false); }}>Apply</Button>
+            <PopoverContent className="w-auto p-0 shadow-xl border-slate-200 dark:border-[#3a3a3c] rounded-xl overflow-hidden" align="start">
+                <Calendar
+                    initialFocus mode="range"
+                    defaultMonth={temp?.from ?? dateRange?.from}
+                    selected={temp} onSelect={setTemp} numberOfMonths={2}
+                />
+                <div className="flex justify-end gap-2 p-3 border-t border-slate-100 dark:border-[#3a3a3c] bg-slate-50 dark:bg-[#242426]/80">
+                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => setOpen(false)}>Cancel</Button>
+                    <Button variant="outline" size="sm" className="text-xs" onClick={() => { onDateRangeChange(undefined); setOpen(false); }}>Clear</Button>
+                    <Button size="sm" className="text-xs" onClick={() => { onDateRangeChange(temp); setOpen(false); }}>Apply Range</Button>
                 </div>
             </PopoverContent>
         </Popover>
@@ -341,36 +381,55 @@ const AddClientDialog = memo(({ isOpen, onOpenChange, onClientAdded, existingCli
     const [isSaving, startSaving] = useTransition();
     const { toast } = useToast();
     useEffect(() => { if (!isOpen) setName(''); }, [isOpen]);
+
     const handleSave = async () => {
         if (!name.trim()) return;
         if (existingClientsSet?.has(name.trim().toLowerCase())) {
-            toast({ variant: "destructive", title: "Client Already Exists", description: `"${name.trim()}" already exists.` });
+            toast({ variant: "destructive", title: "Client Already Exists", description: `"${name.trim()}" sudah ada.` });
             return;
         }
         startSaving(async () => {
             const r = await addClient(name.trim());
             if (r.success && r.client) {
-                toast({ title: "Client Added", description: `"${r.client.name}" has been added.` });
+                toast({ title: "Client Added", description: `"${r.client.name}" berhasil ditambahkan.` });
                 onClientAdded(r.client.name); onOpenChange(false);
             } else { toast({ variant: "destructive", title: "Failed to Add Client", description: r.error }); }
         });
     };
+
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Add New Client</DialogTitle>
-                    <DialogDescription>Enter the name of the new client. This will be saved to the database.</DialogDescription>
+            <DialogContent className="sm:max-w-[420px] rounded-xl shadow-2xl">
+                <DialogHeader className="pb-4">
+                    <DialogTitle className="text-base font-semibold">Add New Client</DialogTitle>
+                    <DialogDescription className="text-sm text-slate-500">
+                        Masukkan nama client baru. Data akan tersimpan ke database.
+                    </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="ncn" className="text-right">Name</Label>
-                        <Input id="ncn" value={name} onChange={e => setName(e.target.value)} className="col-span-3" disabled={isSaving} />
+                <div className="space-y-4 py-2">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="ncn" className="text-sm font-medium">Client Name</Label>
+                        <Input
+                            id="ncn" value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="Masukkan nama client..."
+                            className="h-10 text-sm"
+                            onKeyDown={e => e.key === 'Enter' && handleSave()}
+                            disabled={isSaving}
+                        />
                     </div>
                 </div>
-                <DialogFooter>
-                    <Button onClick={handleSave} disabled={isSaving || !name.trim() || existingClientsSet?.has(name.trim().toLowerCase())}>
-                        {isSaving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : 'Save Client'}
+                <DialogFooter className="pt-2 gap-2">
+                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving} className="text-sm">
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleSave}
+                        disabled={isSaving || !name.trim() || existingClientsSet?.has(name.trim().toLowerCase())}
+                        className="text-sm"
+                    >
+                        {isSaving && <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                        Save Client
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -409,27 +468,47 @@ const LazyEditableCell = memo(({
         else if (e.key === 'Escape') { setLocal(value); onCellClick(0, ''); }
     };
 
-    const cellStyle = { width: columnWidth, flexShrink: 0, borderRight: '1px solid hsl(var(--border))' };
+    const cellStyle = {
+        width: columnWidth,
+        flexShrink: 0,
+        borderRight: '1px solid hsl(var(--border))',
+    };
+
     const frozenStyle = header === 'no'
-        ? { ...cellStyle, position: 'sticky' as const, left: 0, zIndex: 5, backgroundColor: 'hsl(var(--background))', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.1)' }
+        ? {
+            ...cellStyle,
+            position: 'sticky' as const, left: 0, zIndex: 5,
+            backgroundColor: 'hsl(var(--background))',
+            boxShadow: '2px 0 8px -2px rgba(0,0,0,0.08)',
+            borderRight: '2px solid hsl(var(--border))',
+          }
         : cellStyle;
 
-    // ── No column ──
+    // ── No / row-number column ──
     if (header === 'no') return (
         <div
-            className={cn("align-middle flex items-center justify-center border-r-2", isEditMode && "cursor-pointer hover:bg-accent/50", isSelected && "bg-primary/10")}
+            className={cn(
+                "align-middle flex items-center justify-center h-full transition-colors",
+                isEditMode && "cursor-pointer",
+                isSelected
+                    ? "bg-primary/8 dark:bg-primary/10"
+                    : isEditMode && "hover:bg-slate-50 dark:hover:bg-[#2e2e30]/70"
+            )}
             style={frozenStyle}
             onClick={() => isEditMode && onToggleSelect(rowId)}
         >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-2">
                 {isEditMode && (
                     <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => onToggleSelect(rowId)}
                         onClick={e => e.stopPropagation()}
+                        className="border-slate-300 dark:border-[#3a3a3c]"
                     />
                 )}
-                <span className="truncate text-xs font-medium">{rowNumber}</span>
+                <span className="text-[11px] font-mono text-slate-400 dark:text-[#6e6e76] tabular-nums select-none">
+                    {rowNumber}
+                </span>
             </div>
         </div>
     );
@@ -440,19 +519,56 @@ const LazyEditableCell = memo(({
         const valid = availableClientsSet.has(str.toLowerCase());
         if (isActive && isEditMode) return (
             <div className="align-middle relative" style={cellStyle}>
-                <Select value={local} onValueChange={v => { setLocal(v); onCellChange(rowId, header, v); onCellSave(rowId); onCellClick(0, ''); }} open onOpenChange={o => { if (!o) onCellClick(0, ''); }}>
-                    <SelectTrigger className={cn("h-full w-full rounded-none border-2 border-primary bg-white dark:bg-slate-950 p-0 py-1 px-2 text-xs focus:ring-0", !valid && str && "text-destructive font-semibold")}>
-                        <SelectValue placeholder="Select client..." />
+                <Select
+                    value={local}
+                    onValueChange={v => { setLocal(v); onCellChange(rowId, header, v); onCellSave(rowId); onCellClick(0, ''); }}
+                    open onOpenChange={o => { if (!o) onCellClick(0, ''); }}
+                >
+                    <SelectTrigger className={cn(
+                        "h-full w-full rounded-none border-2 border-primary bg-white dark:bg-[#1f1f21] px-2 text-xs focus:ring-0",
+                        !valid && str && "text-red-600 font-semibold"
+                    )}>
+                        <SelectValue placeholder="Pilih client..." />
                     </SelectTrigger>
-                    <SelectContent><SelectScrollUpButton /><SelectViewport>{availableClients.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectViewport><SelectScrollDownButton /></SelectContent>
+                    <SelectContent>
+                        <SelectScrollUpButton />
+                        <SelectViewport>
+                            {availableClients.map(o => <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>)}
+                        </SelectViewport>
+                        <SelectScrollDownButton />
+                    </SelectContent>
                 </Select>
-                {!valid && str && <div className="absolute top-0 right-0 w-0 h-0 border-solid border-t-red-500 border-l-transparent border-t-[8px] border-l-[8px]" />}
+                {!valid && str && (
+                    <div className="absolute top-0 right-0 w-0 h-0 border-solid border-t-red-500 border-l-transparent border-t-[8px] border-l-[8px]" />
+                )}
             </div>
         );
         return (
-            <div className="align-middle relative cursor-pointer hover:bg-accent/50" style={cellStyle} onClick={() => isEditable && onCellClick(rowId, header)}>
-                <div className="py-1 px-2 flex items-center h-full justify-center"><span className="truncate text-xs">{value || '-'}</span></div>
-                {!valid && str && <div className="absolute top-0 right-0 w-0 h-0 border-solid border-t-red-500 border-l-transparent border-t-[8px] border-l-[8px]" />}
+            <div
+                className={cn(
+                    "align-middle relative h-full transition-colors",
+                    isEditable && "cursor-pointer hover:bg-slate-50 dark:hover:bg-[#2e2e30]/60"
+                )}
+                style={cellStyle}
+                onClick={() => isEditable && onCellClick(rowId, header)}
+            >
+                <div className="py-2 px-3 flex items-center h-full justify-center">
+                    {value ? (
+                        <span className={cn(
+                            "text-xs font-semibold px-2 py-0.5 rounded-md",
+                            valid
+                                ? "bg-slate-100 text-slate-700 dark:bg-[#2e2e30] dark:text-[#c8c8cc]"
+                                : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
+                        )}>
+                            {value}
+                        </span>
+                    ) : (
+                        <span className="text-xs text-slate-300 dark:text-[#555559]">—</span>
+                    )}
+                    {!valid && str && (
+                        <div className="absolute top-0 right-0 w-0 h-0 border-solid border-t-red-500 border-l-transparent border-t-[8px] border-l-[8px]" />
+                    )}
+                </div>
             </div>
         );
     }
@@ -460,19 +576,34 @@ const LazyEditableCell = memo(({
     // ── Dropdown columns ──
     const isDropdown = ['status','ticket_category','module','detail_module'].includes(header);
     if (isDropdown && isActive && isEditMode) {
-        const opts = header === 'ticket_category' ? ALL_CATEGORIES : header === 'status' ? ALL_STATUSES : header === 'module' ? ALL_MODULES : ALL_DETAIL_MODULES;
+        const opts = header === 'ticket_category' ? ALL_CATEGORIES
+            : header === 'status' ? ALL_STATUSES
+            : header === 'module' ? ALL_MODULES
+            : ALL_DETAIL_MODULES;
         return (
             <div className="align-middle" style={frozenStyle}>
-                <Select value={local ?? ''} onValueChange={v => { setLocal(v); onCellChange(rowId, header, v); onCellSave(rowId); onCellClick(0, ''); }} open onOpenChange={o => { if (!o) onCellClick(0, ''); }}>
-                    <SelectTrigger className="h-full w-full rounded-none border-2 border-primary bg-white dark:bg-slate-950 p-0 py-1 px-2 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>{opts.map(o => (
-                        <SelectItem key={o} value={o}>
-                            {header === 'status' ? <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[o] || statusColorMap.default)}>{o}</span>
-                            : header === 'ticket_category' ? <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[o] || categoryColorMap.default)}>{o}</span>
-                            : header === 'module' ? <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[o] || moduleColorMap.default)}>{o}</span>
-                            : o}
-                        </SelectItem>
-                    ))}</SelectContent>
+                <Select
+                    value={local ?? ''}
+                    onValueChange={v => { setLocal(v); onCellChange(rowId, header, v); onCellSave(rowId); onCellClick(0, ''); }}
+                    open onOpenChange={o => { if (!o) onCellClick(0, ''); }}
+                >
+                    <SelectTrigger className="h-full w-full rounded-none border-2 border-primary bg-white dark:bg-[#1f1f21] px-2 text-xs focus:ring-0">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {opts.map(o => (
+                            <SelectItem key={o} value={o} className="text-xs">
+                                {header === 'status'
+                                    ? <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[o] || statusColorMap.default)}>{o}</span>
+                                    : header === 'ticket_category'
+                                    ? <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', categoryColorMap[o] || categoryColorMap.default)}>{o}</span>
+                                    : header === 'module'
+                                    ? <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', moduleColorMap[o] || moduleColorMap.default)}>{o}</span>
+                                    : o
+                                }
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
                 </Select>
             </div>
         );
@@ -481,27 +612,118 @@ const LazyEditableCell = memo(({
     // ── Text input ──
     if (isEditable && isActive) return (
         <div className="align-middle" style={frozenStyle}>
-            <Input ref={inputRef} type="text" value={local ?? ''} onChange={e => setLocal(e.target.value)} onBlur={handleBlur} onKeyDown={handleKeyDown} className="h-full w-full rounded-none border-2 border-primary bg-white dark:bg-slate-950 p-2 text-xs focus-visible:ring-0" />
+            <Input
+                ref={inputRef}
+                type="text" value={local ?? ''}
+                onChange={e => setLocal(e.target.value)}
+                onBlur={handleBlur} onKeyDown={handleKeyDown}
+                className="h-full w-full rounded-none border-2 border-primary bg-white dark:bg-[#1f1f21] px-3 text-xs focus-visible:ring-0"
+            />
         </div>
     );
 
     // ── Read-only display ──
     return (
-        <div className={cn("align-middle", isEditable && "cursor-pointer hover:bg-accent/50")} style={frozenStyle} onClick={() => isEditable && onCellClick(rowId, header)}>
-            <div className={cn("py-1 px-2 flex items-center h-full", !['title','note'].includes(header) && 'justify-center')}>
+        <div
+            className={cn(
+                "align-middle h-full transition-colors",
+                isEditable && "cursor-pointer hover:bg-slate-50 dark:hover:bg-[#2e2e30]/60"
+            )}
+            style={frozenStyle}
+            onClick={() => isEditable && onCellClick(rowId, header)}
+        >
+            <div className={cn(
+                "py-2 px-3 flex items-center h-full text-xs",
+                !['title','note'].includes(header) && 'justify-center'
+            )}>
                 {(() => {
-                    if (header === 'date') return <span className="truncate text-xs">{formatDateDDMMYYYY(value)}</span>;
-                    if (header === 'created_at' || header === 'resolved_at') return <span className="truncate text-xs">{formatDateTimeLocal(value)}</span>;
-                    if (header === 'status_case_2' && value) { const age = Number(value); return <span className={cn('text-xs px-2 py-0.5 rounded-full font-mono', age > 3 ? 'bg-destructive text-destructive-foreground font-bold' : '')}>{age}</span>; }
-                    if (header === 'duration' && value) return <span className="text-xs px-2 py-0.5 rounded-full font-mono">{value}</span>;
-                    if (header === 'ticket_category' && value) return <span className={cn('text-xs px-2 py-0.5 rounded-full', categoryColorMap[value as string] || categoryColorMap.default)}>{value}</span>;
-                    if (header === 'status' && value) return <span className={cn('text-xs inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold', statusColorMap[value as string] || statusColorMap.default)}>{value}</span>;
-                    if (header === 'module' && value) return <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[value] || moduleColorMap.default)}>{value}</span>;
+                    if (header === 'date') return (
+                        <span className="truncate font-mono text-[11px] text-slate-500 tabular-nums">
+                            {formatDateDDMMYYYY(value)}
+                        </span>
+                    );
+
+                    if (header === 'created_at' || header === 'resolved_at') return (
+                        <span className="truncate font-mono text-[11px] text-slate-400 tabular-nums">
+                            {formatDateTimeLocal(value)}
+                        </span>
+                    );
+
+                    if (header === 'status_case_2' && value) {
+                        const age = Number(value);
+                        return (
+                            <span className={cn(
+                                'text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md tabular-nums',
+                                age > 7  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                age > 3  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                           'bg-slate-100 text-slate-600 dark:bg-[#2e2e30] dark:text-[#909098]'
+                            )}>
+                                {age}d
+                            </span>
+                        );
+                    }
+
+                    if (header === 'duration' && value) return (
+                        <span className="text-[11px] font-mono text-slate-500 tabular-nums">{value}</span>
+                    );
+
+                    if (header === 'ticket_category' && value) return (
+                        <span className={cn(
+                            'text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap',
+                            categoryColorMap[value as string] || categoryColorMap.default
+                        )}>
+                            {value}
+                        </span>
+                    );
+
+                    if (header === 'status' && value) return (
+                        <span className={cn(
+                            'inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap',
+                            statusColorMap[value as string] || statusColorMap.default
+                        )}>
+                            <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70 flex-shrink-0" />
+                            {value}
+                        </span>
+                    );
+
+                    if (header === 'module' && value) return (
+                        <span className={cn(
+                            'text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap',
+                            moduleColorMap[value] || moduleColorMap.default
+                        )}>
+                            {value}
+                        </span>
+                    );
+
                     if (header === 'title' && value) {
                         const m = String(value).match(/^(IHO-\d+)/);
-                        if (m) { const t = m[0]; const rest = String(value).substring(t.length).trim(); return <span className="truncate text-xs"><a href={`https://pintro.atlassian.net/browse/${t}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{t}</a>{' '}{rest}</span>; }
+                        if (m) {
+                            const t = m[0];
+                            const rest = String(value).substring(t.length).trim();
+                            return (
+                                <span className="truncate text-xs flex items-center gap-1.5">
+                                    <a
+                                        href={`https://pintro.atlassian.net/browse/${t}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        onClick={e => e.stopPropagation()}
+                                        className={cn(
+                                            "flex-shrink-0 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded",
+                                            "bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                        )}
+                                    >
+                                        {t}
+                                    </a>
+                                    <span className="truncate text-slate-600 dark:text-[#909098]">{rest}</span>
+                                </span>
+                            );
+                        }
                     }
-                    return <span className="truncate text-xs">{value || '-'}</span>;
+
+                    return (
+                        <span className="truncate text-xs text-slate-700 dark:text-[#c8c8cc]">
+                            {value || <span className="text-slate-300 dark:text-[#555559]">—</span>}
+                        </span>
+                    );
                 })()}
             </div>
         </div>
@@ -511,7 +733,13 @@ LazyEditableCell.displayName = "LazyEditableCell";
 
 // ── MemoizedRow ────────────────────────────────────────────
 
-const MemoizedRow = memo(({ row, headers, columnWidths, rowNumber, handleCellChange, handleCellSave, availableClients, availableClientsSet, activeCell, onCellClick, isSelected, onToggleSelect, isEditMode }: {
+const MemoizedRow = memo(({
+    row, headers, columnWidths, rowNumber,
+    handleCellChange, handleCellSave,
+    availableClients, availableClientsSet,
+    activeCell, onCellClick,
+    isSelected, onToggleSelect, isEditMode,
+}: {
     row: any; headers: string[]; columnWidths: Record<string,number>; rowNumber: number;
     handleCellChange: (id: number, h: string, v: string) => void; handleCellSave: (id: number) => void;
     availableClients: string[]; availableClientsSet: Set<string>;
@@ -519,11 +747,18 @@ const MemoizedRow = memo(({ row, headers, columnWidths, rowNumber, handleCellCha
     isSelected: boolean; onToggleSelect: (id: number) => void;
     isEditMode: boolean;
 }) => (
-    <div className={cn("flex border-b transition-colors hover:bg-muted/50 h-full", isSelected && "bg-primary/5")}>
+    <div className={cn(
+        "flex border-b border-slate-100 dark:border-[#3a3a3c] transition-colors h-full",
+        isSelected
+            ? "bg-primary/5 dark:bg-primary/8"
+            : "hover:bg-slate-50/80 dark:hover:bg-[#2e2e30]/40"
+    )}>
         {headers.map(h => (
             <LazyEditableCell
-                key={`${row.id}-${h}`} header={h} value={row[h]} rowId={row.id} rowNumber={rowNumber}
-                columnWidth={columnWidths[h]} onCellChange={handleCellChange} onCellSave={handleCellSave}
+                key={`${row.id}-${h}`}
+                header={h} value={row[h]} rowId={row.id} rowNumber={rowNumber}
+                columnWidth={columnWidths[h]}
+                onCellChange={handleCellChange} onCellSave={handleCellSave}
                 availableClients={availableClients} availableClientsSet={availableClientsSet}
                 activeCell={activeCell} onCellClick={onCellClick}
                 isSelected={isSelected} onToggleSelect={onToggleSelect}
@@ -541,6 +776,8 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     const [state, setState] = useState<DbViewerState>({ data: initialData, source: initialSource, error: initialError });
     const [isPending, startTransition] = useTransition();
     const [isSaving, setIsSaving] = useState(false);
+    // ── NEW: Sync Now state ──
+    const [isSyncing, setIsSyncing] = useState(false);
     const { toast } = useToast();
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -610,7 +847,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         const keys = [...new Set([...Object.keys(state.data[0]), 'duration'])].filter(k => !hiddenHeaders.includes(k) && k !== 'id');
         keys.sort((a, b) => { const ia = order.indexOf(a), ib = order.indexOf(b); if (ia === -1 && ib === -1) return a.localeCompare(b); if (ia === -1) return 1; if (ib === -1) return -1; return ia - ib; });
         FILTER_COLUMNS = ['client_name','status','ticket_category','module','detail_module','month'];
-        // ✅ FIX: kolom 'no' selalu ada, tidak bergantung pada isEditMode
         return ['no', ...keys];
     }, [state.data]);
 
@@ -619,7 +855,13 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     useEffect(() => { setIsProcessing(isPending || isSaving); }, [isPending, isSaving, setIsProcessing]);
 
     const initialColumnWidths = useCallback(() => {
-        const w: Record<string,number> = { no:80, date:120, month:90, title:350, client_name:180, customer_name:180, status:140, ticket_category:160, module:150, detail_module:200, created_at:150, resolved_at:150, status_case_2:130, duration:130, ticket_op:150, note:250 };
+        const w: Record<string,number> = {
+            no: 72, date: 110, month: 90, title: 360,
+            client_name: 160, customer_name: 170, status: 140,
+            ticket_category: 155, module: 150, detail_module: 210,
+            created_at: 140, resolved_at: 140, status_case_2: 110,
+            duration: 110, ticket_op: 130, note: 250
+        };
         headers.forEach(h => { if (!w[h]) w[h] = 120; });
         return w;
     }, [headers]);
@@ -628,13 +870,31 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     useEffect(() => { if (headers.length > 0) setColumnWidths(initialColumnWidths()); }, [headers, initialColumnWidths]);
     const totalWidth = useMemo(() => Object.values(columnWidths).reduce((a, w) => a + w, 0), [columnWidths]);
 
-    const handleResizeStart = useCallback((e: MouseEvent<HTMLDivElement>, h: string) => { e.preventDefault(); e.stopPropagation(); setResizingColumn(h); setStartX(e.clientX); setStartWidth(columnWidths[h]); }, [columnWidths]);
-    const handleResizeMove = useCallback((e: globalThis.MouseEvent) => { if (!resizingColumn) return; setColumnWidths(p => ({ ...p, [resizingColumn]: Math.max(60, startWidth + (e.clientX - startX)) })); }, [resizingColumn, startX, startWidth]);
+    const handleResizeStart = useCallback((e: MouseEvent<HTMLDivElement>, h: string) => {
+        e.preventDefault(); e.stopPropagation();
+        setResizingColumn(h); setStartX(e.clientX); setStartWidth(columnWidths[h]);
+    }, [columnWidths]);
+    const handleResizeMove = useCallback((e: globalThis.MouseEvent) => {
+        if (!resizingColumn) return;
+        setColumnWidths(p => ({ ...p, [resizingColumn]: Math.max(60, startWidth + (e.clientX - startX)) }));
+    }, [resizingColumn, startX, startWidth]);
     const handleResizeEnd = useCallback(() => { setResizingColumn(null); }, []);
-    useEffect(() => { if (resizingColumn) { document.addEventListener('mousemove', handleResizeMove); document.addEventListener('mouseup', handleResizeEnd); return () => { document.removeEventListener('mousemove', handleResizeMove); document.removeEventListener('mouseup', handleResizeEnd); }; } }, [resizingColumn, handleResizeMove, handleResizeEnd]);
+    useEffect(() => {
+        if (resizingColumn) {
+            document.addEventListener('mousemove', handleResizeMove);
+            document.addEventListener('mouseup', handleResizeEnd);
+            return () => { document.removeEventListener('mousemove', handleResizeMove); document.removeEventListener('mouseup', handleResizeEnd); };
+        }
+    }, [resizingColumn, handleResizeMove, handleResizeEnd]);
 
-    const activeFilterCount = useMemo(() => Object.values(columnFilters).reduce((s, a) => s + a.length, 0) + (dateRange ? 1 : 0) + (yearFilter !== 'all' ? 1 : 0), [columnFilters, dateRange, yearFilter]);
-    const setFilterForColumn = useCallback((col: string, vals: string[]) => { setColumnFilters(p => { const n = {...p}; if (!vals.length) delete n[col]; else n[col] = vals; return n; }); setCurrentPage(1); }, []);
+    const activeFilterCount = useMemo(() =>
+        Object.values(columnFilters).reduce((s, a) => s + a.length, 0) + (dateRange ? 1 : 0) + (yearFilter !== 'all' ? 1 : 0),
+        [columnFilters, dateRange, yearFilter]
+    );
+    const setFilterForColumn = useCallback((col: string, vals: string[]) => {
+        setColumnFilters(p => { const n = {...p}; if (!vals.length) delete n[col]; else n[col] = vals; return n; });
+        setCurrentPage(1);
+    }, []);
     const clearAllFilters = useCallback(() => { setColumnFilters({}); setDateRange(undefined); setCurrentPage(1); setYearFilter('all'); }, []);
 
     const filterOptionsMap = useMemo(() => ({
@@ -643,20 +903,22 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     }), [availableClients, statusOptions, categoryOptions, moduleOptions, detailModuleOptions]);
 
     const dbItemsMapsForColumn = useMemo(() => ({
-        status: dbStatusMap,
-        ticket_category: dbCategoryMap,
-        module: dbModuleMap,
-        detail_module: dbDetailModuleMap,
+        status: dbStatusMap, ticket_category: dbCategoryMap,
+        module: dbModuleMap, detail_module: dbDetailModuleMap,
     }), [dbStatusMap, dbCategoryMap, dbModuleMap, dbDetailModuleMap]);
 
     const renderFilterOption = useCallback((col: string) => (v: string) => {
-        if (col === 'status') return <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[v] || statusColorMap.default)}>{v}</span>;
-        if (col === 'ticket_category') return <span className={cn('px-2 py-0.5 rounded-full text-xs', categoryColorMap[v] || categoryColorMap.default)}>{v}</span>;
-        if (col === 'module') return <span className={cn('px-2 py-0.5 rounded-full text-xs', moduleColorMap[v] || moduleColorMap.default)}>{v}</span>;
-        return <span className="truncate text-xs">{v}</span>;
+        if (col === 'status') return (
+            <span className={cn('inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[v] || statusColorMap.default)}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />{v}
+            </span>
+        );
+        if (col === 'ticket_category') return <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', categoryColorMap[v] || categoryColorMap.default)}>{v}</span>;
+        if (col === 'module') return <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', moduleColorMap[v] || moduleColorMap.default)}>{v}</span>;
+        return <span className="text-xs">{v}</span>;
     }, []);
 
-    // ── Master ADD handlers ──────────────────────────────────
+    // ── Master ADD/DELETE handlers ─────────────────────────
 
     const handleAddStatus = useCallback(async (value: string) => {
         const r = await addMasterStatus(value);
@@ -693,8 +955,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
             toast({ title: "Detail Module Added", description: `"${value}" berhasil ditambahkan.`, duration: 2000 });
         } else toast({ variant: "destructive", title: "Gagal", description: r.error });
     }, [toast]);
-
-    // ── Master DELETE handler ────────────────────────────────
 
     const handleDeleteMasterItem = useCallback(async (column: string, id: number, name: string) => {
         let result: { success: boolean; error?: string };
@@ -740,6 +1000,24 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
+    // ── NEW: Sync Now handler ─────────────────────────────────
+
+    const handleSync = useCallback(async () => {
+        setIsSyncing(true);
+        try {
+            const r = await refreshDashboardViews();
+            if (r && (r as any).success === false) {
+                toast({ variant: "destructive", title: "Sync Failed", description: (r as any).error });
+            } else {
+                toast({ title: "Sync Berhasil", description: "Data berhasil disinkronisasi dari GSheet.", duration: 3000 });
+                await fetchData();
+            }
+        } catch (e: any) {
+            toast({ variant: "destructive", title: "Sync Error", description: e?.message });
+        }
+        setIsSyncing(false);
+    }, [fetchData, toast]);
+
     // ── Derived display data ─────────────────────────────────
 
     const displayData = useMemo(() => {
@@ -782,7 +1060,7 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         const ids = Array.from(selectedRows);
         const r = await deleteCases(ids);
         if (r.success) {
-            toast({ title: "Rows Deleted", description: `${ids.length} row(s) deleted.`, duration: 2000 });
+            toast({ title: "Rows Deleted", description: `${ids.length} row(s) berhasil dihapus.`, duration: 2000 });
             setState(p => ({ ...p, data: p.data?.filter(row => !selectedRows.has(row.id)) || null }));
             setTotalRows(p => p - ids.length); setSelectedRows(new Set());
         } else toast({ variant: "destructive", title: "Delete Failed", description: r.error });
@@ -821,12 +1099,12 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
             if (!row) return;
             setIsSaving(true);
             const r = await updateCase(id, row);
-            if (r.success) toast({ title: "Saved", description: "Changes saved.", duration: 2000 });
+            if (r.success) toast({ title: "Tersimpan", description: "Perubahan berhasil disimpan.", duration: 2000 });
             else toast({ variant: "destructive", title: "Save Failed", description: r.error });
             setIsSaving(false);
         }, 800);
     }, [state.data, toast]);
-    const handleDeleteRow = useCallback((id: number) => { setDeleteConfirmId(id); }, []);
+
     const confirmDelete = useCallback(async () => {
         if (deleteConfirmId === null) return;
         setIsDeleting(true);
@@ -855,108 +1133,252 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "All Cases");
         XLSX.writeFile(wb, `All_Cases_${new Date().toISOString().slice(0,10)}.xlsx`);
-        toast({ title: "Export Successful", description: `${displayData.length} rows exported.` });
+        toast({ title: "Export Berhasil", description: `${displayData.length} rows diekspor.` });
     };
 
     const FILTERABLE_SET = useMemo(() => new Set(visibleFilterColumns), [visibleFilterColumns]);
 
-    if (!isClient) return <div className="flex-1 p-8"><Skeleton className="h-[600px] w-full" /></div>;
+    // ── Loading skeleton ─────────────────────────────────────
+
+    if (!isClient) return (
+        <div className="flex-1 p-6 space-y-4">
+            <div className="flex gap-3">
+                <Skeleton className="h-10 w-72 rounded-lg" />
+                <Skeleton className="h-10 w-32 rounded-lg" />
+            </div>
+            <Skeleton className="h-[70vh] w-full rounded-xl" />
+        </div>
+    );
+
+    // ── RENDER ───────────────────────────────────────────────
 
     return (
-        <div className="flex-1 bg-background text-foreground px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3 md:px-8 md:pb-8 md:pt-4">
-            <AddClientDialog isOpen={isAddClientOpen} onOpenChange={setIsAddClientOpen} existingClientsSet={availableClientsSet}
+        <div className="flex-1 bg-slate-50 dark:bg-[#1f1f21] p-3 sm:p-4 md:p-4">
+
+            {/* Dialogs */}
+            <AddClientDialog
+                isOpen={isAddClientOpen}
+                onOpenChange={setIsAddClientOpen}
+                existingClientsSet={availableClientsSet}
                 onClientAdded={name => setAvailableClients(p => {
                     if (p.some(c => c.toLowerCase() === name.toLowerCase())) return p;
-                    return [...p, name].sort((a,b) => a.localeCompare(b));
+                    return [...p, name].sort((a, b) => a.localeCompare(b));
                 })}
             />
 
             <Dialog open={deleteConfirmId !== null} onOpenChange={o => { if (!o) setDeleteConfirmId(null); }}>
-                <DialogContent className="sm:max-w-[380px]">
+                <DialogContent className="sm:max-w-[380px] rounded-xl shadow-2xl">
                     <DialogHeader>
-                        <DialogTitle>Delete Row</DialogTitle>
-                        <DialogDescription>Apakah Anda yakin ingin menghapus row ini? Tindakan ini tidak dapat dibatalkan.</DialogDescription>
+                        <DialogTitle className="text-base font-semibold">Hapus Row</DialogTitle>
+                        <DialogDescription className="text-sm text-slate-500">
+                            Apakah Anda yakin ingin menghapus row ini? Tindakan ini tidak dapat dibatalkan.
+                        </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="flex-row justify-end gap-2 pt-2">
-                        <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)} disabled={isDeleting}>Cancel</Button>
+                        <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)} disabled={isDeleting}>
+                            Cancel
+                        </Button>
                         <Button variant="destructive" size="sm" onClick={confirmDelete} disabled={isDeleting}>
-                            {isDeleting ? <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}Delete
+                            {isDeleting ? <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
+                            Delete
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            <Card>
-                <CardHeader>
+            <Card className="shadow-sm border-slate-200 dark:border-[#3a3a3c] rounded-xl overflow-hidden">
+
+                {/* ── TOOLBAR ── */}
+                <CardHeader className="px-4 py-3 border-b border-slate-100 dark:border-[#3a3a3c] bg-white dark:bg-[#242426]">
                     <div className="flex flex-wrap items-center justify-between gap-3">
+
+                        {/* Left: search + year + clear filters */}
                         <div className="flex items-center gap-2">
                             <div className="relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input type="search" placeholder="Search all data..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8 sm:w-[280px]" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                                <Input
+                                    type="search"
+                                    placeholder="Cari ticket, client, detail..."
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    className={cn(
+                                        "pl-9 h-9 sm:w-[260px] text-sm rounded-lg",
+                                        "bg-slate-50 dark:bg-[#2e2e30] border-slate-200 dark:border-[#3a3a3c]",
+                                        "focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary"
+                                    )}
+                                />
                             </div>
+
                             <Select value={yearFilter} onValueChange={setYearFilter}>
-                                <SelectTrigger className="w-[120px] h-10"><SelectValue placeholder="Year" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Years</SelectItem>
-                                    {allAvailableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                <SelectTrigger className="w-[110px] h-9 text-sm rounded-lg bg-slate-50 dark:bg-[#2e2e30] border-slate-200 dark:border-[#3a3a3c]">
+                                    <SelectValue placeholder="Year" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl shadow-xl">
+                                    <SelectItem value="all" className="text-sm">All Years</SelectItem>
+                                    {allAvailableYears.map(y => (
+                                        <SelectItem key={y} value={y} className="text-sm">{y}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
+
                             {activeFilterCount > 0 && (
-                                <button onClick={clearAllFilters} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors whitespace-nowrap">
-                                    <FilterX className="h-3 w-3" /> Clear ({activeFilterCount})
+                                <button
+                                    onClick={clearAllFilters}
+                                    className={cn(
+                                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold",
+                                        "bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30",
+                                        "border border-red-200 dark:border-red-800 transition-colors"
+                                    )}
+                                >
+                                    <FilterX className="h-3 w-3" />
+                                    Clear {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''}
                                 </button>
                             )}
                         </div>
+
+                        {/* Right: status + actions */}
                         <div className="flex items-center gap-2">
-                            {isSaving && <span className="text-xs text-muted-foreground flex items-center gap-1.5"><RefreshCw className="h-3 w-3 animate-spin" /> Saving...</span>}
+                            {isSaving && (
+                                <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-[#909098]">
+                                    <RefreshCw className="h-3 w-3 animate-spin text-primary" />
+                                    Saving...
+                                </span>
+                            )}
+
+                            {isPending && !isSaving && (
+                                <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                                    <RefreshCw className="h-3 w-3 animate-spin" />
+                                    Loading...
+                                </span>
+                            )}
+
                             {isEditMode && selectedRows.size > 0 && (
-                                <Button onClick={handleBulkDelete} size="sm" variant="destructive" disabled={isBulkDeleting}>
-                                    {isBulkDeleting ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}Delete ({selectedRows.size})
+                                <Button
+                                    onClick={handleBulkDelete}
+                                    size="sm" variant="destructive"
+                                    disabled={isBulkDeleting}
+                                    className="h-9 text-xs font-semibold rounded-lg"
+                                >
+                                    {isBulkDeleting
+                                        ? <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                        : <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                                    }
+                                    Delete ({selectedRows.size})
                                 </Button>
                             )}
-                            <Button onClick={handleExport} size="sm" variant="outline"><Download className="mr-2 h-4 w-4" /> Export</Button>
-                            <Button onClick={() => { setIsEditMode(p => !p); setSelectedRows(new Set()); }} size="sm" variant={isEditMode ? "default" : "outline"}>
-                                <Pencil className="mr-2 h-4 w-4" />{isEditMode ? "Done" : "Edit"}
+
+                            {/* ── NEW: Sync Now button ── */}
+                            <Button
+                                onClick={handleSync}
+                                size="sm"
+                                disabled={isSyncing || isPending}
+                                className="h-9 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white border-0 shadow-sm disabled:opacity-60"
+                            >
+                                <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", isSyncing && "animate-spin")} />
+                                {isSyncing ? "Syncing..." : "Sync Now"}
+                            </Button>
+
+                            <Button
+                                onClick={handleExport}
+                                size="sm" variant="outline"
+                                className="h-9 text-xs font-semibold rounded-lg border-slate-200 dark:border-[#3a3a3c] hover:bg-slate-50 dark:hover:bg-[#2e2e30]"
+                            >
+                                <Download className="mr-1.5 h-3.5 w-3.5" />
+                                Export
+                            </Button>
+
+                            <Button
+                                onClick={() => { setIsEditMode(p => !p); setSelectedRows(new Set()); }}
+                                size="sm"
+                                variant={isEditMode ? "default" : "outline"}
+                                className={cn(
+                                    "h-9 text-xs font-semibold rounded-lg",
+                                    !isEditMode && "border-slate-200 dark:border-[#3a3a3c]"
+                                )}
+                            >
+                                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                                {isEditMode ? "Done Editing" : "Edit"}
                             </Button>
                         </div>
                     </div>
                 </CardHeader>
 
+                {/* ── TABLE AREA ── */}
                 <CardContent className="p-0">
-                    <div ref={tableContainerRef} className="overflow-auto h-[75vh] border-t rounded-b-md">
+                    <div
+                        ref={tableContainerRef}
+                        className={cn(
+                            "overflow-auto h-[72vh]",
+                            "scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-[#3a3a3c] scrollbar-track-transparent"
+                        )}
+                    >
                         {!displayData.length ? (
-                            <div className="flex items-center justify-center h-full">
-                                <div className="text-center text-muted-foreground"><Database className="mx-auto h-12 w-12 mb-2" /><p>No data found.</p></div>
+                            <div className="flex flex-col items-center justify-center h-full gap-4 py-20">
+                                <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-[#2e2e30] flex items-center justify-center">
+                                    <Database className="h-8 w-8 text-slate-400" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-sm font-semibold text-slate-600 dark:text-[#909098]">Tidak ada data</p>
+                                    <p className="text-xs text-slate-400 dark:text-[#6e6e76] mt-1">
+                                        {activeFilterCount > 0 ? 'Coba ubah atau hapus filter Anda' : 'Belum ada data untuk ditampilkan'}
+                                    </p>
+                                </div>
+                                {activeFilterCount > 0 && (
+                                    <button
+                                        onClick={clearAllFilters}
+                                        className="text-xs text-primary font-semibold hover:underline"
+                                    >
+                                        Hapus semua filter
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <div style={{ width: `${totalWidth}px` }}>
+
                                 {/* Sticky header */}
-                                <div className="sticky top-0 z-10 flex bg-muted">
+                                <div className="sticky top-0 z-10 flex bg-slate-50 dark:bg-[#242426] border-b-2 border-slate-200 dark:border-[#3a3a3c]">
                                     {headers.map((header, idx) => {
                                         const isFilterable = FILTERABLE_SET.has(header);
                                         const isNoCol = header === 'no';
                                         const isDateCol = header === 'date';
                                         const isLast = idx === headers.length - 1;
+
                                         const hStyle: React.CSSProperties = isNoCol ? {
                                             width: columnWidths[header], flexShrink: 0,
-                                            borderBottom: '1px solid hsl(var(--border))', borderRight: '2px solid hsl(var(--border))',
+                                            borderBottom: '2px solid hsl(var(--border))',
+                                            borderRight: '2px solid hsl(var(--border))',
                                             position: 'sticky', left: 0, zIndex: 20,
-                                            backgroundColor: 'hsl(var(--muted))', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.2)',
-                                        } : { width: columnWidths[header], flexShrink: 0, borderBottom: '1px solid hsl(var(--border))', borderRight: '1px solid hsl(var(--border))' };
+                                            backgroundColor: 'hsl(var(--muted))',
+                                            boxShadow: '2px 0 8px -2px rgba(0,0,0,0.08)',
+                                        } : {
+                                            width: columnWidths[header], flexShrink: 0,
+                                            borderRight: '1px solid hsl(var(--border))',
+                                        };
 
                                         return (
-                                            <div key={header} className="h-12 flex items-center justify-center relative text-xs font-semibold group" style={hStyle}>
+                                            <div
+                                                key={header}
+                                                className="h-11 flex items-center justify-center relative group"
+                                                style={hStyle}
+                                            >
                                                 {isNoCol ? (
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2 px-2">
                                                         {isEditMode ? (
-                                                            <div className="cursor-pointer" onClick={handleSelectAll}>
-                                                                <Checkbox checked={selectedRows.size === displayData.length && displayData.length > 0} onCheckedChange={handleSelectAll} />
-                                                            </div>
+                                                            <Checkbox
+                                                                checked={selectedRows.size === displayData.length && displayData.length > 0}
+                                                                onCheckedChange={handleSelectAll}
+                                                                className="border-slate-300 dark:border-[#3a3a3c] cursor-pointer"
+                                                            />
                                                         ) : null}
-                                                        <span className="truncate text-xs font-semibold">No</span>
+                                                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 select-none">
+                                                            No
+                                                        </span>
                                                     </div>
                                                 ) : isDateCol ? (
-                                                    <DateRangeHeaderPopover dateRange={dateRange} onDateRangeChange={r => { setDateRange(r); setCurrentPage(1); }} />
+                                                    <DateRangeHeaderPopover
+                                                        dateRange={dateRange}
+                                                        onDateRangeChange={r => { setDateRange(r); setCurrentPage(1); }}
+                                                    />
                                                 ) : isFilterable ? (
                                                     <HeaderFilterPopover
                                                         label={headerDisplayMapping[header] || header}
@@ -967,8 +1389,18 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                                         showAddClient={header === 'client_name'}
                                                         onAddClient={header === 'client_name' ? () => setIsAddClientOpen(true) : undefined}
                                                         showAdd={['status','ticket_category','module','detail_module'].includes(header)}
-                                                        addLabel={header === 'status' ? 'Status' : header === 'ticket_category' ? 'Category' : header === 'module' ? 'Module' : header === 'detail_module' ? 'Detail Module' : undefined}
-                                                        onAdd={header === 'status' ? handleAddStatus : header === 'ticket_category' ? handleAddCategory : header === 'module' ? handleAddModule : header === 'detail_module' ? handleAddDetailModule : undefined}
+                                                        addLabel={
+                                                            header === 'status' ? 'Status' :
+                                                            header === 'ticket_category' ? 'Category' :
+                                                            header === 'module' ? 'Module' :
+                                                            header === 'detail_module' ? 'Detail Module' : undefined
+                                                        }
+                                                        onAdd={
+                                                            header === 'status' ? handleAddStatus :
+                                                            header === 'ticket_category' ? handleAddCategory :
+                                                            header === 'module' ? handleAddModule :
+                                                            header === 'detail_module' ? handleAddDetailModule : undefined
+                                                        }
                                                         dbItemsMap={(dbItemsMapsForColumn as any)[header]}
                                                         isEditMode={isEditMode}
                                                         onDeleteItem={['status','ticket_category','module','detail_module'].includes(header)
@@ -976,13 +1408,24 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                                             : undefined}
                                                     />
                                                 ) : (
-                                                    <span className="truncate px-2">{headerDisplayMapping[header] || header}</span>
+                                                    <span className="truncate px-3 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-[#909098] select-none">
+                                                        {headerDisplayMapping[header] || header}
+                                                    </span>
                                                 )}
+
+                                                {/* Column resize handle */}
                                                 {!isLast && !isNoCol && (
-                                                    <div className={cn("absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 transition-colors", resizingColumn === header && "bg-primary")}
-                                                        onMouseDown={e => handleResizeStart(e, header)} title="Drag to resize">
-                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <GripVertical className="h-4 w-4 text-muted-foreground -ml-1.5" />
+                                                    <div
+                                                        className={cn(
+                                                            "absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors",
+                                                            "hover:bg-primary/40 group-hover:opacity-100 opacity-0",
+                                                            resizingColumn === header && "bg-primary opacity-100"
+                                                        )}
+                                                        onMouseDown={e => handleResizeStart(e, header)}
+                                                        title="Drag to resize"
+                                                    >
+                                                        <div className="absolute inset-y-0 left-0 flex items-center">
+                                                            <GripVertical className="h-3.5 w-3.5 text-slate-400 -ml-1" />
                                                         </div>
                                                     </div>
                                                 )}
@@ -997,7 +1440,14 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                         const row = displayData[vr.index];
                                         const rowNumber = (currentPage - 1) * pageSize + vr.index + 1;
                                         return (
-                                            <div key={vr.key} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: `${vr.size}px`, transform: `translateY(${vr.start}px)` }}>
+                                            <div
+                                                key={vr.key}
+                                                style={{
+                                                    position: 'absolute', top: 0, left: 0,
+                                                    width: '100%', height: `${vr.size}px`,
+                                                    transform: `translateY(${vr.start}px)`,
+                                                }}
+                                            >
                                                 <MemoizedRow
                                                     row={row} headers={headers} columnWidths={columnWidths} rowNumber={rowNumber}
                                                     handleCellChange={handleCellChange} handleCellSave={handleCellSave}
@@ -1015,16 +1465,56 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                     </div>
                 </CardContent>
 
-                <CardFooter className="p-3 border-t">
+                {/* ── PAGINATION ── */}
+                <CardFooter className="px-4 py-3 border-t border-slate-100 dark:border-[#3a3a3c] bg-white dark:bg-[#242426]">
                     <div className="flex items-center justify-between w-full">
-                        <div className="flex-1 text-sm text-muted-foreground">
-                            Showing {totalRows > 0 ? (currentPage-1)*pageSize+1 : 0} to {Math.min(currentPage*pageSize, totalRows)} of {totalRows.toLocaleString()} rows
-                            {selectedRows.size > 0 && <span className="ml-2 text-primary font-medium">({selectedRows.size} selected)</span>}
+
+                        <div className="text-xs text-slate-500 dark:text-[#909098] tabular-nums">
+                            Showing{' '}
+                            <span className="font-semibold text-slate-700 dark:text-[#e0e0e2]">
+                                {totalRows > 0 ? (currentPage - 1) * pageSize + 1 : 0}
+                            </span>
+                            {' '}–{' '}
+                            <span className="font-semibold text-slate-700 dark:text-[#e0e0e2]">
+                                {Math.min(currentPage * pageSize, totalRows).toLocaleString()}
+                            </span>
+                            {' '}of{' '}
+                            <span className="font-semibold text-slate-700 dark:text-[#e0e0e2]">
+                                {totalRows.toLocaleString()}
+                            </span>
+                            {' '}rows
+                            {selectedRows.size > 0 && (
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-primary font-semibold text-[11px]">
+                                    {selectedRows.size} selected
+                                </span>
+                            )}
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p-1))} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
-                            <span className="text-sm">Page {currentPage} of {totalPages || 1}</span>
-                            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages||1, p+1))} disabled={currentPage >= (totalPages||1)}><ChevronRight className="h-4 w-4" /></Button>
+
+                        <div className="flex items-center gap-1.5">
+                            <Button
+                                variant="outline" size="sm"
+                                className="h-8 w-8 p-0 rounded-lg border-slate-200 dark:border-[#3a3a3c] hover:bg-slate-50 dark:hover:bg-[#2e2e30]"
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                            >
+                                <ChevronLeft className="h-3.5 w-3.5" />
+                            </Button>
+
+                            <span className="text-xs text-slate-500 dark:text-[#909098] px-2 tabular-nums">
+                                Page{' '}
+                                <span className="font-semibold text-slate-700 dark:text-[#e0e0e2]">{currentPage}</span>
+                                {' '}of{' '}
+                                <span className="font-semibold text-slate-700 dark:text-[#e0e0e2]">{totalPages || 1}</span>
+                            </span>
+
+                            <Button
+                                variant="outline" size="sm"
+                                className="h-8 w-8 p-0 rounded-lg border-slate-200 dark:border-[#3a3a3c] hover:bg-slate-50 dark:hover:bg-[#2e2e30]"
+                                onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))}
+                                disabled={currentPage >= (totalPages || 1)}
+                            >
+                                <ChevronRight className="h-3.5 w-3.5" />
+                            </Button>
                         </div>
                     </div>
                 </CardFooter>

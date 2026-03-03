@@ -40,7 +40,7 @@ type NavCategory = keyof typeof navItems;
 function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
     const pathname = usePathname();
     const { isCodeViewerEnabled, areSecondaryToolsEnabled } = useContext(SettingsContext);
-    
+
     const isVisible = (item: { featureFlag?: string }) => {
         if (!item.featureFlag) return true;
         if (item.featureFlag === 'isCodeViewerEnabled') return isCodeViewerEnabled;
@@ -57,8 +57,9 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                 if (visibleItems.length === 0) return null;
 
                 return (
-                    <div key={category} className="py-5">
-                        <h2 className="px-5 pb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <div key={category} className="py-3">
+                        {/* CHANGED: px-5 → px-4, py-5 → py-3 */}
+                        <h2 className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                             {category}
                         </h2>
                         {visibleItems.map((item) => {
@@ -69,7 +70,8 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                                     <Link
                                         href={item.href}
                                         className={cn(
-                                            "flex items-center gap-3 px-5 py-2.5 text-sm font-medium transition-all duration-200",
+                                            // CHANGED: px-5 → px-4, py-2.5 → py-2
+                                            "flex items-center gap-3 px-4 py-2 text-sm font-medium transition-all duration-200",
                                             "border-r-[3px]",
                                             isActive
                                                 ? "border-primary bg-primary/10 text-primary font-semibold"
@@ -77,7 +79,7 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                                             item.disabled && "pointer-events-none opacity-50"
                                         )}
                                     >
-                                        <item.icon className="h-5 w-5" strokeWidth={1.5} />
+                                        <item.icon className="h-4 w-4" strokeWidth={1.5} />
                                         {item.label}
                                     </Link>
                                 </Wrapper>
@@ -124,9 +126,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
     const currentPageTitle = pageTitles[pathname] || "Gsheet Case";
 
-    // Auto-reset isProcessing setiap kali route berubah.
-    // Ini memastikan state tidak stuck "true" jika halaman tujuan
-    // tidak mereset sendiri.
     useEffect(() => {
         setIsProcessing(false);
     }, [pathname, setIsProcessing]);
@@ -138,7 +137,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             </div>
         );
     }
-    
+
     return (
         <div className={cn(
             "grid w-full",
@@ -147,7 +146,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             {/* --- Desktop Sidebar --- */}
             {!isMobile && (
                 <div className="hidden border-r bg-card md:flex flex-col h-screen sticky top-0">
-                    <div className="flex h-auto items-center px-5 py-5 border-b flex-shrink-0">
+                    {/* CHANGED: px-5 py-5 → px-4 py-4 */}
+                    <div className="flex h-14 items-center px-4 border-b flex-shrink-0">
                         <Link href="/" className="flex items-center gap-2 font-bold text-primary text-base">
                             <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-primary-foreground text-sm">
                                 📊
@@ -155,31 +155,33 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                             <span>Gsheet Case</span>
                         </Link>
                     </div>
-                    
+
                     <div className="flex-1 overflow-y-auto">
                         <NavLinks />
                     </div>
-                    
-                    <div className="mt-auto flex-shrink-0 border-t p-5">
+
+                    {/* CHANGED: p-5 → p-4 */}
+                    <div className="mt-auto flex-shrink-0 border-t p-4">
                         <Link
                             href="/settings"
                             className={cn(
-                                "flex items-center gap-3 px-2.5 py-2.5 rounded-md text-sm font-medium transition-all duration-200",
-                                pathname === "/settings" 
-                                    ? "bg-muted text-foreground" 
+                                // CHANGED: px-2.5 → px-3
+                                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200",
+                                pathname === "/settings"
+                                    ? "bg-muted text-foreground"
                                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                             )}
                         >
-                            <Settings className="h-5 w-5" strokeWidth={1.5} />
+                            <Settings className="h-4 w-4" strokeWidth={1.5} />
                             Settings
                         </Link>
                     </div>
                 </div>
             )}
-            
+
             {/* --- Main Content Area --- */}
             <div className="flex flex-col h-screen overflow-hidden">
-                <header className="flex h-16 items-center gap-4 border-b bg-background px-4 lg:px-6 flex-shrink-0 z-40">
+                <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6 flex-shrink-0 z-40">
                     {isMobile && (
                         <Sheet>
                             <SheetTrigger asChild>
@@ -189,7 +191,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                 </Button>
                             </SheetTrigger>
                             <SheetContent side="left" className="flex flex-col p-0 w-[220px]">
-                                <SheetHeader className="h-auto flex items-center border-b px-5 py-5">
+                                {/* CHANGED: px-5 py-5 → px-4 py-4 */}
+                                <SheetHeader className="h-auto flex items-center border-b px-4 py-4">
                                     <SheetTitle asChild>
                                         <Link href="/" className="flex items-center gap-2 font-bold text-primary text-base">
                                             <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-primary-foreground text-sm">
@@ -200,20 +203,21 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                     </SheetTitle>
                                 </SheetHeader>
                                 <div className="flex-1 overflow-y-auto">
-                                  <NavLinks isMobile={true}/>
+                                    <NavLinks isMobile={true} />
                                 </div>
-                                <div className="mt-auto p-5 border-t">
+                                {/* CHANGED: p-5 → p-4 */}
+                                <div className="mt-auto p-4 border-t">
                                     <SheetClose asChild>
                                         <Link
                                             href="/settings"
                                             className={cn(
-                                                "flex items-center gap-3 px-2.5 py-2.5 rounded-md text-sm font-medium transition-all duration-200",
-                                                pathname === "/settings" 
-                                                    ? "bg-muted text-foreground" 
+                                                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200",
+                                                pathname === "/settings"
+                                                    ? "bg-muted text-foreground"
                                                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                             )}
                                         >
-                                            <Settings className="h-5 w-5" strokeWidth={1.5} />
+                                            <Settings className="h-4 w-4" strokeWidth={1.5} />
                                             Settings
                                         </Link>
                                     </SheetClose>
@@ -223,15 +227,15 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     )}
 
                     <div className="w-full flex-1">
-                       <h1 className="text-2xl font-bold tracking-tight text-foreground">{currentPageTitle}</h1>
+                        <h1 className="text-xl font-bold tracking-tight text-foreground">{currentPageTitle}</h1>
                     </div>
-                    
+
                     <ProcessingIndicator />
                     <ThemeSwitch />
-                    
+
                     {isMobile && (
                         <Link href="/settings">
-                             <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon">
                                 <Settings className="h-5 w-5" />
                             </Button>
                         </Link>

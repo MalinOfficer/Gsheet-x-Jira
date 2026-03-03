@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon } from "lucide-react";
+import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon, X, GripHorizontal } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -71,6 +71,102 @@ interface DashboardProps {
     error?: string | null;
 }
 
+// ── Draggable Filter Panel ────────────────────────────────────────────────────
+interface DraggableFilterPanelProps {
+    open: boolean;
+    onClose: () => void;
+    children: React.ReactNode;
+    activeCount: number;
+}
+
+function DraggableFilterPanel({ open, onClose, children, activeCount }: DraggableFilterPanelProps) {
+    const panelRef = useRef<HTMLDivElement>(null);
+    const dragState = useRef({ dragging: false, startX: 0, startY: 0, origX: 0, origY: 0 });
+    const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+
+    // Reset position when closed so it re-centers on next open
+    useEffect(() => {
+        if (!open) setPos(null);
+    }, [open]);
+
+    const onMouseDown = useCallback((e: React.MouseEvent) => {
+        if (!panelRef.current) return;
+        const rect = panelRef.current.getBoundingClientRect();
+        dragState.current = {
+            dragging: true,
+            startX: e.clientX,
+            startY: e.clientY,
+            origX: pos?.x ?? rect.left,
+            origY: pos?.y ?? rect.top,
+        };
+        e.preventDefault();
+
+        const onMouseMove = (ev: MouseEvent) => {
+            if (!dragState.current.dragging) return;
+            setPos({
+                x: dragState.current.origX + (ev.clientX - dragState.current.startX),
+                y: dragState.current.origY + (ev.clientY - dragState.current.startY),
+            });
+        };
+        const onMouseUp = () => {
+            dragState.current.dragging = false;
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+        };
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", onMouseUp);
+    }, [pos]);
+
+    if (!open) return null;
+
+    const style: React.CSSProperties = pos
+        ? { position: "fixed", left: pos.x, top: pos.y, zIndex: 50 }
+        : { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 50 };
+
+    return (
+        <>
+            {/* Backdrop - clicking it closes the panel */}
+            <div className="fixed inset-0 z-40" onClick={onClose} />
+
+            <div
+                ref={panelRef}
+                style={style}
+                className="w-96 rounded-lg border bg-popover text-popover-foreground shadow-xl"
+            >
+                {/* Drag Handle */}
+                <div
+                    onMouseDown={onMouseDown}
+                    className="flex items-center justify-between px-4 py-2.5 border-b cursor-grab active:cursor-grabbing select-none bg-muted/50 rounded-t-lg"
+                >
+                    <div className="flex items-center gap-2">
+                        <GripHorizontal className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-semibold">Filter Options</span>
+                        {activeCount > 0 && (
+                            <span className="bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs font-semibold">
+                                {activeCount}
+                            </span>
+                        )}
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
+                </div>
+
+                {/* Scrollable Content */}
+                <ScrollArea className="max-h-[75vh]">
+                    <div className="p-4 space-y-4">
+                        {children}
+                    </div>
+                </ScrollArea>
+            </div>
+        </>
+    );
+}
+
+// ── Main Dashboard Component ──────────────────────────────────────────────────
 export function Dashboard({ initialStats, initialOptions, error: initialError }: DashboardProps) {
     const { setIsProcessing } = useContext(TableDataContext);
     const { toast } = useToast();
@@ -80,6 +176,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [error, setError] = useState<string | null>(initialError || null);
     const [isApplyingFilters, startApplyingFilters] = useTransition();
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [filterPanelOpen, setFilterPanelOpen] = useState(false);
 
     // Filter states
     const [selectedYear, setSelectedYear] = useState<string>('all');
@@ -89,16 +186,12 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [detailModuleFilter, setDetailModuleFilter] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-    // Create a stable color mapping for all years available in the filter options.
     const yearColorConfig = useMemo(() => {
         const allYears = filterOptions?.years?.sort((a, b) => parseInt(a) - parseInt(b)) || [];
         const chartColors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
         const config: ChartConfig = {};
         allYears.forEach((year, index) => {
-            config[year] = {
-                label: year,
-                color: chartColors[index % chartColors.length],
-            };
+            config[year] = { label: year, color: chartColors[index % chartColors.length] };
         });
         return config;
     }, [filterOptions?.years]);
@@ -107,20 +200,14 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         if (!stats?.monthly_stats || stats.monthly_stats.length === 0) {
             return { chartKeys: [], dynamicChartConfig: { ...chartConfig, ...yearColorConfig } };
         }
-        
         const keys = new Set<string>();
         stats.monthly_stats.forEach(monthData => {
             Object.keys(monthData).forEach(key => {
-                if (/^\d{4}$/.test(key)) {
-                    keys.add(key);
-                }
+                if (/^\d{4}$/.test(key)) keys.add(key);
             });
         });
-        
         const sortedKeys = Array.from(keys).sort((a, b) => parseInt(a) - parseInt(b));
-        const newDynamicConfig = { ...chartConfig, ...yearColorConfig };
-
-        return { chartKeys: sortedKeys, dynamicChartConfig: newDynamicConfig };
+        return { chartKeys: sortedKeys, dynamicChartConfig: { ...chartConfig, ...yearColorConfig } };
     }, [stats?.monthly_stats, yearColorConfig]);
 
     useEffect(() => {
@@ -137,6 +224,11 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             detailModuleFilter.length > 0
         );
     }, [dateRange, selectedYear, categoryFilter, clientFilter, moduleFilter, detailModuleFilter]);
+
+    const activeFilterCount = useMemo(() => {
+        return [categoryFilter.length, clientFilter.length, moduleFilter.length, detailModuleFilter.length, dateRange ? 1 : 0]
+            .reduce((a, b) => a + b, 0);
+    }, [categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange]);
 
     const handleClearAllFilters = () => {
         setSelectedYear('all');
@@ -158,17 +250,12 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         
         const url = `/api/dashboard?${params.toString()}`;
         const response = await fetch(url);
-        
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Failed to fetch dashboard data: ${response.status} ${errorText}`);
         }
-        
         const result = await response.json();
-        
-        if (!result.success) {
-            throw new Error(result.error || 'An unknown error occurred');
-        }
+        if (!result.success) throw new Error(result.error || 'An unknown error occurred');
         return result.data;
     }, []);
 
@@ -176,23 +263,12 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         startApplyingFilters(async () => {
             setError(null);
             try {
-                const data = await fetcher({ 
-                    selectedYear, 
-                    categoryFilter, 
-                    clientFilter, 
-                    moduleFilter,
-                    detailModuleFilter,
-                    dateRange 
-                });
+                const data = await fetcher({ selectedYear, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange });
                 setStats(data);
             } catch (err: any) {
                 setError(err.message);
                 setStats(null);
-                toast({
-                    variant: "destructive",
-                    title: "Could not load dashboard data",
-                    description: err.message,
-                });
+                toast({ variant: "destructive", title: "Could not load dashboard data", description: err.message });
             }
         });
     }, [selectedYear, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, fetcher]);
@@ -203,39 +279,26 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         
         refreshDashboardViews().then(async () => {
             try {
-                const data = await fetcher({ 
-                    selectedYear, 
-                    categoryFilter, 
-                    clientFilter, 
-                    moduleFilter,
-                    detailModuleFilter,
-                    dateRange 
-                });
+                const data = await fetcher({ selectedYear, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange });
                 setStats(data);
                 toast({ title: "Refreshed!", description: "Dashboard data has been updated." });
             } catch (err: any) {
                 setError(err.message);
                 setStats(null);
-                toast({
-                    variant: "destructive",
-                    title: "Refresh failed",
-                    description: err.message,
-                });
+                toast({ variant: "destructive", title: "Refresh failed", description: err.message });
             } finally {
                 setIsRefreshing(false);
             }
-                
             getDashboardFilterOptions().then((optionsResult) => {
                 if (optionsResult.error || !optionsResult.data) {
-                    setFilterOptions({ categories: [], clients: [], modules: [], years: [] });
+                    setFilterOptions({ categories: [], clients: [], modules: [], detailModules: [], years: [] });
                 } else {
                     setFilterOptions(optionsResult.data);
                 }
             });
         });
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, dateRange, fetcher]);
+    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, fetcher]);
 
-    // ── Skeleton loading state (matches exact card sizes below) ──────────────
     if (isApplyingFilters && !stats) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
@@ -246,16 +309,14 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         <Skeleton className="h-[88px]" />
                         <Skeleton className="h-[88px]" />
                     </div>
-                    {/* Chart card: CardHeader(~60px) + h-[216px] chart + CardContent padding(~24px) = ~300px */}
                     <Skeleton className="h-[300px] w-full" />
-                    {/* Bottom cards: CardHeader(~60px) + h-[166px] scroll + padding(~24px) = ~250px */}
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                         <Skeleton className="h-[250px]" />
                         <Skeleton className="h-[250px]" />
                     </div>
                 </div>
             </div>
-        )
+        );
     }
 
     if (error) {
@@ -265,9 +326,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[400px] bg-card">
                         <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
                         <CardTitle className="text-2xl font-bold">Failed to Load Dashboard Data</CardTitle>
-                        <CardDescription className="mt-2 mb-4 max-w-sm">
-                            {error}
-                        </CardDescription>
+                        <CardDescription className="mt-2 mb-4 max-w-sm">{error}</CardDescription>
                         <Button onClick={handleRefresh} disabled={isRefreshing}>
                             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                             Try Again
@@ -302,39 +361,38 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
 
     return (
         <div className="flex-1 bg-background text-foreground p-2 sm:p-3 md:p-4">
-            {/* space-y-3 agar gap antar card lebih compact */}
             <div className="max-w-7xl mx-auto space-y-3">
 
-                {/* ── Header Cards ─────────────────────────────────────────── */}
-                <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+                {/* ── Header Cards ──────────────────────────────────────── */}
+                <div className="grid gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-base font-medium">Total Cases</CardTitle>
-                            <BarChartIcon className="h-4 w-4 text-muted-foreground" />
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
+                            <CardTitle className="text-xs font-medium text-muted-foreground">Total Cases</CardTitle>
+                            <BarChartIcon className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold">{stats.summary.total_cases}</div>
+                        <CardContent className="pb-3 px-4">
+                            <div className="text-2xl font-bold">{stats.summary.total_cases}</div>
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-base font-medium">Trending Category</CardTitle>
-                            <FolderKanban className="h-4 w-4 text-muted-foreground" />
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
+                            <CardTitle className="text-xs font-medium text-muted-foreground">Trending Category</CardTitle>
+                            <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold truncate">{stats.summary.trending_category}</div>
+                        <CardContent className="pb-3 px-4">
+                            <div className="text-2xl font-bold truncate">{stats.summary.trending_category}</div>
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-base font-medium">Status Solved</CardTitle>
-                            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
+                            <CardTitle className="text-xs font-medium text-muted-foreground">Status Solved</CardTitle>
+                            <CheckCircle className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pb-3 px-4">
                             <div className="flex items-baseline gap-2">
-                                <div className="text-3xl font-bold">{stats.summary.total_solved}</div>
+                                <div className="text-2xl font-bold">{stats.summary.total_solved}</div>
                                 {stats.summary.total_cases > 0 && (
-                                    <span className="text-sm font-medium text-green-600 bg-card border border-green-300 dark:border-green-700 rounded-full px-2 py-0.5">
+                                    <span className="text-xs font-medium text-green-600 bg-card border border-green-300 dark:border-green-700 rounded-full px-2 py-0.5">
                                         {stats.summary.solved_percentage?.toFixed(1)}%
                                     </span>
                                 )}
@@ -342,18 +400,17 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-base font-medium">Total Clients</CardTitle>
-                            <Users className="h-4 w-4 text-muted-foreground" />
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
+                            <CardTitle className="text-xs font-medium text-muted-foreground">Total Clients</CardTitle>
+                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold">{stats.summary.total_clients}</div>
+                        <CardContent className="pb-3 px-4">
+                            <div className="text-2xl font-bold">{stats.summary.total_clients}</div>
                         </CardContent>
                     </Card>
                 </div>
                 
-                {/* ── Chart Card ───────────────────────────────────────────── */}
-                {/* Total height target: ~300px (sama dengan skeleton h-[300px]) */}
+                {/* ── Chart Card ────────────────────────────────────────── */}
                 <Card>
                     <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 py-3 px-4">
                         <div>
@@ -372,103 +429,21 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             )}
                         </div>
                         <div className="flex w-full sm:w-auto items-center justify-end gap-2 flex-wrap">
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button size="sm" variant="outline">
-                                        <Filter className="mr-2 h-4 w-4" />
-                                        Filter
-                                        {areFiltersActive && (
-                                            <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs font-semibold">
-                                                {[categoryFilter.length, clientFilter.length, moduleFilter.length, detailModuleFilter.length, dateRange ? 1 : 0].reduce((a, b) => a + b, 0)}
-                                            </span>
-                                        )}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80 space-y-4" align="end" side="bottom" sideOffset={8}>
-                                    <div className="space-y-2">
-                                        <h4 className="font-medium leading-none">Filter by Date</h4>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant={"outline"}
-                                                    className={cn(
-                                                        "w-full justify-start text-left font-normal",
-                                                        !dateRange && "text-muted-foreground"
-                                                    )}
-                                                >
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {dateRange?.from ? (
-                                                        dateRange.to ? (
-                                                            <>
-                                                                {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
-                                                            </>
-                                                        ) : (
-                                                            format(dateRange.from, "LLL dd, y")
-                                                        )
-                                                    ) : (
-                                                        <span>Pick a date range</span>
-                                                    )}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                                <Calendar
-                                                    initialFocus
-                                                    mode="range"
-                                                    defaultMonth={dateRange?.from}
-                                                    selected={dateRange}
-                                                    onSelect={setDateRange}
-                                                    numberOfMonths={2}
-                                                />
-                                            </PopoverContent>
-                                        </Popover>
-                                    </div>
-                                    <Separator />
-                                    <div className="space-y-2">
-                                        <h4 className="font-medium leading-none">Filter by Category</h4>
-                                        <div className={cn(!categoryFilter.length && "text-muted-foreground")}>
-                                            <MultiSelect
-                                                options={filterOptions?.categories || []}
-                                                selected={categoryFilter}
-                                                onChange={setCategoryFilter}
-                                                placeholder="Select categories..."
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h4 className="font-medium leading-none">Filter by Client</h4>
-                                        <div className={cn(!clientFilter.length && "text-muted-foreground")}>
-                                            <MultiSelect
-                                                options={filterOptions?.clients || []}
-                                                selected={clientFilter}
-                                                onChange={setClientFilter}
-                                                placeholder="Select clients..."
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h4 className="font-medium leading-none">Filter by Module</h4>
-                                        <div className={cn(!moduleFilter.length && "text-muted-foreground")}>
-                                            <MultiSelect
-                                                options={filterOptions?.modules || []}
-                                                selected={moduleFilter}
-                                                onChange={setModuleFilter}
-                                                placeholder="Select modules..."
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h4 className="font-medium leading-none">Filter by Detail Module</h4>
-                                        <div className={cn(!detailModuleFilter.length && "text-muted-foreground")}>
-                                            <MultiSelect
-                                                options={filterOptions?.detailModules || []}
-                                                selected={detailModuleFilter}
-                                                onChange={setDetailModuleFilter}
-                                                placeholder="Select detail modules..."
-                                            />
-                                        </div>
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
+                            {/* FIX #2: Replaced Popover with DraggableFilterPanel */}
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setFilterPanelOpen(true)}
+                            >
+                                <Filter className="mr-2 h-4 w-4" />
+                                Filter
+                                {activeFilterCount > 0 && (
+                                    <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs font-semibold">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
+                            </Button>
+
                             {areFiltersActive && (
                                 <Button onClick={handleClearAllFilters} variant="ghost" size="sm">
                                     <FilterX className="mr-2 h-4 w-4" />
@@ -479,10 +454,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh Data
                             </Button>
-                            <Select 
-                                value={selectedYear} 
-                                onValueChange={(value) => setSelectedYear(value)}
-                            >
+                            <Select value={selectedYear} onValueChange={setSelectedYear}>
                                 <SelectTrigger className="w-full sm:w-[180px]">
                                     <SelectValue placeholder="Select a year" />
                                 </SelectTrigger>
@@ -496,8 +468,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         </div>
                     </CardHeader>
                     <CardContent>
-                        {/* h-[216px] → total card ≈ 300px sesuai skeleton */}
-                        <ChartContainer config={dynamicChartConfig} className="h-[216px] w-full">
+                        <ChartContainer config={dynamicChartConfig} className="h-[280px] w-full">
                             <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 10 }}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                 <XAxis
@@ -507,12 +478,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     tickMargin={8}
                                     tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : ''}
                                 />
-                                <YAxis
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickMargin={8}
-                                    tickCount={5}
-                                />
+                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickCount={5} />
                                 <defs>
                                     {chartKeys.map((year) => (
                                         <linearGradient key={year} id={`fill${year}`} x1="0" y1="0" x2="0" y2="1">
@@ -524,13 +490,13 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                 <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
                                 <Legend />
                                 {chartKeys.map((year) => (
-                                     <Area 
+                                    <Area
                                         key={year}
-                                        dataKey={year} 
-                                        type="monotone" 
+                                        dataKey={year}
+                                        type="monotone"
                                         fill={`url(#fill${year})`}
-                                        stroke={dynamicChartConfig[year]?.color} 
-                                        strokeWidth={2} 
+                                        stroke={dynamicChartConfig[year]?.color}
+                                        strokeWidth={2}
                                     />
                                 ))}
                             </AreaChart>
@@ -538,15 +504,13 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </CardContent>
                 </Card>
 
-                {/* ── Bottom Cards ─────────────────────────────────────────── */}
-                {/* Total height target: ~250px (sama dengan skeleton h-[250px]) */}
+                {/* ── Bottom Cards ──────────────────────────────────────── */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                     <Card>
                         <CardHeader className="py-3 px-4">
                             <CardTitle className="text-base font-bold">All Clients</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {/* h-[166px] → total card ≈ 250px sesuai skeleton */}
                             <ScrollArea className="h-[166px] pr-4">
                                 <div className="space-y-2">
                                     {client_rankings.map((item, index) => (
@@ -557,7 +521,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                                         <div className="w-32 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
                                                         <div className="flex-1 flex items-center gap-2 min-w-0">
                                                             <div className="flex-1 bg-muted rounded-full h-5 relative overflow-hidden">
-                                                                <div 
+                                                                <div
                                                                     className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500"
                                                                     style={{ width: `${(item.value / maxClientValue) * 100}%` }}
                                                                 ></div>
@@ -566,9 +530,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                                         </div>
                                                     </div>
                                                 </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{item.name}</p>
-                                                </TooltipContent>
+                                                <TooltipContent><p>{item.name}</p></TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
                                     ))}
@@ -581,7 +543,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             <CardTitle className="text-base font-bold">All Modules</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {/* h-[166px] → total card ≈ 250px sesuai skeleton */}
                             <ScrollArea className="h-[166px] pr-4">
                                 <div className="space-y-2">
                                     {module_rankings.map((item, index) => (
@@ -592,7 +553,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                                         <div className="w-48 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
                                                         <div className="flex-1 flex items-center gap-2 min-w-0">
                                                             <div className="flex-1 bg-muted rounded-full h-5 relative overflow-hidden">
-                                                                <div 
+                                                                <div
                                                                     className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
                                                                     style={{ width: `${(item.value / maxModuleValue) * 100}%` }}
                                                                 ></div>
@@ -601,9 +562,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                                         </div>
                                                     </div>
                                                 </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{item.name}</p>
-                                                </TooltipContent>
+                                                <TooltipContent><p>{item.name}</p></TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
                                     ))}
@@ -612,8 +571,102 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         </CardContent>
                     </Card>
                 </div>
-
             </div>
+
+            {/* ── FIX #1 & #2: Draggable Filter Panel (rendered at root level) ── */}
+            <DraggableFilterPanel
+                open={filterPanelOpen}
+                onClose={() => setFilterPanelOpen(false)}
+                activeCount={activeFilterCount}
+            >
+                {/* Filter by Date */}
+                <div className="space-y-2">
+                    <h4 className="text-sm font-semibold leading-none">Filter by Date</h4>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className={cn("w-full justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (
+                                    dateRange.to ? (
+                                        <>{format(dateRange.from, "LLL dd, y")} – {format(dateRange.to, "LLL dd, y")}</>
+                                    ) : format(dateRange.from, "LLL dd, y")
+                                ) : <span>Pick a date range</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                initialFocus
+                                mode="range"
+                                defaultMonth={dateRange?.from}
+                                selected={dateRange}
+                                onSelect={setDateRange}
+                                numberOfMonths={2}
+                            />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                    <h4 className="text-sm font-semibold leading-none">Filter by Category</h4>
+                    <MultiSelect
+                        options={filterOptions?.categories || []}
+                        selected={categoryFilter}
+                        onChange={setCategoryFilter}
+                        placeholder="Select categories..."
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <h4 className="text-sm font-semibold leading-none">Filter by Client</h4>
+                    <MultiSelect
+                        options={filterOptions?.clients || []}
+                        selected={clientFilter}
+                        onChange={setClientFilter}
+                        placeholder="Select clients..."
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <h4 className="text-sm font-semibold leading-none">Filter by Module</h4>
+                    <MultiSelect
+                        options={filterOptions?.modules || []}
+                        selected={moduleFilter}
+                        onChange={setModuleFilter}
+                        placeholder="Select modules..."
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <h4 className="text-sm font-semibold leading-none">Filter by Detail Module</h4>
+                    <MultiSelect
+                        options={filterOptions?.detailModules || []}
+                        selected={detailModuleFilter}
+                        onChange={setDetailModuleFilter}
+                        placeholder="Select detail modules..."
+                    />
+                </div>
+
+                {/* Clear button inside panel for convenience */}
+                {areFiltersActive && (
+                    <>
+                        <Separator />
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => { handleClearAllFilters(); }}
+                        >
+                            <FilterX className="mr-2 h-4 w-4" />
+                            Clear All Filters
+                        </Button>
+                    </>
+                )}
+            </DraggableFilterPanel>
         </div>
     );
 }
