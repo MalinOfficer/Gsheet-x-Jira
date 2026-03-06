@@ -3,56 +3,51 @@
 import { useMemo, useContext, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-    ResponsiveContainer, Tooltip, AreaChart, Area, Bar,
-    BarChart as RechartsBarChart, PieChart, Pie, Cell, RadialBarChart, RadialBar, Legend
+    ResponsiveContainer, Tooltip, PieChart, Pie, Cell,
+    BarChart as RechartsBarChart, Bar,
 } from 'recharts';
 import { TableDataContext } from '@/store/table-data-context';
 import { ScrollArea } from './ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { TrendingUp, TrendingDown, Layers, Users, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// ─── Stat Mini Card ─────────────────────────────────────────────────────────
-const StatPill = ({
-    label, value, color, icon: Icon,
-}: {
-    label: string; value: number | string; color: string; icon?: React.ElementType;
-}) => (
-    <div className={cn(
-        "flex items-center gap-3 rounded-2xl px-4 py-3 border",
-        "bg-white/60 dark:bg-white/5 backdrop-blur-sm shadow-sm",
-        "hover:scale-[1.02] transition-transform duration-200 cursor-default"
-    )}>
-        {Icon && (
-            <div className="rounded-xl p-2" style={{ backgroundColor: `${color}20` }}>
-                <Icon size={16} style={{ color }} />
-            </div>
-        )}
-        <div>
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground leading-none mb-1">
-                {label}
-            </p>
-            <p className="text-xl font-black leading-none" style={{ color }}>
-                {value}
-            </p>
+// ─── Color System ─────────────────────────────────────────────────────────────
+// Refined palette: slate neutrals + single blue accent
+const STATUS_COLORS: Record<string, string> = {
+    SOLVED:        '#2563eb', // blue-600  — primary
+    L3:            '#dc2626', // red-600
+    L2:            '#64748b', // slate-500
+    L1:            '#94a3b8', // slate-400
+    PENDING:       '#475569', // slate-600
+    'ON HOLD':     '#cbd5e1', // slate-300
+    'ON REVIEW':   '#94a3b8', // slate-400
+    TIM:           '#94a3b8',
+    PRODUCT:       '#cbd5e1',
+};
+
+const statusBadge = (status: string) => {
+    const s = status.toLowerCase();
+    if (s === 'l3') return 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 ring-1 ring-red-200 dark:ring-red-800';
+    if (s === 'l2') return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700';
+    if (s === 'l1') return 'bg-slate-50 text-slate-500 dark:bg-slate-800/60 dark:text-slate-400 ring-1 ring-slate-200 dark:ring-slate-700';
+    if (s.includes('hold') || s.includes('pending')) return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 ring-1 ring-slate-200 dark:ring-slate-700';
+    return 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800';
+};
+
+// ─── Stat Row ─────────────────────────────────────────────────────────────────
+const StatRow = ({ label, value, sub }: { label: string; value: string | number; sub?: string }) => (
+    <div className="flex items-center justify-between py-2.5 border-b last:border-0 border-slate-100 dark:border-slate-800">
+        <span className="text-xs text-muted-foreground font-medium">{label}</span>
+        <div className="text-right">
+            <span className="text-sm font-bold text-foreground tabular-nums">{value}</span>
+            {sub && <span className="text-xs text-muted-foreground ml-1.5">{sub}</span>}
         </div>
     </div>
 );
 
-// ─── Status Donut Chart ──────────────────────────────────────────────────────
-const COLORS: Record<string, string> = {
-    SOLVED: '#10b981',
-    L3: '#ef4444',
-    L2: '#3b82f6',
-    L1: '#f97316',
-    PENDING: '#a855f7',
-    'ON HOLD': '#6b7280',
-    'ON REVIEW': '#eab308',
-    TIM: '#06b6d4',
-    PRODUCT: '#ec4899',
-};
-
-const StatusCaseChart = ({
+// ─── Status Donut ─────────────────────────────────────────────────────────────
+const StatusDonut = ({
     data, totalCases, avgResolutionTime,
 }: {
     data: { name: string; value: number }[];
@@ -62,107 +57,106 @@ const StatusCaseChart = ({
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
     const chartData = useMemo(() =>
-        data.map(item => ({
-            ...item,
-            name: item.name.toUpperCase(),
-            fill: COLORS[item.name.toUpperCase()] ?? '#6b7280',
-            percentage: totalCases > 0 ? (item.value / totalCases) * 100 : 0,
-        })).filter(d => d.value > 0)
-        , [data, totalCases]);
+        data
+            .map(item => ({
+                ...item,
+                name: item.name.toUpperCase(),
+                fill: STATUS_COLORS[item.name.toUpperCase()] ?? '#94a3b8',
+                pct: totalCases > 0 ? (item.value / totalCases) * 100 : 0,
+            }))
+            .filter(d => d.value > 0)
+            .sort((a, b) => b.value - a.value)
+    , [data, totalCases]);
 
-    const resolvedPct = chartData.find(d => d.name === 'SOLVED')?.percentage ?? 0;
-    const inProgressPct = 100 - resolvedPct;
+    const resolvedPct = chartData.find(d => d.name === 'SOLVED')?.pct ?? 0;
 
     const CustomTooltip = ({ active, payload }: any) => {
         if (!active || !payload?.length) return null;
         const d = payload[0].payload;
         return (
-            <div className="bg-background/95 backdrop-blur border rounded-xl shadow-xl px-4 py-2.5 text-xs">
-                <div className="flex items-center gap-2 font-bold text-sm mb-0.5">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: d.fill }} />
-                    {d.name}
-                </div>
-                <p className="text-muted-foreground">{d.value} cases · <span className="text-foreground font-semibold">{d.percentage.toFixed(1)}%</span></p>
+            <div className="bg-background border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg px-3 py-2 text-xs">
+                <p className="font-semibold text-foreground mb-0.5">{d.name}</p>
+                <p className="text-muted-foreground">{d.value} cases · <span className="text-foreground font-bold">{d.pct.toFixed(1)}%</span></p>
             </div>
         );
     };
 
     return (
-        <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800">
-            {/* Header accent bar */}
-            <div className="h-1 w-full bg-gradient-to-r from-emerald-400 via-blue-500 to-purple-500" />
-            <CardHeader className="pb-2">
-                <CardTitle className="text-base font-black tracking-tight flex items-center gap-2">
-                    <Layers size={16} className="text-blue-500" /> Status Overview
-                </CardTitle>
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm">
+            <CardHeader className="pb-2 pt-4 px-5">
+                <CardTitle className="text-sm font-semibold text-foreground">Status Overview</CardTitle>
             </CardHeader>
-            <CardContent>
-                <div className="flex flex-col md:flex-row items-center gap-6">
-                    {/* Donut */}
-                    <div className="relative flex-shrink-0">
-                        <ResponsiveContainer width={200} height={200}>
+            <CardContent className="px-5 pb-4">
+                {/* Top section: donut + legend side by side */}
+                <div className="flex items-center gap-4">
+                    {/* Donut — larger to fill card height */}
+                    <div className="flex-shrink-0">
+                        <ResponsiveContainer width={202} height={202}>
                             <PieChart>
                                 <Pie
                                     data={chartData}
                                     dataKey="value"
-                                    innerRadius={62}
-                                    outerRadius={88}
-                                    paddingAngle={3}
+                                    innerRadius={63}
+                                    outerRadius={90}
+                                    paddingAngle={2}
                                     startAngle={90}
                                     endAngle={-270}
                                     onMouseEnter={(_, i) => setActiveIndex(i)}
                                     onMouseLeave={() => setActiveIndex(null)}
+                                    strokeWidth={0}
                                 >
                                     {chartData.map((entry, index) => (
                                         <Cell
                                             key={entry.name}
                                             fill={entry.fill}
-                                            opacity={activeIndex === null || activeIndex === index ? 1 : 0.35}
-                                            stroke="transparent"
-                                            style={{ transition: 'opacity 0.2s', cursor: 'pointer' }}
+                                            opacity={activeIndex === null || activeIndex === index ? 1 : 0.25}
+                                            style={{ transition: 'opacity 0.15s', outline: 'none' }}
                                         />
                                     ))}
                                 </Pie>
                                 <Tooltip content={<CustomTooltip />} />
-                                {/* Centre text */}
                                 <text x="50%" y="44%" textAnchor="middle" dominantBaseline="central"
-                                    className="fill-foreground" style={{ fontSize: 28, fontWeight: 900 }}>
+                                    className="fill-foreground" style={{ fontSize: 28, fontWeight: 800 }}>
                                     {totalCases}
                                 </text>
                                 <text x="50%" y="60%" textAnchor="middle" dominantBaseline="central"
-                                    className="fill-muted-foreground" style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1 }}>
-                                    TOTAL CASES
+                                    className="fill-muted-foreground" style={{ fontSize: 9, fontWeight: 600, letterSpacing: 0.8 }}>
+                                    TOTAL
                                 </text>
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
 
-                    {/* Legend pills */}
-                    <div className="grid grid-cols-2 gap-2 flex-1">
-                        {chartData.map(entry => (
+                    {/* Legend — compact rows */}
+                    <div className="flex-1 min-w-0 space-y-1">
+                        {chartData.map((entry, i) => (
                             <div key={entry.name}
-                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold bg-white/70 dark:bg-white/5 border shadow-sm hover:scale-105 transition-transform cursor-default">
-                                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: entry.fill }} />
-                                <span className="truncate text-muted-foreground">{entry.name}</span>
-                                <span className="ml-auto font-black text-foreground">{entry.value}</span>
+                                onMouseEnter={() => setActiveIndex(i)}
+                                onMouseLeave={() => setActiveIndex(null)}
+                                className="flex items-center gap-2 cursor-default py-0.5"
+                            >
+                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: entry.fill }} />
+                                <span className="text-xs font-bold text-foreground truncate flex-1 leading-none">{entry.name}</span>
+                                <span className="text-xs font-bold text-foreground tabular-nums">{entry.value}</span>
+                                <span className="text-[10px] text-muted-foreground tabular-nums w-8 text-right">{entry.pct.toFixed(0)}%</span>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                {/* Bottom stats */}
-                <div className="mt-5 pt-4 border-t grid grid-cols-3 gap-3 text-center">
-                    <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 p-3">
-                        <p className="text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400 font-semibold mb-1">Resolved</p>
-                        <p className="text-2xl font-black text-emerald-600">{resolvedPct.toFixed(1)}%</p>
+                {/* Divider + 3 stats in a row */}
+                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-2">
+                    <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 px-3 py-2">
+                        <p className="text-[9px] uppercase tracking-widest font-semibold text-muted-foreground mb-1">Resolved</p>
+                        <p className="text-base font-black text-foreground tabular-nums">{resolvedPct.toFixed(1)}<span className="text-xs font-semibold">%</span></p>
                     </div>
-                    <div className="rounded-2xl bg-blue-50 dark:bg-blue-900/20 p-3">
-                        <p className="text-[10px] uppercase tracking-widest text-blue-700 dark:text-blue-400 font-semibold mb-1">In Progress</p>
-                        <p className="text-2xl font-black text-blue-600">{inProgressPct.toFixed(1)}%</p>
+                    <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 px-3 py-2">
+                        <p className="text-[9px] uppercase tracking-widest font-semibold text-muted-foreground mb-1">In Progress</p>
+                        <p className="text-base font-black text-foreground tabular-nums">{(100 - resolvedPct).toFixed(1)}<span className="text-xs font-semibold">%</span></p>
                     </div>
-                    <div className="rounded-2xl bg-slate-100 dark:bg-white/5 p-3">
-                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1">Avg. Resolution</p>
-                        <p className="text-2xl font-black text-foreground">{Math.ceil(avgResolutionTime)}<span className="text-sm font-semibold ml-1">jam</span></p>
+                    <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 px-3 py-2">
+                        <p className="text-[9px] uppercase tracking-widest font-semibold text-muted-foreground mb-1">Avg. Resolv.</p>
+                        <p className="text-base font-black text-foreground tabular-nums">{Math.ceil(avgResolutionTime)}<span className="text-xs font-semibold ml-0.5">jam</span></p>
                     </div>
                 </div>
             </CardContent>
@@ -170,49 +164,99 @@ const StatusCaseChart = ({
     );
 };
 
-// ─── Unsolved Cases Table ────────────────────────────────────────────────────
-const statusColor = (status: string) => {
-    const s = status.toLowerCase();
-    if (s === 'l3') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-    if (s === 'l2') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-    if (s === 'l1') return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
-    if (s === 'pending' || s === 'on hold') return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
-    return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+// ─── Top Modules Bar ──────────────────────────────────────────────────────────
+const TopModulesCard = ({ data }: { data: { name: string; value: number }[] }) => {
+    const max = data[0]?.value ?? 1;
+
+    const CustomTooltip = ({ active, payload }: any) => {
+        if (!active || !payload?.length) return null;
+        return (
+            <div className="bg-background border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg px-3 py-2 text-xs">
+                <p className="font-semibold text-foreground mb-0.5 max-w-[160px] truncate">{payload[0].payload.name}</p>
+                <p className="text-muted-foreground"><span className="text-foreground font-bold">{payload[0].value}</span> cases</p>
+            </div>
+        );
+    };
+
+    return (
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm">
+            <CardHeader className="pb-2 pt-4 px-5">
+                <CardTitle className="text-sm font-semibold text-foreground">Top Modules</CardTitle>
+            </CardHeader>
+            <CardContent className="px-5 pb-4">
+                {/* Mini bar chart */}
+                <ResponsiveContainer width="100%" height={80}>
+                    <RechartsBarChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }} barCategoryGap="30%">
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(148,163,184,0.1)' }} />
+                        <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+                            {data.map((_, i) => (
+                                <Cell key={i} fill={i === 0 ? '#2563eb' : '#cbd5e1'} />
+                            ))}
+                        </Bar>
+                    </RechartsBarChart>
+                </ResponsiveContainer>
+
+                {/* List */}
+                <div className="mt-3 space-y-0 divide-y divide-slate-100 dark:divide-slate-800">
+                    {data.map((item, i) => (
+                        <div key={item.name} className="flex items-center gap-3 py-2">
+                            <span className="text-[10px] font-bold text-muted-foreground w-4 text-center">{i + 1}</span>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                    <span className="text-xs text-foreground font-medium truncate">{item.name}</span>
+                                    <span className="text-xs font-bold tabular-nums text-foreground flex-shrink-0">{item.value}</span>
+                                </div>
+                                <div className="h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{
+                                            width: `${(item.value / max) * 100}%`,
+                                            background: i === 0 ? '#2563eb' : '#94a3b8',
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
 };
 
+// ─── Unsolved Table ───────────────────────────────────────────────────────────
 const UnsolvedTable = ({ cases }: { cases: any[] }) => (
-    <Card className="flex flex-col overflow-hidden border-0 shadow-lg bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800">
-        <div className="h-1 w-full bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400" />
-        <CardHeader className="pb-2">
-            <CardTitle className="text-base font-black tracking-tight flex items-center gap-2">
-                <AlertCircle size={16} className="text-red-500" />
+    <Card className="flex flex-col border border-slate-200 dark:border-slate-800 shadow-sm">
+        <CardHeader className="pb-2 pt-4 px-5">
+            <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <AlertCircle size={14} className="text-red-500" />
                 Unsolved Cases
-                <span className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
-                    {cases.length} open
+                <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-muted-foreground">
+                    {cases.length}
                 </span>
             </CardTitle>
         </CardHeader>
-        <CardContent className="p-0 flex-grow">
-            <ScrollArea className="h-64">
+        <CardContent className="p-0 flex-1">
+            <ScrollArea className="h-[240px]">
                 <Table>
                     <TableHeader>
-                        <TableRow className="bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/60 border-b-2">
-                            <TableHead className="w-[40px] py-2.5 text-[11px] font-black uppercase tracking-wider">#</TableHead>
-                            <TableHead className="py-2.5 text-[11px] font-black uppercase tracking-wider">Client</TableHead>
-                            <TableHead className="py-2.5 text-[11px] font-black uppercase tracking-wider">Detail</TableHead>
-                            <TableHead className="py-2.5 text-[11px] font-black uppercase tracking-wider text-right">Status</TableHead>
+                        <TableRow className="border-slate-100 dark:border-slate-800 hover:bg-transparent">
+                            <TableHead className="py-2 pl-5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-8">#</TableHead>
+                            <TableHead className="py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Client</TableHead>
+                            <TableHead className="py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Detail</TableHead>
+                            <TableHead className="py-2 pr-5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground text-right">Status</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {cases.map((c, i) => (
-                            <TableRow key={i} className="text-xs hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                                <TableCell className="py-2 font-bold text-muted-foreground">{i + 1}</TableCell>
-                                <TableCell className="py-2 font-semibold">{c['Client Name']}</TableCell>
-                                <TableCell className="py-2 text-muted-foreground max-w-[180px] truncate">{c['Title']}</TableCell>
-                                <TableCell className="py-2 text-right">
+                            <TableRow key={i} className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                                <TableCell className="py-2 pl-5 text-[11px] font-semibold text-muted-foreground">{i + 1}</TableCell>
+                                <TableCell className="py-2 text-xs font-semibold text-foreground">{c['Client Name']}</TableCell>
+                                <TableCell className="py-2 text-xs text-muted-foreground max-w-[180px] truncate">{c['Title']}</TableCell>
+                                <TableCell className="py-2 pr-5 text-right">
                                     <span className={cn(
-                                        "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full",
-                                        statusColor(String(c.Status))
+                                        "text-[10px] font-bold uppercase px-2 py-0.5 rounded-md",
+                                        statusBadge(String(c.Status))
                                     )}>
                                         {c.Status}
                                     </span>
@@ -226,63 +270,7 @@ const UnsolvedTable = ({ cases }: { cases: any[] }) => (
     </Card>
 );
 
-// ─── Trend Cards ─────────────────────────────────────────────────────────────
-const TrendCard = ({
-    label, value, chartData, type, color,
-}: {
-    label: string; value: string; chartData: any[]; type: 'area' | 'bar'; color: string;
-}) => (
-    <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 group">
-        <div className="h-1 w-full" style={{ background: `linear-gradient(to right, ${color}, ${color}88)` }} />
-        <CardContent className="pt-5 pb-3 px-5">
-            <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color }}>
-                {type === 'area' ? <><Users size={10} className="inline mr-1" /> {label}</> : <><TrendingUp size={10} className="inline mr-1" /> {label}</>}
-            </p>
-            <p className="font-black text-base leading-snug text-foreground mb-3 truncate" title={value}>{value}</p>
-            <div className="rounded-xl overflow-hidden">
-                <ResponsiveContainer width="100%" height={64}>
-                    {type === 'area' ? (
-                        <AreaChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-                            <defs>
-                                <linearGradient id={`grad-${label}`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor={color} stopOpacity={0.35} />
-                                    <stop offset="95%" stopColor={color} stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <Tooltip
-                                formatter={(v: any, _: any, p: any) => [v, p.payload.name]}
-                                contentStyle={{ fontSize: 11, padding: '4px 10px', borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                cursor={false}
-                            />
-                            <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2.5}
-                                fill={`url(#grad-${label})`} dot={false} activeDot={{ r: 4, fill: color, stroke: '#fff', strokeWidth: 2 }} />
-                        </AreaChart>
-                    ) : (
-                        <RechartsBarChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-                            <defs>
-                                <linearGradient id={`bar-${label}`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor={color} stopOpacity={0.9} />
-                                    <stop offset="100%" stopColor={color} stopOpacity={0.3} />
-                                </linearGradient>
-                            </defs>
-                            <Tooltip
-                                content={({ active, payload }) => active && payload?.length ? (
-                                    <div className="bg-background/95 border rounded-xl shadow-lg px-3 py-1.5 text-xs font-semibold">
-                                        {payload[0].payload.name}: <span style={{ color }}>{payload[0].value}</span>
-                                    </div>
-                                ) : null}
-                                cursor={{ fill: 'transparent' }}
-                            />
-                            <Bar dataKey="value" fill={`url(#bar-${label})`} radius={[6, 6, 0, 0]} barSize={20} />
-                        </RechartsBarChart>
-                    )}
-                </ResponsiveContainer>
-            </div>
-        </CardContent>
-    </Card>
-);
-
-// ─── Main Export ─────────────────────────────────────────────────────────────
+// ─── Main Export ──────────────────────────────────────────────────────────────
 export function DashboardChart() {
     const { tableData: contextData } = useContext(TableDataContext);
     const finalData = contextData?.rows;
@@ -296,7 +284,6 @@ export function DashboardChart() {
             return Object.entries(f).sort(([, a], [, b]) => b - a).slice(0, n).map(([name, value]) => ({ name, value }));
         };
 
-        const topClients = freq('Client Name');
         const topModules = freq('Detail Module');
 
         const statusFreq: Record<string, number> = {};
@@ -318,13 +305,7 @@ export function DashboardChart() {
 
         return {
             totalCases: finalData.length,
-            solvedCount: statusFreq['SOLVED'] || 0,
-            l3Count: statusFreq['L3'] || 0,
-            pendingCount: (statusFreq['PENDING'] || 0) + (statusFreq['ON HOLD'] || 0),
-            clientTrend: topClients[0]?.name ?? 'N/A',
-            moduleTrend: topModules[0]?.name ?? 'N/A',
             statusCounts,
-            topClients,
             topModules,
             unsolvedCases,
             avgResolution: resCount > 0 ? totalRes / resCount / 3_600_000 : 0,
@@ -334,29 +315,19 @@ export function DashboardChart() {
     if (!finalData?.length || !stats) return null;
 
     return (
-        <div className="space-y-5">
-            {/* Top stat pills row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <StatPill label="Total Cases" value={stats.totalCases} color="#6366f1" icon={Layers} />
-                <StatPill label="Solved" value={stats.solvedCount} color="#10b981" icon={CheckCircle2} />
-                <StatPill label="L3 Cases" value={stats.l3Count} color="#ef4444" icon={AlertCircle} />
-                <StatPill label="Avg. Resolution" value={`${Math.ceil(stats.avgResolution)}h`} color="#f97316" icon={Clock} />
-            </div>
-
-            {/* Trend cards */}
-            <div className="grid gap-4 sm:grid-cols-2">
-                <TrendCard label="Client Trend" value={stats.clientTrend}
-                    chartData={stats.topClients} type="area" color="#6366f1" />
-                <TrendCard label="Module Trend" value={stats.moduleTrend}
-                    chartData={stats.topModules} type="bar" color="#06b6d4" />
-            </div>
-
-            {/* Status + Unsolved */}
+        <div className="space-y-4">
+            {/* Status + Modules row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <StatusCaseChart data={stats.statusCounts} totalCases={stats.totalCases}
-                    avgResolutionTime={stats.avgResolution} />
-                <UnsolvedTable cases={stats.unsolvedCases} />
+                <StatusDonut
+                    data={stats.statusCounts}
+                    totalCases={stats.totalCases}
+                    avgResolutionTime={stats.avgResolution}
+                />
+                <TopModulesCard data={stats.topModules} />
             </div>
+
+            {/* Unsolved table full width */}
+            <UnsolvedTable cases={stats.unsolvedCases} />
         </div>
     );
 }

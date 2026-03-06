@@ -53,7 +53,7 @@ const formatDate = (date: any): string | null => {
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchAllRows(filters: {
     dateRange?: DateRange;
-    years: string[];        // ← array (was: year: string)
+    years: string[];
     categories: string[];
     clients: string[];
     modules: string[];
@@ -72,17 +72,13 @@ async function fetchAllRows(filters: {
 
         // ── Date / year filter ────────────────────────────────────────────────
         if (filters.dateRange?.from) {
-            // Explicit date range takes priority
             const fromDate = formatDate(filters.dateRange.from);
             const toDate   = filters.dateRange.to ? formatDate(filters.dateRange.to) : fromDate;
             q = q.gte('date', fromDate!).lte('date', toDate!);
         } else if (filters.years.length === 1) {
-            // Single year → simple gte/lte
             const y = parseInt(filters.years[0], 10);
             if (!isNaN(y)) q = q.gte('date', `${y}-01-01`).lte('date', `${y}-12-31`);
         } else if (filters.years.length > 1) {
-            // Multiple years → build OR filter: (date >= Y1-01-01 AND date <= Y1-12-31) OR ...
-            // Supabase JS v2 supports .or() with filter strings
             const orParts = filters.years
                 .map(y => {
                     const n = parseInt(y, 10);
@@ -92,7 +88,6 @@ async function fetchAllRows(filters: {
                 .join(',');
             if (orParts) q = q.or(orParts);
         }
-        // If years is empty → no year filter (all years)
 
         // ── Multi-value filters ───────────────────────────────────────────────
         if (filters.categories.length    > 0) q = q.in('category_case', filters.categories);
@@ -116,6 +111,54 @@ async function fetchAllRows(filters: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Hitung naik/turun case per module: bandingkan 2 bulan terakhir yang lengkap
+// ─────────────────────────────────────────────────────────────────────────────
+function computeModuleTrends(data: any[]): { name: string; current: number; previous: number; change: number; direction: 'up' | 'down' | 'stable' }[] {
+    const now = new Date();
+    // Current month key — we exclude this because the month is not yet complete
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    const periodCounts: Record<string, Record<string, number>> = {};
+
+    data.forEach(r => {
+        if (!r.date || !r.module_case) return;
+        const d = new Date(r.date + 'T00:00:00');
+        if (isNaN(d.getTime())) return;
+        const periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        // Skip current (incomplete) month
+        if (periodKey === currentMonthKey) return;
+        if (!periodCounts[periodKey]) periodCounts[periodKey] = {};
+        periodCounts[periodKey][r.module_case] = (periodCounts[periodKey][r.module_case] || 0) + 1;
+    });
+
+    // Sort periods ascending; take last 2 complete months
+    const periods = Object.keys(periodCounts).sort();
+    if (periods.length < 2) return [];
+
+    const currentPeriod  = periods[periods.length - 1];
+    const previousPeriod = periods[periods.length - 2];
+
+    const currentMap  = periodCounts[currentPeriod]  ?? {};
+    const previousMap = periodCounts[previousPeriod] ?? {};
+
+    const allModules = new Set([...Object.keys(currentMap), ...Object.keys(previousMap)]);
+
+    const trends = Array.from(allModules).map(name => {
+        const current  = currentMap[name]  ?? 0;
+        const previous = previousMap[name] ?? 0;
+        const change   = current - previous;
+        const direction: 'up' | 'down' | 'stable' = change > 0 ? 'up' : change < 0 ? 'down' : 'stable';
+        return { name, current, previous, change, direction };
+    });
+
+    // Sort by absolute change desc, exclude stable, top 8
+    return trends
+        .filter(t => t.direction !== 'stable')
+        .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+        .slice(0, 8);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Hitung semua statistik dari raw rows
 // ─────────────────────────────────────────────────────────────────────────────
 function computeStats(data: any[]) {
@@ -125,24 +168,38 @@ function computeStats(data: any[]) {
 
     const uniqueClients = new Set(data.map(r => r.client_name).filter(Boolean));
 
+    // ── Trending category ─────────────────────────────────────────────────────
     const categoryCounts: Record<string, number> = {};
     data.forEach(r => {
         if (r.category_case) categoryCounts[r.category_case] = (categoryCounts[r.category_case] || 0) + 1;
     });
     const trendingCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'N/A';
 
+    // ── Client rankings ───────────────────────────────────────────────────────
     const clientCounts: Record<string, number> = {};
     data.forEach(r => { if (r.client_name) clientCounts[r.client_name] = (clientCounts[r.client_name] || 0) + 1; });
     const clientRankings = Object.entries(clientCounts)
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value);
 
+    // ── Module rankings + trending module ─────────────────────────────────────
     const moduleCounts: Record<string, number> = {};
     data.forEach(r => { if (r.module_case) moduleCounts[r.module_case] = (moduleCounts[r.module_case] || 0) + 1; });
     const moduleRankings = Object.entries(moduleCounts)
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value);
+    const trendingModule = moduleRankings[0]?.name ?? 'N/A';
 
+    // ── Detail module rankings ────────────────────────────────────────────────
+    const detailModuleCounts: Record<string, number> = {};
+    data.forEach(r => {
+        if (r.detail_module) detailModuleCounts[r.detail_module] = (detailModuleCounts[r.detail_module] || 0) + 1;
+    });
+    const detailModuleRankings = Object.entries(detailModuleCounts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+    // ── Monthly stats ─────────────────────────────────────────────────────────
     const monthAbbr = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const monthYearCounts: Record<string, number> = {};
     data.forEach(r => {
@@ -157,6 +214,8 @@ function computeStats(data: any[]) {
         return { month, year: parseInt(yearStr), cases: count };
     });
 
+    const moduleTrends = computeModuleTrends(data);
+
     return {
         summary: {
             total_cases:       totalCases,
@@ -164,12 +223,15 @@ function computeStats(data: any[]) {
             total_clients:     uniqueClients.size,
             solved_percentage: solvedPct,
             trending_category: trendingCategory,
+            trending_module:   trendingModule,
             top_client:        clientRankings[0]?.name ?? 'N/A',
             top_module:        moduleRankings[0]?.name ?? 'N/A',
         },
-        monthly_stats:   pivotAndOrderMonthlyStats(unpivoted),
-        client_rankings: clientRankings,
-        module_rankings: moduleRankings,
+        monthly_stats:          pivotAndOrderMonthlyStats(unpivoted),
+        client_rankings:        clientRankings,
+        module_rankings:        moduleRankings,
+        detail_module_rankings: detailModuleRankings,
+        module_trends:          moduleTrends,
     };
 }
 
@@ -187,14 +249,11 @@ export async function GET(request: Request) {
             try { dateRange = JSON.parse(dateRangeString); } catch {}
         }
 
-        // ── Parse selectedYears (replaces selectedYear) ───────────────────────
-        // Support both old param name (selectedYear) and new (selectedYears)
-        // for backwards compatibility.
+        // ── Parse selectedYears ───────────────────────────────────────────────
         const yearsParam =
             searchParams.get('selectedYears') ??
             searchParams.get('selectedYear')  ?? '';
 
-        // Parse into array; 'all' or '' → empty array (= no year filter)
         const selectedYears: string[] =
             yearsParam && yearsParam !== 'all'
                 ? yearsParam.split(',').map(s => s.trim()).filter(Boolean)
@@ -211,24 +270,20 @@ export async function GET(request: Request) {
         const modules       = moduleFilter       ? moduleFilter.split(',').map(s => s.trim()).filter(Boolean)       : [];
         const detailModules = detailModuleFilter ? detailModuleFilter.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-        // ── Routing: RPC vs Direct Query ─────────────────────────────────────
-        // Use RPC only when:
-        //  - No multi-value filters (categories/clients/modules/detailModules ≤ 1)
-        //  - AND year filter is a single year or "all" (not multi-year)
+        // ── Routing: RPC vs Direct Query ──────────────────────────────────────
         const isMultiFilter =
             categories.length    > 1 ||
             clients.length       > 1 ||
             modules.length       > 1 ||
             detailModules.length > 1 ||
-            selectedYears.length > 1;  // ← multi-year now also routes to direct query
+            selectedYears.length > 1;
 
         console.log(`📥 [API] Mode: ${isMultiFilter ? 'DIRECT QUERY' : 'RPC'}`, {
             selectedYears, categories, clients, modules, detailModules
         });
 
-        // ── MODE 1: RPC (single year / no year filter, no multi-value filters) ─
+        // ── MODE 1: RPC ───────────────────────────────────────────────────────
         if (!isMultiFilter) {
-            // selectedYears[0] is the single year, or undefined for "all"
             const singleYear = selectedYears[0];
             let yearValue: number | null = null;
             if (singleYear) {
@@ -267,23 +322,29 @@ export async function GET(request: Request) {
                 return [];
             };
 
+            const moduleRankingsRpc = parseJSONB(result.out_module_rankings).map((i: any) => ({ name: i.module, value: i.cases }));
+            const detailModuleRankingsRpc = parseJSONB(result.out_detail_module_rankings ?? null).map((i: any) => ({ name: i.detail_module ?? i.module, value: i.cases }));
+
             return NextResponse.json({ success: true, data: {
                 summary: {
                     total_cases:       result.out_total_cases       ?? 0,
-                    total_solved:      result.out_total_solved      ?? 0,
-                    total_clients:     result.out_total_clients     ?? 0,
-                    solved_percentage: result.out_solved_percentage ?? 0,
-                    trending_category: result.out_trending_category ?? 'N/A',
-                    top_client:        result.out_top_client        ?? 'N/A',
-                    top_module:        result.out_top_module        ?? 'N/A',
+                    total_solved:      result.out_total_solved       ?? 0,
+                    total_clients:     result.out_total_clients      ?? 0,
+                    solved_percentage: result.out_solved_percentage  ?? 0,
+                    trending_category: result.out_trending_category  ?? 'N/A',
+                    trending_module:   result.out_trending_module    ?? moduleRankingsRpc[0]?.name ?? 'N/A',
+                    top_client:        result.out_top_client         ?? 'N/A',
+                    top_module:        result.out_top_module         ?? 'N/A',
                 },
-                monthly_stats:   pivotAndOrderMonthlyStats(parseJSONB(result.out_monthly_stats)),
-                client_rankings: parseJSONB(result.out_client_rankings).map((i: any) => ({ name: i.client, value: i.cases })),
-                module_rankings: parseJSONB(result.out_module_rankings).map((i: any) => ({ name: i.module, value: i.cases })),
+                monthly_stats:          pivotAndOrderMonthlyStats(parseJSONB(result.out_monthly_stats)),
+                client_rankings:        parseJSONB(result.out_client_rankings).map((i: any) => ({ name: i.client, value: i.cases })),
+                module_rankings:        moduleRankingsRpc,
+                detail_module_rankings: detailModuleRankingsRpc,
+                module_trends:          [], // RPC path: trends computed client-side or extend RPC later
             }});
         }
 
-        // ── MODE 2: Direct query + pagination ────────────────────────────────
+        // ── MODE 2: Direct query + pagination ─────────────────────────────────
         const allData = await fetchAllRows({
             dateRange,
             years: selectedYears,
@@ -314,10 +375,19 @@ export async function GET(request: Request) {
 function emptyStats() {
     return {
         summary: {
-            total_cases: 0, total_solved: 0, total_clients: 0,
-            solved_percentage: 0, trending_category: 'N/A',
-            top_client: 'N/A', top_module: 'N/A',
+            total_cases:       0,
+            total_solved:      0,
+            total_clients:     0,
+            solved_percentage: 0,
+            trending_category: 'N/A',
+            trending_module:   'N/A',
+            top_client:        'N/A',
+            top_module:        'N/A',
         },
-        monthly_stats: [], client_rankings: [], module_rankings: [],
+        monthly_stats:          [],
+        client_rankings:        [],
+        module_rankings:        [],
+        detail_module_rankings: [],
+        module_trends:          [],
     };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon, X, GripHorizontal, Maximize2, Minimize2, ChevronDown, Check } from "lucide-react";
+import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon, X, GripHorizontal, Maximize2, Minimize2, ChevronDown, Check, Layers, TrendingUp, TrendingDown } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -41,6 +41,14 @@ const chartConfig = {
   modules: { label: "Modules", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig
 
+type ModuleTrend = {
+    name: string;
+    current: number;
+    previous: number;
+    change: number;
+    direction: 'up' | 'down' | 'stable';
+};
+
 type DashboardStats = {
     summary: {
         total_cases: number;
@@ -48,12 +56,15 @@ type DashboardStats = {
         total_clients: number;
         solved_percentage: number;
         trending_category: string;
+        trending_module: string;
         top_client: string;
         top_module: string;
     };
     monthly_stats: any[];
     client_rankings: { name: string; value: number }[];
     module_rankings: { name: string; value: number }[];
+    detail_module_rankings: { name: string; value: number }[];
+    module_trends: ModuleTrend[];
 };
 
 type FilterOptions = {
@@ -174,7 +185,6 @@ function YearMultiSelect({ years, selectedYears, onChange }: YearMultiSelectProp
 
     const toggleYear = (year: string) => {
         if (selectedYears.includes(year)) {
-            // Prevent deselecting the last year
             if (selectedYears.length === 1) return;
             onChange(selectedYears.filter(y => y !== year));
         } else {
@@ -184,7 +194,6 @@ function YearMultiSelect({ years, selectedYears, onChange }: YearMultiSelectProp
 
     const toggleAll = () => {
         if (allSelected) {
-            // Keep at least the most recent year selected
             onChange(years.length > 0 ? [years[years.length - 1]] : []);
         } else {
             onChange([...years]);
@@ -213,7 +222,6 @@ function YearMultiSelect({ years, selectedYears, onChange }: YearMultiSelectProp
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-48 p-1" align="end">
-                {/* All Years toggle */}
                 <button
                     onClick={toggleAll}
                     className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -231,7 +239,6 @@ function YearMultiSelect({ years, selectedYears, onChange }: YearMultiSelectProp
 
                 <div className="my-1 border-t" />
 
-                {/* Individual year checkboxes */}
                 {[...years].sort((a, b) => parseInt(b) - parseInt(a)).map((year) => {
                     const checked = selectedYears.includes(year);
                     const isLast = selectedYears.length === 1 && checked;
@@ -284,8 +291,10 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [filterPanelOpen, setFilterPanelOpen] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
+    // Track whether we've ever successfully loaded data — prevents double-skeleton
+    const hasLoadedOnce = useRef<boolean>(initialStats !== null);
+
     // ── Filter states ──────────────────────────────────────────────────────────
-    // selectedYears: array of year strings; defaults to 3 most recent
     const [selectedYears, setSelectedYears] = useState<string[]>(() => {
         if (initialOptions?.years?.length) {
             return getDefault3RecentYears(initialOptions.years);
@@ -298,8 +307,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [detailModuleFilter, setDetailModuleFilter] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-    // When filterOptions refreshes (e.g. a new year 2027 appears), add it to
-    // selectedYears and keep only the 3 most recent.
     const prevYearsRef = useRef<string[]>(initialOptions?.years ?? []);
     useEffect(() => {
         if (!filterOptions?.years) return;
@@ -308,13 +315,11 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
 
         const added = newYears.filter(y => !prevYears.includes(y));
         if (added.length > 0) {
-            // New year(s) detected — reset to 3 most recent
             setSelectedYears(getDefault3RecentYears(newYears));
         }
         prevYearsRef.current = newYears;
     }, [filterOptions?.years]);
 
-    // Close fullscreen on Escape key
     useEffect(() => {
         const handler = (e: KeyboardEvent) => { if (e.key === 'Escape' && isFullscreen) setIsFullscreen(false); };
         window.addEventListener('keydown', handler);
@@ -331,7 +336,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         return config;
     }, [filterOptions?.years]);
 
-    // chartKeys = intersection of selectedYears and what's actually in the data
     const { chartKeys, dynamicChartConfig } = useMemo(() => {
         if (!stats?.monthly_stats || stats.monthly_stats.length === 0) {
             return { chartKeys: [], dynamicChartConfig: { ...chartConfig, ...yearColorConfig } };
@@ -342,7 +346,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 if (/^\d{4}$/.test(key)) keysInData.add(key);
             });
         });
-        // Only show years that are both selected and present in data
         const sortedKeys = selectedYears
             .filter(y => keysInData.has(y))
             .sort((a, b) => parseInt(a) - parseInt(b));
@@ -381,7 +384,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     }, [categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, allYearsSelected]);
 
     const handleClearAllFilters = () => {
-        // Reset years to 3 most recent default
         if (filterOptions?.years?.length) {
             setSelectedYears(getDefault3RecentYears(filterOptions.years));
         }
@@ -395,7 +397,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const fetcher = useCallback(async (filters: any) => {
         const params = new URLSearchParams();
         if (filters.dateRange) params.append('dateRange', JSON.stringify(filters.dateRange));
-        // Send selectedYears as comma-separated; empty string = all years
         params.append('selectedYears', (filters.selectedYears as string[]).join(','));
         params.append('categoryFilter', filters.categoryFilter.join(','));
         params.append('clientFilter', filters.clientFilter.join(','));
@@ -419,6 +420,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             try {
                 const data = await fetcher({ selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange });
                 setStats(data);
+                hasLoadedOnce.current = true;
             } catch (err: any) {
                 setError(err.message);
                 setStats(null);
@@ -453,11 +455,16 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         });
     }, [selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, fetcher]);
 
-    if (isApplyingFilters && !stats) {
+    // Only show full skeleton on the very first load (never loaded before + currently fetching)
+    const showSkeleton = isApplyingFilters && !stats && !hasLoadedOnce.current;
+
+    if (showSkeleton) {
         return (
             <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
                 <div className="max-w-7xl mx-auto space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+                    <style>{`@media (min-width: 1024px) { .header-cards-grid { grid-template-columns: repeat(4, 7fr) 12fr !important; } }`}</style>
+                    <div className="header-cards-grid grid gap-4 md:grid-cols-2 md:gap-8">
+                        <Skeleton className="h-[88px]" />
                         <Skeleton className="h-[88px]" />
                         <Skeleton className="h-[88px]" />
                         <Skeleton className="h-[88px]" />
@@ -509,9 +516,15 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         );
     }
     
-    const { client_rankings, module_rankings } = stats;
+    const { client_rankings, module_rankings, detail_module_rankings } = stats;
+    const detailModuleRankings = detail_module_rankings ?? module_rankings ?? [];
     const maxClientValue = client_rankings.length > 0 ? client_rankings[0].value : 1;
     const maxModuleValue = module_rankings.length > 0 ? module_rankings[0].value : 1;
+    const maxDetailModuleValue = detailModuleRankings.length > 0 ? detailModuleRankings[0].value : 1;
+
+    // ── Computed totals for bottom cards ──────────────────────────────────────
+    const totalClientsCount = client_rankings.length;
+    const totalDetailModuleCases = detailModuleRankings.reduce((sum, item) => sum + item.value, 0);
 
     return (
         <div
@@ -528,7 +541,9 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             )}>
 
                 {/* ── Header Cards ────────────────────────────────────── */}
-                <div className="grid gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-4 shrink-0">
+                {/* 70/30 split: 4 left cards = 70%, Total Clients = 30% */}
+                <style>{`@media (min-width: 1024px) { .header-cards-grid { grid-template-columns: repeat(4, 7fr) 12fr !important; } }`}</style>
+                <div className="header-cards-grid grid gap-3 md:grid-cols-2 md:gap-4 shrink-0">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
                             <CardTitle className="text-xs font-medium text-muted-foreground">Total Cases</CardTitle>
@@ -536,15 +551,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         </CardHeader>
                         <CardContent className="pb-3 px-4">
                             <div className="text-2xl font-bold">{stats.summary.total_cases}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
-                            <CardTitle className="text-xs font-medium text-muted-foreground">Trending Category</CardTitle>
-                            <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent className="pb-3 px-4">
-                            <div className="text-2xl font-bold truncate">{stats.summary.trending_category}</div>
                         </CardContent>
                     </Card>
                     <Card>
@@ -565,11 +571,52 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
-                            <CardTitle className="text-xs font-medium text-muted-foreground">Total Clients</CardTitle>
-                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                            <CardTitle className="text-xs font-medium text-muted-foreground">Trending Category</CardTitle>
+                            <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
                         <CardContent className="pb-3 px-4">
-                            <div className="text-2xl font-bold">{stats.summary.total_clients}</div>
+                            <div className="text-2xl font-bold truncate">{stats.summary.trending_category}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
+                            <CardTitle className="text-xs font-medium text-muted-foreground">Trend Module</CardTitle>
+                            <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent className="pb-3 px-4">
+                            <div className="text-2xl font-bold truncate">{stats.summary.trending_module ?? stats.summary.top_module ?? '—'}</div>
+                        </CardContent>
+                    </Card>
+                    {/* Case Trend card — 30% width */}
+                    <Card className="flex flex-col">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4 shrink-0">
+                            <CardTitle className="text-xs font-medium text-muted-foreground">Case Trend</CardTitle>
+                            <span className="text-xs text-muted-foreground font-normal">vs last month</span>
+                        </CardHeader>
+                        <CardContent className="pb-3 px-4 flex-1 min-h-0">
+                            {(!stats.module_trends || stats.module_trends.length === 0) ? (
+                                <p className="text-xs text-muted-foreground mt-1">Not enough data to compare periods.</p>
+                            ) : (
+                                <ScrollArea className="h-[56px]">
+                                    <div className="space-y-1 pr-4">
+                                        {stats.module_trends.map((t, i) => (
+                                            <div key={i} className="flex items-center justify-between gap-2 min-w-0">
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                    {t.direction === 'up' ? (
+                                                        <TrendingUp className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                                                    ) : (
+                                                        <TrendingDown className="h-3 w-3 text-red-500 flex-shrink-0" />
+                                                    )}
+                                                    <span className="text-xs text-foreground truncate">{t.name}</span>
+                                                </div>
+                                                <span className={`text-xs font-semibold tabular-nums flex-shrink-0 ${t.direction === 'up' ? 'text-emerald-600' : 'text-red-500'}`}>
+                                                    {t.direction === 'up' ? '+' : ''}{t.change}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </ScrollArea>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -640,9 +687,9 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             </Button>
                         </div>
                     </CardHeader>
-                    <CardContent className={cn("pb-3", isFullscreen ? "flex-1 min-h-0" : "")}>
+                    <CardContent className={cn("pb-1", isFullscreen ? "flex-1 min-h-0" : "")}>
                         <ChartContainer config={dynamicChartConfig} className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[310px]")}>
-                            <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 20 }}>
+                            <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 4 }}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                 <XAxis
                                     dataKey="month"
@@ -661,7 +708,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     ))}
                                 </defs>
                                 <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                                <Legend wrapperStyle={{ paddingTop: 12 }} />
+                                <Legend wrapperStyle={{ paddingTop: 4 }} />
                                 {chartKeys.map((year) => (
                                     <Area
                                         key={year}
@@ -679,9 +726,16 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
 
                 {/* ── Bottom Cards ─────────────────────────────────────── */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2 shrink-0">
+
+                    {/* All Clients */}
                     <Card className="flex flex-col">
                         <CardHeader className="py-3 px-4 shrink-0">
-                            <CardTitle className="text-base font-bold">All Clients</CardTitle>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-base font-bold">All Clients</CardTitle>
+                                <span className="text-xs font-semibold text-muted-foreground bg-muted rounded-full px-2.5 py-1 tabular-nums">
+                                    {totalClientsCount.toLocaleString()} clients
+                                </span>
+                            </div>
                         </CardHeader>
                         <CardContent className="pb-4">
                             <ScrollArea className="h-[140px] pr-4 transition-all duration-300">
@@ -712,14 +766,20 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         </CardContent>
                     </Card>
 
+                    {/* Detail Module */}
                     <Card className="flex flex-col">
                         <CardHeader className="py-3 px-4 shrink-0">
-                            <CardTitle className="text-base font-bold">All Modules</CardTitle>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-base font-bold">Detail Module</CardTitle>
+                                <span className="text-xs font-semibold text-muted-foreground bg-muted rounded-full px-2.5 py-1 tabular-nums">
+                                    {totalDetailModuleCases.toLocaleString()} cases
+                                </span>
+                            </div>
                         </CardHeader>
                         <CardContent className="pb-4">
                             <ScrollArea className="h-[140px] pr-4 transition-all duration-300">
                                 <div className="space-y-2">
-                                    {module_rankings.map((item, index) => (
+                                    {detailModuleRankings.map((item, index) => (
                                         <TooltipProvider key={index} delayDuration={0}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
@@ -729,7 +789,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                                             <div className="flex-1 bg-muted rounded-full h-5 relative overflow-hidden">
                                                                 <div
                                                                     className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
-                                                                    style={{ width: `${(item.value / maxModuleValue) * 100}%` }}
+                                                                    style={{ width: `${(item.value / maxDetailModuleValue) * 100}%` }}
                                                                 ></div>
                                                             </div>
                                                             <span className="text-xs font-semibold text-foreground w-14 flex-shrink-0">{item.value.toLocaleString()}</span>
