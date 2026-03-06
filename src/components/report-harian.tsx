@@ -160,7 +160,6 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
         return reportTextForCopy.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
     }, [reportTextForCopy]);
 
-
     const handleCopy = () => {
         if (!reportTextForCopy) return;
         navigator.clipboard.writeText(reportTextForCopy).then(() => {
@@ -172,29 +171,18 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
         });
     };
 
-    if (!finalData || finalData.length === 0) {
-        return (
-             <Card>
-                <CardHeader>
-                    <CardTitle className="text-xl font-bold">Daily Report</CardTitle>
-                    <CardDescription>This report is generated from the data you converted on the Import Data page.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow flex items-center justify-center">
-                   <div className="text-center text-muted-foreground">
-                        <BarChartIcon className="mx-auto h-12 w-12 mb-2" />
-                        <p>No data from Import Data found.</p>
-                   </div>
-                </CardContent>
-            </Card>
-        );
-    }
-
     return (
-        <Card>
+        <Card className="flex flex-col">
             <CardHeader>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <CardTitle className="text-xl font-bold">Daily Report</CardTitle>
-                  <Button onClick={handleCopy} size="sm" variant="outline" className="w-full sm:w-auto">
+                  <Button
+                      onClick={handleCopy}
+                      size="sm"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      disabled={!reportTextForCopy}
+                  >
                       {isCopied ? <Check className="text-green-500 mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
                       {isCopied ? 'Copied!' : 'Copy Report'}
                   </Button>
@@ -203,11 +191,29 @@ ${solvedCases.map((item, i) => `${i + 1}. ${formatSolvedCase(item.clientName, it
                     This report is generated from the data you converted on the Import Data page.
                 </CardDescription>
             </CardHeader>
-            <CardContent className="flex-grow">
-                 <div
-                    className="h-96 text-xs font-mono bg-muted/20 rounded-md border p-3 overflow-auto whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ __html: reportTextForDisplay.replace(/\n/g, '<br />') }}
-                />
+            <CardContent className="flex-1">
+                {/* Always render the same h-96 box — empty state lives inside it */}
+                <div
+                    className={cn(
+                        "h-96 text-xs bg-muted/20 rounded-md border p-3 overflow-auto",
+                        finalData && finalData.length > 0
+                            ? "font-mono whitespace-pre-wrap"
+                            : "flex flex-col items-center justify-center text-center text-muted-foreground"
+                    )}
+                    dangerouslySetInnerHTML={
+                        finalData && finalData.length > 0
+                            ? { __html: reportTextForDisplay.replace(/\n/g, '<br />') }
+                            : undefined
+                    }
+                >
+                    {(!finalData || finalData.length === 0) && (
+                        <>
+                            <BarChartIcon className="h-10 w-10 mb-3 opacity-40" />
+                            <p className="text-sm font-medium">No data from Import Data found.</p>
+                            <p className="text-xs mt-1 opacity-70">Import data first to generate a report.</p>
+                        </>
+                    )}
+                </div>
             </CardContent>
         </Card>
     );
@@ -264,7 +270,7 @@ function L3CaseReportCard() {
     };
 
     return (
-         <Card>
+        <Card className="flex flex-col">
             <CardHeader>
                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <CardTitle className="text-xl font-bold">L3 Case Report</CardTitle>
@@ -280,10 +286,10 @@ function L3CaseReportCard() {
                   </div>
                 </div>
                 <CardDescription>
-                    This report is generated from the 'report_l3' database view.
+                    This report is generated from the 'Report L3' database view.
                 </CardDescription>
             </CardHeader>
-            <CardContent className="flex-grow">
+            <CardContent className="flex-1">
                 <div
                     className={cn(
                         "h-96 text-xs font-mono bg-muted/20 rounded-md border p-3 overflow-auto whitespace-pre-wrap",
@@ -298,14 +304,13 @@ function L3CaseReportCard() {
 }
 
 interface ReportHarianProps {
-  initialDashboardData: any[] | null; // This prop is no longer used but kept for page compatibility
+  initialDashboardData: any[] | null;
   error?: string;
 }
 
 export function ReportHarian({ error }: ReportHarianProps) {
   const { tableData } = useContext(TableDataContext);
 
-  // Check if data exists in the context from the import flow
   const hasData = tableData && tableData.rows.length > 0;
 
   if (error) {
@@ -321,11 +326,10 @@ export function ReportHarian({ error }: ReportHarianProps) {
   return (
     <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        
-
         {hasData ? <DashboardChart /> : <InitialState />}
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* items-stretch ensures both cards match height */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
           <DailyReportCard />
           <L3CaseReportCard />
         </div>
