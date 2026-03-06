@@ -53,7 +53,7 @@ const formatDate = (date: any): string | null => {
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchAllRows(filters: {
     dateRange?: DateRange;
-    year: string;
+    years: string[];        // ← array (was: year: string)
     categories: string[];
     clients: string[];
     modules: string[];
@@ -70,17 +70,31 @@ async function fetchAllRows(filters: {
             .is('deleted_at', null)
             .range(from, from + BATCH - 1);
 
-        // Date / year filter
+        // ── Date / year filter ────────────────────────────────────────────────
         if (filters.dateRange?.from) {
+            // Explicit date range takes priority
             const fromDate = formatDate(filters.dateRange.from);
             const toDate   = filters.dateRange.to ? formatDate(filters.dateRange.to) : fromDate;
             q = q.gte('date', fromDate!).lte('date', toDate!);
-        } else if (filters.year && filters.year !== 'all') {
-            const y = parseInt(filters.year, 10);
+        } else if (filters.years.length === 1) {
+            // Single year → simple gte/lte
+            const y = parseInt(filters.years[0], 10);
             if (!isNaN(y)) q = q.gte('date', `${y}-01-01`).lte('date', `${y}-12-31`);
+        } else if (filters.years.length > 1) {
+            // Multiple years → build OR filter: (date >= Y1-01-01 AND date <= Y1-12-31) OR ...
+            // Supabase JS v2 supports .or() with filter strings
+            const orParts = filters.years
+                .map(y => {
+                    const n = parseInt(y, 10);
+                    return isNaN(n) ? null : `and(date.gte.${n}-01-01,date.lte.${n}-12-31)`;
+                })
+                .filter(Boolean)
+                .join(',');
+            if (orParts) q = q.or(orParts);
         }
+        // If years is empty → no year filter (all years)
 
-        // Multi-value filters menggunakan .in()
+        // ── Multi-value filters ───────────────────────────────────────────────
         if (filters.categories.length    > 0) q = q.in('category_case', filters.categories);
         if (filters.clients.length       > 0) q = q.in('client_name',   filters.clients);
         if (filters.modules.length       > 0) q = q.in('module_case',   filters.modules);
@@ -94,7 +108,7 @@ async function fetchAllRows(filters: {
         allData = allData.concat(batch);
         console.log(`📦 [API] Fetched batch: rows ${from}–${from + batch.length - 1} (total so far: ${allData.length})`);
 
-        if (batch.length < BATCH) break; // batch terakhir
+        if (batch.length < BATCH) break;
         from += BATCH;
     }
 
@@ -106,34 +120,29 @@ async function fetchAllRows(filters: {
 // ─────────────────────────────────────────────────────────────────────────────
 function computeStats(data: any[]) {
     const totalCases  = data.length;
-    // status_case_solved berisi literal 'SOLVED' atau 'UNSOLVED'
     const totalSolved = data.filter(r => r.status_case_solved === 'SOLVED').length;
     const solvedPct   = totalCases > 0 ? (totalSolved / totalCases) * 100 : 0;
 
     const uniqueClients = new Set(data.map(r => r.client_name).filter(Boolean));
 
-    // Trending category
     const categoryCounts: Record<string, number> = {};
     data.forEach(r => {
         if (r.category_case) categoryCounts[r.category_case] = (categoryCounts[r.category_case] || 0) + 1;
     });
     const trendingCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'N/A';
 
-    // Client rankings
     const clientCounts: Record<string, number> = {};
     data.forEach(r => { if (r.client_name) clientCounts[r.client_name] = (clientCounts[r.client_name] || 0) + 1; });
     const clientRankings = Object.entries(clientCounts)
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value);
 
-    // Module rankings
     const moduleCounts: Record<string, number> = {};
     data.forEach(r => { if (r.module_case) moduleCounts[r.module_case] = (moduleCounts[r.module_case] || 0) + 1; });
     const moduleRankings = Object.entries(moduleCounts)
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value);
 
-    // Monthly stats
     const monthAbbr = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const monthYearCounts: Record<string, number> = {};
     data.forEach(r => {
@@ -171,13 +180,27 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
 
+        // ── Parse dateRange ───────────────────────────────────────────────────
         const dateRangeString = searchParams.get('dateRange');
         let dateRange: DateRange | undefined;
         if (dateRangeString) {
             try { dateRange = JSON.parse(dateRangeString); } catch {}
         }
 
-        const year               = searchParams.get('selectedYear')       || 'all';
+        // ── Parse selectedYears (replaces selectedYear) ───────────────────────
+        // Support both old param name (selectedYear) and new (selectedYears)
+        // for backwards compatibility.
+        const yearsParam =
+            searchParams.get('selectedYears') ??
+            searchParams.get('selectedYear')  ?? '';
+
+        // Parse into array; 'all' or '' → empty array (= no year filter)
+        const selectedYears: string[] =
+            yearsParam && yearsParam !== 'all'
+                ? yearsParam.split(',').map(s => s.trim()).filter(Boolean)
+                : [];
+
+        // ── Parse other filters ───────────────────────────────────────────────
         const categoryFilter     = searchParams.get('categoryFilter')     || '';
         const clientFilter       = searchParams.get('clientFilter')       || '';
         const moduleFilter       = searchParams.get('moduleFilter')       || '';
@@ -188,24 +211,28 @@ export async function GET(request: Request) {
         const modules       = moduleFilter       ? moduleFilter.split(',').map(s => s.trim()).filter(Boolean)       : [];
         const detailModules = detailModuleFilter ? detailModuleFilter.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-        // ── Apakah semua filter single-value atau kosong? ────────────────────
-        // Jika ya → gunakan RPC (lebih cepat, semua komputasi di PostgreSQL)
-        // Jika ada multi-value → gunakan direct query + pagination
+        // ── Routing: RPC vs Direct Query ─────────────────────────────────────
+        // Use RPC only when:
+        //  - No multi-value filters (categories/clients/modules/detailModules ≤ 1)
+        //  - AND year filter is a single year or "all" (not multi-year)
         const isMultiFilter =
             categories.length    > 1 ||
             clients.length       > 1 ||
             modules.length       > 1 ||
-            detailModules.length > 1;
+            detailModules.length > 1 ||
+            selectedYears.length > 1;  // ← multi-year now also routes to direct query
 
-        console.log(`📥 [API] Mode: ${isMultiFilter ? 'DIRECT QUERY (multi-filter)' : 'RPC (single/no filter)'}`, {
-            year, categories, clients, modules, detailModules
+        console.log(`📥 [API] Mode: ${isMultiFilter ? 'DIRECT QUERY' : 'RPC'}`, {
+            selectedYears, categories, clients, modules, detailModules
         });
 
-        // ── MODE 1: RPC (original, tidak kena limit 1000) ────────────────────
+        // ── MODE 1: RPC (single year / no year filter, no multi-value filters) ─
         if (!isMultiFilter) {
+            // selectedYears[0] is the single year, or undefined for "all"
+            const singleYear = selectedYears[0];
             let yearValue: number | null = null;
-            if (year && year !== 'all') {
-                const parsed = parseInt(year, 10);
+            if (singleYear) {
+                const parsed = parseInt(singleYear, 10);
                 if (!isNaN(parsed)) yearValue = parsed;
             }
 
@@ -229,10 +256,7 @@ export async function GET(request: Request) {
             }
 
             if (!data || data.length === 0 || data[0].out_total_cases === null) {
-                return NextResponse.json({ success: true, data: {
-                    summary: { total_cases: 0, total_solved: 0, total_clients: 0, solved_percentage: 0, trending_category: 'N/A', top_client: 'N/A', top_module: 'N/A' },
-                    monthly_stats: [], client_rankings: [], module_rankings: []
-                }});
+                return NextResponse.json({ success: true, data: emptyStats() });
             }
 
             const result = data[0];
@@ -242,10 +266,6 @@ export async function GET(request: Request) {
                 if (typeof field === 'string') { try { return JSON.parse(field); } catch { return []; } }
                 return [];
             };
-
-            const rawMonthlyStats = parseJSONB(result.out_monthly_stats);
-            const clientRankings  = parseJSONB(result.out_client_rankings);
-            const moduleRankings  = parseJSONB(result.out_module_rankings);
 
             return NextResponse.json({ success: true, data: {
                 summary: {
@@ -257,26 +277,29 @@ export async function GET(request: Request) {
                     top_client:        result.out_top_client        ?? 'N/A',
                     top_module:        result.out_top_module        ?? 'N/A',
                 },
-                monthly_stats:   pivotAndOrderMonthlyStats(rawMonthlyStats),
-                client_rankings: clientRankings.map((i: any) => ({ name: i.client, value: i.cases })),
-                module_rankings: moduleRankings.map((i: any) => ({ name: i.module, value: i.cases })),
+                monthly_stats:   pivotAndOrderMonthlyStats(parseJSONB(result.out_monthly_stats)),
+                client_rankings: parseJSONB(result.out_client_rankings).map((i: any) => ({ name: i.client, value: i.cases })),
+                module_rankings: parseJSONB(result.out_module_rankings).map((i: any) => ({ name: i.module, value: i.cases })),
             }});
         }
 
-        // ── MODE 2: Direct query + pagination (untuk multi-value filter) ─────
-        const allData = await fetchAllRows({ dateRange, year, categories, clients, modules, detailModules });
+        // ── MODE 2: Direct query + pagination ────────────────────────────────
+        const allData = await fetchAllRows({
+            dateRange,
+            years: selectedYears,
+            categories,
+            clients,
+            modules,
+            detailModules,
+        });
 
         console.log(`✅ [API] Total rows fetched: ${allData.length}`);
 
         if (allData.length === 0) {
-            return NextResponse.json({ success: true, data: {
-                summary: { total_cases: 0, total_solved: 0, total_clients: 0, solved_percentage: 0, trending_category: 'N/A', top_client: 'N/A', top_module: 'N/A' },
-                monthly_stats: [], client_rankings: [], module_rankings: []
-            }});
+            return NextResponse.json({ success: true, data: emptyStats() });
         }
 
-        const mappedData = computeStats(allData);
-        return NextResponse.json({ success: true, data: mappedData });
+        return NextResponse.json({ success: true, data: computeStats(allData) });
 
     } catch (error: any) {
         console.error('❌ [API] Dashboard API Route Error:', error);
@@ -285,4 +308,16 @@ export async function GET(request: Request) {
             { status: 500 }
         );
     }
+}
+
+// ── Helper ────────────────────────────────────────────────────────────────────
+function emptyStats() {
+    return {
+        summary: {
+            total_cases: 0, total_solved: 0, total_clients: 0,
+            solved_percentage: 0, trending_category: 'N/A',
+            top_client: 'N/A', top_module: 'N/A',
+        },
+        monthly_stats: [], client_rankings: [], module_rankings: [],
+    };
 }

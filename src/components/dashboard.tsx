@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon, X, GripHorizontal } from "lucide-react";
+import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon, X, GripHorizontal, Maximize2, Minimize2, ChevronDown, Check } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -16,7 +16,6 @@ import { getDashboardFilterOptions, refreshDashboardViews } from "@/app/actions"
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -84,7 +83,6 @@ function DraggableFilterPanel({ open, onClose, children, activeCount }: Draggabl
     const dragState = useRef({ dragging: false, startX: 0, startY: 0, origX: 0, origY: 0 });
     const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
-    // Reset position when closed so it re-centers on next open
     useEffect(() => {
         if (!open) setPos(null);
     }, [open]);
@@ -125,15 +123,12 @@ function DraggableFilterPanel({ open, onClose, children, activeCount }: Draggabl
 
     return (
         <>
-            {/* Backdrop - clicking it closes the panel */}
             <div className="fixed inset-0 z-40" onClick={onClose} />
-
             <div
                 ref={panelRef}
                 style={style}
                 className="w-96 rounded-lg border bg-popover text-popover-foreground shadow-xl"
             >
-                {/* Drag Handle */}
                 <div
                     onMouseDown={onMouseDown}
                     className="flex items-center justify-between px-4 py-2.5 border-b cursor-grab active:cursor-grabbing select-none bg-muted/50 rounded-t-lg"
@@ -154,8 +149,6 @@ function DraggableFilterPanel({ open, onClose, children, activeCount }: Draggabl
                         <X className="h-4 w-4" />
                     </button>
                 </div>
-
-                {/* Scrollable Content */}
                 <ScrollArea className="max-h-[75vh]">
                     <div className="p-4 space-y-4">
                         {children}
@@ -164,6 +157,118 @@ function DraggableFilterPanel({ open, onClose, children, activeCount }: Draggabl
             </div>
         </>
     );
+}
+
+// ── Year Multi-Select Dropdown ────────────────────────────────────────────────
+interface YearMultiSelectProps {
+    years: string[];
+    selectedYears: string[];
+    onChange: (years: string[]) => void;
+}
+
+function YearMultiSelect({ years, selectedYears, onChange }: YearMultiSelectProps) {
+    const [open, setOpen] = useState(false);
+
+    const allSelected = selectedYears.length === years.length;
+    const noneSelected = selectedYears.length === 0;
+
+    const toggleYear = (year: string) => {
+        if (selectedYears.includes(year)) {
+            // Prevent deselecting the last year
+            if (selectedYears.length === 1) return;
+            onChange(selectedYears.filter(y => y !== year));
+        } else {
+            onChange([...selectedYears, year].sort((a, b) => parseInt(a) - parseInt(b)));
+        }
+    };
+
+    const toggleAll = () => {
+        if (allSelected) {
+            // Keep at least the most recent year selected
+            onChange(years.length > 0 ? [years[years.length - 1]] : []);
+        } else {
+            onChange([...years]);
+        }
+    };
+
+    const label = useMemo(() => {
+        if (noneSelected || allSelected) return "All Years";
+        if (selectedYears.length === 1) return selectedYears[0];
+        return `${selectedYears.length} Years`;
+    }, [selectedYears, allSelected, noneSelected]);
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                        "w-full sm:w-[160px] justify-between font-normal",
+                        !allSelected && !noneSelected && "border-primary text-primary"
+                    )}
+                >
+                    <span className="truncate">{label}</span>
+                    <ChevronDown className="ml-2 h-4 w-4 flex-shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-1" align="end">
+                {/* All Years toggle */}
+                <button
+                    onClick={toggleAll}
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                    <div className={cn(
+                        "flex h-4 w-4 items-center justify-center rounded border",
+                        allSelected
+                            ? "bg-primary border-primary text-primary-foreground"
+                            : "border-input"
+                    )}>
+                        {allSelected && <Check className="h-3 w-3" />}
+                    </div>
+                    <span className="font-medium">All Years</span>
+                </button>
+
+                <div className="my-1 border-t" />
+
+                {/* Individual year checkboxes */}
+                {[...years].sort((a, b) => parseInt(b) - parseInt(a)).map((year) => {
+                    const checked = selectedYears.includes(year);
+                    const isLast = selectedYears.length === 1 && checked;
+                    return (
+                        <button
+                            key={year}
+                            onClick={() => toggleYear(year)}
+                            disabled={isLast}
+                            title={isLast ? "At least one year must be selected" : undefined}
+                            className={cn(
+                                "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors",
+                                isLast
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : "hover:bg-accent hover:text-accent-foreground"
+                            )}
+                        >
+                            <div className={cn(
+                                "flex h-4 w-4 items-center justify-center rounded border",
+                                checked
+                                    ? "bg-primary border-primary text-primary-foreground"
+                                    : "border-input"
+                            )}>
+                                {checked && <Check className="h-3 w-3" />}
+                            </div>
+                            <span>{year}</span>
+                        </button>
+                    );
+                })}
+            </PopoverContent>
+        </Popover>
+    );
+}
+
+// ── Helper: get default 3 most recent years ───────────────────────────────────
+function getDefault3RecentYears(years: string[]): string[] {
+    const sorted = [...years].sort((a, b) => parseInt(b) - parseInt(a));
+    return sorted.slice(0, 3).sort((a, b) => parseInt(a) - parseInt(b));
 }
 
 // ── Main Dashboard Component ──────────────────────────────────────────────────
@@ -177,14 +282,44 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [isApplyingFilters, startApplyingFilters] = useTransition();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
-    // Filter states
-    const [selectedYear, setSelectedYear] = useState<string>('all');
+    // ── Filter states ──────────────────────────────────────────────────────────
+    // selectedYears: array of year strings; defaults to 3 most recent
+    const [selectedYears, setSelectedYears] = useState<string[]>(() => {
+        if (initialOptions?.years?.length) {
+            return getDefault3RecentYears(initialOptions.years);
+        }
+        return [];
+    });
     const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
     const [clientFilter, setClientFilter] = useState<string[]>([]);
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
     const [detailModuleFilter, setDetailModuleFilter] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+    // When filterOptions refreshes (e.g. a new year 2027 appears), add it to
+    // selectedYears and keep only the 3 most recent.
+    const prevYearsRef = useRef<string[]>(initialOptions?.years ?? []);
+    useEffect(() => {
+        if (!filterOptions?.years) return;
+        const newYears = filterOptions.years;
+        const prevYears = prevYearsRef.current;
+
+        const added = newYears.filter(y => !prevYears.includes(y));
+        if (added.length > 0) {
+            // New year(s) detected — reset to 3 most recent
+            setSelectedYears(getDefault3RecentYears(newYears));
+        }
+        prevYearsRef.current = newYears;
+    }, [filterOptions?.years]);
+
+    // Close fullscreen on Escape key
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => { if (e.key === 'Escape' && isFullscreen) setIsFullscreen(false); };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [isFullscreen]);
 
     const yearColorConfig = useMemo(() => {
         const allYears = filterOptions?.years?.sort((a, b) => parseInt(a) - parseInt(b)) || [];
@@ -196,42 +331,60 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         return config;
     }, [filterOptions?.years]);
 
+    // chartKeys = intersection of selectedYears and what's actually in the data
     const { chartKeys, dynamicChartConfig } = useMemo(() => {
         if (!stats?.monthly_stats || stats.monthly_stats.length === 0) {
             return { chartKeys: [], dynamicChartConfig: { ...chartConfig, ...yearColorConfig } };
         }
-        const keys = new Set<string>();
+        const keysInData = new Set<string>();
         stats.monthly_stats.forEach(monthData => {
             Object.keys(monthData).forEach(key => {
-                if (/^\d{4}$/.test(key)) keys.add(key);
+                if (/^\d{4}$/.test(key)) keysInData.add(key);
             });
         });
-        const sortedKeys = Array.from(keys).sort((a, b) => parseInt(a) - parseInt(b));
+        // Only show years that are both selected and present in data
+        const sortedKeys = selectedYears
+            .filter(y => keysInData.has(y))
+            .sort((a, b) => parseInt(a) - parseInt(b));
         return { chartKeys: sortedKeys, dynamicChartConfig: { ...chartConfig, ...yearColorConfig } };
-    }, [stats?.monthly_stats, yearColorConfig]);
+    }, [stats?.monthly_stats, yearColorConfig, selectedYears]);
 
     useEffect(() => {
         setIsProcessing(isApplyingFilters || isRefreshing);
     }, [isApplyingFilters, isRefreshing, setIsProcessing]);
 
+    const allYearsSelected = useMemo(() => {
+        const available = filterOptions?.years ?? [];
+        return available.length > 0 && selectedYears.length === available.length;
+    }, [selectedYears, filterOptions?.years]);
+
     const areFiltersActive = useMemo(() => {
         return (
             dateRange !== undefined ||
-            selectedYear !== 'all' ||
+            !allYearsSelected ||
             categoryFilter.length > 0 ||
             clientFilter.length > 0 ||
             moduleFilter.length > 0 ||
             detailModuleFilter.length > 0
         );
-    }, [dateRange, selectedYear, categoryFilter, clientFilter, moduleFilter, detailModuleFilter]);
+    }, [dateRange, allYearsSelected, categoryFilter, clientFilter, moduleFilter, detailModuleFilter]);
 
     const activeFilterCount = useMemo(() => {
-        return [categoryFilter.length, clientFilter.length, moduleFilter.length, detailModuleFilter.length, dateRange ? 1 : 0]
-            .reduce((a, b) => a + b, 0);
-    }, [categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange]);
+        return [
+            categoryFilter.length,
+            clientFilter.length,
+            moduleFilter.length,
+            detailModuleFilter.length,
+            dateRange ? 1 : 0,
+            !allYearsSelected ? 1 : 0,
+        ].reduce((a, b) => a + b, 0);
+    }, [categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, allYearsSelected]);
 
     const handleClearAllFilters = () => {
-        setSelectedYear('all');
+        // Reset years to 3 most recent default
+        if (filterOptions?.years?.length) {
+            setSelectedYears(getDefault3RecentYears(filterOptions.years));
+        }
         setCategoryFilter([]);
         setClientFilter([]);
         setModuleFilter([]);
@@ -242,7 +395,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const fetcher = useCallback(async (filters: any) => {
         const params = new URLSearchParams();
         if (filters.dateRange) params.append('dateRange', JSON.stringify(filters.dateRange));
-        params.append('selectedYear', filters.selectedYear);
+        // Send selectedYears as comma-separated; empty string = all years
+        params.append('selectedYears', (filters.selectedYears as string[]).join(','));
         params.append('categoryFilter', filters.categoryFilter.join(','));
         params.append('clientFilter', filters.clientFilter.join(','));
         params.append('moduleFilter', filters.moduleFilter.join(','));
@@ -263,7 +417,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         startApplyingFilters(async () => {
             setError(null);
             try {
-                const data = await fetcher({ selectedYear, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange });
+                const data = await fetcher({ selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange });
                 setStats(data);
             } catch (err: any) {
                 setError(err.message);
@@ -271,7 +425,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 toast({ variant: "destructive", title: "Could not load dashboard data", description: err.message });
             }
         });
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, fetcher]);
+    }, [selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, fetcher]);
 
     const handleRefresh = useCallback(() => {
         setIsRefreshing(true);
@@ -279,7 +433,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         
         refreshDashboardViews().then(async () => {
             try {
-                const data = await fetcher({ selectedYear, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange });
+                const data = await fetcher({ selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange });
                 setStats(data);
                 toast({ title: "Refreshed!", description: "Dashboard data has been updated." });
             } catch (err: any) {
@@ -297,7 +451,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 }
             });
         });
-    }, [selectedYear, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, fetcher]);
+    }, [selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, fetcher]);
 
     if (isApplyingFilters && !stats) {
         return (
@@ -360,11 +514,21 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const maxModuleValue = module_rankings.length > 0 ? module_rankings[0].value : 1;
 
     return (
-        <div className="flex-1 bg-background text-foreground p-2 sm:p-3 md:p-4">
-            <div className="max-w-7xl mx-auto space-y-3">
+        <div
+            className={cn(
+                "bg-background text-foreground transition-all duration-300",
+                isFullscreen
+                    ? "fixed inset-0 z-50 flex flex-col p-3 md:p-4 overflow-hidden" 
+                    : "flex-1 p-2 sm:p-3 md:p-4 overflow-auto"
+            )}
+        >
+            <div className={cn(
+                "mx-auto w-full transition-all duration-300 flex flex-col gap-3", 
+                isFullscreen ? "flex-1 max-w-none min-h-0" : "max-w-7xl"
+            )}>
 
-                {/* ── Header Cards ──────────────────────────────────────── */}
-                <div className="grid gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
+                {/* ── Header Cards ────────────────────────────────────── */}
+                <div className="grid gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-4 shrink-0">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
                             <CardTitle className="text-xs font-medium text-muted-foreground">Total Cases</CardTitle>
@@ -410,15 +574,15 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </Card>
                 </div>
                 
-                {/* ── Chart Card ────────────────────────────────────────── */}
-                <Card>
-                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 py-3 px-4">
+                {/* ── Chart Card ──────────────────────────────────────── */}
+                <Card className={cn("flex flex-col", isFullscreen ? "flex-1 min-h-0" : "")}>
+                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 py-3 px-4 shrink-0">
                         <div>
                             <CardTitle className="text-base font-bold">Total Case</CardTitle>
                             {areFiltersActive && (
                                 <CardDescription className="text-xs text-muted-foreground mt-1">
                                     Filters active: {[
-                                        selectedYear !== 'all' && `Year: ${selectedYear}`,
+                                        !allYearsSelected && selectedYears.length > 0 && `Years: ${selectedYears.join(', ')}`,
                                         categoryFilter.length > 0 && `Categories: ${categoryFilter.length}`,
                                         clientFilter.length > 0 && `Clients: ${clientFilter.length}`,
                                         moduleFilter.length > 0 && `Modules: ${moduleFilter.length}`,
@@ -429,7 +593,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             )}
                         </div>
                         <div className="flex w-full sm:w-auto items-center justify-end gap-2 flex-wrap">
-                            {/* FIX #2: Replaced Popover with DraggableFilterPanel */}
                             <Button
                                 size="sm"
                                 variant="outline"
@@ -450,26 +613,36 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     Clear Filters
                                 </Button>
                             )}
+
                             <Button onClick={handleRefresh} disabled={isRefreshing || isApplyingFilters} size="sm" variant="outline">
                                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 Refresh Data
                             </Button>
-                            <Select value={selectedYear} onValueChange={setSelectedYear}>
-                                <SelectTrigger className="w-full sm:w-[180px]">
-                                    <SelectValue placeholder="Select a year" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Years</SelectItem>
-                                    {(filterOptions?.years || []).map(year => (
-                                        <SelectItem key={year} value={year}>{year}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+
+                            {/* ── Multi-Year Checkbox Dropdown ── */}
+                            <YearMultiSelect
+                                years={filterOptions?.years ?? []}
+                                selectedYears={selectedYears}
+                                onChange={setSelectedYears}
+                            />
+
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setIsFullscreen(p => !p)}
+                                title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
+                                className="h-9 w-9 p-0 flex-shrink-0"
+                            >
+                                {isFullscreen
+                                    ? <Minimize2 className="h-4 w-4" />
+                                    : <Maximize2 className="h-4 w-4" />
+                                }
+                            </Button>
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={dynamicChartConfig} className="h-[280px] w-full">
-                            <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 10 }}>
+                    <CardContent className={cn("pb-3", isFullscreen ? "flex-1 min-h-0" : "")}>
+                        <ChartContainer config={dynamicChartConfig} className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[310px]")}>
+                            <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 20 }}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                 <XAxis
                                     dataKey="month"
@@ -488,7 +661,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     ))}
                                 </defs>
                                 <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                                <Legend />
+                                <Legend wrapperStyle={{ paddingTop: 12 }} />
                                 {chartKeys.map((year) => (
                                     <Area
                                         key={year}
@@ -504,14 +677,14 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </CardContent>
                 </Card>
 
-                {/* ── Bottom Cards ──────────────────────────────────────── */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
-                    <Card>
-                        <CardHeader className="py-3 px-4">
+                {/* ── Bottom Cards ─────────────────────────────────────── */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2 shrink-0">
+                    <Card className="flex flex-col">
+                        <CardHeader className="py-3 px-4 shrink-0">
                             <CardTitle className="text-base font-bold">All Clients</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <ScrollArea className="h-[166px] pr-4">
+                        <CardContent className="pb-4">
+                            <ScrollArea className="h-[140px] pr-4 transition-all duration-300">
                                 <div className="space-y-2">
                                     {client_rankings.map((item, index) => (
                                         <TooltipProvider key={index} delayDuration={0}>
@@ -538,12 +711,13 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             </ScrollArea>
                         </CardContent>
                     </Card>
-                    <Card>
-                        <CardHeader className="py-3 px-4">
+
+                    <Card className="flex flex-col">
+                        <CardHeader className="py-3 px-4 shrink-0">
                             <CardTitle className="text-base font-bold">All Modules</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <ScrollArea className="h-[166px] pr-4">
+                        <CardContent className="pb-4">
+                            <ScrollArea className="h-[140px] pr-4 transition-all duration-300">
                                 <div className="space-y-2">
                                     {module_rankings.map((item, index) => (
                                         <TooltipProvider key={index} delayDuration={0}>
@@ -573,13 +747,12 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 </div>
             </div>
 
-            {/* ── FIX #1 & #2: Draggable Filter Panel (rendered at root level) ── */}
+            {/* ── Draggable Filter Panel ── */}
             <DraggableFilterPanel
                 open={filterPanelOpen}
                 onClose={() => setFilterPanelOpen(false)}
                 activeCount={activeFilterCount}
             >
-                {/* Filter by Date */}
                 <div className="space-y-2">
                     <h4 className="text-sm font-semibold leading-none">Filter by Date</h4>
                     <Popover>
@@ -651,7 +824,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     />
                 </div>
 
-                {/* Clear button inside panel for convenience */}
                 {areFiltersActive && (
                     <>
                         <Separator />
