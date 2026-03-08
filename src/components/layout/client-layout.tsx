@@ -4,14 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Settings, GanttChartSquare, LayoutDashboard, ListTree, BarChart, BookOpen, Database, GitBranch, Files, Combine, PackageSearch, CodeXml, RefreshCw, HardHat } from "lucide-react";
+import { Menu, Settings, LayoutDashboard, ListTree, BarChart, Database, GitBranch, Files, Combine, PackageSearch, CodeXml, RefreshCw, HardHat, LogOut, User, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
 import { TableDataContext } from "@/store/table-data-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import React from "react";
 import { ThemeSwitch } from "../ui/theme-switch";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = {
     overview: [
@@ -36,7 +37,6 @@ const navItems = {
 
 type NavCategory = keyof typeof navItems;
 
-
 function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
     const pathname = usePathname();
     const { isCodeViewerEnabled, areSecondaryToolsEnabled } = useContext(SettingsContext);
@@ -58,19 +58,16 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
 
                 return (
                     <div key={category} className="py-3">
-                        {/* CHANGED: px-5 → px-4, py-5 → py-3 */}
                         <h2 className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                             {category}
                         </h2>
                         {visibleItems.map((item) => {
                             const isActive = pathname === item.href;
-
                             return (
                                 <Wrapper key={item.label} asChild>
                                     <Link
                                         href={item.href}
                                         className={cn(
-                                            // CHANGED: px-5 → px-4, py-2.5 → py-2
                                             "flex items-center gap-3 px-4 py-2 text-sm font-medium transition-all duration-200",
                                             "border-r-[3px]",
                                             isActive
@@ -95,7 +92,6 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
 function ProcessingIndicator() {
     const { isProcessing } = useContext(TableDataContext);
     if (!isProcessing) return null;
-
     return (
         <div className="flex items-center gap-2 text-primary">
             <RefreshCw className="h-4 w-4 animate-spin" />
@@ -104,6 +100,62 @@ function ProcessingIndicator() {
     );
 }
 
+// ── User dropdown di header ───────────────────────────────────────────────────
+function UserMenu() {
+    const { user, logout } = useAuth();
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (ref.current && !ref.current.contains(e.target as Node)) {
+                setOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative" ref={ref}>
+            {/* Trigger — hanya avatar bulat */}
+            <button
+                onClick={() => setOpen(prev => !prev)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 hover:bg-primary/20 transition-colors"
+            >
+                <User className="h-4 w-4 text-primary" strokeWidth={1.5} />
+            </button>
+
+            {/* Dropdown */}
+            {open && (
+                <div className="absolute right-0 top-full mt-2 w-44 rounded-lg border bg-card shadow-lg z-50 overflow-hidden">
+                    {/* Info user */}
+                    <div className="px-3 py-2.5 border-b">
+                        <p className="text-xs font-semibold text-foreground truncate">{user?.username ?? '—'}</p>
+                        <p className="text-[10px] text-muted-foreground capitalize truncate">{user?.role ?? 'user'}</p>
+                    </div>
+                    {/* Settings */}
+                    <Link
+                        href="/settings"
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+                    >
+                        <Settings className="h-4 w-4" strokeWidth={1.5} />
+                        Settings
+                    </Link>
+                    {/* Logout */}
+                    <button
+                        onClick={() => { setOpen(false); logout(); }}
+                        className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                    >
+                        <LogOut className="h-4 w-4" strokeWidth={1.5} />
+                        Logout
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -146,7 +198,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             {/* --- Desktop Sidebar --- */}
             {!isMobile && (
                 <div className="hidden border-r bg-card md:flex flex-col h-screen sticky top-0">
-                    {/* CHANGED: px-5 py-5 → px-4 py-4 */}
                     <div className="flex h-14 items-center px-4 border-b flex-shrink-0">
                         <Link href="/" className="flex items-center gap-2 font-bold text-primary text-base">
                             <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-primary-foreground text-sm">
@@ -160,12 +211,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         <NavLinks />
                     </div>
 
-                    {/* CHANGED: p-5 → p-4 */}
+                    {/* Sidebar bottom: Settings tetap ada di sidebar desktop */}
                     <div className="mt-auto flex-shrink-0 border-t p-4">
                         <Link
                             href="/settings"
                             className={cn(
-                                // CHANGED: px-2.5 → px-3
                                 "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200",
                                 pathname === "/settings"
                                     ? "bg-muted text-foreground"
@@ -181,7 +231,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
             {/* --- Main Content Area --- */}
             <div className="flex flex-col h-screen overflow-hidden">
-                <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6 flex-shrink-0 z-40">
+                <header className="flex h-14 items-center gap-3 border-b bg-background px-4 lg:px-6 flex-shrink-0 z-40">
                     {isMobile && (
                         <Sheet>
                             <SheetTrigger asChild>
@@ -191,7 +241,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                 </Button>
                             </SheetTrigger>
                             <SheetContent side="left" className="flex flex-col p-0 w-[220px]">
-                                {/* CHANGED: px-5 py-5 → px-4 py-4 */}
                                 <SheetHeader className="h-auto flex items-center border-b px-4 py-4">
                                     <SheetTitle asChild>
                                         <Link href="/" className="flex items-center gap-2 font-bold text-primary text-base">
@@ -205,7 +254,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                 <div className="flex-1 overflow-y-auto">
                                     <NavLinks isMobile={true} />
                                 </div>
-                                {/* CHANGED: p-5 → p-4 */}
+                                {/* Mobile sidebar bottom: Settings */}
                                 <div className="mt-auto p-4 border-t">
                                     <SheetClose asChild>
                                         <Link
@@ -232,14 +281,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
                     <ProcessingIndicator />
                     <ThemeSwitch />
-
-                    {isMobile && (
-                        <Link href="/settings">
-                            <Button variant="ghost" size="icon">
-                                <Settings className="h-5 w-5" />
-                            </Button>
-                        </Link>
-                    )}
+                    <UserMenu />  {/* ← hanya avatar bulat, tanpa tombol Settings */}
                 </header>
                 <main className="flex-1 flex flex-col bg-muted/20 overflow-hidden">
                     <div className="h-full w-full overflow-y-auto flex flex-col">

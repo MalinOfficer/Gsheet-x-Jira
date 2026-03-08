@@ -1,4 +1,3 @@
-
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,6 +5,7 @@ import { StoreProvider } from "@/store/store-provider";
 import { ClientLayout } from "@/components/layout/client-layout";
 import Script from "next/script";
 import { ThemeProvider } from "@/hooks/theme-provider";
+import { AuthProvider } from "@/contexts/AuthContext"; // ← tambah ini
 
 export const metadata: Metadata = {
   title: "GSheet Dashboard & Tools",
@@ -35,17 +35,19 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: antiFlickerScript }} />
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
-        <ThemeProvider
-            defaultTheme="dark"
-            storageKey="app-theme"
-        >
-            <StoreProvider>
-                <ClientLayout>
-                    {children}
-                </ClientLayout>
-                <Toaster />
-            </StoreProvider>
-        </ThemeProvider>
+        <AuthProvider>          {/* ← tambah ini */}
+          <ThemeProvider
+              defaultTheme="dark"
+              storageKey="app-theme"
+          >
+              <StoreProvider>
+                  <ClientLayout>
+                      {children}
+                  </ClientLayout>
+                  <Toaster />
+              </StoreProvider>
+          </ThemeProvider>
+        </AuthProvider>          {/* ← tambah ini */}
         <Script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" strategy="lazyOnload" />
       </body>
     </html>

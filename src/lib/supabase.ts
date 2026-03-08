@@ -1,4 +1,3 @@
-
 // src/lib/supabase.ts
 
 import { createClient } from '@supabase/supabase-js';
@@ -82,6 +81,32 @@ export interface Database {
           status_case_solved?: string | null;
           source_link_op?: string | null;
           note?: string | null;
+          deleted_at?: string | null;
+        };
+      };
+      users_account: {
+        Row: {
+          id: number;
+          username: string;
+          password: string;
+          email: string | null;
+          role: string | null;
+          deleted_at: string | null;
+        };
+        Insert: {
+          id?: number;
+          username: string;
+          password: string;
+          email?: string | null;
+          role?: string | null;
+          deleted_at?: string | null;
+        };
+        Update: {
+          id?: number;
+          username?: string;
+          password?: string;
+          email?: string | null;
+          role?: string | null;
           deleted_at?: string | null;
         };
       };
