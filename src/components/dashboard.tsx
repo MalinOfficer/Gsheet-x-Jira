@@ -290,22 +290,25 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [filterPanelOpen, setFilterPanelOpen] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [hasMounted, setHasMounted] = useState(false);
 
     // Track whether we've ever successfully loaded data — prevents double-skeleton
     const hasLoadedOnce = useRef<boolean>(initialStats !== null);
 
     // ── Filter states ──────────────────────────────────────────────────────────
-    const [selectedYears, setSelectedYears] = useState<string[]>(() => {
-        if (initialOptions?.years?.length) {
-            return getDefault3RecentYears(initialOptions.years);
-        }
-        return [];
-    });
+    const [selectedYears, setSelectedYears] = useState<string[]>([]);
     const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
     const [clientFilter, setClientFilter] = useState<string[]>([]);
     const [moduleFilter, setModuleFilter] = useState<string[]>([]);
     const [detailModuleFilter, setDetailModuleFilter] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+    useEffect(() => {
+        setHasMounted(true);
+        if (initialOptions?.years?.length) {
+            setSelectedYears(getDefault3RecentYears(initialOptions.years));
+        }
+    }, [initialOptions]);
 
     const prevYearsRef = useRef<string[]>(initialOptions?.years ?? []);
     useEffect(() => {
@@ -337,8 +340,9 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     }, [filterOptions?.years]);
 
     const { chartKeys, dynamicChartConfig } = useMemo(() => {
+        const baseConfig = { ...chartConfig, ...yearColorConfig };
         if (!stats?.monthly_stats || stats.monthly_stats.length === 0) {
-            return { chartKeys: [], dynamicChartConfig: { ...chartConfig, ...yearColorConfig } };
+            return { chartKeys: [], dynamicChartConfig: baseConfig };
         }
         const keysInData = new Set<string>();
         stats.monthly_stats.forEach(monthData => {
@@ -349,7 +353,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         const sortedKeys = selectedYears
             .filter(y => keysInData.has(y))
             .sort((a, b) => parseInt(a) - parseInt(b));
-        return { chartKeys: sortedKeys, dynamicChartConfig: { ...chartConfig, ...yearColorConfig } };
+        return { chartKeys: sortedKeys, dynamicChartConfig: baseConfig };
     }, [stats?.monthly_stats, yearColorConfig, selectedYears]);
 
     useEffect(() => {
@@ -415,6 +419,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     }, []);
 
     useEffect(() => {
+        if (!hasMounted) return;
         startApplyingFilters(async () => {
             setError(null);
             try {
@@ -427,7 +432,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 toast({ variant: "destructive", title: "Could not load dashboard data", description: err.message });
             }
         });
-    }, [selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, fetcher]);
+    }, [selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, fetcher, hasMounted]);
 
     const handleRefresh = useCallback(() => {
         setIsRefreshing(true);
@@ -456,7 +461,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     }, [selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, fetcher]);
 
     // Only show full skeleton on the very first load (never loaded before + currently fetching)
-    const showSkeleton = isApplyingFilters && !stats && !hasLoadedOnce.current;
+    const showSkeleton = !hasMounted || (isApplyingFilters && !stats && !hasLoadedOnce.current);
 
     if (showSkeleton) {
         return (
@@ -688,39 +693,46 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         </div>
                     </CardHeader>
                     <CardContent className={cn("pb-1", isFullscreen ? "flex-1 min-h-0" : "")}>
-                        <ChartContainer config={dynamicChartConfig} className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[310px]")}>
-                            <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 4 }}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                                <XAxis
-                                    dataKey="month"
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickMargin={8}
-                                    tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : ''}
-                                />
-                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickCount={5} />
-                                <defs>
-                                    {chartKeys.map((year) => (
-                                        <linearGradient key={year} id={`fill${year}`} x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={dynamicChartConfig[year]?.color} stopOpacity={0.8} />
-                                            <stop offset="95%" stopColor={dynamicChartConfig[year]?.color} stopOpacity={0.1} />
-                                        </linearGradient>
-                                    ))}
-                                </defs>
-                                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                                <Legend wrapperStyle={{ paddingTop: 4 }} />
-                                {chartKeys.map((year) => (
-                                    <Area
-                                        key={year}
-                                        dataKey={year}
-                                        type="monotone"
-                                        fill={`url(#fill${year})`}
-                                        stroke={dynamicChartConfig[year]?.color}
-                                        strokeWidth={2}
+                        {hasMounted && stats.monthly_stats.length > 0 && (
+                            <ChartContainer config={dynamicChartConfig} className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[310px]")}>
+                                <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 4 }}>
+                                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                    <XAxis
+                                        dataKey="month"
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                        tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : ''}
                                     />
-                                ))}
-                            </AreaChart>
-                        </ChartContainer>
+                                    <YAxis tickLine={false} axisLine={false} tickMargin={8} tickCount={5} />
+                                    <defs>
+                                        {chartKeys.map((year) => (
+                                            <linearGradient key={year} id={`fill${year}`} x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={dynamicChartConfig[year]?.color} stopOpacity={0.8} />
+                                                <stop offset="95%" stopColor={dynamicChartConfig[year]?.color} stopOpacity={0.1} />
+                                            </linearGradient>
+                                        ))}
+                                    </defs>
+                                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                                    <Legend wrapperStyle={{ paddingTop: 4 }} />
+                                    {chartKeys.map((year) => (
+                                        <Area
+                                            key={year}
+                                            dataKey={year}
+                                            type="monotone"
+                                            fill={`url(#fill${year})`}
+                                            stroke={dynamicChartConfig[year]?.color}
+                                            strokeWidth={2}
+                                        />
+                                    ))}
+                                </AreaChart>
+                            </ChartContainer>
+                        )}
+                        {hasMounted && stats.monthly_stats.length === 0 && (
+                            <div className="flex items-center justify-center h-[310px] text-muted-foreground border-2 border-dashed rounded-lg">
+                                No historical data available for selected filters.
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
