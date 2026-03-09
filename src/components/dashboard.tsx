@@ -41,6 +41,9 @@ const chartConfig = {
   modules: { label: "Modules", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig
 
+// ✅ Fix: type alias untuk ChartConfig yang bisa di-index dengan string
+type IndexableChartConfig = Record<string, { label: string; color: string }>;
+
 type ModuleTrend = {
     name: string;
     current: number;
@@ -292,7 +295,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [hasMounted, setHasMounted] = useState(false);
 
-    // Track whether we've ever successfully loaded data — prevents double-skeleton
     const hasLoadedOnce = useRef<boolean>(initialStats !== null);
 
     // ── Filter states ──────────────────────────────────────────────────────────
@@ -340,7 +342,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     }, [filterOptions?.years]);
 
     const { chartKeys, dynamicChartConfig } = useMemo(() => {
-        const baseConfig = { ...chartConfig, ...yearColorConfig };
+        const baseConfig: IndexableChartConfig = { ...chartConfig, ...yearColorConfig };
         if (!stats?.monthly_stats || stats.monthly_stats.length === 0) {
             return { chartKeys: [], dynamicChartConfig: baseConfig };
         }
@@ -460,7 +462,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         });
     }, [selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, fetcher]);
 
-    // Only show full skeleton on the very first load (never loaded before + currently fetching)
     const showSkeleton = !hasMounted || (isApplyingFilters && !stats && !hasLoadedOnce.current);
 
     if (showSkeleton) {
@@ -524,10 +525,8 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const { client_rankings, module_rankings, detail_module_rankings } = stats;
     const detailModuleRankings = detail_module_rankings ?? module_rankings ?? [];
     const maxClientValue = client_rankings.length > 0 ? client_rankings[0].value : 1;
-    const maxModuleValue = module_rankings.length > 0 ? module_rankings[0].value : 1;
     const maxDetailModuleValue = detailModuleRankings.length > 0 ? detailModuleRankings[0].value : 1;
 
-    // ── Computed totals for bottom cards ──────────────────────────────────────
     const totalClientsCount = client_rankings.length;
     const totalDetailModuleCases = detailModuleRankings.reduce((sum, item) => sum + item.value, 0);
 
@@ -546,7 +545,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
             )}>
 
                 {/* ── Header Cards ────────────────────────────────────── */}
-                {/* 70/30 split: 4 left cards = 70%, Total Clients = 30% */}
                 <style>{`@media (min-width: 1024px) { .header-cards-grid { grid-template-columns: repeat(4, 7fr) 12fr !important; } }`}</style>
                 <div className="header-cards-grid grid gap-3 md:grid-cols-2 md:gap-4 shrink-0">
                     <Card>
@@ -592,7 +590,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             <div className="text-2xl font-bold truncate">{stats.summary.trending_module ?? stats.summary.top_module ?? '—'}</div>
                         </CardContent>
                     </Card>
-                    {/* Case Trend card — 30% width */}
+                    {/* Case Trend card */}
                     <Card className="flex flex-col">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4 shrink-0">
                             <CardTitle className="text-xs font-medium text-muted-foreground">Case Trend</CardTitle>
@@ -602,7 +600,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             {(!stats.module_trends || stats.module_trends.length === 0) ? (
                                 <p className="text-xs text-muted-foreground mt-1">Not enough data to compare periods.</p>
                             ) : (
-                                <ScrollArea className="h-[68px]">
+                                <ScrollArea className="h-[70px]">
                                     <div className="space-y-1 pr-4">
                                         {stats.module_trends.map((t, i) => (
                                             <div key={i} className="flex items-center justify-between gap-2 min-w-0">
@@ -671,7 +669,6 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                 Refresh Data
                             </Button>
 
-                            {/* ── Multi-Year Checkbox Dropdown ── */}
                             <YearMultiSelect
                                 years={filterOptions?.years ?? []}
                                 selectedYears={selectedYears}
@@ -694,7 +691,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </CardHeader>
                     <CardContent className={cn("pb-1", isFullscreen ? "flex-1 min-h-0" : "")}>
                         {hasMounted && stats.monthly_stats.length > 0 && (
-                            <ChartContainer config={dynamicChartConfig} className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[310px]")}>
+                            <ChartContainer config={dynamicChartConfig as ChartConfig} className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[310px]")}>
                                 <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 4 }}>
                                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                     <XAxis
@@ -708,6 +705,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                     <defs>
                                         {chartKeys.map((year) => (
                                             <linearGradient key={year} id={`fill${year}`} x1="0" y1="0" x2="0" y2="1">
+                                                {/* ✅ Fix: cast ke IndexableChartConfig agar bisa di-index dengan string */}
                                                 <stop offset="5%" stopColor={dynamicChartConfig[year]?.color} stopOpacity={0.8} />
                                                 <stop offset="95%" stopColor={dynamicChartConfig[year]?.color} stopOpacity={0.1} />
                                             </linearGradient>
@@ -721,6 +719,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                             dataKey={year}
                                             type="monotone"
                                             fill={`url(#fill${year})`}
+                                            // ✅ Fix: dynamicChartConfig sudah bertipe IndexableChartConfig
                                             stroke={dynamicChartConfig[year]?.color}
                                             strokeWidth={2}
                                         />

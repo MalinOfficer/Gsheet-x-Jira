@@ -610,7 +610,7 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     const [activeCell, setActiveCell] = useState<{ rowId: number; header: string } | null>(null);
     const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    const saveTimeoutRef = useRef<NodeJS.Timeout>();
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);

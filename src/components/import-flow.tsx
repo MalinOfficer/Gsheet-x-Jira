@@ -40,6 +40,9 @@ const LOCAL_STORAGE_KEY_INPUT = 'jsonConverterInput';
 
 declare const XLSX: any;
 
+// ✅ Fix: Explicit type untuk tableData agar tidak bergantung pada typeof Context
+type TableDataShape = { headers: string[]; rows: Record<string, any>[] } | null;
+
 function ResultList({ items, title }: { items?: { ticket_number?: string, title?: string, reason?: string }[], title?: string }) {
     if (!items || items.length === 0) {
         return null;
@@ -85,7 +88,7 @@ function ConflictItem({ item, onUpdateSuccess }: { item: any, onUpdateSuccess: (
         <span className="font-semibold">{item.ticket_number}</span>
         <span className="text-muted-foreground ml-2 truncate">{item.title}</span>
         <div className="text-muted-foreground ml-2 text-[10px] mt-0.5">
-          Status: <span className="font-semibold line-through">{item.old_status}</span> -> <span className="font-semibold text-amber-600">{item.new_status}</span>
+          Status: <span className="font-semibold line-through">{item.old_status}</span> → <span className="font-semibold text-amber-600">{item.new_status}</span>
         </div>
       </div>
       <Button 
@@ -662,8 +665,8 @@ export function ImportFlow() {
               </div>
           </div>
           
-          <Input type="file" ref={jsonFileInputRef} onChange={(e) => handleFileChange(e, 'json')} className="hidden" accept=".json" />
-          <Input type="file" ref={csvFileInputRef} onChange={(e) => handleFileChange(e, 'csv')} className="hidden" accept=".csv" />
+          <input type="file" ref={jsonFileInputRef} onChange={(e) => handleFileChange(e, 'json')} className="hidden" accept=".json" />
+          <input type="file" ref={csvFileInputRef} onChange={(e) => handleFileChange(e, 'csv')} className="hidden" accept=".csv" />
           
           {jsonError && <JsonErrorAlert message={jsonError} />}
         </CardContent>
@@ -717,7 +720,6 @@ export function ImportFlow() {
 
               {importPreview && (
                   <div className="space-y-4">
-                      {/* Summary Cards */}
                       <div className="grid grid-cols-2 gap-3">
                           <div className="rounded-lg border-2 border-green-200 bg-green-50 dark:bg-green-950/20 p-4 text-center">
                               <p className="text-4xl font-bold text-green-600">{importPreview.newCount}</p>
@@ -729,7 +731,6 @@ export function ImportFlow() {
                           </div>
                       </div>
 
-                      {/* Duplicate List */}
                       {importPreview.duplicates.length > 0 && (
                           <div className="space-y-2">
                               <p className="text-sm font-medium">
@@ -857,7 +858,9 @@ function PreviewTable({
     onOpenImportConfirm,
     isFetchingPreview,
 } : {
-    initialData: TableDataContext['tableData'];
+    // ✅ Fix: Gunakan TableDataShape (explicit type) bukan typeof TableDataContext['tableData']
+    // Error TS2339: Property 'tableData' does not exist on type 'Context<...>'
+    initialData: TableDataShape;
     dateFormats: Record<string, DateFormat>;
     isProcessing: boolean;
     handleDateFormatChange: (header: string, format: string) => void;
@@ -874,7 +877,7 @@ function PreviewTable({
     const initialColumnWidths = useCallback(() => {
         if (!initialData) return {};
         const widths: Record<string, number> = {};
-        initialData.headers.forEach(header => {
+        initialData.headers.forEach((header: string) => {
             const lowerHeader = header.toLowerCase();
             if (lowerHeader === 'title') widths[header] = 384;
             else if (lowerHeader.includes('ticket number')) widths[header] = 150;
@@ -957,7 +960,6 @@ function PreviewTable({
                         <BarChart className="mr-2 h-4 w-4" />
                         Daily Report
                     </Button>
-                    {/* ── Ganti AlertDialog lama dengan tombol ini ── */}
                     <Button
                         size="sm"
                         className="w-full sm:w-auto"

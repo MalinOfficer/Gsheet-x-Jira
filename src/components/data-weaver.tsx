@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useTransition, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -40,6 +39,9 @@ type MergeResult = {
     };
     error?: string;
 }
+
+// ✅ Fix 1: Explicit type untuk bestMatch agar tidak di-infer sebagai 'never'
+type MatchResult = { row: ExcelRow; distance: number; index: number };
 
 const findNameInRow = (row: ExcelRow | null | undefined, headers: string[] | undefined): string => {
     if (!row || !headers) return '';
@@ -191,7 +193,7 @@ const ResultsTable = ({ data, headers, caption }: { data: ExcelRow[]; headers: s
     const rowVirtualizer = useVirtualizer({
         count: data.length,
         getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 37, // h-9 + border
+        estimateSize: () => 37,
         overscan: 5,
     });
     
@@ -482,7 +484,8 @@ function Step2_ManualMatch({
             const nameA = findNameInRow(rowA, fileAHeaders);
             if (!nameA) return { a: rowA, b: null, similarity: -1 };
 
-            let bestMatch: { row: ExcelRow; distance: number; index: number } | null = null;
+            // ✅ Fix 2: Explicit type MatchResult | null — mencegah TypeScript infer 'never'
+            let bestMatch: MatchResult | null = null;
             
             tempUnmatchedB.forEach((rowB, index) => {
                 const nameB = findNameInRow(rowB, fileBHeaders);
@@ -495,15 +498,13 @@ function Step2_ManualMatch({
             });
 
             if (bestMatch) {
-                // Remove the matched item from tempUnmatchedB so it can't be matched again
-                tempUnmatchedB.splice(bestMatch.index, 1);
-                return { a: rowA, b: bestMatch.row, similarity: bestMatch.distance };
+                tempUnmatchedB.splice((bestMatch as MatchResult).index, 1);
+                return { a: rowA, b: (bestMatch as MatchResult).row, similarity: (bestMatch as MatchResult).distance };
             } else {
                 return { a: rowA, b: null, similarity: -1 };
             }
         });
 
-        // Add remaining unmatched B items
         tempUnmatchedB.forEach(rowB => {
             newAlignedData.push({ a: null, b: rowB, similarity: -1 });
         });
@@ -555,7 +556,7 @@ function Step2_ManualMatch({
 
             newRow['Id'] = idHeader && row[idHeader] ? row[idHeader] : '';
 
-            const dynamicHeaderKey = manualMatchHeaders[3]; // e.g., 'NISN', 'Year', or 'NIS'
+            const dynamicHeaderKey = manualMatchHeaders[3];
             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
             const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias);
 
@@ -671,7 +672,14 @@ const RecommendationView = ({ alignedData, onMatch, fileAHeaders, fileBHeaders }
 };
 
 
-const Panel = ({ title, data, selected, onSelect, renderRow }: { title: string, data: ExcelRow[], selected: ExcelRow | null, onSelect: (row: ExcelRow) => void, renderRow: (row: ExcelRow, onSelect: (row: ExcelRow) => void, isSelected: boolean) => JSX.Element }) => (
+// ✅ Fix 3: Ganti JSX.Element dengan React.ReactElement
+const Panel = ({ title, data, selected, onSelect, renderRow }: {
+    title: string;
+    data: ExcelRow[];
+    selected: ExcelRow | null;
+    onSelect: (row: ExcelRow) => void;
+    renderRow: (row: ExcelRow, onSelect: (row: ExcelRow) => void, isSelected: boolean) => React.ReactElement;
+}) => (
     <Card>
         <CardHeader className="p-4">
             <CardTitle className="text-base">{title}</CardTitle>
@@ -707,7 +715,7 @@ function Step3_Result({ finalData, onDownload, editMode, fileBHeaders }: { final
             const idHeader = fileBHeaders.find(k => k.toLowerCase() === 'id');
             const nameHeaderB = fileBHeaders.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim()));
             
-            const dynamicHeaderKey = resultHeaders[3]; // e.g., 'NISN'
+            const dynamicHeaderKey = resultHeaders[3];
             const dynamicHeaderAlias = dynamicHeaderKey === 'Year' ? 'tahun ajaran' : dynamicHeaderKey.toLowerCase();
             const sourceHeader = Object.keys(row).find(k => k.toLowerCase() === dynamicHeaderKey.toLowerCase() || k.toLowerCase() === dynamicHeaderAlias);
 
@@ -716,7 +724,6 @@ function Step3_Result({ finalData, onDownload, editMode, fileBHeaders }: { final
             newRow['Name'] = (nameHeaderB && row[nameHeaderB]) ? row[nameHeaderB] : '';
             newRow[dynamicHeaderKey] = sourceHeader ? row[sourceHeader] : '';
             
-            // Reorder to match resultHeaders
             const orderedRow: ExcelRow = {};
             resultHeaders.forEach(header => {
                 orderedRow[header] = newRow[header];
@@ -773,7 +780,7 @@ export function DataWeaver() {
                 setMergeResult(null);
             } else {
                 setMergeResult(result as MergeResult);
-                setCurrentStep(2); // Go to Manual Matching
+                setCurrentStep(2);
             }
         });
     };
@@ -825,15 +832,13 @@ export function DataWeaver() {
              
              const idHeader = fileB?.headers?.find(k => k.toLowerCase() === 'id') || 'Id';
              const nameHeaderB = fileB?.headers?.find(h => ['nama', 'name', 'username'].includes(h.toLowerCase().trim())) || 'Name';
-             
              const sourceValueHeader = fileA?.headers?.find(k => k.toLowerCase() === dynamicHeaders.lower || k.toLowerCase() === dynamicHeaders.alias) || dynamicHeaders.upper;
 
              newRow['No'] = index + 1;
-             newRow[headerRow2[1]] = row[idHeader] || ''; // 'Id'
-             newRow[headerRow2[2]] = row[nameHeaderB] || ''; // 'Name'
-             newRow[headerRow2[3]] = row[sourceValueHeader] || ''; // e.g., 'NISN' or 'Year'
+             newRow[headerRow2[1]] = row[idHeader] || '';
+             newRow[headerRow2[2]] = row[nameHeaderB] || '';
+             newRow[headerRow2[3]] = row[sourceValueHeader] || '';
              
-             // Ensure the keys match the final header
              return {
                 'No': newRow['No'],
                 'Id': newRow['Id'],
@@ -842,12 +847,10 @@ export function DataWeaver() {
              };
         });
 
-        // We use aoa_to_sheet to support multi-line headers easily
         const finalHeaders = [headerRow1, headerRow2];
         const finalDataForSheet = dataToExport.map(row => [row.No, row.Id, row.Name, row[dynamicHeaders.upper]]);
         
         const worksheet = XLSX.utils.aoa_to_sheet([...finalHeaders, ...finalDataForSheet]);
-        
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Merged Data');
         
@@ -855,7 +858,6 @@ export function DataWeaver() {
         const filename = `Final_Merged_Data_${date}.xlsx`;
 
         XLSX.writeFile(workbook, filename);
-
         toast({
             title: "Export Successful",
             description: `Merged data has been exported to ${filename}.`,
@@ -913,5 +915,3 @@ export function DataWeaver() {
         </div>
     );
 }
-
-    
