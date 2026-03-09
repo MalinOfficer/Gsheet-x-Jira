@@ -602,7 +602,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             {(!stats.module_trends || stats.module_trends.length === 0) ? (
                                 <p className="text-xs text-muted-foreground mt-1">Not enough data to compare periods.</p>
                             ) : (
-                                <ScrollArea className="h-[56px]">
+                                <ScrollArea className="h-[68px]">
                                     <div className="space-y-1 pr-4">
                                         {stats.module_trends.map((t, i) => (
                                             <div key={i} className="flex items-center justify-between gap-2 min-w-0">
@@ -628,7 +628,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 
                 {/* ── Chart Card ──────────────────────────────────────── */}
                 <Card className={cn("flex flex-col", isFullscreen ? "flex-1 min-h-0" : "")}>
-                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 py-3 px-4 shrink-0">
+                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 py-[0.45rem] px-4 shrink-0">
                         <div>
                             <CardTitle className="text-base font-bold">Total Case</CardTitle>
                             {areFiltersActive && (

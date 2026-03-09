@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       .from('users_account')
       .select('*')
       .eq('username', username)
+      .is('deleted_at', null)
       .single();
 
     if (error || !user) {
@@ -32,16 +33,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verifikasi password — support bcrypt hash & plain text
-    let isValid = false;
-    if (user.password?.startsWith('$2')) {
-      // password sudah di-hash dengan bcrypt
-      isValid = await bcrypt.compare(password, user.password);
-    } else {
-      // password masih plain text
-      isValid = password === user.password;
-    }
-
+    // Verifikasi password (bcrypt)
+    const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       return NextResponse.json(
         { error: 'Username atau password salah' },

@@ -48,8 +48,6 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
         return true;
     };
 
-    const Wrapper = isMobile ? SheetClose : 'div';
-
     return (
         <nav className="grid items-start gap-0">
             {(Object.keys(navItems) as NavCategory[]).map(category => {
@@ -63,24 +61,29 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                         </h2>
                         {visibleItems.map((item) => {
                             const isActive = pathname === item.href;
-                            return (
-                                <Wrapper key={item.label} asChild>
-                                    <Link
-                                        href={item.href}
-                                        className={cn(
-                                            "flex items-center gap-3 px-4 py-2 text-sm font-medium transition-all duration-200",
-                                            "border-r-[3px]",
-                                            isActive
-                                                ? "border-primary bg-primary/10 text-primary font-semibold"
-                                                : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                                            item.disabled && "pointer-events-none opacity-50"
-                                        )}
-                                    >
-                                        <item.icon className="h-4 w-4" strokeWidth={1.5} />
-                                        {item.label}
-                                    </Link>
-                                </Wrapper>
+                            const linkEl = (
+                                <Link
+                                    key={item.label}
+                                    href={item.href}
+                                    className={cn(
+                                        "flex items-center gap-3 px-4 py-2 text-sm font-medium transition-all duration-200",
+                                        "border-r-[3px]",
+                                        isActive
+                                            ? "border-primary bg-primary/10 text-primary font-semibold"
+                                            : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                                        item.disabled && "pointer-events-none opacity-50"
+                                    )}
+                                >
+                                    <item.icon className="h-4 w-4" strokeWidth={1.5} />
+                                    {item.label}
+                                </Link>
                             );
+
+                            return isMobile ? (
+                                <SheetClose key={item.label} asChild>
+                                    {linkEl}
+                                </SheetClose>
+                            ) : linkEl;
                         })}
                     </div>
                 );
@@ -182,6 +185,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         setIsProcessing(false);
     }, [pathname, setIsProcessing]);
 
+    // Halaman login tampil tanpa navbar/sidebar
+    if (pathname === '/login') {
+        return <>{children}</>;
+    }
+
     if (pathname === '/migrasi-murid') {
         return (
             <div className="h-full flex flex-col bg-background">
@@ -281,7 +289,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
                     <ProcessingIndicator />
                     <ThemeSwitch />
-                    <UserMenu />  {/* ← hanya avatar bulat, tanpa tombol Settings */}
+                    <UserMenu />
                 </header>
                 <main className="flex-1 flex flex-col bg-muted/20 overflow-hidden">
                     <div className="h-full w-full overflow-y-auto flex flex-col">
