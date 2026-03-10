@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Settings, LayoutDashboard, ListTree, BarChart, Database, GitBranch, Files, Combine, PackageSearch, CodeXml, RefreshCw, HardHat, LogOut, User, ChevronDown } from "lucide-react";
+import { Menu, Settings, LayoutDashboard, ListTree, BarChart, Database, GitBranch, Files, Combine, RefreshCw, HardHat, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useContext, useEffect, useRef, useState } from "react";
 import { SettingsContext } from "@/contexts/settings-provider";
@@ -39,9 +39,6 @@ const navItems: Record<string, NavItem[]> = {
         { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
         { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files, featureFlag: 'areSecondaryToolsEnabled' },
         { href: "/data-weaver", label: "Edit NIS", icon: Combine, featureFlag: 'areSecondaryToolsEnabled' },
-    ],
-    advanced: [
-        { href: "/code-viewer", label: "Code Viewer", icon: CodeXml, featureFlag: 'isCodeViewerEnabled' },
     ]
 };
 
@@ -49,12 +46,10 @@ type NavCategory = keyof typeof navItems;
 
 function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
     const pathname = usePathname();
-    const { isCodeViewerEnabled, areSecondaryToolsEnabled } = useContext(SettingsContext);
+    const { areSecondaryToolsEnabled } = useContext(SettingsContext);
 
-    // ✅ Fix: pakai NavItem type agar disabled & featureFlag dikenali
     const isVisible = (item: NavItem): boolean => {
         if (!item.featureFlag) return true;
-        if (item.featureFlag === 'isCodeViewerEnabled') return isCodeViewerEnabled;
         if (item.featureFlag === 'areSecondaryToolsEnabled') return areSecondaryToolsEnabled;
         return true;
     };
@@ -82,7 +77,6 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
                                         isActive
                                             ? "border-primary bg-primary/10 text-primary font-semibold"
                                             : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                                        // ✅ Fix: item.disabled sekarang dikenali karena NavItem type
                                         item.disabled && "pointer-events-none opacity-50"
                                     )}
                                 >
@@ -115,7 +109,6 @@ function ProcessingIndicator() {
     );
 }
 
-// ── User dropdown di header ───────────────────────────────────────────────────
 function UserMenu() {
     const { user, logout } = useAuth();
     const [open, setOpen] = useState(false);
@@ -181,7 +174,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         "/migrasi-murid": "Migrasi Murid",
         "/cek-duplikasi": "Cek Duplikasi",
         "/data-weaver": "Edit NIS",
-        "/code-viewer": "Code Viewer",
         "/settings": "Settings",
     };
 
@@ -208,7 +200,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             "grid w-full",
             isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[220px_1fr]",
         )}>
-            {/* --- Desktop Sidebar --- */}
             {!isMobile && (
                 <div className="hidden border-r bg-card md:flex flex-col h-screen sticky top-0">
                     <div className="flex h-14 items-center px-4 border-b flex-shrink-0">
@@ -241,7 +232,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 </div>
             )}
 
-            {/* --- Main Content Area --- */}
             <div className="flex flex-col h-screen overflow-hidden">
                 <header className="flex h-14 items-center gap-3 border-b bg-background px-4 lg:px-6 flex-shrink-0 z-40">
                     {isMobile && (

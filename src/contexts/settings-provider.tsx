@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
@@ -6,8 +5,6 @@ import Cookies from 'js-cookie';
 
 interface SettingsContextType {
     // Feature toggles
-    isCodeViewerEnabled: boolean;
-    toggleCodeViewer: () => void;
     areSecondaryToolsEnabled: boolean;
     toggleSecondaryTools: () => void;
     
@@ -29,8 +26,6 @@ interface SettingsContextType {
 }
 
 export const SettingsContext = createContext<SettingsContextType>({
-    isCodeViewerEnabled: false,
-    toggleCodeViewer: () => {},
     areSecondaryToolsEnabled: false,
     toggleSecondaryTools: () => {},
     sheetUrl: '',
@@ -47,7 +42,6 @@ export const SettingsContext = createContext<SettingsContextType>({
     setDbSpreadsheetTitle: () => {},
 });
 
-const LOCAL_STORAGE_KEY_CODE_VIEWER = 'isCodeViewerEnabled';
 const LOCAL_STORAGE_KEY_SECONDARY_TOOLS = 'areSecondaryToolsEnabled';
 const LOCAL_STORAGE_KEY_SHEET_URL = 'gsheetDashboardSheetUrl';
 const LOCAL_STORAGE_KEY_DB_SHEET_URL = 'gsheetDashboardDbSheetUrl';
@@ -57,7 +51,6 @@ const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1S9oSokUh8SyWl
 const DEFAULT_DB_SHEET_URL = 'https://docs.google.com/spreadsheets/d/17IreWvSgn3gr-kUmvI4-nOhqOYm9tJtUkwzPxo2wODU/edit?usp=drive_link';
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [isCodeViewerEnabled, setIsCodeViewerEnabled] = useState<boolean>(false);
     const [areSecondaryToolsEnabled, setAreSecondaryToolsEnabled] = useState<boolean>(false);
     
     // State for URLs and their verified titles
@@ -72,9 +65,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     useEffect(() => {
         try {
-            const savedCodeViewer = localStorage.getItem(LOCAL_STORAGE_KEY_CODE_VIEWER);
-            if (savedCodeViewer) setIsCodeViewerEnabled(JSON.parse(savedCodeViewer));
-
             const savedSecondaryTools = localStorage.getItem(LOCAL_STORAGE_KEY_SECONDARY_TOOLS);
             if (savedSecondaryTools) setAreSecondaryToolsEnabled(JSON.parse(savedSecondaryTools));
             
@@ -159,13 +149,10 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setDbSpreadsheetTitleState(title);
     }, []);
 
-    const toggleCodeViewer = createToggle(setIsCodeViewerEnabled, LOCAL_STORAGE_KEY_CODE_VIEWER);
     const toggleSecondaryTools = createToggle(setAreSecondaryToolsEnabled, LOCAL_STORAGE_KEY_SECONDARY_TOOLS);
 
     return (
         <SettingsContext.Provider value={{ 
-            isCodeViewerEnabled,
-            toggleCodeViewer,
             areSecondaryToolsEnabled,
             toggleSecondaryTools,
             sheetUrl,

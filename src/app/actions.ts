@@ -696,14 +696,6 @@ export async function getMasterData(): Promise<{
 // DUMMY FUNCTIONS
 // ============================================
 
-export async function getProjectFileContents(): Promise<{ 
-  success: boolean; 
-  data?: { path: string; content: string; name: string }[]; 
-  error?: string 
-}> {
-  return { success: false, error: "This function is not implemented in the live demo." };
-}
-
 export async function importToSheet(data: any, url: string): Promise<any> {
   return { success: false, error: "This function is not implemented in the live demo." };
 }

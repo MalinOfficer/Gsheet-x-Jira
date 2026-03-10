@@ -11,8 +11,8 @@ import {
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  CodeXml, Files, Link, Save, CheckCircle2, XCircle, RefreshCw,
-  Pencil, RefreshCcw, Clock, Play, Pause, ChevronDown,
+  Files, Link, Save, CheckCircle2, XCircle, RefreshCw,
+  Pencil, Clock, Play, Pause, ChevronDown,
   Eye, ArrowRight, AlertCircle, Database,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -294,7 +294,6 @@ function SyncPreviewDialog({
 
 export default function SettingsPage() {
   const {
-    isCodeViewerEnabled, toggleCodeViewer,
     areSecondaryToolsEnabled, toggleSecondaryTools,
     sheetUrl: contextSheetUrl, setSheetUrl: setContextSheetUrl,
     verifiedUrl, setVerifiedUrl,
@@ -337,16 +336,13 @@ export default function SettingsPage() {
   useEffect(() => {
     setIsClient(true);
 
-    // Load URL: prioritas context → localStorage → Supabase (global default)
     const initUrl = async () => {
       let url = contextSheetUrl;
 
-      // Coba dari localStorage dulu (lebih cepat)
       if (!url) {
         try { url = localStorage.getItem('globalSheetUrl') || ''; } catch (_) {}
       }
 
-      // Coba dari Supabase jika masih kosong (global default lintas device)
       if (!url) {
         try {
           const res = await getAppSetting('global_sheet_url');
@@ -404,7 +400,6 @@ export default function SettingsPage() {
       setSpreadsheetTitle(null);
       setMainSheetError(null);
 
-      // Validasi URL terlebih dahulu
       const result = await getSpreadsheetTitle(sheetUrl);
       if (result.error) {
         setMainSheetError(result.error);
@@ -414,15 +409,12 @@ export default function SettingsPage() {
         return;
       }
 
-      // URL valid → simpan sebagai global default
       setSpreadsheetTitle(result.title || null);
       setVerifiedUrl(sheetUrl);
       setIsEditing(false);
 
-      // 1. localStorage — persisten di browser ini
       try { localStorage.setItem('globalSheetUrl', sheetUrl); } catch (_) {}
 
-      // 2. Supabase — global default untuk semua user/device
       const saveRes = await saveAppSetting('global_sheet_url', sheetUrl);
 
       if (saveRes.success) {
@@ -431,7 +423,6 @@ export default function SettingsPage() {
           description: `"${result.title}" akan digunakan sebagai URL default di semua perangkat.`,
         });
       } else {
-        // Supabase gagal (mungkin tabel belum dibuat), tapi localStorage sudah tersimpan
         toast({
           title: '⚠️ URL Disimpan Lokal',
           description: 'Tersimpan di browser ini. Gagal simpan ke server: ' + saveRes.error,
@@ -442,7 +433,6 @@ export default function SettingsPage() {
     });
   };
 
-  // ── STEP 1: Klik "Sync Now" → fetch preview dulu ────────────────────────
   const handleSyncNowClick = async () => {
     const targetUrl = verifiedUrl || sheetUrl;
     if (!targetUrl) return;
@@ -474,7 +464,6 @@ export default function SettingsPage() {
     }
   };
 
-  // ── STEP 2: User konfirmasi → lakukan sync sungguhan ────────────────────
   const handleConfirmSync = async () => {
     setIsConfirmingSyncRef(true);
     try {
@@ -499,7 +488,6 @@ export default function SettingsPage() {
     }
   };
 
-  // ── Auto-sync (cron) — langsung sync tanpa preview ──────────────────────
   const runSync = async (isCron = false) => {
     setIsSyncRunning(true);
     try {
@@ -560,15 +548,7 @@ export default function SettingsPage() {
       icon: Files,
       checked: areSecondaryToolsEnabled,
       onCheckedChange: toggleSecondaryTools,
-    },
-    {
-      id: 'code-viewer-toggle',
-      label: 'Code Viewer',
-      description: 'Tampilkan menu untuk melihat dan mengunduh kode sumber aplikasi.',
-      icon: CodeXml,
-      checked: isCodeViewerEnabled,
-      onCheckedChange: toggleCodeViewer,
-    },
+    }
   ];
 
   if (!isClient) {
@@ -639,7 +619,6 @@ export default function SettingsPage() {
               {/* Action row */}
               <div className="flex flex-wrap items-center gap-3">
 
-                {/* ── MODIFIED: Sync Now → buka preview dialog ── */}
                 <Button
                   variant="default"
                   size="sm"
