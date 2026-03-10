@@ -556,7 +556,7 @@ export default function SettingsPage() {
     {
       id: 'secondary-tools-toggle',
       label: 'Tampilkan Alat Sekunder',
-      description: 'Aktifkan untuk menampilkan menu Cek Duplikasi, Edit NIS, & Migrasi Produk.',
+      description: 'Aktifkan untuk menampilkan menu Cek Duplikasi, Edit NIS.',
       icon: Files,
       checked: areSecondaryToolsEnabled,
       onCheckedChange: toggleSecondaryTools,

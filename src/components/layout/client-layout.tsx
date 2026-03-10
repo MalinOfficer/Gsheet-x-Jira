@@ -39,7 +39,6 @@ const navItems: Record<string, NavItem[]> = {
         { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
         { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files, featureFlag: 'areSecondaryToolsEnabled' },
         { href: "/data-weaver", label: "Edit NIS", icon: Combine, featureFlag: 'areSecondaryToolsEnabled' },
-        { href: "/migrasi-produk", label: "Migrasi Produk", icon: PackageSearch, featureFlag: 'areSecondaryToolsEnabled' },
     ],
     advanced: [
         { href: "/code-viewer", label: "Code Viewer", icon: CodeXml, featureFlag: 'isCodeViewerEnabled' },
@@ -182,7 +181,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         "/migrasi-murid": "Migrasi Murid",
         "/cek-duplikasi": "Cek Duplikasi",
         "/data-weaver": "Edit NIS",
-        "/migrasi-produk": "Migrasi Produk",
         "/code-viewer": "Code Viewer",
         "/settings": "Settings",
     };

@@ -20,7 +20,6 @@ import {
     getMasterData, deleteMasterStatus, deleteMasterModule, deleteMasterDetailModule, deleteCategory,
     syncGSheetToDB,
 } from "@/app/actions";
-// ✅ Import dari path yang sama dengan settings page
 import { previewGSheetSync, type PreviewRow } from "@/app/preview-sync";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -117,7 +116,7 @@ const formatDateTimeLocal = (s: string | null | undefined): string => {
     try { const d = new Date(s); if (isNaN(d.getTime())) return '-'; return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; } catch { return '-'; }
 };
 
-// ── SyncPreviewDialog — SAMA PERSIS dengan yang di settings page ───────────
+// ── SyncPreviewDialog ──────────────────────────────────────
 
 interface SyncPreviewDialogProps {
     open: boolean;
@@ -142,7 +141,6 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
     return (
         <Dialog open={open} onOpenChange={v => !v && onClose()}>
             <DialogContent className="max-w-4xl w-full max-h-[90vh] flex flex-col p-0 gap-0">
-
                 <DialogHeader className="px-6 pt-6 pb-4 border-b">
                     <DialogTitle className="flex items-center gap-2 text-lg">
                         <Eye className="h-5 w-5 text-primary" />
@@ -154,22 +152,18 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* Stats row */}
                 <div className="flex items-center gap-3 px-6 py-4 bg-muted/30 border-b flex-wrap">
                     <div className="flex items-center gap-2 rounded-lg bg-background border px-3 py-2">
                         <Database className="h-4 w-4 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">Total GSheet</span>
                         <span className="text-sm font-bold">{totalSheetRows}</span>
                     </div>
-
                     <ArrowRight className="h-4 w-4 text-muted-foreground hidden sm:block" />
-
                     <div className="flex items-center gap-2 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 px-3 py-2">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
                         <span className="text-xs text-green-700 dark:text-green-400">Akan Di-insert</span>
                         <span className="text-sm font-bold text-green-700 dark:text-green-400">{newCount}</span>
                     </div>
-
                     {updateCount > 0 && (
                         <div className="flex items-center gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-3 py-2">
                             <RefreshCw className="h-4 w-4 text-blue-600" />
@@ -177,13 +171,11 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                             <span className="text-sm font-bold text-blue-700 dark:text-blue-400">{updateCount}</span>
                         </div>
                     )}
-
                     <div className="flex items-center gap-2 rounded-lg bg-muted border px-3 py-2">
                         <XCircle className="h-4 w-4 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">Sudah Ada (Skip)</span>
                         <span className="text-sm font-bold">{skippedCount}</span>
                     </div>
-
                     {unmappedHeaders.length > 0 && (
                         <div className="flex items-center gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 px-3 py-2 ml-auto">
                             <AlertCircle className="h-4 w-4 text-amber-600" />
@@ -194,7 +186,6 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                     )}
                 </div>
 
-                {/* Table area */}
                 <div className="flex-1 overflow-hidden px-6 py-4">
                     {newCount === 0 && updateCount === 0 ? (
                         <div className="flex flex-col items-center justify-center h-48 text-center">
@@ -581,8 +572,6 @@ MemoizedRow.displayName = "MemoizedRow";
 
 export function DbViewer({ initialData, initialSource, initialError, availableYears = [], availableClients: initialClients = [] }: DbViewerProps) {
     const { setIsProcessing } = useContext(TableDataContext);
-
-    // ✅ Ambil URL dari SettingsContext — sama seperti settings page
     const { verifiedUrl, sheetUrl: contextSheetUrl } = useContext(SettingsContext);
 
     const [state, setState] = useState<DbViewerState>({ data: initialData, source: initialSource, error: initialError });
@@ -628,7 +617,7 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     const [dbModuleMap, setDbModuleMap] = useState<Map<string, number>>(new Map());
     const [dbDetailModuleMap, setDbDetailModuleMap] = useState<Map<string, number>>(new Map());
 
-    // ── Sync preview state — SAMA dengan settings page ──
+    // ── Sync preview state ──
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [isFetchingPreview, setIsFetchingPreview] = useState(false);
     const [isConfirmingSync, setIsConfirmingSync] = useState(false);
@@ -639,6 +628,16 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         totalSheetRows: number;
         unmappedHeaders: string[];
     } | null>(null);
+
+    // ── FIX: ref selalu tunjuk ke state.data terbaru ──────────────────────────
+    // Ini mencegah stale closure di handleCellSave yang pakai setTimeout 800ms.
+    // Tanpa ini, handleCellSave akan capture state.data LAMA (sebelum user edit),
+    // sehingga perubahan tidak pernah terkirim ke DB.
+    const stateDataRef = useRef(state.data);
+    useEffect(() => {
+        stateDataRef.current = state.data;
+    }, [state.data]);
+    // ─────────────────────────────────────────────────────────────────────────
 
     useEffect(() => {
         getMasterData().then(res => {
@@ -739,7 +738,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    // ── STEP 1: Klik "Sync Now" → fetch preview — SAMA dengan settings page ──
     const handleSyncNowClick = useCallback(async () => {
         const targetUrl = verifiedUrl || contextSheetUrl;
         if (!targetUrl) {
@@ -768,7 +766,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         }
     }, [verifiedUrl, contextSheetUrl, toast]);
 
-    // ── STEP 2: Konfirmasi sync — SAMA dengan settings page ──
     const handleConfirmSync = useCallback(async () => {
         const targetUrl = verifiedUrl || contextSheetUrl;
         if (!targetUrl) return;
@@ -779,7 +776,7 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                 toast({ title: '✅ Sync Complete', description: `${res.inserted} rows inserted, ${res.skipped} skipped.` });
                 setIsPreviewOpen(false);
                 setPreviewData(null);
-                fetchData(); // refresh tabel
+                fetchData();
             } else {
                 toast({ variant: 'destructive', title: 'Sync Failed', description: res.error });
             }
@@ -829,28 +826,45 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     const totalRowHeight = rv.getTotalSize();
 
     const handleCellClick = useCallback((rowId: number, h: string) => { setActiveCell(rowId === 0 ? null : { rowId, header: h }); }, []);
+
     const handleCellChange = useCallback((id: number, h: string, v: string) => {
         setState(p => {
             if (!p.data) return p;
             return { ...p, data: p.data.map(row => {
                 if (row.id !== id) return row;
                 const u = { ...row, [h]: v };
-                if (h === 'status') { const nowSolved = v === 'Solved' || v === 'RESOLVED'; const wasSolved = row.status === 'Solved' || row.status === 'RESOLVED'; if (nowSolved && !wasSolved) u.resolved_at = new Date().toISOString(); else if (!nowSolved && wasSolved) u.resolved_at = ''; }
+                if (h === 'status') {
+                    const nowSolved = v === 'Solved' || v === 'RESOLVED';
+                    const wasSolved = row.status === 'Solved' || row.status === 'RESOLVED';
+                    if (nowSolved && !wasSolved) u.resolved_at = new Date().toISOString();
+                    else if (!nowSolved && wasSolved) u.resolved_at = '';
+                }
                 return u;
             })};
         });
     }, []);
+
+    // ── FIX: handleCellSave pakai stateDataRef bukan state.data ──────────────
+    // Root cause bug: state.data di-capture saat useCallback dibuat (stale closure).
+    // Ketika user edit lalu handleCellSave dipanggil, setTimeout 800ms jalan
+    // SETELAH setState selesai — tapi state.data di closure masih nilai LAMA.
+    // Solusi: baca dari stateDataRef.current yang selalu up-to-date.
     const handleCellSave = useCallback((id: number) => {
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(async () => {
-            const row = state.data?.find(r => r.id === id);
+            const row = stateDataRef.current?.find(r => r.id === id); // ← pakai ref, bukan state.data
             if (!row) return;
             setIsSaving(true);
             const r = await updateCase(id, row);
-            if (r.success) toast({ title: "Tersimpan", duration: 2000 }); else toast({ variant: "destructive", title: "Save Failed", description: r.error });
+            if (r.success) {
+                toast({ title: "Tersimpan", duration: 2000 });
+            } else {
+                toast({ variant: "destructive", title: "Save Failed", description: r.error });
+            }
             setIsSaving(false);
         }, 800);
-    }, [state.data, toast]);
+    }, [toast]); // ← state.data DIHAPUS dari deps, diganti stateDataRef
+    // ─────────────────────────────────────────────────────────────────────────
 
     const confirmDelete = useCallback(async () => {
         if (deleteConfirmId === null) return;
@@ -887,16 +901,11 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         <div
             className={cn(
                 "flex flex-col overflow-hidden bg-slate-50 dark:bg-[#1f1f21]",
-                isFullscreen
-                    ? "fixed inset-0 z-50 p-0"
-                    : "p-3 sm:p-4"
+                isFullscreen ? "fixed inset-0 z-50 p-0" : "p-3 sm:p-4"
             )}
             style={isFullscreen ? undefined : { height: outerHeight }}
         >
-
             {/* ── Dialogs ── */}
-
-            {/* Preview Dialog — komponen yang sama dengan settings page */}
             {previewData && (
                 <SyncPreviewDialog
                     open={isPreviewOpen}
@@ -953,24 +962,12 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                     {isBulkDeleting ? <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />} Delete ({selectedRows.size})
                                 </Button>
                             )}
-
-                            {/* ✅ Sync Now — pakai logika yang sama dengan settings page */}
-                            <Button
-                                onClick={handleSyncNowClick}
-                                size="sm"
-                                disabled={isFetchingPreview || isPending}
-                                className="h-9 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-sm"
-                            >
-                                {isFetchingPreview
-                                    ? <><RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />Memuat Preview...</>
-                                    : <><Eye className="mr-1.5 h-3.5 w-3.5" />Sync Now</>
-                                }
+                            <Button onClick={handleSyncNowClick} size="sm" disabled={isFetchingPreview || isPending} className="h-9 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-sm">
+                                {isFetchingPreview ? <><RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />Memuat Preview...</> : <><Eye className="mr-1.5 h-3.5 w-3.5" />Sync Now</>}
                             </Button>
-
                             <Button onClick={handleExport} size="sm" variant="outline" className="h-9 text-xs font-semibold rounded-lg border-slate-200 dark:border-[#3a3a3c]">
                                 <Download className="mr-1.5 h-3.5 w-3.5" /> Export
                             </Button>
-
                             <Button onClick={() => { setIsEditMode(p => !p); setSelectedRows(new Set()); }} size="sm" variant={isEditMode ? "default" : "outline"} className={cn("h-9 text-xs font-semibold rounded-lg", !isEditMode && "border-slate-200 dark:border-[#3a3a3c]")}>
                                 <Pencil className="mr-1.5 h-3.5 w-3.5" /> {isEditMode ? "Done Editing" : "Edit"}
                             </Button>
@@ -980,10 +977,7 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
 
                 {/* ── TABLE ── */}
                 <CardContent className="flex flex-col flex-1 min-h-0 p-0 overflow-hidden">
-                    <div
-                        ref={tableContainerRef}
-                        className="flex-1 min-h-0 overflow-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-[#3a3a3c] scrollbar-track-transparent"
-                    >
+                    <div ref={tableContainerRef} className="flex-1 min-h-0 overflow-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-[#3a3a3c] scrollbar-track-transparent">
                         {!displayData.length ? (
                             <div className="flex flex-col items-center justify-center h-full gap-4 py-20">
                                 <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-[#2e2e30] flex items-center justify-center"><Database className="h-8 w-8 text-slate-400" /></div>
@@ -1057,15 +1051,12 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                 </div>
                             </div>
                         )}
-                    </div>{/* end tableContainerRef */}
-
+                    </div>
                 </CardContent>
 
                 {/* ── PAGINATION ── */}
                 <CardFooter className="flex-shrink-0 px-4 py-2.5 border-t border-slate-100 dark:border-[#3a3a3c] bg-white dark:bg-[#242426]">
                     <div className="flex items-center justify-between w-full gap-3">
-
-                        {/* Left: showing info + page size selector */}
                         <div className="flex items-center gap-3 flex-wrap">
                             <span className="text-xs text-slate-500 dark:text-[#909098] tabular-nums whitespace-nowrap">
                                 Showing{' '}
@@ -1081,59 +1072,34 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                     {selectedRows.size} selected
                                 </span>
                             )}
-
-                            {/* Inline editable page size */}
                             <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-[#909098]">
                                 <span>Rows:</span>
                                 <input
-                                    type="number"
-                                    min={1}
-                                    max={1000}
-                                    value={pageSizeInput}
+                                    type="number" min={1} max={1000} value={pageSizeInput}
                                     onChange={e => setPageSizeInput(e.target.value)}
                                     onFocus={e => { setPageSizeInput(String(pageSize)); e.target.select(); }}
                                     onBlur={() => {
                                         const val = parseInt(pageSizeInput);
-                                        if (val > 0 && val <= 1000) {
-                                            setPageSize(val);
-                                            setCurrentPage(1);
-                                            setPageSizeInput(String(val));
-                                        } else {
-                                            setPageSizeInput(String(pageSize));
-                                        }
+                                        if (val > 0 && val <= 1000) { setPageSize(val); setCurrentPage(1); setPageSizeInput(String(val)); }
+                                        else { setPageSizeInput(String(pageSize)); }
                                     }}
                                     onKeyDown={e => {
                                         if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
                                         if (e.key === 'Escape') { setPageSizeInput(String(pageSize)); (e.target as HTMLInputElement).blur(); }
                                     }}
-                                    className={cn(
-                                        "h-7 w-12 rounded-md border text-xs text-center font-semibold tabular-nums",
-                                        "bg-slate-50 dark:bg-[#2e2e30] border-slate-200 dark:border-[#3a3a3c]",
-                                        "text-slate-700 dark:text-[#c8c8cc]",
-                                        "focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20",
-                                        "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                    )}
+                                    className={cn("h-7 w-12 rounded-md border text-xs text-center font-semibold tabular-nums", "bg-slate-50 dark:bg-[#2e2e30] border-slate-200 dark:border-[#3a3a3c]", "text-slate-700 dark:text-[#c8c8cc]", "focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20", "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none")}
                                 />
                             </div>
                         </div>
 
-                        {/* Right: pagination + fullscreen */}
                         <div className="flex items-center gap-1.5">
                             <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-lg border-slate-200 dark:border-[#3a3a3c]" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft className="h-3.5 w-3.5" /></Button>
                             <span className="text-xs text-slate-500 px-2 tabular-nums whitespace-nowrap">
                                 Page <span className="font-semibold text-slate-700 dark:text-[#e0e0e2]">{currentPage}</span> of <span className="font-semibold text-slate-700 dark:text-[#e0e0e2]">{totalPages || 1}</span>
                             </span>
                             <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-lg border-slate-200 dark:border-[#3a3a3c]" onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))} disabled={currentPage >= (totalPages || 1)}><ChevronRight className="h-3.5 w-3.5" /></Button>
-
                             <div className="w-px h-5 bg-slate-200 dark:bg-[#3a3a3c] mx-1" />
-
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 w-8 p-0 rounded-lg border-slate-200 dark:border-[#3a3a3c]"
-                                onClick={() => setIsFullscreen(p => !p)}
-                                title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-                            >
+                            <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-lg border-slate-200 dark:border-[#3a3a3c]" onClick={() => setIsFullscreen(p => !p)} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
                                 {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
                             </Button>
                         </div>
