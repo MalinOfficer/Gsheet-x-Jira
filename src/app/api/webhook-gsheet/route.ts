@@ -3,39 +3,53 @@
  *
  * Menerima POST dari Google Apps Script saat GSheet diedit.
  * Langsung sync tanpa preview — pakai syncGSheetToDB yang sudah ada.
+ *
+ * ENV yang digunakan (salah satu):
+ *   WEBHOOK_TOKEN  → nama di Vercel
+ *   WEBHOOK_SECRET → nama di .env.local
  */
 
 import { NextResponse } from 'next/server';
 import { syncGSheetToDB, getAppSetting } from '@/app/actions';
 
-export const dynamic  = 'force-dynamic';
+export const dynamic   = 'force-dynamic';
 export const revalidate = 0;
 
-// Rate limit sederhana: max 1 sync per 15 detik
+// Rate limit sederhana: max 1 sync per 15 detik per IP
 const lastCallMap = new Map<string, number>();
 
 export async function POST(request: Request) {
   try {
-    // ── 1. Cek token ────────────────────────────────────────────
-    const token = request.headers.get('x-webhook-token');
-    if (!process.env.WEBHOOK_SECRET || token !== process.env.WEBHOOK_SECRET) {
+    // ── 1. Cek token ─────────────────────────────────────────────
+    // Support WEBHOOK_TOKEN (Vercel) atau WEBHOOK_SECRET (.env.local)
+    const secret        = process.env.WEBHOOK_TOKEN ?? process.env.WEBHOOK_SECRET ?? '';
+    const incomingToken = request.headers.get('x-webhook-token') ?? '';
+
+    if (!secret || incomingToken !== secret) {
       console.warn('[Webhook] ⛔ Token tidak valid');
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    // ── 2. Rate limit per IP ────────────────────────────────────
-    const ip  = request.headers.get('x-forwarded-for') ?? 'default';
-    const now = Date.now();
+    // ── 2. Rate limit per IP ──────────────────────────────────────
+    const ip   = request.headers.get('x-forwarded-for') ?? 'default';
+    const now  = Date.now();
     const last = lastCallMap.get(ip) ?? 0;
     if (now - last < 15_000) {
-      console.log(`[Webhook] ⏳ Rate limited (${Math.round((15_000 - (now - last)) / 1000)}s remaining)`);
-      return NextResponse.json({ success: false, error: 'Rate limited, try again shortly' }, { status: 429 });
+      const remaining = Math.round((15_000 - (now - last)) / 1000);
+      console.log(`[Webhook] ⏳ Rate limited (${remaining}s remaining)`);
+      return NextResponse.json(
+        { success: false, error: `Rate limited, tunggu ${remaining}s lagi` },
+        { status: 429 }
+      );
     }
     lastCallMap.set(ip, now);
 
-    // ── 3. Ambil sheetUrl dari body atau fallback ke DB ─────────
+    // ── 3. Ambil sheetUrl dari body atau fallback ke DB ───────────
     const body     = await request.json().catch(() => ({}));
-    let sheetUrl   = (body.sheetUrl as string) || '';
+    let   sheetUrl = (body.sheetUrl as string) || '';
 
     console.log(`[Webhook] 📥 Event: "${body.event}" | Sheet: "${body.sheetName}" | Range: ${body.editedRange}`);
 
@@ -45,10 +59,13 @@ export async function POST(request: Request) {
     }
 
     if (!sheetUrl) {
-      return NextResponse.json({ success: false, error: 'Sheet URL tidak ditemukan. Set di Settings page.' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Sheet URL tidak ditemukan. Set di Settings page.' },
+        { status: 400 }
+      );
     }
 
-    // ── 4. Sync langsung — tidak perlu preview ──────────────────
+    // ── 4. Sync langsung — tidak perlu preview ────────────────────
     console.log(`[Webhook] 🔄 Sync mulai: ${sheetUrl.slice(0, 60)}...`);
     const start  = Date.now();
     const result = await syncGSheetToDB(sheetUrl);
@@ -68,7 +85,7 @@ export async function POST(request: Request) {
   }
 }
 
-// Health check — bisa di-GET untuk konfirmasi endpoint aktif
+// Health check — GET untuk konfirmasi endpoint aktif
 export async function GET() {
   return NextResponse.json({
     status:  'ok',

@@ -11,8 +11,9 @@ const SECRET_KEY = new TextEncoder().encode(
 const PUBLIC_ROUTES = [
   '/login',
   '/api/auth/login',
-  '/api/auth/logout', // ← tambah agar logout tetap bisa dipanggil
-  '/api/auth/me',     // ← tambah agar session restore bisa berjalan
+  '/api/auth/logout',
+  '/api/auth/me',
+  '/api/webhook-gsheet', // ← webhook bypass auth
 ];
 
 export async function middleware(request: NextRequest) {
