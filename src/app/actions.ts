@@ -30,6 +30,15 @@ const formatDate = (date: any) => {
     }
 };
 
+// Helper khusus dashboard — tidak shift timezone
+const _formatDateDashboard = (date: any): string | null => {
+    if (!date) return null;
+    try {
+        const d = date instanceof Date ? date : new Date(date);
+        return d.toISOString().split('T')[0];
+    } catch { return null; }
+};
+
 // ============================================
 // FETCH ALL CASES DATA
 // ============================================
@@ -110,9 +119,9 @@ export async function getAllCaseData(filters?: {
     console.log('✅ Fetched:', data?.length, 'rows out of', count, 'total');
 
     const mappedData = mapDBArrayToFrontend(data as YourDBRow[]);
-    
-    return { 
-      data: mappedData, 
+
+    return {
+      data: mappedData,
       source: "supabase" as const,
       pagination: {
         total: count || 0,
@@ -132,6 +141,7 @@ export async function getAllCaseData(filters?: {
 // ============================================
 // UPDATE SINGLE CASE
 // ============================================
+
 export async function updateCase(caseId: number, data: Record<string, any>) {
   try {
     const dbData = {
@@ -160,7 +170,7 @@ export async function updateCase(caseId: number, data: Record<string, any>) {
       console.error(`Error updating case ${caseId}:`, error);
       throw error;
     }
-    
+
     revalidatePath('/db');
     revalidatePath('/dashboard');
     return { success: true, id: caseId };
@@ -173,6 +183,7 @@ export async function updateCase(caseId: number, data: Record<string, any>) {
 // ============================================
 // DELETE SINGLE CASE
 // ============================================
+
 export async function deleteCase(caseId: number) {
   try {
     const { error } = await supabaseAdmin
@@ -184,7 +195,7 @@ export async function deleteCase(caseId: number) {
       console.error(`Error deleting case ${caseId}:`, error);
       throw error;
     }
-    
+
     revalidatePath('/db');
     revalidatePath('/dashboard');
     return { success: true, id: caseId };
@@ -197,6 +208,7 @@ export async function deleteCase(caseId: number) {
 // ============================================
 // DELETE MULTIPLE CASES
 // ============================================
+
 export async function deleteCases(caseIds: number[]) {
   try {
     if (caseIds.length === 0) {
@@ -212,7 +224,7 @@ export async function deleteCases(caseIds: number[]) {
       console.error(`Error deleting cases:`, error);
       throw error;
     }
-    
+
     revalidatePath('/db');
     revalidatePath('/dashboard');
     return { success: true, count: caseIds.length };
@@ -238,51 +250,54 @@ export async function refreshDashboardViews() {
 }
 
 // ============================================
-// GET DASHBOARD FILTER OPTIONS
+// GET DASHBOARD FILTER OPTIONS — OPTIMIZED
+// ✅ Pakai master tables, bukan full scan all_cases
 // ============================================
 
 const _getDashboardFilterOptions = async () => {
   try {
     console.log('🔍 [FILTER OPTIONS] Starting fetch...');
-    
-    const [categoriesResult, casesResult, yearsResult] = await Promise.all([
+
+    const [categoriesResult, clientsResult, modulesResult, detailModulesResult, yearsResult] = await Promise.all([
       supabaseAdmin
         .from("ticket_categories")
         .select("name")
+        .is('deleted_at', null)
         .order('name', { ascending: true }),
       supabaseAdmin
-        .from("all_cases")
-        .select("client_name, module_case, detail_module")
-        .is('deleted_at', null),
-      supabaseAdmin.rpc('get_distinct_years')
+        .from("clients")
+        .select("name")
+        .order('name', { ascending: true }),
+      supabaseAdmin
+        .from("master_module")
+        .select("nama_module")
+        .is('deleted_at', null)
+        .order('nama_module', { ascending: true }),
+      supabaseAdmin
+        .from("master_detail_module")
+        .select("detail_module")
+        .is('deleted_at', null)
+        .order('detail_module', { ascending: true }),
+      supabaseAdmin.rpc('get_distinct_years'),
     ]);
 
-    console.log('📦 [RAW YEARS RESULT]:', yearsResult);
-    
-    if (categoriesResult.error) throw categoriesResult.error;
-    if (casesResult.error) throw casesResult.error;
+    if (categoriesResult.error)    throw categoriesResult.error;
+    if (clientsResult.error)       throw clientsResult.error;
+    if (modulesResult.error)       throw modulesResult.error;
+    if (detailModulesResult.error) throw detailModulesResult.error;
     if (yearsResult.error) console.error('⚠️ Error fetching years:', yearsResult.error);
 
-    const categoriesData = categoriesResult.data || [];
-    const casesData      = casesResult.data || [];
-    const yearsData      = yearsResult.data || [];
-
-    const uniqueCategories    = categoriesData.map((c: any) => c.name).filter(Boolean);
-    const uniqueClients       = [...new Set(casesData.map((c: any) => c.client_name).filter(Boolean))];
-    const uniqueModules       = [...new Set(casesData.map((m: any) => m.module_case).filter(Boolean))];
-    const uniqueDetailModules = [...new Set(casesData.map((m: any) => m.detail_module).filter(Boolean))];
-
-    const sortedYears = yearsData
+    const sortedYears = (yearsResult.data || [])
       .map((item: any) => String(item.year))
       .filter((year: string) => year && !['null', 'undefined', 'NaN'].includes(year));
 
     return {
       success: true,
       data: {
-        categories:    uniqueCategories.map((c: any) => ({ label: c, value: c })),
-        clients:       uniqueClients.map((c: any) => ({ label: c, value: c })),
-        modules:       uniqueModules.map((m: any) => ({ label: m, value: m })),
-        detailModules: uniqueDetailModules.map((d: any) => ({ label: d, value: d })),
+        categories:    (categoriesResult.data || []).map((c: any) => ({ label: c.name,         value: c.name })),
+        clients:       (clientsResult.data    || []).map((c: any) => ({ label: c.name,         value: c.name })),
+        modules:       (modulesResult.data    || []).map((m: any) => ({ label: m.nama_module,  value: m.nama_module })),
+        detailModules: (detailModulesResult.data || []).map((d: any) => ({ label: d.detail_module, value: d.detail_module })),
         years:         sortedYears,
       },
     };
@@ -297,6 +312,333 @@ const _getDashboardFilterOptions = async () => {
 
 export async function getDashboardFilterOptions() {
   return await _getDashboardFilterOptions();
+}
+
+// ============================================
+// GET DASHBOARD STATS — SERVER ACTION
+// ✅ Mode 1 (single/no filter) : RPC fn_dashboard_filtered
+// ✅ Mode 2 (multi filter)     : Direct Supabase query — NO HTTP fetch
+// ============================================
+
+type DashboardFilters = {
+  selectedYears: string[];
+  categoryFilter: string[];
+  clientFilter: string[];
+  moduleFilter: string[];
+  detailModuleFilter: string[];
+  dateRange?: { from?: Date | string; to?: Date | string } | undefined;
+};
+
+// ── Pivot helper ──────────────────────────────────────────────────────────────
+const _pivotAndOrderMonthlyStats = (unpivotedData: any[] | null | undefined): any[] => {
+  if (!unpivotedData || !Array.isArray(unpivotedData) || unpivotedData.length === 0) return [];
+  const monthOrder = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const statsByMonth: Record<string, any> = {};
+  monthOrder.forEach(month => { statsByMonth[month] = { month }; });
+  const allYears = new Set<string>();
+
+  unpivotedData.forEach(item => {
+    if (item.month && monthOrder.includes(item.month)) {
+      const monthData = statsByMonth[item.month];
+      if (item.year && typeof item.cases !== 'undefined') {
+        const yearStr = String(item.year);
+        monthData[yearStr] = (monthData[yearStr] || 0) + item.cases;
+        allYears.add(yearStr);
+      } else {
+        Object.keys(item).forEach(key => {
+          if (/^\d{4}$/.test(key)) {
+            monthData[key] = (monthData[key] || 0) + item[key];
+            allYears.add(key);
+          }
+        });
+      }
+      statsByMonth[item.month] = monthData;
+    }
+  });
+
+  const sortedYears = Array.from(allYears).sort();
+  return monthOrder.map(month => {
+    const monthData = statsByMonth[month];
+    sortedYears.forEach(year => { if (!monthData.hasOwnProperty(year)) monthData[year] = 0; });
+    return monthData;
+  });
+};
+
+// ── JSONB parser ──────────────────────────────────────────────────────────────
+const _parseJSONB = (field: any): any[] => {
+  if (!field) return [];
+  if (Array.isArray(field)) return field;
+  if (typeof field === 'string') { try { return JSON.parse(field); } catch { return []; } }
+  return [];
+};
+
+// ── Empty stats ───────────────────────────────────────────────────────────────
+function _emptyStats() {
+  return {
+    summary: {
+      total_cases: 0, total_solved: 0, total_clients: 0,
+      solved_percentage: 0, trending_category: 'N/A',
+      trending_module: 'N/A', top_client: 'N/A', top_module: 'N/A',
+    },
+    monthly_stats:          [],
+    client_rankings:        [],
+    module_rankings:        [],
+    detail_module_rankings: [],
+    module_trends:          [],
+  };
+}
+
+// ── Module trends (sama dengan route.ts) ─────────────────────────────────────
+function _computeModuleTrends(data: any[]) {
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const periodCounts: Record<string, Record<string, number>> = {};
+
+  data.forEach(r => {
+    if (!r.date || !r.module_case) return;
+    const d = new Date(r.date + 'T00:00:00');
+    if (isNaN(d.getTime())) return;
+    const periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (periodKey === currentMonthKey) return;
+    if (!periodCounts[periodKey]) periodCounts[periodKey] = {};
+    periodCounts[periodKey][r.module_case] = (periodCounts[periodKey][r.module_case] || 0) + 1;
+  });
+
+  const periods = Object.keys(periodCounts).sort();
+  if (periods.length < 2) return [];
+
+  const currentMap  = periodCounts[periods[periods.length - 1]] ?? {};
+  const previousMap = periodCounts[periods[periods.length - 2]] ?? {};
+  const allModules  = new Set([...Object.keys(currentMap), ...Object.keys(previousMap)]);
+
+  return Array.from(allModules)
+    .map(name => {
+      const current   = currentMap[name]  ?? 0;
+      const previous  = previousMap[name] ?? 0;
+      const change    = current - previous;
+      const direction: 'up' | 'down' | 'stable' = change > 0 ? 'up' : change < 0 ? 'down' : 'stable';
+      return { name, current, previous, change, direction };
+    })
+    .filter(t => t.direction !== 'stable')
+    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+    .slice(0, 8);
+}
+
+// ── Compute stats dari raw rows (sama dengan route.ts) ───────────────────────
+function _computeStats(data: any[]) {
+  const totalCases  = data.length;
+  const totalSolved = data.filter(r => r.status_case_solved === 'SOLVED').length;
+  const solvedPct   = totalCases > 0 ? (totalSolved / totalCases) * 100 : 0;
+  const uniqueClients = new Set(data.map(r => r.client_name).filter(Boolean));
+
+  const categoryCounts: Record<string, number> = {};
+  data.forEach(r => { if (r.category_case) categoryCounts[r.category_case] = (categoryCounts[r.category_case] || 0) + 1; });
+  const trendingCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'N/A';
+
+  const clientCounts: Record<string, number> = {};
+  data.forEach(r => { if (r.client_name) clientCounts[r.client_name] = (clientCounts[r.client_name] || 0) + 1; });
+  const clientRankings = Object.entries(clientCounts)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  const moduleCounts: Record<string, number> = {};
+  data.forEach(r => { if (r.module_case) moduleCounts[r.module_case] = (moduleCounts[r.module_case] || 0) + 1; });
+  const moduleRankings = Object.entries(moduleCounts)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  const detailModuleCounts: Record<string, number> = {};
+  data.forEach(r => { if (r.detail_module) detailModuleCounts[r.detail_module] = (detailModuleCounts[r.detail_module] || 0) + 1; });
+  const detailModuleRankings = Object.entries(detailModuleCounts)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  const monthAbbr = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const monthYearCounts: Record<string, number> = {};
+  data.forEach(r => {
+    if (!r.date) return;
+    const d = new Date(r.date + 'T00:00:00');
+    if (isNaN(d.getTime())) return;
+    const key = `${monthAbbr[d.getMonth()]}|||${d.getFullYear()}`;
+    monthYearCounts[key] = (monthYearCounts[key] || 0) + 1;
+  });
+  const unpivoted = Object.entries(monthYearCounts).map(([key, count]) => {
+    const [month, yearStr] = key.split('|||');
+    return { month, year: parseInt(yearStr), cases: count };
+  });
+
+  return {
+    summary: {
+      total_cases:       totalCases,
+      total_solved:      totalSolved,
+      total_clients:     uniqueClients.size,
+      solved_percentage: solvedPct,
+      trending_category: trendingCategory,
+      trending_module:   moduleRankings[0]?.name ?? 'N/A',
+      top_client:        clientRankings[0]?.name ?? 'N/A',
+      top_module:        moduleRankings[0]?.name ?? 'N/A',
+    },
+    monthly_stats:          _pivotAndOrderMonthlyStats(unpivoted),
+    client_rankings:        clientRankings,
+    module_rankings:        moduleRankings,
+    detail_module_rankings: detailModuleRankings,
+    module_trends:          _computeModuleTrends(data),
+  };
+}
+
+// ── Fetch semua rows dengan pagination Supabase ───────────────────────────────
+async function _fetchAllRowsDirect(filters: {
+  dateRange?: any;
+  years: string[];
+  categories: string[];
+  clients: string[];
+  modules: string[];
+  detailModules: string[];
+}) {
+  const BATCH = 1000;
+  let allData: any[] = [];
+  let from = 0;
+
+  while (true) {
+    let q = supabaseAdmin
+      .from('all_cases')
+      .select('id, date, month, client_name, status_case, status_case_solved, category_case, module_case, detail_module')
+      .is('deleted_at', null)
+      .range(from, from + BATCH - 1);
+
+    if (filters.dateRange?.from) {
+      const fromDate = _formatDateDashboard(filters.dateRange.from);
+      const toDate   = filters.dateRange.to ? _formatDateDashboard(filters.dateRange.to) : fromDate;
+      q = q.gte('date', fromDate!).lte('date', toDate!);
+    } else if (filters.years.length === 1) {
+      const y = parseInt(filters.years[0], 10);
+      if (!isNaN(y)) q = q.gte('date', `${y}-01-01`).lte('date', `${y}-12-31`);
+    } else if (filters.years.length > 1) {
+      const orParts = filters.years
+        .map(y => {
+          const n = parseInt(y, 10);
+          return isNaN(n) ? null : `and(date.gte.${n}-01-01,date.lte.${n}-12-31)`;
+        })
+        .filter(Boolean)
+        .join(',');
+      if (orParts) q = (q as any).or(orParts);
+    }
+
+    if (filters.categories.length    > 0) q = q.in('category_case', filters.categories);
+    if (filters.clients.length       > 0) q = q.in('client_name',   filters.clients);
+    if (filters.modules.length       > 0) q = q.in('module_case',   filters.modules);
+    if (filters.detailModules.length > 0) q = q.in('detail_module', filters.detailModules);
+
+    const { data: batch, error } = await q;
+    if (error) throw new Error(error.message);
+    if (!batch || batch.length === 0) break;
+
+    allData = allData.concat(batch);
+    console.log(`📦 [getDashboardStats] Batch: rows ${from}–${from + batch.length - 1} (total: ${allData.length})`);
+
+    if (batch.length < BATCH) break;
+    from += BATCH;
+  }
+
+  return allData;
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
+export async function getDashboardStats(filters: DashboardFilters): Promise<{
+  success: boolean;
+  data?: ReturnType<typeof _emptyStats>;
+  error?: string;
+}> {
+  try {
+    const { selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange } = filters;
+
+    // ── MODE 1: RPC — single/no filter (paling cepat) ────────────────────
+    const isMultiFilter =
+      categoryFilter.length     > 1 ||
+      clientFilter.length       > 1 ||
+      moduleFilter.length       > 1 ||
+      detailModuleFilter.length > 1 ||
+      selectedYears.length      > 1;
+
+    if (!isMultiFilter) {
+      const singleYear = selectedYears[0];
+      const yearParsed = singleYear ? parseInt(singleYear, 10) : NaN;
+      const yearValue  = isNaN(yearParsed) ? null : yearParsed;
+
+      const params: Record<string, any> = {
+        p_start_date:    _formatDateDashboard(dateRange?.from),
+        p_end_date:      _formatDateDashboard(dateRange?.to),
+        p_category:      categoryFilter[0]     ?? null,
+        p_client:        clientFilter[0]        ?? null,
+        p_module:        moduleFilter[0]        ?? null,
+        p_year:          yearValue,
+        p_detail_module: detailModuleFilter[0]  ?? null,
+      };
+
+      console.log('🚀 [getDashboardStats] MODE 1 — RPC fn_dashboard_filtered:', params);
+
+      const { data, error } = await supabaseAdmin.rpc('fn_dashboard_filtered', params);
+
+      if (error) {
+        console.error('❌ [getDashboardStats] RPC Error:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0 || data[0].out_total_cases === null) {
+        return { success: true, data: _emptyStats() };
+      }
+
+      const result = data[0];
+      const moduleRankings       = _parseJSONB(result.out_module_rankings).map((i: any) => ({ name: i.module, value: i.cases }));
+      const detailModuleRankings = _parseJSONB(result.out_detail_module_rankings ?? null).map((i: any) => ({ name: i.detail_module ?? i.module, value: i.cases }));
+
+      return {
+        success: true,
+        data: {
+          summary: {
+            total_cases:       result.out_total_cases       ?? 0,
+            total_solved:      result.out_total_solved       ?? 0,
+            total_clients:     result.out_total_clients      ?? 0,
+            solved_percentage: result.out_solved_percentage  ?? 0,
+            trending_category: result.out_trending_category  ?? 'N/A',
+            trending_module:   result.out_trending_module    ?? moduleRankings[0]?.name ?? 'N/A',
+            top_client:        result.out_top_client         ?? 'N/A',
+            top_module:        result.out_top_module         ?? 'N/A',
+          },
+          monthly_stats:          _pivotAndOrderMonthlyStats(_parseJSONB(result.out_monthly_stats)),
+          client_rankings:        _parseJSONB(result.out_client_rankings).map((i: any) => ({ name: i.client, value: i.cases })),
+          module_rankings:        moduleRankings,
+          detail_module_rankings: detailModuleRankings,
+          module_trends:          [],
+        },
+      };
+    }
+
+    // ── MODE 2: Direct Supabase query — multi filter, NO HTTP ────────────
+    // ✅ FIX: Tidak lagi fetch localhost — langsung query Supabase
+    console.log('🔀 [getDashboardStats] MODE 2 — Direct Supabase query (multi-filter)');
+
+    const allData = await _fetchAllRowsDirect({
+      dateRange,
+      years:         selectedYears,
+      categories:    categoryFilter,
+      clients:       clientFilter,
+      modules:       moduleFilter,
+      detailModules: detailModuleFilter,
+    });
+
+    console.log(`✅ [getDashboardStats] Total rows: ${allData.length}`);
+
+    if (allData.length === 0) {
+      return { success: true, data: _emptyStats() };
+    }
+
+    return { success: true, data: _computeStats(allData) };
+
+  } catch (error: any) {
+    console.error('❌ [getDashboardStats] Error:', error);
+    return { success: false, error: error.message || 'Failed to fetch dashboard stats' };
+  }
 }
 
 // ============================================
@@ -323,24 +665,23 @@ export async function getL3ReportFromDB() {
 
     const formatDateLocal = (date: Date) => {
       if (!date || isNaN(date.getTime())) return '';
-      const day = String(date.getDate()).padStart(2, '0');
+      const day   = String(date.getDate()).padStart(2, '0');
       const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
+      const year  = date.getFullYear();
       return `${day}/${month}/${year}`;
     };
 
-    const minDate = new Date(data[0].check_in!);
-    const maxDate = new Date(data[data.length - 1].check_in!);
-    const today = new Date();
-
-    const header = `*Update cases yang belum solved L3 on hold (${formatDateLocal(minDate)} - ${formatDateLocal(maxDate)})*`;
+    const minDate   = new Date(data[0].check_in!);
+    const maxDate   = new Date(data[data.length - 1].check_in!);
+    const today     = new Date();
+    const header    = `*Update cases yang belum solved L3 on hold (${formatDateLocal(minDate)} - ${formatDateLocal(maxDate)})*`;
     const totalCases = data.length;
 
     const getGroupForModule = (moduleName: string | null | undefined): string => {
-        const upperCaseModule = (moduleName || '').toUpperCase();
-        if (upperCaseModule === 'PAYMENT' || upperCaseModule === 'PINTRO PAY') return 'Payment';
-        if (upperCaseModule === 'APLIKASI/MOBILE' || upperCaseModule === 'AKSES PORTAL') return 'Aplikasi/Mobile';
-        return 'Akademik';
+      const upperCaseModule = (moduleName || '').toUpperCase();
+      if (upperCaseModule === 'PAYMENT' || upperCaseModule === 'PINTRO PAY') return 'Payment';
+      if (upperCaseModule === 'APLIKASI/MOBILE' || upperCaseModule === 'AKSES PORTAL') return 'Aplikasi/Mobile';
+      return 'Akademik';
     };
 
     const casesByGroup: Record<string, any[]> = {};
@@ -351,40 +692,38 @@ export async function getL3ReportFromDB() {
     });
 
     const summaryLines = [`Total : ${totalCases}`];
-    const groupOrder = ['Akademik', 'Payment', 'Aplikasi/Mobile'];
+    const groupOrder   = ['Akademik', 'Payment', 'Aplikasi/Mobile'];
     const sortedGroups = Object.keys(casesByGroup).sort((a, b) => {
-        const indexA = groupOrder.indexOf(a);
-        const indexB = groupOrder.indexOf(b);
-        if (indexA === -1 && indexB === -1) return a.localeCompare(b);
-        if (indexA === -1) return 1;
-        if (indexB === -1) return -1;
-        return indexA - indexB;
+      const indexA = groupOrder.indexOf(a);
+      const indexB = groupOrder.indexOf(b);
+      if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
     });
 
     sortedGroups.forEach(groupName => {
-        const cases = casesByGroup[groupName];
-        summaryLines.push(`${groupName} > L3 : ${cases.length}`);
+      summaryLines.push(`${groupName} > L3 : ${casesByGroup[groupName].length}`);
     });
-    const summary = summaryLines.join('\n');
 
     const detailLines: string[] = [];
     sortedGroups.forEach(groupName => {
       detailLines.push(`\n*${groupName.toUpperCase()} > L3*`);
-      const cases = casesByGroup[groupName];
-      cases.sort((a: any, b: any) => (a.client_name || '').localeCompare(b.client_name || '')).forEach((c: any, index: number) => {
-        const checkInDate = new Date(c.check_in!);
-        let age = 0;
-        if (!isNaN(checkInDate.getTime())) {
+      casesByGroup[groupName]
+        .sort((a: any, b: any) => (a.client_name || '').localeCompare(b.client_name || ''))
+        .forEach((c: any, index: number) => {
+          const checkInDate = new Date(c.check_in!);
+          let age = 0;
+          if (!isNaN(checkInDate.getTime())) {
             const ageDiff = Math.ceil((today.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
             age = Math.max(1, ageDiff);
-        }
-        const caseLineParts = [c.client_name, c.ticket_number, c.detail_case, c.source_link_op].filter(Boolean);
-        const caseLine = caseLineParts.join(' ').trim();
-        detailLines.push(`${index + 1}. ${caseLine} (${age} hari)`.trim());
-      });
+          }
+          const caseLineParts = [c.client_name, c.ticket_number, c.detail_case, c.source_link_op].filter(Boolean);
+          detailLines.push(`${index + 1}. ${caseLineParts.join(' ').trim()} (${age} hari)`.trim());
+        });
     });
-    const details = detailLines.join('\n');
-    const reportText = `${header}\n\n${summary}\n${details}`;
+
+    const reportText = `${header}\n\n${summaryLines.join('\n')}\n${detailLines.join('\n')}`;
     return { success: true, report: reportText.trim() };
 
   } catch (err: any) {
@@ -428,7 +767,7 @@ export async function addClient(clientName: string): Promise<{ success: boolean;
       if (error.code === '23505') return { success: false, error: `Client "${clientName}" already exists.` };
       throw error;
     }
-    
+
     revalidatePath('/db');
     revalidatePath('/dashboard');
     return { success: true, client: data as { name: string } };
@@ -473,7 +812,7 @@ export async function addCategory(categoryName: string): Promise<{ success: bool
       if (error.code === '23505') return { success: false, error: `Category "${categoryName}" already exists.` };
       throw error;
     }
-    
+
     revalidatePath('/db');
     revalidatePath('/dashboard');
     return { success: true, category: data };
@@ -652,9 +991,9 @@ export async function deleteMasterDetailModule(id: number): Promise<{ success: b
 export async function getMasterData(): Promise<{
   success: boolean;
   data?: {
-    statuses: { id: number; name: string }[];
-    categories: { id: number; name: string }[];
-    modules: { id: number; name: string }[];
+    statuses:      { id: number; name: string }[];
+    categories:    { id: number; name: string }[];
+    modules:       { id: number; name: string }[];
     detailModules: { id: number; name: string }[];
   };
   error?: string;
@@ -667,23 +1006,13 @@ export async function getMasterData(): Promise<{
       supabaseAdmin.from('master_detail_module').select('id_module, detail_module').is('deleted_at', null).order('detail_module'),
     ]);
 
-    const modules = (moduleRes.data || []).map((row: any) => ({
-      id: row.id_module as number,
-      name: row.nama_module as string,
-    }));
-
-    const detailModules = (detailModuleRes.data || []).map((row: any) => ({
-      id: row.id_module as number,
-      name: row.detail_module as string,
-    }));
-
     return {
       success: true,
       data: {
-        statuses: statusRes.data || [],
+        statuses:   statusRes.data || [],
         categories: categoryRes.data || [],
-        modules,
-        detailModules,
+        modules:    (moduleRes.data || []).map((row: any) => ({ id: row.id_module as number, name: row.nama_module as string })),
+        detailModules: (detailModuleRes.data || []).map((row: any) => ({ id: row.id_module as number, name: row.detail_module as string })),
       },
     };
   } catch (err: any) {
@@ -699,29 +1028,24 @@ export async function getMasterData(): Promise<{
 export async function importToSheet(data: any, url: string): Promise<any> {
   return { success: false, error: "This function is not implemented in the live demo." };
 }
-
 export async function updateSheetStatus(data: any, url: string): Promise<any> {
   return { success: false, error: "This function is not implemented in the live demo." };
 }
-
 export async function getUpdatePreview(data: any, url: string): Promise<any> {
   return { success: false, error: "This function is not implemented in the live demo." };
 }
-
 export async function undoLastAction(data: any, url: string): Promise<any> {
   return { success: false, error: "This function is not implemented in the live demo." };
 }
-
 export async function fetchL3ReportData(url: string): Promise<any> {
   return { success: false, error: "This function is not implemented in the live demo." };
 }
-
 export async function mergeFilesOnServer(fileA: any, fileB: any, editMode: any): Promise<any> {
   return { success: false, error: "This function is not implemented in the live demo." };
 }
 
 // ============================================
-// GET SPREADSHEET TITLE — REAL IMPLEMENTATION
+// GET SPREADSHEET TITLE
 // ============================================
 
 export async function getSpreadsheetTitle(url: string) {
@@ -730,11 +1054,8 @@ export async function getSpreadsheetTitle(url: string) {
   }
 
   const sheetId = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
-  if (!sheetId) {
-    return { error: 'Tidak dapat mengekstrak Sheet ID dari URL.' };
-  }
+  if (!sheetId) return { error: 'Tidak dapat mengekstrak Sheet ID dari URL.' };
 
-  // OPSI A: Google Sheets API v4 (tambahkan GOOGLE_API_KEY di .env.local)
   const apiKey = process.env.GOOGLE_API_KEY;
   if (apiKey) {
     try {
@@ -745,7 +1066,6 @@ export async function getSpreadsheetTitle(url: string) {
       if (res.status === 403) return { error: 'Sheet tidak dapat diakses. Pastikan sheet bersifat publik.' };
       if (res.status === 404) return { error: 'Sheet tidak ditemukan. Periksa kembali URL.' };
       if (!res.ok) return { error: `Google API error (HTTP ${res.status}).` };
-
       const data = await res.json();
       const title = data?.properties?.title;
       if (!title) return { error: 'Gagal membaca judul sheet.' };
@@ -755,21 +1075,15 @@ export async function getSpreadsheetTitle(url: string) {
     }
   }
 
-  // OPSI B: Parse HTML title (fallback, hanya untuk sheet publik)
   try {
-    const res = await fetch(
-      `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
-      {
-        cache: 'no-store',
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NextJS server-side fetch)' },
-      }
-    );
-
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/edit`, {
+      cache: 'no-store',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NextJS server-side fetch)' },
+    });
     if (res.status === 401 || res.status === 403) {
       return { error: 'Sheet tidak dapat diakses. Pastikan share settings-nya: "Anyone with the link → Viewer".' };
     }
     if (!res.ok) return { error: `Gagal mengakses sheet (HTTP ${res.status}).` };
-
     const html = await res.text();
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     if (titleMatch) {
@@ -781,8 +1095,7 @@ export async function getSpreadsheetTitle(url: string) {
         return { success: true, title: rawTitle };
       }
     }
-
-    return { error: 'Tidak dapat membaca judul sheet. Tambahkan GOOGLE_API_KEY di .env.local, atau pastikan sheet bersifat publik.' };
+    return { error: 'Tidak dapat membaca judul sheet. Tambahkan GOOGLE_API_KEY di .env.local.' };
   } catch (e: any) {
     console.error('getSpreadsheetTitle (HTML fallback) error:', e);
     return { error: `Gagal validasi: ${e.message}` };
@@ -791,7 +1104,6 @@ export async function getSpreadsheetTitle(url: string) {
 
 // ============================================
 // SYNC GSHEET → DB
-// FIX: IHO-XXX di-extract dari kolom "detail_case"
 // ============================================
 
 const _SYNC_COLUMN_MAP: Record<string, string> = {
@@ -827,18 +1139,10 @@ const _SYNC_COLUMN_MAP: Record<string, string> = {
 
 const _TICKET_REGEX = /^(IHO-\d+)\s*(.*)/i;
 
-function _extractTicketFromDetail(raw: string | null): {
-  ticketNumber: string | null;
-  detailCase: string | null;
-} {
+function _extractTicketFromDetail(raw: string | null): { ticketNumber: string | null; detailCase: string | null } {
   if (!raw?.trim()) return { ticketNumber: null, detailCase: null };
   const match = raw.trim().match(_TICKET_REGEX);
-  if (match) {
-    return {
-      ticketNumber: match[1].toUpperCase(),
-      detailCase: match[2].trim() || null,
-    };
-  }
+  if (match) return { ticketNumber: match[1].toUpperCase(), detailCase: match[2].trim() || null };
   return { ticketNumber: null, detailCase: raw.trim() };
 }
 
@@ -887,16 +1191,9 @@ function _normalizeSyncDate(raw: string): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
-/**
- * Gabungkan date (YYYY-MM-DD) dengan time-only (H:mm / HH:mm) dari GSheet.
- * Contoh: date="2026-02-24", rawTime="8:58" → "2026-02-24T08:58:00.000Z"
- * Jika rawTime sudah berisi tanggal lengkap, langsung parse.
- */
 function _normalizeSyncDatetime(rawTime: string | null, dateStr: string | null): string | null {
   if (!rawTime?.trim()) return null;
   const t = rawTime.trim();
-
-  // Sudah ISO atau dd/mm/yyyy → parse langsung
   if (/^\d{4}-\d{2}-\d{2}/.test(t)) {
     const d = new Date(t);
     return isNaN(d.getTime()) ? null : d.toISOString();
@@ -911,15 +1208,11 @@ function _normalizeSyncDatetime(rawTime: string | null, dateStr: string | null):
       }
     }
   }
-
-  // Hanya waktu H:mm atau HH:mm → gabungkan dengan date
   if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(t) && dateStr) {
-    const timePadded = t.length === 4 ? `0${t}` : t; // "8:58" → "08:58"
-    const combined = new Date(`${dateStr}T${timePadded}:00`);
+    const timePadded = t.length === 4 ? `0${t}` : t;
+    const combined   = new Date(`${dateStr}T${timePadded}:00`);
     return isNaN(combined.getTime()) ? null : combined.toISOString();
   }
-
-  // Fallback
   const d = new Date(t);
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
@@ -939,7 +1232,7 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
     const sheetId = _extractSheetId(sheetUrl);
     if (!sheetId) return { success: false, error: 'Tidak dapat mengekstrak Sheet ID dari URL.' };
 
-    const gid = _extractGid(sheetUrl);
+    const gid    = _extractGid(sheetUrl);
     const csvUrl = gid
       ? `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`
       : `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
@@ -948,189 +1241,101 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
 
     const response = await fetch(csvUrl, { cache: 'no-store' });
     if (!response.ok) {
-      return {
-        success: false,
-        error: `Gagal fetch GSheet (HTTP ${response.status}). Pastikan sheet bersifat publik.`,
-      };
+      return { success: false, error: `Gagal fetch GSheet (HTTP ${response.status}). Pastikan sheet bersifat publik.` };
     }
 
-    const csvText = await response.text();
-    const rows = _parseCsv(csvText);
+    const csvText    = await response.text();
+    const rows       = _parseCsv(csvText);
     if (rows.length < 2) return { success: true, inserted: 0, skipped: 0 };
 
     const rawHeaders = rows[0];
-    console.log('📋 [SYNC] Raw headers:', rawHeaders);
-
-    const headers: (string | null)[] = rawHeaders.map(
-      h => _SYNC_COLUMN_MAP[h.toLowerCase().trim()] ?? null
-    );
+    const headers: (string | null)[] = rawHeaders.map(h => _SYNC_COLUMN_MAP[h.toLowerCase().trim()] ?? null);
 
     const detailCaseColIdx = headers.indexOf('detail_case');
     const ticketColIdx     = headers.indexOf('ticket_number');
 
     if (detailCaseColIdx === -1 && ticketColIdx === -1) {
-      return {
-        success: false,
-        error: `Kolom "Detail Case" tidak ditemukan. Header GSheet: [${rawHeaders.join(', ')}]`,
-      };
+      return { success: false, error: `Kolom "Detail Case" tidak ditemukan. Header GSheet: [${rawHeaders.join(', ')}]` };
     }
 
-    const dataRows = rows.slice(1);
     const toProcess: { ticket: string; record: Record<string, any> }[] = [];
 
-    for (const row of dataRows) {
-      const detailCaseRaw = detailCaseColIdx !== -1
-        ? (row[detailCaseColIdx] || '').trim() || null
-        : null;
-
-      const { ticketNumber: ihoTicket, detailCase: cleanDetailCase } =
-        _extractTicketFromDetail(detailCaseRaw);
-
-      const explicitTicket = ticketColIdx !== -1
-        ? (row[ticketColIdx] || '').trim() || null
-        : null;
-
-      const finalTicket = ihoTicket ?? explicitTicket;
+    for (const row of rows.slice(1)) {
+      const detailCaseRaw  = detailCaseColIdx !== -1 ? (row[detailCaseColIdx] || '').trim() || null : null;
+      const { ticketNumber: ihoTicket, detailCase: cleanDetailCase } = _extractTicketFromDetail(detailCaseRaw);
+      const explicitTicket = ticketColIdx !== -1 ? (row[ticketColIdx] || '').trim() || null : null;
+      const finalTicket    = ihoTicket ?? explicitTicket;
       if (!finalTicket) continue;
 
       const record: Record<string, any> = {};
 
-      // Pass 1: kumpulkan semua kolom kecuali check_in, check_out, detail_case
       headers.forEach((col, i) => {
         if (!col || col === 'detail_case' || col === 'check_in' || col === 'check_out') return;
         let val: string | null = (row[i] || '').trim() || null;
-        if (col === 'date' && val) val = _normalizeSyncDate(val);
+        if (col === 'date'        && val) val = _normalizeSyncDate(val);
         if (col === 'client_name' && val) val = normalizeClientName(val);
         record[col] = val;
       });
 
-      // Pass 2: check_in & check_out — GSheet menyimpan HANYA waktu (H:mm)
-      // Gabungkan dengan kolom date agar menjadi datetime lengkap
       const dateStr = record['date'] as string | null;
       headers.forEach((col, i) => {
         if (col !== 'check_in' && col !== 'check_out') return;
-        const rawVal = (row[i] || '').trim() || null;
-        record[col] = _normalizeSyncDatetime(rawVal, dateStr);
+        record[col] = _normalizeSyncDatetime((row[i] || '').trim() || null, dateStr);
       });
 
       record['ticket_number'] = finalTicket;
       record['detail_case']   = cleanDetailCase;
-
       toProcess.push({ ticket: finalTicket, record });
     }
 
-    const allTickets = toProcess.map(r => r.ticket);
-    console.log(`📊 [SYNC] Total rows valid: ${toProcess.length}`);
+    if (!toProcess.length) return { success: true, inserted: 0, skipped: 0 };
 
-    if (!allTickets.length) return { success: true, inserted: 0, skipped: 0 };
-
-    // Fetch tiket yang sudah ada beserta kolom yang perlu dicek
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('all_cases')
       .select('ticket_number, status_case, check_in, check_out')
-      .in('ticket_number', allTickets)
+      .in('ticket_number', toProcess.map(r => r.ticket))
       .is('deleted_at', null);
 
     if (fetchErr) return { success: false, error: `DB error: ${fetchErr.message}` };
 
-    // Map: ticket_number → { status_case, check_in, check_out } di DB
     const existingMap = new Map<string, { status_case: string | null; check_in: string | null; check_out: string | null }>(
-      (existing || []).map((r: any) => [r.ticket_number, {
-        status_case: r.status_case,
-        check_in: r.check_in,
-        check_out: r.check_out,
-      }])
+      (existing || []).map((r: any) => [r.ticket_number, { status_case: r.status_case, check_in: r.check_in, check_out: r.check_out }])
     );
 
-    const toInsert = toProcess
-      .filter(r => !existingMap.has(r.ticket))
-      .map(r => r.record);
-
-    // Tiket sudah ada → update jika ada field yang perlu diisi/diperbarui:
-    // 1. status_case berbeda
-    // 2. check_in kosong di DB tapi ada di GSheet
-    // 3. check_out kosong di DB tapi ada di GSheet
+    const toInsert = toProcess.filter(r => !existingMap.has(r.ticket)).map(r => r.record);
     const toUpdate = toProcess.filter(r => {
       const db = existingMap.get(r.ticket);
       if (!db) return false;
-
-      const statusChanged = r.record.status_case &&
-        (db.status_case || '').trim().toLowerCase() !== (r.record.status_case || '').trim().toLowerCase();
-      const checkInMissing  = !db.check_in  && !!r.record.check_in;
-      const checkOutMissing = !db.check_out && !!r.record.check_out;
-
-      return statusChanged || checkInMissing || checkOutMissing;
+      return (r.record.status_case && (db.status_case || '').trim().toLowerCase() !== (r.record.status_case || '').trim().toLowerCase())
+        || (!db.check_in  && !!r.record.check_in)
+        || (!db.check_out && !!r.record.check_out);
     });
 
-    console.log(`📊 [SYNC] Insert: ${toInsert.length}, Update: ${toUpdate.length}, Skip: ${existingMap.size - toUpdate.length}`);
-
-    // ── INSERT baris baru ─────────────────────────────────────────────────
     let insertedCount = 0;
     const BATCH = 500;
     for (let i = 0; i < toInsert.length; i += BATCH) {
-      const batch = toInsert.slice(i, i + BATCH);
-      const { error: insErr } = await supabaseAdmin
-        .from('all_cases')
-        .insert(batch);
-
-      if (insErr) {
-        console.error(`❌ [SYNC] Insert error batch ${Math.floor(i / BATCH) + 1}:`, insErr);
-        return {
-          success: false,
-          inserted: insertedCount,
-          error: `Insert error: ${insErr.message} (code: ${insErr.code})`,
-        };
-      }
-      insertedCount += batch.length;
+      const { error: insErr } = await supabaseAdmin.from('all_cases').insert(toInsert.slice(i, i + BATCH));
+      if (insErr) return { success: false, inserted: insertedCount, error: `Insert error: ${insErr.message}` };
+      insertedCount += Math.min(BATCH, toInsert.length - i);
     }
 
-    // ── UPDATE untuk tiket yang sudah ada ────────────────────────────────
     let updatedCount = 0;
     for (const item of toUpdate) {
-      const db = existingMap.get(item.ticket)!;
-
-      // Hanya kirim field yang memang berubah / perlu diisi
+      const db    = existingMap.get(item.ticket)!;
       const patch: Record<string, any> = {};
-
-      if (item.record.status_case &&
-          (db.status_case || '').trim().toLowerCase() !== (item.record.status_case || '').trim().toLowerCase()) {
-        patch.status_case = item.record.status_case;
-      }
-      if (!db.check_in && item.record.check_in) {
-        patch.check_in = item.record.check_in;
-      }
-      if (!db.check_out && item.record.check_out) {
-        patch.check_out = item.record.check_out;
-      }
-      // Ikut update status_case_solved jika ada di GSheet
-      if (item.record.status_case_solved) {
-        patch.status_case_solved = item.record.status_case_solved;
-      }
-
+      if (item.record.status_case && (db.status_case || '').trim().toLowerCase() !== (item.record.status_case || '').trim().toLowerCase()) patch.status_case = item.record.status_case;
+      if (!db.check_in  && item.record.check_in)  patch.check_in  = item.record.check_in;
+      if (!db.check_out && item.record.check_out) patch.check_out = item.record.check_out;
+      if (item.record.status_case_solved) patch.status_case_solved = item.record.status_case_solved;
       if (Object.keys(patch).length === 0) continue;
-
-      const { error: updErr } = await supabaseAdmin
-        .from('all_cases')
-        .update(patch)
-        .eq('ticket_number', item.ticket)
-        .is('deleted_at', null);
-
-      if (updErr) {
-        console.error(`❌ [SYNC] Update error untuk ${item.ticket}:`, updErr);
-      } else {
-        updatedCount++;
-      }
+      const { error: updErr } = await supabaseAdmin.from('all_cases').update(patch).eq('ticket_number', item.ticket).is('deleted_at', null);
+      if (!updErr) updatedCount++;
     }
 
     revalidatePath('/db');
     revalidatePath('/dashboard');
 
-    return {
-      success: true,
-      inserted: insertedCount,
-      updated: updatedCount,
-      skipped: existingMap.size - updatedCount,
-    };
+    return { success: true, inserted: insertedCount, updated: updatedCount, skipped: existingMap.size - updatedCount };
 
   } catch (err: any) {
     console.error('❌ [SYNC] Unexpected error:', err);
@@ -1139,15 +1344,7 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
 }
 
 // ============================================
-// GLOBAL APP SETTINGS (key-value store di Supabase)
-// Tabel: app_settings (key TEXT PRIMARY KEY, value TEXT)
-//
-// SQL untuk buat tabelnya di Supabase:
-//   create table if not exists app_settings (
-//     key   text primary key,
-//     value text,
-//     updated_at timestamptz default now()
-//   );
+// GLOBAL APP SETTINGS
 // ============================================
 
 export async function saveAppSetting(key: string, value: string): Promise<{ success: boolean; error?: string }> {
@@ -1155,7 +1352,6 @@ export async function saveAppSetting(key: string, value: string): Promise<{ succ
     const { error } = await supabaseAdmin
       .from('app_settings')
       .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-
     if (error) throw error;
     return { success: true };
   } catch (err: any) {
@@ -1171,8 +1367,7 @@ export async function getAppSetting(key: string): Promise<{ success: boolean; va
       .select('value')
       .eq('key', key)
       .single();
-
-    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = row not found
+    if (error && error.code !== 'PGRST116') throw error;
     return { success: true, value: data?.value ?? null };
   } catch (err: any) {
     console.error(`❌ Error fetching app setting [${key}]:`, err);

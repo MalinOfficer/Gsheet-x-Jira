@@ -14,6 +14,7 @@ import {
   Files, Link, Save, CheckCircle2, XCircle, RefreshCw,
   Pencil, Clock, Play, Pause, ChevronDown,
   Eye, ArrowRight, AlertCircle, Database,
+  ListTree, BarChart, GitBranch, Combine, HardHat,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SettingsContext } from '@/contexts/settings-provider';
@@ -41,6 +42,24 @@ interface CronConfig {
   lastRun: string | null;
   nextRun: string | null;
 }
+
+export interface MenuVisibility {
+  showImportData: boolean;
+  showDailyReport: boolean;
+  showKnowledgeBase: boolean;
+  showMigrasiMurid: boolean;
+  showSecondaryTools: boolean;
+}
+
+export const DEFAULT_MENU_VISIBILITY: MenuVisibility = {
+  showImportData: true,
+  showDailyReport: true,
+  showKnowledgeBase: true,
+  showMigrasiMurid: true,
+  showSecondaryTools: true,
+};
+
+export const MENU_VISIBILITY_KEY = 'menuVisibility';
 
 const CRON_LABELS: Record<CronInterval, string> = {
   '5m': 'Every 5 minutes', '15m': 'Every 15 minutes',
@@ -311,7 +330,10 @@ export default function SettingsPage() {
   const [lastSyncResult, setLastSyncResult] = useState<{ inserted: number; skipped: number } | null>(null);
   const [isSyncRunning, setIsSyncRunning] = useState(false);
 
-  // ── Preview dialog state ────────────────────────────────────────────────
+  // ── Menu Visibility ─────────────────────────────────────────────────────────
+  const [menuVisibility, setMenuVisibility] = useState<MenuVisibility>(DEFAULT_MENU_VISIBILITY);
+
+  // ── Preview dialog state ────────────────────────────────────────────────────
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isFetchingPreview, setIsFetchingPreview] = useState(false);
   const [isConfirmingSyncRef, setIsConfirmingSyncRef] = useState(false);
@@ -323,7 +345,7 @@ export default function SettingsPage() {
     unmappedHeaders: string[];
   } | null>(null);
 
-  // ── Cron state ──────────────────────────────────────────────────────────
+  // ── Cron state ──────────────────────────────────────────────────────────────
   const [cronConfig, setCronConfig] = useState<CronConfig>({
     interval: 'off', enabled: false, lastRun: null, nextRun: null,
   });
@@ -331,7 +353,7 @@ export default function SettingsPage() {
 
   const { toast } = useToast();
 
-  // ── Init ────────────────────────────────────────────────────────────────
+  // ── Init ────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     setIsClient(true);
@@ -365,9 +387,17 @@ export default function SettingsPage() {
       const saved = localStorage.getItem('cronConfig');
       if (saved) setCronConfig(JSON.parse(saved));
     } catch (_) {}
+
+    // Load saved menu visibility
+    try {
+      const saved = localStorage.getItem(MENU_VISIBILITY_KEY);
+      if (saved) {
+        setMenuVisibility({ ...DEFAULT_MENU_VISIBILITY, ...JSON.parse(saved) });
+      }
+    } catch (_) {}
   }, []);
 
-  // ── Cron scheduler ──────────────────────────────────────────────────────
+  // ── Cron scheduler ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (cronTimerId) clearTimeout(cronTimerId);
@@ -381,7 +411,7 @@ export default function SettingsPage() {
     return () => clearTimeout(id);
   }, [cronConfig.enabled, cronConfig.interval]);
 
-  // ── Helpers ─────────────────────────────────────────────────────────────
+  // ── Helpers ─────────────────────────────────────────────────────────────────
 
   function updateCronConfig(patch: Partial<CronConfig>) {
     setCronConfig(prev => {
@@ -391,7 +421,28 @@ export default function SettingsPage() {
     });
   }
 
-  // ── Handlers ────────────────────────────────────────────────────────────
+  function updateMenuVisibility(key: keyof MenuVisibility, value: boolean) {
+    // Compute next state synchronously
+    const next: MenuVisibility = { ...menuVisibility, [key]: value };
+
+    // Persist to localStorage
+    try { localStorage.setItem(MENU_VISIBILITY_KEY, JSON.stringify(next)); } catch (_) {}
+
+    // Update local state
+    setMenuVisibility(next);
+
+    // Dispatch event AFTER React finishes rendering this update (avoids setState-during-render)
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('menuVisibilityChange', { detail: next }));
+    }, 0);
+
+    // Keep SettingsContext in sync for secondary tools
+    if (key === 'showSecondaryTools' && value !== areSecondaryToolsEnabled) {
+      toggleSecondaryTools();
+    }
+  }
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleSaveUrls = () => {
     startSaving(async () => {
@@ -540,15 +591,53 @@ export default function SettingsPage() {
     });
   };
 
-  const featureToggles = [
+  // ── Feature toggles definition ───────────────────────────────────────────────
+
+  type MenuToggle = {
+    id: string;
+    label: string;
+    description: string;
+    icon: React.ElementType;
+    visibilityKey: keyof MenuVisibility;
+    alwaysVisible?: boolean;
+  };
+
+  const menuToggles: MenuToggle[] = [
     {
-      id: 'secondary-tools-toggle',
-      label: 'Tampilkan Alat Sekunder',
-      description: 'Aktifkan untuk menampilkan menu Cek Duplikasi, Edit NIS.',
+      id: 'toggle-import-data',
+      label: 'Import Data',
+      description: 'Menu untuk melakukan import data dari Google Sheet.',
+      icon: ListTree,
+      visibilityKey: 'showImportData',
+    },
+    {
+      id: 'toggle-daily-report',
+      label: 'Daily Report',
+      description: 'Menu laporan harian untuk melihat ringkasan tiket per hari.',
+      icon: BarChart,
+      visibilityKey: 'showDailyReport',
+    },
+    {
+      id: 'toggle-knowledge-base',
+      label: 'Knowledge Base',
+      description: 'Menu Knowledge Base (saat ini dalam pengembangan).',
+      icon: HardHat,
+      visibilityKey: 'showKnowledgeBase',
+    },
+    {
+      id: 'toggle-migrasi-murid',
+      label: 'Migrasi Murid',
+      description: 'Menu untuk migrasi data murid antar sistem.',
+      icon: GitBranch,
+      visibilityKey: 'showMigrasiMurid',
+    },
+    {
+      id: 'toggle-secondary-tools',
+      label: 'Alat Sekunder (Cek Duplikasi & Edit NIS)',
+      description: 'Tampilkan menu Cek Duplikasi dan Edit NIS di navigasi.',
       icon: Files,
-      checked: areSecondaryToolsEnabled,
-      onCheckedChange: toggleSecondaryTools,
-    }
+      visibilityKey: 'showSecondaryTools',
+    },
   ];
 
   if (!isClient) {
@@ -708,29 +797,63 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Feature Activation</CardTitle>
-            <CardDescription>Aktifkan atau nonaktifkan fitur-fitur tertentu dalam aplikasi.</CardDescription>
+            <CardDescription>
+              Aktifkan atau nonaktifkan menu navigasi tertentu. Menu <strong>Dashboard</strong> dan{' '}
+              <strong>Data All Case</strong> selalu ditampilkan.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {featureToggles.map(feature => (
-                <div key={feature.id} className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-muted p-2 rounded-full">
-                      <feature.icon className="h-5 w-5 text-muted-foreground" />
+            <div className="space-y-3">
+              {menuToggles.map(toggle => {
+                const isOn = menuVisibility[toggle.visibilityKey];
+                return (
+                  <div
+                    key={toggle.id}
+                    className={cn(
+                      'flex items-center justify-between rounded-lg border p-4 transition-colors',
+                      !isOn && 'bg-muted/30 opacity-70'
+                    )}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className={cn(
+                        'p-2 rounded-full transition-colors',
+                        isOn ? 'bg-primary/10' : 'bg-muted'
+                      )}>
+                        <toggle.icon className={cn(
+                          'h-5 w-5 transition-colors',
+                          isOn ? 'text-primary' : 'text-muted-foreground'
+                        )} />
+                      </div>
+                      <div className="space-y-0.5">
+                        <Label
+                          htmlFor={toggle.id}
+                          className={cn(
+                            'text-base font-medium cursor-pointer',
+                            !isOn && 'text-muted-foreground'
+                          )}
+                        >
+                          {toggle.label}
+                        </Label>
+                        <p className="text-xs text-muted-foreground">{toggle.description}</p>
+                      </div>
                     </div>
-                    <div className="space-y-0.5">
-                      <Label htmlFor={feature.id} className="text-base font-medium">{feature.label}</Label>
-                      <p className="text-xs text-muted-foreground">{feature.description}</p>
-                    </div>
+                    <Switch
+                      id={toggle.id}
+                      checked={isOn}
+                      onCheckedChange={val => updateMenuVisibility(toggle.visibilityKey, val)}
+                      aria-label={`Toggle ${toggle.label}`}
+                    />
                   </div>
-                  <Switch
-                    id={feature.id}
-                    checked={feature.checked}
-                    onCheckedChange={feature.onCheckedChange}
-                    aria-label={`Toggle ${feature.label}`}
-                  />
-                </div>
-              ))}
+                );
+              })}
+            </div>
+
+            {/* Pinned info */}
+            <div className="mt-4 rounded-lg border border-dashed bg-muted/20 px-4 py-3">
+              <p className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">Selalu tampil:</span>{' '}
+                Dashboard dan Data All Case tidak dapat disembunyikan.
+              </p>
             </div>
           </CardContent>
         </Card>

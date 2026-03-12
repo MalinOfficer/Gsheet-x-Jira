@@ -15,6 +15,11 @@ import { ThemeSwitch } from "../ui/theme-switch";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import type { LucideProps } from "lucide-react";
+import {
+  type MenuVisibility,
+  DEFAULT_MENU_VISIBILITY,
+  MENU_VISIBILITY_KEY,
+} from "@/app/settings/page"; // adjust import path to where you export these
 
 // ── Type definition for nav items ─────────────────────────────────────────────
 type NavItem = {
@@ -22,36 +27,60 @@ type NavItem = {
     label: string;
     icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
     disabled?: boolean;
-    featureFlag?: string;
+    /** Key from MenuVisibility that controls this item's visibility */
+    visibilityKey?: keyof MenuVisibility;
 };
 
+// Dashboard (/dashboard) and Data All Case (/db) have no visibilityKey → always shown
 const navItems: Record<string, NavItem[]> = {
     overview: [
         { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/", label: "Import Data", icon: ListTree },
+        { href: "/", label: "Import Data", icon: ListTree, visibilityKey: "showImportData" },
         { href: "/db", label: "Data All Case", icon: Database },
     ],
     reports: [
-        { href: "/report-harian", label: "Daily Report", icon: BarChart },
-        { href: "/knowledge-base", label: "Knowledge Base", icon: HardHat, disabled: true },
+        { href: "/report-harian", label: "Daily Report", icon: BarChart, visibilityKey: "showDailyReport" },
+        { href: "/knowledge-base", label: "Knowledge Base", icon: HardHat, disabled: true, visibilityKey: "showKnowledgeBase" },
     ],
     tools: [
-        { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch },
-        { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files, featureFlag: 'areSecondaryToolsEnabled' },
-        { href: "/data-weaver", label: "Edit NIS", icon: Combine, featureFlag: 'areSecondaryToolsEnabled' },
+        { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch, visibilityKey: "showMigrasiMurid" },
+        { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files, visibilityKey: "showSecondaryTools" },
+        { href: "/data-weaver", label: "Edit NIS", icon: Combine, visibilityKey: "showSecondaryTools" },
     ]
 };
 
 type NavCategory = keyof typeof navItems;
 
+// ── Hook: reads and subscribes to menuVisibility from localStorage ─────────────
+function useMenuVisibility(): MenuVisibility {
+    const [visibility, setVisibility] = useState<MenuVisibility>(DEFAULT_MENU_VISIBILITY);
+
+    useEffect(() => {
+        // Load on mount
+        try {
+            const saved = localStorage.getItem(MENU_VISIBILITY_KEY);
+            if (saved) setVisibility({ ...DEFAULT_MENU_VISIBILITY, ...JSON.parse(saved) });
+        } catch (_) {}
+
+        // Subscribe to changes made in SettingsPage (same tab)
+        const handler = (e: Event) => {
+            const custom = e as CustomEvent<MenuVisibility>;
+            if (custom.detail) setVisibility(custom.detail);
+        };
+        window.addEventListener("menuVisibilityChange", handler);
+        return () => window.removeEventListener("menuVisibilityChange", handler);
+    }, []);
+
+    return visibility;
+}
+
 function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
     const pathname = usePathname();
-    const { areSecondaryToolsEnabled } = useContext(SettingsContext);
+    const menuVisibility = useMenuVisibility();
 
     const isVisible = (item: NavItem): boolean => {
-        if (!item.featureFlag) return true;
-        if (item.featureFlag === 'areSecondaryToolsEnabled') return areSecondaryToolsEnabled;
-        return true;
+        if (!item.visibilityKey) return true; // always-on items (Dashboard, Data All Case)
+        return menuVisibility[item.visibilityKey] === true;
     };
 
     return (

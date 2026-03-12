@@ -1,10 +1,28 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { type DateRange } from 'react-day-picker';
+import { getISOWeek, getYear, getQuarter } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+type TrendPeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly';
+
+type ModuleTrend = {
+    name: string;
+    current: number;
+    previous: number;
+    change: number;
+    change_pct: number | null;
+    direction: 'up' | 'down' | 'stable';
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 const pivotAndOrderMonthlyStats = (unpivotedData: any[] | null | undefined): any[] => {
     if (!unpivotedData || !Array.isArray(unpivotedData) || unpivotedData.length === 0) return [];
 
@@ -47,6 +65,108 @@ const formatDate = (date: any): string | null => {
         return d.toISOString().split('T')[0];
     } catch { return null; }
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Period key generator — maps each row's date to a bucketed period key
+// ─────────────────────────────────────────────────────────────────────────────
+function getPeriodKey(d: Date, period: TrendPeriod): string {
+    const yyyy = d.getFullYear();
+    const mm   = String(d.getMonth() + 1).padStart(2, '0');
+    const dd   = String(d.getDate()).padStart(2, '0');
+
+    switch (period) {
+        case 'daily':
+            // key: "2025-03-12"
+            return `${yyyy}-${mm}-${dd}`;
+
+        case 'weekly': {
+            // ISO week: "2025-W10"
+            const week = String(getISOWeek(d)).padStart(2, '0');
+            // Use ISO year (can differ from calendar year on week boundaries)
+            const isoYear = getYear(d);
+            return `${isoYear}-W${week}`;
+        }
+
+        case 'monthly':
+            // key: "2025-03"
+            return `${yyyy}-${mm}`;
+
+        case 'quarterly': {
+            // key: "2025-Q1"
+            const q = getQuarter(d);
+            return `${yyyy}-Q${q}`;
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Determine the "current" (incomplete) period key to exclude
+// so we always compare two COMPLETE periods
+// ─────────────────────────────────────────────────────────────────────────────
+function getCurrentIncompletePeriodKey(period: TrendPeriod): string {
+    const now = new Date();
+    return getPeriodKey(now, period);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// computeModuleTrends — supports daily / weekly / monthly / quarterly
+// ─────────────────────────────────────────────────────────────────────────────
+function computeModuleTrends(data: any[], period: TrendPeriod = 'monthly'): ModuleTrend[] {
+    const incompletePeriod = getCurrentIncompletePeriodKey(period);
+
+    // Build { periodKey -> { moduleName -> count } }
+    const periodCounts: Record<string, Record<string, number>> = {};
+
+    data.forEach(r => {
+        if (!r.date || !r.module_case) return;
+        const d = new Date(r.date + 'T00:00:00');
+        if (isNaN(d.getTime())) return;
+
+        const key = getPeriodKey(d, period);
+
+        // ── Exclusion rules per period ────────────────────────────────────────
+        // Monthly / quarterly / weekly → exclude the current incomplete period
+        // Daily    → exclude TODAY (still accumulating)
+        if (key === incompletePeriod) return;
+
+        if (!periodCounts[key]) periodCounts[key] = {};
+        periodCounts[key][r.module_case] = (periodCounts[key][r.module_case] || 0) + 1;
+    });
+
+    // Sort period keys ascending; take last 2 complete periods
+    const periods = Object.keys(periodCounts).sort();
+
+    if (periods.length < 2) return [];
+
+    const currentPeriodKey  = periods[periods.length - 1];
+    const previousPeriodKey = periods[periods.length - 2];
+
+    const currentMap  = periodCounts[currentPeriodKey]  ?? {};
+    const previousMap = periodCounts[previousPeriodKey] ?? {};
+
+    const allModules = new Set([...Object.keys(currentMap), ...Object.keys(previousMap)]);
+
+    const trends: ModuleTrend[] = Array.from(allModules).map(name => {
+        const current   = currentMap[name]  ?? 0;
+        const previous  = previousMap[name] ?? 0;
+        const change    = current - previous;
+        // Percentage change — null when previous is 0 (new module, can't divide)
+        const change_pct: number | null =
+            previous === 0 ? null : Math.round((change / previous) * 100);
+        const direction: 'up' | 'down' | 'stable' =
+            change > 0 ? 'up' : change < 0 ? 'down' : 'stable';
+
+        return { name, current, previous, change, change_pct, direction };
+    });
+
+    console.log(`📊 [API] Trend period: ${period} | comparing "${previousPeriodKey}" vs "${currentPeriodKey}" | modules: ${trends.length}`);
+
+    // Sort by absolute change desc, exclude stable, top 8
+    return trends
+        .filter(t => t.direction !== 'stable')
+        .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+        .slice(0, 8);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fetch ALL rows dengan pagination (menghindari limit 1000 Supabase)
@@ -111,57 +231,9 @@ async function fetchAllRows(filters: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Hitung naik/turun case per module: bandingkan 2 bulan terakhir yang lengkap
-// ─────────────────────────────────────────────────────────────────────────────
-function computeModuleTrends(data: any[]): { name: string; current: number; previous: number; change: number; direction: 'up' | 'down' | 'stable' }[] {
-    const now = new Date();
-    // Current month key — we exclude this because the month is not yet complete
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-    const periodCounts: Record<string, Record<string, number>> = {};
-
-    data.forEach(r => {
-        if (!r.date || !r.module_case) return;
-        const d = new Date(r.date + 'T00:00:00');
-        if (isNaN(d.getTime())) return;
-        const periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        // Skip current (incomplete) month
-        if (periodKey === currentMonthKey) return;
-        if (!periodCounts[periodKey]) periodCounts[periodKey] = {};
-        periodCounts[periodKey][r.module_case] = (periodCounts[periodKey][r.module_case] || 0) + 1;
-    });
-
-    // Sort periods ascending; take last 2 complete months
-    const periods = Object.keys(periodCounts).sort();
-    if (periods.length < 2) return [];
-
-    const currentPeriod  = periods[periods.length - 1];
-    const previousPeriod = periods[periods.length - 2];
-
-    const currentMap  = periodCounts[currentPeriod]  ?? {};
-    const previousMap = periodCounts[previousPeriod] ?? {};
-
-    const allModules = new Set([...Object.keys(currentMap), ...Object.keys(previousMap)]);
-
-    const trends = Array.from(allModules).map(name => {
-        const current  = currentMap[name]  ?? 0;
-        const previous = previousMap[name] ?? 0;
-        const change   = current - previous;
-        const direction: 'up' | 'down' | 'stable' = change > 0 ? 'up' : change < 0 ? 'down' : 'stable';
-        return { name, current, previous, change, direction };
-    });
-
-    // Sort by absolute change desc, exclude stable, top 8
-    return trends
-        .filter(t => t.direction !== 'stable')
-        .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
-        .slice(0, 8);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Hitung semua statistik dari raw rows
 // ─────────────────────────────────────────────────────────────────────────────
-function computeStats(data: any[]) {
+function computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
     const totalCases  = data.length;
     const totalSolved = data.filter(r => r.status_case_solved === 'SOLVED').length;
     const solvedPct   = totalCases > 0 ? (totalSolved / totalCases) * 100 : 0;
@@ -199,7 +271,7 @@ function computeStats(data: any[]) {
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value);
 
-    // ── Monthly stats ─────────────────────────────────────────────────────────
+    // ── Monthly stats (for area chart) ────────────────────────────────────────
     const monthAbbr = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const monthYearCounts: Record<string, number> = {};
     data.forEach(r => {
@@ -214,7 +286,8 @@ function computeStats(data: any[]) {
         return { month, year: parseInt(yearStr), cases: count };
     });
 
-    const moduleTrends = computeModuleTrends(data);
+    // ── Module trends (period-aware) ──────────────────────────────────────────
+    const moduleTrends = computeModuleTrends(data, trendPeriod);
 
     return {
         summary: {
@@ -241,6 +314,15 @@ function computeStats(data: any[]) {
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
+
+        // ── Parse trendPeriod ─────────────────────────────────────────────────
+        const rawPeriod = searchParams.get('trendPeriod') ?? 'monthly';
+        const trendPeriod: TrendPeriod =
+            ['daily', 'weekly', 'monthly', 'quarterly'].includes(rawPeriod)
+                ? (rawPeriod as TrendPeriod)
+                : 'monthly';
+
+        console.log(`📅 [API] trendPeriod: ${trendPeriod}`);
 
         // ── Parse dateRange ───────────────────────────────────────────────────
         const dateRangeString = searchParams.get('dateRange');
@@ -279,10 +361,11 @@ export async function GET(request: Request) {
             selectedYears.length > 1;
 
         console.log(`📥 [API] Mode: ${isMultiFilter ? 'DIRECT QUERY' : 'RPC'}`, {
-            selectedYears, categories, clients, modules, detailModules
+            selectedYears, categories, clients, modules, detailModules, trendPeriod
         });
 
         // ── MODE 1: RPC ───────────────────────────────────────────────────────
+        // RPC tidak support trend period → kita fetch raw data untuk trends saja
         if (!isMultiFilter) {
             const singleYear = selectedYears[0];
             let yearValue: number | null = null;
@@ -303,7 +386,22 @@ export async function GET(request: Request) {
 
             console.log('🚀 [API] Calling RPC fn_dashboard_filtered:', params);
 
-            const { data, error } = await supabaseAdmin.rpc('fn_dashboard_filtered', params);
+            // Run RPC + raw fetch for trends in parallel
+            const [rpcResult, rawForTrends] = await Promise.all([
+                supabaseAdmin.rpc('fn_dashboard_filtered', params),
+                // Fetch raw rows for trend computation (only need date + module_case)
+                fetchTrendRows({
+                    dateRange,
+                    years: selectedYears,
+                    categories,
+                    clients,
+                    modules,
+                    detailModules,
+                    trendPeriod,
+                }),
+            ]);
+
+            const { data, error } = rpcResult;
 
             if (error) {
                 console.error('❌ [API] RPC Error:', error);
@@ -322,8 +420,11 @@ export async function GET(request: Request) {
                 return [];
             };
 
-            const moduleRankingsRpc = parseJSONB(result.out_module_rankings).map((i: any) => ({ name: i.module, value: i.cases }));
+            const moduleRankingsRpc       = parseJSONB(result.out_module_rankings).map((i: any) => ({ name: i.module, value: i.cases }));
             const detailModuleRankingsRpc = parseJSONB(result.out_detail_module_rankings ?? null).map((i: any) => ({ name: i.detail_module ?? i.module, value: i.cases }));
+
+            // Compute trends from raw data with correct period
+            const moduleTrends = computeModuleTrends(rawForTrends, trendPeriod);
 
             return NextResponse.json({ success: true, data: {
                 summary: {
@@ -340,7 +441,7 @@ export async function GET(request: Request) {
                 client_rankings:        parseJSONB(result.out_client_rankings).map((i: any) => ({ name: i.client, value: i.cases })),
                 module_rankings:        moduleRankingsRpc,
                 detail_module_rankings: detailModuleRankingsRpc,
-                module_trends:          [], // RPC path: trends computed client-side or extend RPC later
+                module_trends:          moduleTrends,
             }});
         }
 
@@ -360,7 +461,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ success: true, data: emptyStats() });
         }
 
-        return NextResponse.json({ success: true, data: computeStats(allData) });
+        return NextResponse.json({ success: true, data: computeStats(allData, trendPeriod) });
 
     } catch (error: any) {
         console.error('❌ [API] Dashboard API Route Error:', error);
@@ -369,6 +470,82 @@ export async function GET(request: Request) {
             { status: 500 }
         );
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fetch lightweight rows for trend computation only (date + module_case)
+// Used in RPC mode where we don't have raw rows from the main query
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchTrendRows(filters: {
+    dateRange?: DateRange;
+    years: string[];
+    categories: string[];
+    clients: string[];
+    modules: string[];
+    detailModules: string[];
+    trendPeriod: TrendPeriod;
+}) {
+    // We only need the last 2 periods — compute a narrower date window
+    const now = new Date();
+    let lookbackStart: Date;
+
+    switch (filters.trendPeriod) {
+        case 'daily':
+            // Yesterday + today → 2 days back is enough
+            lookbackStart = new Date(now);
+            lookbackStart.setDate(now.getDate() - 2);
+            break;
+        case 'weekly':
+            // Last 2 ISO weeks → ~14 days
+            lookbackStart = new Date(now);
+            lookbackStart.setDate(now.getDate() - 14);
+            break;
+        case 'monthly':
+            // Last 2 complete months → ~62 days
+            lookbackStart = new Date(now);
+            lookbackStart.setMonth(now.getMonth() - 2);
+            lookbackStart.setDate(1);
+            break;
+        case 'quarterly':
+            // Last 2 quarters → ~6 months
+            lookbackStart = new Date(now);
+            lookbackStart.setMonth(now.getMonth() - 6);
+            lookbackStart.setDate(1);
+            break;
+    }
+
+    const fromDate = formatDate(lookbackStart);
+    const toDate   = formatDate(now);
+
+    const BATCH  = 1000;
+    let allData: any[] = [];
+    let from = 0;
+
+    while (true) {
+        let q = supabaseAdmin
+            .from('all_cases')
+            .select('date, module_case')
+            .is('deleted_at', null)
+            .gte('date', fromDate!)
+            .lte('date', toDate!)
+            .range(from, from + BATCH - 1);
+
+        // Apply same filters so trend is consistent with other cards
+        if (filters.categories.length    > 0) q = q.in('category_case', filters.categories);
+        if (filters.clients.length       > 0) q = q.in('client_name',   filters.clients);
+        if (filters.modules.length       > 0) q = q.in('module_case',   filters.modules);
+        if (filters.detailModules.length > 0) q = q.in('detail_module', filters.detailModules);
+
+        const { data: batch, error } = await q;
+        if (error) throw new Error(error.message);
+        if (!batch || batch.length === 0) break;
+
+        allData = allData.concat(batch);
+        if (batch.length < BATCH) break;
+        from += BATCH;
+    }
+
+    return allData;
 }
 
 // ── Helper ────────────────────────────────────────────────────────────────────

@@ -112,9 +112,16 @@ const formatPhoneNumber = (phoneStr: string): string | null => {
 };
 
 
+const formatGender = (value: string): string | null => {
+   if (!value || typeof value !== 'string') return null;
+   const trimmed = value.trim().toLowerCase();
+   if (trimmed === 'laki-laki' || trimmed === 'laki laki' || trimmed === 'l') return 'L';
+   if (trimmed === 'perempuan' || trimmed === 'p') return 'P';
+   return null;
+};
+
 const parseAndFormatDate = (dateStr: string): string | null => {
    if (!dateStr || typeof dateStr !== 'string') return null;
-
 
    const trimmedDate = dateStr.trim().toLowerCase().replace(/,/g, '/');
   
@@ -133,6 +140,14 @@ const parseAndFormatDate = (dateStr: string): string | null => {
        }
    }
 
+   // ✅ FIX: Handle DD-MM-YYYY format (e.g., 12-10-2010 → 12/10/2010)
+   if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(trimmedDate)) {
+       const parts = trimmedDate.split('-');
+       const day = parts[0].padStart(2, '0');
+       const month = parts[1].padStart(2, '0');
+       const year = parts[2];
+       return `${day}/${month}/${year}`;
+   }
 
    // Try parsing MM/DD/YYYY or M/D/YYYY
    const americanDateMatch = trimmedDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -159,7 +174,6 @@ const parseAndFormatDate = (dateStr: string): string | null => {
            }
        }
 
-
        if (day && month && year) {
            return `${day}/${month}/${year}`;
        }
@@ -172,7 +186,6 @@ const parseAndFormatDate = (dateStr: string): string | null => {
        const day = dashSlashMonthMatch[1].padStart(2, '0');
        const monthName = dashSlashMonthMatch[2];
        const year = dashSlashMonthMatch[3];
-
 
        let month: string | undefined;
        for (const key in monthMap) {
@@ -193,7 +206,6 @@ const parseAndFormatDate = (dateStr: string): string | null => {
        const day = dayFirstMatch[1].padStart(2, '0');
        const monthName = dayFirstMatch[2];
        const year = dayFirstMatch[3];
-
 
        let month: string | undefined;
        for (const key in monthMap) {
@@ -216,7 +228,6 @@ const parseAndFormatDate = (dateStr: string): string | null => {
        const potentialDay2 = datePartsMatch[3];
        const year = datePartsMatch[4];
 
-
        const day = (potentialDay1 || potentialDay2)?.padStart(2, '0');
       
        let month: string | undefined;
@@ -226,7 +237,6 @@ const parseAndFormatDate = (dateStr: string): string | null => {
                break;
            }
        }
-
 
        if (day && month && year) {
            return `${day}/${month}/${year}`;
@@ -257,7 +267,6 @@ const parseAndFormatDate = (dateStr: string): string | null => {
                break;
            }
        }
-
 
        if (day && month && year) {
            return `${day}/${month}/${year}`;
@@ -337,9 +346,6 @@ export function MigrasiMurid({ onBack }: MigrasiMuridProps) {
            const valueMap = new Map<string, number[]>();
           
            data.forEach((row, index) => {
-               // Hanya cek baris yang memiliki Username (baris yang sudah diisi)
-               const hasUsername = String(row["Username"] || '').trim() !== '';
-               if (!hasUsername) return;
               
                const value = String(row[column] || '').trim();
               
@@ -456,6 +462,10 @@ export function MigrasiMurid({ onBack }: MigrasiMuridProps) {
            } else {
                newRows[rowIndex] = { ...newRows[rowIndex], [header]: value };
            }
+       // Auto-format L/P saat diubah
+       } else if (header === "L/P" && value.trim() !== '') {
+           const formatted = formatGender(value);
+           newRows[rowIndex] = { ...newRows[rowIndex], [header]: formatted ?? value };
        } else {
            newRows[rowIndex] = { ...newRows[rowIndex], [header]: value };
        }
@@ -772,8 +782,10 @@ export function MigrasiMurid({ onBack }: MigrasiMuridProps) {
        let newRows = [...rows];
        let dateChanges = 0;
        let phoneChanges = 0;
+       let genderChanges = 0;
        const dateHeader = "Tanggal Lahir";
        const phoneHeader = "Handphone";
+       const genderHeader = "L/P";
       
        const requiredRowCount = startCell.row + pastedLines.length;
        if (requiredRowCount > newRows.length) {
@@ -819,16 +831,22 @@ export function MigrasiMurid({ onBack }: MigrasiMuridProps) {
                    phoneChanges++;
                }
            }
+
+           // Auto-format L/P
+           const originalGender = updatedRow[genderHeader];
+           if (originalGender && typeof originalGender === 'string' && originalGender.trim() !== '') {
+               const formattedGender = formatGender(originalGender);
+               if (formattedGender && formattedGender !== originalGender) {
+                   updatedRow[genderHeader] = formattedGender;
+                   genderChanges++;
+               }
+           }
           
            newRows[rowIndex] = updatedRow;
        });
 
 
        handleRowsChange(newRows);
-       toast({
-           title: "Data Pasted!",
-           description: `${pastedLines.length} rows of data have been pasted.`,
-       });
 
 
        if (dateChanges > 0) {
@@ -842,6 +860,13 @@ export function MigrasiMurid({ onBack }: MigrasiMuridProps) {
            toast({
                title: "Phone Numbers Auto-Formatted",
                description: `Automatically formatted ${phoneChanges} phone numbers with 0 prefix.`,
+           });
+       }
+
+       if (genderChanges > 0) {
+           toast({
+               title: "L/P Auto-Formatted",
+               description: `Automatically formatted ${genderChanges} nilai L/P menjadi L atau P.`,
            });
        }
    }, [selectedRange.start, toast, rows, handleRowsChange]);
@@ -1290,13 +1315,15 @@ export function MigrasiMurid({ onBack }: MigrasiMuridProps) {
                                                    className={cn(
                                                        "w-full h-7 text-xs px-1 rounded-none border-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary z-10 relative",
                                                        header === "No" ? "bg-muted/30 cursor-default focus-visible:ring-0 text-center" : "bg-transparent",
-                                                       isSelected && "bg-blue-100/50 dark:bg-blue-900/50",
+                                                       isDuplicate && !isSelected && "bg-red-100/70 dark:bg-red-900/70",
+                                                       isSelected && !isDuplicate && "bg-blue-100/50 dark:bg-blue-900/50",
+                                                       isSelected && isDuplicate && "bg-blue-300 dark:bg-blue-500/70",
                                                        isFillPreviewing && "bg-green-200/50 dark:bg-green-900/50",
-                                                       isDuplicate && "bg-red-100/70 dark:bg-red-900/70 border-red-300 dark:border-red-700"
                                                    )}
                                                />
-                                               {isSelected && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
-                                               {isDuplicate && <div className="absolute inset-0 border-2 border-red-500 pointer-events-none z-10" />}
+                                               {isSelected && !isDuplicate && <div className="absolute inset-0 border-2 border-primary pointer-events-none z-10" />}
+                                               {isDuplicate && !isSelected && <div className="absolute inset-0 border-2 border-red-500 pointer-events-none z-10" />}
+                                               {isSelected && isDuplicate && <div className="absolute inset-0 border-2 border-red-500 pointer-events-none z-10" />}
                                                {isBottomRightCell && !isDraggingFill && (
                                                    <div
                                                        onMouseDown={handleFillHandleMouseDown}

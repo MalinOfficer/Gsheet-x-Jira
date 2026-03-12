@@ -85,7 +85,6 @@ const statusColorMap: Record<string, string> = {
     'L2':                    'bg-blue-50 text-blue-700 ring-1 ring-blue-200 dark:bg-blue-900/25 dark:text-blue-300 dark:ring-blue-800',
     'L1':                    'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/25 dark:text-amber-300 dark:ring-amber-800',
     'PM':                    'bg-teal-50 text-teal-700 ring-1 ring-teal-200 dark:bg-teal-900/25 dark:text-teal-300 dark:ring-teal-800',
-    'Move to Issue Tracker': 'bg-pink-50 text-pink-700 ring-1 ring-pink-200 dark:bg-pink-900/25 dark:text-pink-300 dark:ring-pink-800',
     'default':               'bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-[#2e2e30] dark:text-[#c8c8cc] dark:ring-[#3a3a3c]',
 };
 
@@ -100,7 +99,7 @@ const moduleColorMap: Record<string, string> = {
 };
 
 const ALL_CATEGORIES     = ['Adjustment', 'Assistance', 'Bug Fixing', 'Enhancement', 'Parameter Setup', 'Q & A'];
-const ALL_STATUSES       = ['Solved', 'L3', 'L2', 'L1', 'PM', 'Move to Issue Tracker'];
+const ALL_STATUSES       = ['Solved', 'L3', 'L2', 'L1', 'PM'];
 const ALL_MODULES        = ['PPDP/PMB', 'LMS/KBM', 'Administrasi Akademik', 'CBT', 'Penilaian/Raport', 'Payment', 'Perpustakaan', 'Pesantren', 'Pintro Pay', 'Boarding', 'Migrasi Data', 'Aplikasi/Mobile', 'Akses Portal'];
 const ALL_DETAIL_MODULES = ['Payment - Angsuran', 'Payment - Daftar Ulang', 'Payment - Diskon', 'Payment - Double Bayar / Refund', 'Payment - Gagal Transaksi', 'Payment - Laporan / Selisih', 'Payment - Pintro Cash', 'Payment - SPPK', 'Payment - Tagihan tidak terupdate', 'Payment - Tambah Tagihan', 'Payment - Hapus Data', 'Payment - Update Tagihan'];
 const ALL_MONTHS         = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
