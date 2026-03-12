@@ -30,7 +30,6 @@ const formatDate = (date: any) => {
     }
 };
 
-// Helper khusus dashboard — tidak shift timezone
 const _formatDateDashboard = (date: any): string | null => {
     if (!date) return null;
     try {
@@ -63,8 +62,6 @@ export async function getAllCaseData(filters?: {
     const pageSize = Math.min(filters?.pageSize || 100, 500);
     const offset = (page - 1) * pageSize;
 
-    console.log('📊 Pagination:', { page, pageSize, offset });
-
     let query = supabaseAdmin
       .from("all_cases")
       .select(getSelectColumns(), { count: "exact" })
@@ -82,9 +79,7 @@ export async function getAllCaseData(filters?: {
       query = query.gte('date', fromDate).lte('date', toDate);
     } else if (filters?.year && filters.year !== 'all') {
       const yearNum = parseInt(filters.year, 10);
-      query = query
-        .gte('date', `${yearNum}-01-01`)
-        .lte('date', `${yearNum}-12-31`);
+      query = query.gte('date', `${yearNum}-01-01`).lte('date', `${yearNum}-12-31`);
     }
 
     if (filters?.category?.length)     query = query.in('category_case', filters.category);
@@ -115,8 +110,6 @@ export async function getAllCaseData(filters?: {
       console.error("❌ Error fetching cases:", error);
       return { error: error.message };
     }
-
-    console.log('✅ Fetched:', data?.length, 'rows out of', count, 'total');
 
     const mappedData = mapDBArrayToFrontend(data as YourDBRow[]);
 
@@ -166,10 +159,7 @@ export async function updateCase(caseId: number, data: Record<string, any>) {
       .update(dbData)
       .eq('id', caseId);
 
-    if (error) {
-      console.error(`Error updating case ${caseId}:`, error);
-      throw error;
-    }
+    if (error) throw error;
 
     revalidatePath('/db');
     revalidatePath('/dashboard');
@@ -191,10 +181,7 @@ export async function deleteCase(caseId: number) {
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', caseId);
 
-    if (error) {
-      console.error(`Error deleting case ${caseId}:`, error);
-      throw error;
-    }
+    if (error) throw error;
 
     revalidatePath('/db');
     revalidatePath('/dashboard');
@@ -211,19 +198,14 @@ export async function deleteCase(caseId: number) {
 
 export async function deleteCases(caseIds: number[]) {
   try {
-    if (caseIds.length === 0) {
-      return { success: true, count: 0 };
-    }
+    if (caseIds.length === 0) return { success: true, count: 0 };
 
     const { error } = await supabaseAdmin
       .from('all_cases')
       .update({ deleted_at: new Date().toISOString() })
       .in('id', caseIds);
 
-    if (error) {
-      console.error(`Error deleting cases:`, error);
-      throw error;
-    }
+    if (error) throw error;
 
     revalidatePath('/db');
     revalidatePath('/dashboard');
@@ -250,34 +232,16 @@ export async function refreshDashboardViews() {
 }
 
 // ============================================
-// GET DASHBOARD FILTER OPTIONS — OPTIMIZED
-// ✅ Pakai master tables, bukan full scan all_cases
+// GET DASHBOARD FILTER OPTIONS
 // ============================================
 
 const _getDashboardFilterOptions = async () => {
   try {
-    console.log('🔍 [FILTER OPTIONS] Starting fetch...');
-
     const [categoriesResult, clientsResult, modulesResult, detailModulesResult, yearsResult] = await Promise.all([
-      supabaseAdmin
-        .from("ticket_categories")
-        .select("name")
-        .is('deleted_at', null)
-        .order('name', { ascending: true }),
-      supabaseAdmin
-        .from("clients")
-        .select("name")
-        .order('name', { ascending: true }),
-      supabaseAdmin
-        .from("master_module")
-        .select("nama_module")
-        .is('deleted_at', null)
-        .order('nama_module', { ascending: true }),
-      supabaseAdmin
-        .from("master_detail_module")
-        .select("detail_module")
-        .is('deleted_at', null)
-        .order('detail_module', { ascending: true }),
+      supabaseAdmin.from("ticket_categories").select("name").is('deleted_at', null).order('name', { ascending: true }),
+      supabaseAdmin.from("clients").select("name").order('name', { ascending: true }),
+      supabaseAdmin.from("master_module").select("nama_module").is('deleted_at', null).order('nama_module', { ascending: true }),
+      supabaseAdmin.from("master_detail_module").select("detail_module").is('deleted_at', null).order('detail_module', { ascending: true }),
       supabaseAdmin.rpc('get_distinct_years'),
     ]);
 
@@ -294,19 +258,16 @@ const _getDashboardFilterOptions = async () => {
     return {
       success: true,
       data: {
-        categories:    (categoriesResult.data || []).map((c: any) => ({ label: c.name,         value: c.name })),
-        clients:       (clientsResult.data    || []).map((c: any) => ({ label: c.name,         value: c.name })),
-        modules:       (modulesResult.data    || []).map((m: any) => ({ label: m.nama_module,  value: m.nama_module })),
+        categories:    (categoriesResult.data || []).map((c: any) => ({ label: c.name,        value: c.name })),
+        clients:       (clientsResult.data    || []).map((c: any) => ({ label: c.name,        value: c.name })),
+        modules:       (modulesResult.data    || []).map((m: any) => ({ label: m.nama_module, value: m.nama_module })),
         detailModules: (detailModulesResult.data || []).map((d: any) => ({ label: d.detail_module, value: d.detail_module })),
         years:         sortedYears,
       },
     };
   } catch (error: any) {
     console.error("❌ Error fetching filter options:", error);
-    return {
-      success: false,
-      error: error.message || "Failed to fetch filter options",
-    };
+    return { success: false, error: error.message || "Failed to fetch filter options" };
   }
 };
 
@@ -315,9 +276,7 @@ export async function getDashboardFilterOptions() {
 }
 
 // ============================================
-// GET DASHBOARD STATS — SERVER ACTION
-// ✅ Mode 1 (single/no filter) : RPC fn_dashboard_filtered
-// ✅ Mode 2 (multi filter)     : Direct Supabase query — NO HTTP fetch
+// GET DASHBOARD STATS
 // ============================================
 
 type DashboardFilters = {
@@ -329,7 +288,6 @@ type DashboardFilters = {
   dateRange?: { from?: Date | string; to?: Date | string } | undefined;
 };
 
-// ── Pivot helper ──────────────────────────────────────────────────────────────
 const _pivotAndOrderMonthlyStats = (unpivotedData: any[] | null | undefined): any[] => {
   if (!unpivotedData || !Array.isArray(unpivotedData) || unpivotedData.length === 0) return [];
   const monthOrder = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -364,7 +322,6 @@ const _pivotAndOrderMonthlyStats = (unpivotedData: any[] | null | undefined): an
   });
 };
 
-// ── JSONB parser ──────────────────────────────────────────────────────────────
 const _parseJSONB = (field: any): any[] => {
   if (!field) return [];
   if (Array.isArray(field)) return field;
@@ -372,7 +329,6 @@ const _parseJSONB = (field: any): any[] => {
   return [];
 };
 
-// ── Empty stats ───────────────────────────────────────────────────────────────
 function _emptyStats() {
   return {
     summary: {
@@ -388,7 +344,6 @@ function _emptyStats() {
   };
 }
 
-// ── Module trends (sama dengan route.ts) ─────────────────────────────────────
 function _computeModuleTrends(data: any[]) {
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -424,11 +379,10 @@ function _computeModuleTrends(data: any[]) {
     .slice(0, 8);
 }
 
-// ── Compute stats dari raw rows (sama dengan route.ts) ───────────────────────
 function _computeStats(data: any[]) {
-  const totalCases  = data.length;
-  const totalSolved = data.filter(r => r.status_case_solved === 'SOLVED').length;
-  const solvedPct   = totalCases > 0 ? (totalSolved / totalCases) * 100 : 0;
+  const totalCases    = data.length;
+  const totalSolved   = data.filter(r => r.status_case_solved === 'SOLVED').length;
+  const solvedPct     = totalCases > 0 ? (totalSolved / totalCases) * 100 : 0;
   const uniqueClients = new Set(data.map(r => r.client_name).filter(Boolean));
 
   const categoryCounts: Record<string, number> = {};
@@ -437,21 +391,15 @@ function _computeStats(data: any[]) {
 
   const clientCounts: Record<string, number> = {};
   data.forEach(r => { if (r.client_name) clientCounts[r.client_name] = (clientCounts[r.client_name] || 0) + 1; });
-  const clientRankings = Object.entries(clientCounts)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
+  const clientRankings = Object.entries(clientCounts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 
   const moduleCounts: Record<string, number> = {};
   data.forEach(r => { if (r.module_case) moduleCounts[r.module_case] = (moduleCounts[r.module_case] || 0) + 1; });
-  const moduleRankings = Object.entries(moduleCounts)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
+  const moduleRankings = Object.entries(moduleCounts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 
   const detailModuleCounts: Record<string, number> = {};
   data.forEach(r => { if (r.detail_module) detailModuleCounts[r.detail_module] = (detailModuleCounts[r.detail_module] || 0) + 1; });
-  const detailModuleRankings = Object.entries(detailModuleCounts)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
+  const detailModuleRankings = Object.entries(detailModuleCounts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 
   const monthAbbr = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const monthYearCounts: Record<string, number> = {};
@@ -486,7 +434,6 @@ function _computeStats(data: any[]) {
   };
 }
 
-// ── Fetch semua rows dengan pagination Supabase ───────────────────────────────
 async function _fetchAllRowsDirect(filters: {
   dateRange?: any;
   years: string[];
@@ -515,12 +462,8 @@ async function _fetchAllRowsDirect(filters: {
       if (!isNaN(y)) q = q.gte('date', `${y}-01-01`).lte('date', `${y}-12-31`);
     } else if (filters.years.length > 1) {
       const orParts = filters.years
-        .map(y => {
-          const n = parseInt(y, 10);
-          return isNaN(n) ? null : `and(date.gte.${n}-01-01,date.lte.${n}-12-31)`;
-        })
-        .filter(Boolean)
-        .join(',');
+        .map(y => { const n = parseInt(y, 10); return isNaN(n) ? null : `and(date.gte.${n}-01-01,date.lte.${n}-12-31)`; })
+        .filter(Boolean).join(',');
       if (orParts) q = (q as any).or(orParts);
     }
 
@@ -534,8 +477,6 @@ async function _fetchAllRowsDirect(filters: {
     if (!batch || batch.length === 0) break;
 
     allData = allData.concat(batch);
-    console.log(`📦 [getDashboardStats] Batch: rows ${from}–${from + batch.length - 1} (total: ${allData.length})`);
-
     if (batch.length < BATCH) break;
     from += BATCH;
   }
@@ -543,7 +484,6 @@ async function _fetchAllRowsDirect(filters: {
   return allData;
 }
 
-// ── Main export ───────────────────────────────────────────────────────────────
 export async function getDashboardStats(filters: DashboardFilters): Promise<{
   success: boolean;
   data?: ReturnType<typeof _emptyStats>;
@@ -552,7 +492,6 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
   try {
     const { selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange } = filters;
 
-    // ── MODE 1: RPC — single/no filter (paling cepat) ────────────────────
     const isMultiFilter =
       categoryFilter.length     > 1 ||
       clientFilter.length       > 1 ||
@@ -568,21 +507,16 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
       const params: Record<string, any> = {
         p_start_date:    _formatDateDashboard(dateRange?.from),
         p_end_date:      _formatDateDashboard(dateRange?.to),
-        p_category:      categoryFilter[0]     ?? null,
-        p_client:        clientFilter[0]        ?? null,
-        p_module:        moduleFilter[0]        ?? null,
+        p_category:      categoryFilter[0]    ?? null,
+        p_client:        clientFilter[0]       ?? null,
+        p_module:        moduleFilter[0]       ?? null,
         p_year:          yearValue,
-        p_detail_module: detailModuleFilter[0]  ?? null,
+        p_detail_module: detailModuleFilter[0] ?? null,
       };
-
-      console.log('🚀 [getDashboardStats] MODE 1 — RPC fn_dashboard_filtered:', params);
 
       const { data, error } = await supabaseAdmin.rpc('fn_dashboard_filtered', params);
 
-      if (error) {
-        console.error('❌ [getDashboardStats] RPC Error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       if (!data || data.length === 0 || data[0].out_total_cases === null) {
         return { success: true, data: _emptyStats() };
@@ -614,10 +548,6 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
       };
     }
 
-    // ── MODE 2: Direct Supabase query — multi filter, NO HTTP ────────────
-    // ✅ FIX: Tidak lagi fetch localhost — langsung query Supabase
-    console.log('🔀 [getDashboardStats] MODE 2 — Direct Supabase query (multi-filter)');
-
     const allData = await _fetchAllRowsDirect({
       dateRange,
       years:         selectedYears,
@@ -627,11 +557,7 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
       detailModules: detailModuleFilter,
     });
 
-    console.log(`✅ [getDashboardStats] Total rows: ${allData.length}`);
-
-    if (allData.length === 0) {
-      return { success: true, data: _emptyStats() };
-    }
+    if (allData.length === 0) return { success: true, data: _emptyStats() };
 
     return { success: true, data: _computeStats(allData) };
 
@@ -654,80 +580,60 @@ export async function getL3ReportFromDB() {
       .in('status_case', ['L3', 'ON HOLD'])
       .order('check_in', { ascending: true });
 
-    if (error) {
-      console.error("❌ Supabase error fetching L3/On Hold cases:", error);
-      throw new Error(`Database error: ${error.message}`);
-    }
-
-    if (!data || data.length === 0) {
-      return { success: true, report: "Tidak ada kasus L3 atau On Hold yang ditemukan." };
-    }
+    if (error) throw new Error(`Database error: ${error.message}`);
+    if (!data || data.length === 0) return { success: true, report: "Tidak ada kasus L3 atau On Hold yang ditemukan." };
 
     const formatDateLocal = (date: Date) => {
       if (!date || isNaN(date.getTime())) return '';
-      const day   = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year  = date.getFullYear();
-      return `${day}/${month}/${year}`;
+      return `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`;
     };
 
-    const minDate   = new Date(data[0].check_in!);
-    const maxDate   = new Date(data[data.length - 1].check_in!);
-    const today     = new Date();
-    const header    = `*Update cases yang belum solved L3 on hold (${formatDateLocal(minDate)} - ${formatDateLocal(maxDate)})*`;
+    const minDate    = new Date(data[0].check_in!);
+    const maxDate    = new Date(data[data.length - 1].check_in!);
+    const today      = new Date();
+    const header     = `*Update cases yang belum solved L3 on hold (${formatDateLocal(minDate)} - ${formatDateLocal(maxDate)})*`;
     const totalCases = data.length;
 
-    const getGroupForModule = (moduleName: string | null | undefined): string => {
-      const upperCaseModule = (moduleName || '').toUpperCase();
-      if (upperCaseModule === 'PAYMENT' || upperCaseModule === 'PINTRO PAY') return 'Payment';
-      if (upperCaseModule === 'APLIKASI/MOBILE' || upperCaseModule === 'AKSES PORTAL') return 'Aplikasi/Mobile';
+    const getGroupForModule = (m: string | null | undefined): string => {
+      const u = (m || '').toUpperCase();
+      if (u === 'PAYMENT' || u === 'PINTRO PAY') return 'Payment';
+      if (u === 'APLIKASI/MOBILE' || u === 'AKSES PORTAL') return 'Aplikasi/Mobile';
       return 'Akademik';
     };
 
     const casesByGroup: Record<string, any[]> = {};
     data.forEach((c: any) => {
-      const groupName = getGroupForModule(c.module_case);
-      if (!casesByGroup[groupName]) casesByGroup[groupName] = [];
-      casesByGroup[groupName].push(c);
+      const g = getGroupForModule(c.module_case);
+      if (!casesByGroup[g]) casesByGroup[g] = [];
+      casesByGroup[g].push(c);
     });
 
-    const summaryLines = [`Total : ${totalCases}`];
     const groupOrder   = ['Akademik', 'Payment', 'Aplikasi/Mobile'];
     const sortedGroups = Object.keys(casesByGroup).sort((a, b) => {
-      const indexA = groupOrder.indexOf(a);
-      const indexB = groupOrder.indexOf(b);
-      if (indexA === -1 && indexB === -1) return a.localeCompare(b);
-      if (indexA === -1) return 1;
-      if (indexB === -1) return -1;
-      return indexA - indexB;
+      const ia = groupOrder.indexOf(a), ib = groupOrder.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1; if (ib === -1) return -1;
+      return ia - ib;
     });
 
-    sortedGroups.forEach(groupName => {
-      summaryLines.push(`${groupName} > L3 : ${casesByGroup[groupName].length}`);
-    });
-
+    const summaryLines = [`Total : ${totalCases}`, ...sortedGroups.map(g => `${g} > L3 : ${casesByGroup[g].length}`)];
     const detailLines: string[] = [];
-    sortedGroups.forEach(groupName => {
-      detailLines.push(`\n*${groupName.toUpperCase()} > L3*`);
-      casesByGroup[groupName]
+
+    sortedGroups.forEach(g => {
+      detailLines.push(`\n*${g.toUpperCase()} > L3*`);
+      casesByGroup[g]
         .sort((a: any, b: any) => (a.client_name || '').localeCompare(b.client_name || ''))
-        .forEach((c: any, index: number) => {
+        .forEach((c: any, i: number) => {
           const checkInDate = new Date(c.check_in!);
-          let age = 0;
-          if (!isNaN(checkInDate.getTime())) {
-            const ageDiff = Math.ceil((today.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-            age = Math.max(1, ageDiff);
-          }
-          const caseLineParts = [c.client_name, c.ticket_number, c.detail_case, c.source_link_op].filter(Boolean);
-          detailLines.push(`${index + 1}. ${caseLineParts.join(' ').trim()} (${age} hari)`.trim());
+          const age = isNaN(checkInDate.getTime()) ? 0 : Math.max(1, Math.ceil((today.getTime() - checkInDate.getTime()) / 86400000));
+          const parts = [c.client_name, c.ticket_number, c.detail_case, c.source_link_op].filter(Boolean);
+          detailLines.push(`${i + 1}. ${parts.join(' ').trim()} (${age} hari)`);
         });
     });
 
-    const reportText = `${header}\n\n${summaryLines.join('\n')}\n${detailLines.join('\n')}`;
-    return { success: true, report: reportText.trim() };
+    return { success: true, report: `${header}\n\n${summaryLines.join('\n')}\n${detailLines.join('\n')}`.trim() };
 
   } catch (err: any) {
-    console.error('❌ Error generating L3 report from DB:', err);
     return { success: false, error: err.message };
   }
 }
@@ -738,41 +644,25 @@ export async function getL3ReportFromDB() {
 
 export async function getDistinctClientsFromDB(): Promise<{ success: boolean; clients?: string[]; error?: string }> {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('clients')
-      .select('name')
-      .order('name', { ascending: true });
-
+    const { data, error } = await supabaseAdmin.from('clients').select('name').order('name', { ascending: true });
     if (error) throw error;
     return { success: true, clients: data.map((c: { name: string }) => c.name).filter(Boolean) };
   } catch (err: any) {
-    console.error("❌ Error fetching distinct clients:", err);
     return { success: false, error: err.message };
   }
 }
 
 export async function addClient(clientName: string): Promise<{ success: boolean; client?: { name: string }; error?: string }> {
   try {
-    if (!clientName || clientName.trim() === '') {
-      return { success: false, error: "Client name cannot be empty." };
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('clients')
-      .insert({ name: clientName.trim() })
-      .select('name')
-      .single();
-
+    if (!clientName?.trim()) return { success: false, error: "Client name cannot be empty." };
+    const { data, error } = await supabaseAdmin.from('clients').insert({ name: clientName.trim() }).select('name').single();
     if (error) {
       if (error.code === '23505') return { success: false, error: `Client "${clientName}" already exists.` };
       throw error;
     }
-
-    revalidatePath('/db');
-    revalidatePath('/dashboard');
+    revalidatePath('/db'); revalidatePath('/dashboard');
     return { success: true, client: data as { name: string } };
   } catch (err: any) {
-    console.error("❌ Error adding new client:", err);
     return { success: false, error: err.message };
   }
 }
@@ -783,59 +673,36 @@ export async function addClient(clientName: string): Promise<{ success: boolean;
 
 export async function getAllCategories(): Promise<{ success: boolean; categories?: { id: number; name: string }[]; error?: string }> {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('ticket_categories')
-      .select('id, name')
-      .order('name', { ascending: true });
-
+    const { data, error } = await supabaseAdmin.from('ticket_categories').select('id, name').order('name', { ascending: true });
     if (error) throw error;
     return { success: true, categories: data };
   } catch (err: any) {
-    console.error("❌ Error fetching categories:", err);
     return { success: false, error: err.message };
   }
 }
 
 export async function addCategory(categoryName: string): Promise<{ success: boolean; category?: { id: number; name: string }; error?: string }> {
   try {
-    if (!categoryName || categoryName.trim() === '') {
-      return { success: false, error: "Category name cannot be empty." };
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('ticket_categories')
-      .insert({ name: categoryName.trim() })
-      .select('id, name')
-      .single();
-
+    if (!categoryName?.trim()) return { success: false, error: "Category name cannot be empty." };
+    const { data, error } = await supabaseAdmin.from('ticket_categories').insert({ name: categoryName.trim() }).select('id, name').single();
     if (error) {
       if (error.code === '23505') return { success: false, error: `Category "${categoryName}" already exists.` };
       throw error;
     }
-
-    revalidatePath('/db');
-    revalidatePath('/dashboard');
+    revalidatePath('/db'); revalidatePath('/dashboard');
     return { success: true, category: data };
   } catch (err: any) {
-    console.error("❌ Error adding new category:", err);
     return { success: false, error: err.message };
   }
 }
 
 export async function deleteCategory(categoryId: number): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabaseAdmin
-      .from('ticket_categories')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', categoryId);
-
+    const { error } = await supabaseAdmin.from('ticket_categories').update({ deleted_at: new Date().toISOString() }).eq('id', categoryId);
     if (error) throw error;
-
-    revalidatePath('/db');
-    revalidatePath('/dashboard');
+    revalidatePath('/db'); revalidatePath('/dashboard');
     return { success: true };
   } catch (err: any) {
-    console.error("❌ Error deleting category:", err);
     return { success: false, error: err.message };
   }
 }
@@ -846,44 +713,26 @@ export async function deleteCategory(categoryId: number): Promise<{ success: boo
 
 export async function addMasterStatus(name: string): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    if (!name || name.trim() === '') {
-      return { success: false, error: "Status name cannot be empty." };
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('master_status')
-      .insert({ name: name.trim() })
-      .select()
-      .single();
-
+    if (!name?.trim()) return { success: false, error: "Status name cannot be empty." };
+    const { data, error } = await supabaseAdmin.from('master_status').insert({ name: name.trim() }).select().single();
     if (error) {
       if (error.code === '23505') return { success: false, error: `Status "${name}" already exists.` };
       throw error;
     }
-
-    revalidatePath('/db');
-    revalidatePath('/dashboard');
+    revalidatePath('/db'); revalidatePath('/dashboard');
     return { success: true, data };
   } catch (err: any) {
-    console.error("❌ Error adding master status:", err);
     return { success: false, error: err.message };
   }
 }
 
 export async function deleteMasterStatus(id: number): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabaseAdmin
-      .from('master_status')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
-
+    const { error } = await supabaseAdmin.from('master_status').update({ deleted_at: new Date().toISOString() }).eq('id', id);
     if (error) throw error;
-
-    revalidatePath('/db');
-    revalidatePath('/dashboard');
+    revalidatePath('/db'); revalidatePath('/dashboard');
     return { success: true };
   } catch (err: any) {
-    console.error("❌ Error deleting master status:", err);
     return { success: false, error: err.message };
   }
 }
@@ -894,44 +743,26 @@ export async function deleteMasterStatus(id: number): Promise<{ success: boolean
 
 export async function addMasterModule(name: string): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    if (!name || name.trim() === '') {
-      return { success: false, error: "Module name cannot be empty." };
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('master_module')
-      .insert({ nama_module: name.trim() })
-      .select('id_module, nama_module')
-      .single();
-
+    if (!name?.trim()) return { success: false, error: "Module name cannot be empty." };
+    const { data, error } = await supabaseAdmin.from('master_module').insert({ nama_module: name.trim() }).select('id_module, nama_module').single();
     if (error) {
       if (error.code === '23505') return { success: false, error: `Module "${name}" already exists.` };
       throw error;
     }
-
-    revalidatePath('/db');
-    revalidatePath('/dashboard');
+    revalidatePath('/db'); revalidatePath('/dashboard');
     return { success: true, data: { id: data.id_module, name: data.nama_module } };
   } catch (err: any) {
-    console.error("❌ Error adding master module:", err);
     return { success: false, error: err.message };
   }
 }
 
 export async function deleteMasterModule(id: number): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabaseAdmin
-      .from('master_module')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id_module', id);
-
+    const { error } = await supabaseAdmin.from('master_module').update({ deleted_at: new Date().toISOString() }).eq('id_module', id);
     if (error) throw error;
-
-    revalidatePath('/db');
-    revalidatePath('/dashboard');
+    revalidatePath('/db'); revalidatePath('/dashboard');
     return { success: true };
   } catch (err: any) {
-    console.error("❌ Error deleting master module:", err);
     return { success: false, error: err.message };
   }
 }
@@ -942,44 +773,26 @@ export async function deleteMasterModule(id: number): Promise<{ success: boolean
 
 export async function addMasterDetailModule(name: string): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    if (!name || name.trim() === '') {
-      return { success: false, error: "Detail module name cannot be empty." };
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('master_detail_module')
-      .insert({ detail_module: name.trim() })
-      .select('id_module, detail_module')
-      .single();
-
+    if (!name?.trim()) return { success: false, error: "Detail module name cannot be empty." };
+    const { data, error } = await supabaseAdmin.from('master_detail_module').insert({ detail_module: name.trim() }).select('id_module, detail_module').single();
     if (error) {
       if (error.code === '23505') return { success: false, error: `Detail module "${name}" already exists.` };
       throw error;
     }
-
-    revalidatePath('/db');
-    revalidatePath('/dashboard');
+    revalidatePath('/db'); revalidatePath('/dashboard');
     return { success: true, data: { id: data.id_module, name: data.detail_module } };
   } catch (err: any) {
-    console.error("❌ Error adding master detail module:", err);
     return { success: false, error: err.message };
   }
 }
 
 export async function deleteMasterDetailModule(id: number): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabaseAdmin
-      .from('master_detail_module')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id_module', id);
-
+    const { error } = await supabaseAdmin.from('master_detail_module').update({ deleted_at: new Date().toISOString() }).eq('id_module', id);
     if (error) throw error;
-
-    revalidatePath('/db');
-    revalidatePath('/dashboard');
+    revalidatePath('/db'); revalidatePath('/dashboard');
     return { success: true };
   } catch (err: any) {
-    console.error("❌ Error deleting master detail module:", err);
     return { success: false, error: err.message };
   }
 }
@@ -990,12 +803,7 @@ export async function deleteMasterDetailModule(id: number): Promise<{ success: b
 
 export async function getMasterData(): Promise<{
   success: boolean;
-  data?: {
-    statuses:      { id: number; name: string }[];
-    categories:    { id: number; name: string }[];
-    modules:       { id: number; name: string }[];
-    detailModules: { id: number; name: string }[];
-  };
+  data?: { statuses: { id: number; name: string }[]; categories: { id: number; name: string }[]; modules: { id: number; name: string }[]; detailModules: { id: number; name: string }[]; };
   error?: string;
 }> {
   try {
@@ -1005,18 +813,16 @@ export async function getMasterData(): Promise<{
       supabaseAdmin.from('master_module').select('id_module, nama_module').is('deleted_at', null).order('nama_module'),
       supabaseAdmin.from('master_detail_module').select('id_module, detail_module').is('deleted_at', null).order('detail_module'),
     ]);
-
     return {
       success: true,
       data: {
-        statuses:   statusRes.data || [],
-        categories: categoryRes.data || [],
-        modules:    (moduleRes.data || []).map((row: any) => ({ id: row.id_module as number, name: row.nama_module as string })),
-        detailModules: (detailModuleRes.data || []).map((row: any) => ({ id: row.id_module as number, name: row.detail_module as string })),
+        statuses:      statusRes.data || [],
+        categories:    categoryRes.data || [],
+        modules:       (moduleRes.data || []).map((r: any) => ({ id: r.id_module, name: r.nama_module })),
+        detailModules: (detailModuleRes.data || []).map((r: any) => ({ id: r.id_module, name: r.detail_module })),
       },
     };
   } catch (err: any) {
-    console.error("❌ Error fetching master data:", err);
     return { success: false, error: err.message };
   }
 }
@@ -1025,33 +831,19 @@ export async function getMasterData(): Promise<{
 // DUMMY FUNCTIONS
 // ============================================
 
-export async function importToSheet(data: any, url: string): Promise<any> {
-  return { success: false, error: "This function is not implemented in the live demo." };
-}
-export async function updateSheetStatus(data: any, url: string): Promise<any> {
-  return { success: false, error: "This function is not implemented in the live demo." };
-}
-export async function getUpdatePreview(data: any, url: string): Promise<any> {
-  return { success: false, error: "This function is not implemented in the live demo." };
-}
-export async function undoLastAction(data: any, url: string): Promise<any> {
-  return { success: false, error: "This function is not implemented in the live demo." };
-}
-export async function fetchL3ReportData(url: string): Promise<any> {
-  return { success: false, error: "This function is not implemented in the live demo." };
-}
-export async function mergeFilesOnServer(fileA: any, fileB: any, editMode: any): Promise<any> {
-  return { success: false, error: "This function is not implemented in the live demo." };
-}
+export async function importToSheet(data: any, url: string): Promise<any> { return { success: false, error: "Not implemented." }; }
+export async function updateSheetStatus(data: any, url: string): Promise<any> { return { success: false, error: "Not implemented." }; }
+export async function getUpdatePreview(data: any, url: string): Promise<any> { return { success: false, error: "Not implemented." }; }
+export async function undoLastAction(data: any, url: string): Promise<any> { return { success: false, error: "Not implemented." }; }
+export async function fetchL3ReportData(url: string): Promise<any> { return { success: false, error: "Not implemented." }; }
+export async function mergeFilesOnServer(fileA: any, fileB: any, editMode: any): Promise<any> { return { success: false, error: "Not implemented." }; }
 
 // ============================================
 // GET SPREADSHEET TITLE
 // ============================================
 
 export async function getSpreadsheetTitle(url: string) {
-  if (!url || !url.includes('docs.google.com/spreadsheets')) {
-    return { error: 'Invalid Google Sheet URL' };
-  }
+  if (!url?.includes('docs.google.com/spreadsheets')) return { error: 'Invalid Google Sheet URL' };
 
   const sheetId = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
   if (!sheetId) return { error: 'Tidak dapat mengekstrak Sheet ID dari URL.' };
@@ -1059,51 +851,38 @@ export async function getSpreadsheetTitle(url: string) {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (apiKey) {
     try {
-      const res = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=properties.title&key=${apiKey}`,
-        { cache: 'no-store' }
-      );
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=properties.title&key=${apiKey}`, { cache: 'no-store' });
       if (res.status === 403) return { error: 'Sheet tidak dapat diakses. Pastikan sheet bersifat publik.' };
-      if (res.status === 404) return { error: 'Sheet tidak ditemukan. Periksa kembali URL.' };
+      if (res.status === 404) return { error: 'Sheet tidak ditemukan.' };
       if (!res.ok) return { error: `Google API error (HTTP ${res.status}).` };
       const data = await res.json();
       const title = data?.properties?.title;
-      if (!title) return { error: 'Gagal membaca judul sheet.' };
-      return { success: true, title };
-    } catch (e: any) {
-      console.error('getSpreadsheetTitle (API Key) error:', e);
-    }
+      if (title) return { success: true, title };
+    } catch (e: any) { console.error('getSpreadsheetTitle (API Key) error:', e); }
   }
 
   try {
-    const res = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/edit`, {
-      cache: 'no-store',
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NextJS server-side fetch)' },
-    });
-    if (res.status === 401 || res.status === 403) {
-      return { error: 'Sheet tidak dapat diakses. Pastikan share settings-nya: "Anyone with the link → Viewer".' };
-    }
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/edit`, { cache: 'no-store', headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (res.status === 401 || res.status === 403) return { error: 'Sheet tidak dapat diakses.' };
     if (!res.ok) return { error: `Gagal mengakses sheet (HTTP ${res.status}).` };
     const html = await res.text();
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     if (titleMatch) {
-      const rawTitle = titleMatch[1]
-        .replace(/ - Google Sheets$/, '')
-        .replace(/ - Google Spreadsheet$/, '')
-        .trim();
-      if (rawTitle && rawTitle.toLowerCase() !== 'google sheets') {
-        return { success: true, title: rawTitle };
-      }
+      const rawTitle = titleMatch[1].replace(/ - Google Sheets$/, '').replace(/ - Google Spreadsheet$/, '').trim();
+      if (rawTitle && rawTitle.toLowerCase() !== 'google sheets') return { success: true, title: rawTitle };
     }
-    return { error: 'Tidak dapat membaca judul sheet. Tambahkan GOOGLE_API_KEY di .env.local.' };
+    return { error: 'Tidak dapat membaca judul sheet.' };
   } catch (e: any) {
-    console.error('getSpreadsheetTitle (HTML fallback) error:', e);
     return { error: `Gagal validasi: ${e.message}` };
   }
 }
 
 // ============================================
 // SYNC GSHEET → DB
+// ✅ FIX 1: Cek existing TANPA filter deleted_at
+//           agar tiket soft-deleted tidak lolos pengecekan
+// ✅ FIX 2: Pakai upsert + ignoreDuplicates
+//           sebagai safety net — tidak akan pernah duplicate
 // ============================================
 
 const _SYNC_COLUMN_MAP: Record<string, string> = {
@@ -1146,31 +925,22 @@ function _extractTicketFromDetail(raw: string | null): { ticketNumber: string | 
   return { ticketNumber: null, detailCase: raw.trim() };
 }
 
-function _extractSheetId(url: string): string | null {
-  return url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1] ?? null;
-}
-
-function _extractGid(url: string): string | null {
-  return url.match(/[?&#]gid=(\d+)/)?.[1] ?? null;
-}
+function _extractSheetId(url: string): string | null { return url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1] ?? null; }
+function _extractGid(url: string): string | null { return url.match(/[?&#]gid=(\d+)/)?.[1] ?? null; }
 
 function _parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   for (const line of text.split(/\r?\n/)) {
     if (!line.trim()) continue;
     const row: string[] = [];
-    let inQuotes = false;
-    let field = '';
+    let inQuotes = false, field = '';
     for (let i = 0; i < line.length; i++) {
       const ch = line[i];
       if (ch === '"') {
         if (inQuotes && line[i + 1] === '"') { field += '"'; i++; }
         else inQuotes = !inQuotes;
-      } else if (ch === ',' && !inQuotes) {
-        row.push(field.trim()); field = '';
-      } else {
-        field += ch;
-      }
+      } else if (ch === ',' && !inQuotes) { row.push(field.trim()); field = ''; }
+      else { field += ch; }
     }
     row.push(field.trim());
     rows.push(row);
@@ -1185,7 +955,7 @@ function _normalizeSyncDate(raw: string): string | null {
   const parts = raw.split('/');
   if (parts.length === 3) {
     const [a, b, c] = parts.map(Number);
-    if (c > 1900) return `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
+    if (c > 1900) return `${c}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`;
   }
   const d = new Date(raw);
   return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
@@ -1194,23 +964,16 @@ function _normalizeSyncDate(raw: string): string | null {
 function _normalizeSyncDatetime(rawTime: string | null, dateStr: string | null): string | null {
   if (!rawTime?.trim()) return null;
   const t = rawTime.trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(t)) {
-    const d = new Date(t);
-    return isNaN(d.getTime()) ? null : d.toISOString();
-  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(t)) { const d = new Date(t); return isNaN(d.getTime()) ? null : d.toISOString(); }
   if (t.includes('/')) {
     const parts = t.split('/');
     if (parts.length === 3) {
       const [a, b, c] = parts.map(Number);
-      if (c > 1900) {
-        const d = new Date(`${c}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`);
-        return isNaN(d.getTime()) ? null : d.toISOString();
-      }
+      if (c > 1900) { const d = new Date(`${c}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`); return isNaN(d.getTime()) ? null : d.toISOString(); }
     }
   }
   if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(t) && dateStr) {
-    const timePadded = t.length === 4 ? `0${t}` : t;
-    const combined   = new Date(`${dateStr}T${timePadded}:00`);
+    const combined = new Date(`${dateStr}T${t.length === 4 ? '0'+t : t}:00`);
     return isNaN(combined.getTime()) ? null : combined.toISOString();
   }
   const d = new Date(t);
@@ -1225,9 +988,7 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
   error?: string;
 }> {
   try {
-    if (!sheetUrl?.includes('docs.google.com/spreadsheets')) {
-      return { success: false, error: 'URL GSheet tidak valid.' };
-    }
+    if (!sheetUrl?.includes('docs.google.com/spreadsheets')) return { success: false, error: 'URL GSheet tidak valid.' };
 
     const sheetId = _extractSheetId(sheetUrl);
     if (!sheetId) return { success: false, error: 'Tidak dapat mengekstrak Sheet ID dari URL.' };
@@ -1238,14 +999,10 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
       : `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
 
     console.log('🔄 [SYNC] Fetching CSV from:', csvUrl);
-
     const response = await fetch(csvUrl, { cache: 'no-store' });
-    if (!response.ok) {
-      return { success: false, error: `Gagal fetch GSheet (HTTP ${response.status}). Pastikan sheet bersifat publik.` };
-    }
+    if (!response.ok) return { success: false, error: `Gagal fetch GSheet (HTTP ${response.status}). Pastikan sheet bersifat publik.` };
 
-    const csvText    = await response.text();
-    const rows       = _parseCsv(csvText);
+    const rows = _parseCsv(await response.text());
     if (rows.length < 2) return { success: true, inserted: 0, skipped: 0 };
 
     const rawHeaders = rows[0];
@@ -1255,7 +1012,7 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
     const ticketColIdx     = headers.indexOf('ticket_number');
 
     if (detailCaseColIdx === -1 && ticketColIdx === -1) {
-      return { success: false, error: `Kolom "Detail Case" tidak ditemukan. Header GSheet: [${rawHeaders.join(', ')}]` };
+      return { success: false, error: `Kolom "Detail Case" tidak ditemukan. Header: [${rawHeaders.join(', ')}]` };
     }
 
     const toProcess: { ticket: string; record: Record<string, any> }[] = [];
@@ -1268,7 +1025,6 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
       if (!finalTicket) continue;
 
       const record: Record<string, any> = {};
-
       headers.forEach((col, i) => {
         if (!col || col === 'detail_case' || col === 'check_in' || col === 'check_out') return;
         let val: string | null = (row[i] || '').trim() || null;
@@ -1276,13 +1032,11 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
         if (col === 'client_name' && val) val = normalizeClientName(val);
         record[col] = val;
       });
-
       const dateStr = record['date'] as string | null;
       headers.forEach((col, i) => {
         if (col !== 'check_in' && col !== 'check_out') return;
         record[col] = _normalizeSyncDatetime((row[i] || '').trim() || null, dateStr);
       });
-
       record['ticket_number'] = finalTicket;
       record['detail_case']   = cleanDetailCase;
       toProcess.push({ ticket: finalTicket, record });
@@ -1290,11 +1044,13 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
 
     if (!toProcess.length) return { success: true, inserted: 0, skipped: 0 };
 
+    // ── FIX 1: Cek existing TANPA filter deleted_at ───────────────────────────
+    // Agar tiket yang pernah soft-deleted tidak lolos dan dicoba insert ulang
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('all_cases')
       .select('ticket_number, status_case, check_in, check_out')
-      .in('ticket_number', toProcess.map(r => r.ticket))
-      .is('deleted_at', null);
+      .in('ticket_number', toProcess.map(r => r.ticket));
+    // ─────────────────────────────────────────────────────────────────────────
 
     if (fetchErr) return { success: false, error: `DB error: ${fetchErr.message}` };
 
@@ -1311,13 +1067,20 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
         || (!db.check_out && !!r.record.check_out);
     });
 
+    // ── FIX 2: upsert + ignoreDuplicates — tidak akan pernah error duplicate ──
     let insertedCount = 0;
     const BATCH = 500;
     for (let i = 0; i < toInsert.length; i += BATCH) {
-      const { error: insErr } = await supabaseAdmin.from('all_cases').insert(toInsert.slice(i, i + BATCH));
+      const { error: insErr } = await supabaseAdmin
+        .from('all_cases')
+        .upsert(toInsert.slice(i, i + BATCH), {
+          onConflict:       'ticket_number', // unique constraint di DB
+          ignoreDuplicates: true,            // skip tanpa error jika sudah ada
+        });
       if (insErr) return { success: false, inserted: insertedCount, error: `Insert error: ${insErr.message}` };
       insertedCount += Math.min(BATCH, toInsert.length - i);
     }
+    // ─────────────────────────────────────────────────────────────────────────
 
     let updatedCount = 0;
     for (const item of toUpdate) {
@@ -1349,28 +1112,20 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
 
 export async function saveAppSetting(key: string, value: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabaseAdmin
-      .from('app_settings')
-      .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    const { error } = await supabaseAdmin.from('app_settings').upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     if (error) throw error;
     return { success: true };
   } catch (err: any) {
-    console.error(`❌ Error saving app setting [${key}]:`, err);
     return { success: false, error: err.message };
   }
 }
 
 export async function getAppSetting(key: string): Promise<{ success: boolean; value?: string | null; error?: string }> {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('app_settings')
-      .select('value')
-      .eq('key', key)
-      .single();
+    const { data, error } = await supabaseAdmin.from('app_settings').select('value').eq('key', key).single();
     if (error && error.code !== 'PGRST116') throw error;
     return { success: true, value: data?.value ?? null };
   } catch (err: any) {
-    console.error(`❌ Error fetching app setting [${key}]:`, err);
     return { success: false, error: err.message };
   }
 }
