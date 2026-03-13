@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon, X, GripHorizontal, Maximize2, Minimize2, ChevronDown, Check, Layers, TrendingUp, TrendingDown } from "lucide-react";
+import { BarChart as BarChartIcon, CheckCircle, Users, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon, X, GripHorizontal, Maximize2, Minimize2, ChevronDown, Check, Layers, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { 
     Card, 
     CardContent, 
@@ -59,7 +59,7 @@ type ModuleTrend = {
     current: number;
     previous: number;
     change: number;
-    change_pct?: number;          // optional, backend may return this
+    change_pct?: number | null;
     direction: 'up' | 'down' | 'stable';
 };
 
@@ -92,29 +92,21 @@ type FilterOptions = {
 interface DashboardProps {
     initialStats: DashboardStats | null;
     initialOptions: FilterOptions | null;
+    defaultYears?: string[];
     error?: string | null;
 }
 
 // ── Helper: Compute comparison label + tooltip per period ─────────────────────
-/**
- * Selalu exclude periode BERJALAN, bandingkan 2 periode SELESAI terakhir.
- * Returns { label, tooltip } — tooltip menjelaskan rentang tanggal lengkap.
- *
- * Contoh (hari ini 12 Mar 2026):
- *   Daily     label="10 Mar vs 11 Mar"  tooltip="Tue 10 Mar  vs  Wed 11 Mar"
- *   Weekly    label="W9 vs W10"         tooltip="23 Feb–1 Mar  vs  2–8 Mar 2026"
- *   Monthly   label="Jan vs Feb"        tooltip="Jan 2026  vs  Feb 2026"
- *   Quarterly label="Q3 vs Q4"          tooltip="Jul–Sep 2025  vs  Oct–Dec 2025"
- */
 function getTrendComparisonInfo(period: TrendPeriod): { label: string; tooltip: string } {
     const now = new Date();
 
     if (period === 'daily') {
         const d1 = subDays(now, 2);
         const d2 = subDays(now, 1);
-        const label   = `${format(d1, 'd MMM')} vs ${format(d2, 'd MMM')}`;
-        const tooltip = `${format(d1, 'EEE d MMM yyyy')}  vs  ${format(d2, 'EEE d MMM yyyy')}`;
-        return { label, tooltip };
+        return {
+            label:   `${format(d1, 'd MMM')} vs ${format(d2, 'd MMM')}`,
+            tooltip: `${format(d1, 'EEE d MMM yyyy')}  vs  ${format(d2, 'EEE d MMM yyyy')}`,
+        };
     }
 
     if (period === 'weekly') {
@@ -122,52 +114,56 @@ function getTrendComparisonInfo(period: TrendPeriod): { label: string; tooltip: 
         const w1End   = endOfISOWeek(subWeeks(now, 2));
         const w2Start = startOfISOWeek(subWeeks(now, 1));
         const w2End   = endOfISOWeek(subWeeks(now, 1));
-        const w1Num   = getISOWeek(w1Start);
-        const w2Num   = getISOWeek(w2Start);
-        const label   = `W${w1Num} vs W${w2Num}`;
-        // Same year → omit year on left side
         const sameYear = w1Start.getFullYear() === w2End.getFullYear();
-        const fmtLeft  = sameYear ? 'd MMM' : 'd MMM yyyy';
-        const tooltip  = `${format(w1Start, fmtLeft)}–${format(w1End, 'd MMM')}  vs  ${format(w2Start, 'd MMM')}–${format(w2End, 'd MMM yyyy')}`;
-        return { label, tooltip };
+        return {
+            label:   `W${getISOWeek(w1Start)} vs W${getISOWeek(w2Start)}`,
+            tooltip: `${format(w1Start, sameYear ? 'd MMM' : 'd MMM yyyy')}–${format(w1End, 'd MMM')}  vs  ${format(w2Start, 'd MMM')}–${format(w2End, 'd MMM yyyy')}`,
+        };
     }
 
     if (period === 'monthly') {
         const m1 = subMonths(now, 2);
         const m2 = subMonths(now, 1);
-        const label   = `${format(m1, 'MMM')} vs ${format(m2, 'MMM')}`;
-        const tooltip = `${format(startOfMonth(m1), 'MMM yyyy')}  vs  ${format(startOfMonth(m2), 'MMM yyyy')}`;
-        return { label, tooltip };
+        return {
+            label:   `${format(m1, 'MMM')} vs ${format(m2, 'MMM')}`,
+            tooltip: `${format(startOfMonth(m1), 'MMM yyyy')}  vs  ${format(startOfMonth(m2), 'MMM yyyy')}`,
+        };
     }
 
     if (period === 'quarterly') {
         const q1 = subQuarters(now, 2);
         const q2 = subQuarters(now, 1);
-        const q1Num = getQuarter(q1);
-        const q2Num = getQuarter(q2);
-        // Label: add year suffix only when crossing year boundary
         const sameYear = q1.getFullYear() === q2.getFullYear();
-        const label = sameYear
-            ? `Q${q1Num} vs Q${q2Num}`
-            : `Q${q1Num} '${String(q1.getFullYear()).slice(2)} vs Q${q2Num} '${String(q2.getFullYear()).slice(2)}`;
-        // Tooltip: full date range for each quarter
-        const tooltip = `${format(startOfQuarter(q1), 'MMM')}–${format(endOfQuarter(q1), 'MMM yyyy')}  vs  ${format(startOfQuarter(q2), 'MMM')}–${format(endOfQuarter(q2), 'MMM yyyy')}`;
-        return { label, tooltip };
+        return {
+            label: sameYear
+                ? `Q${getQuarter(q1)} vs Q${getQuarter(q2)}`
+                : `Q${getQuarter(q1)} '${String(q1.getFullYear()).slice(2)} vs Q${getQuarter(q2)} '${String(q2.getFullYear()).slice(2)}`,
+            tooltip: `${format(startOfQuarter(q1), 'MMM')}–${format(endOfQuarter(q1), 'MMM yyyy')}  vs  ${format(startOfQuarter(q2), 'MMM')}–${format(endOfQuarter(q2), 'MMM yyyy')}`,
+        };
     }
 
     return { label: 'vs last period', tooltip: '' };
 }
 
-// Keep old signature for backward compat (unused but safe)
-function getTrendComparisonLabel(period: TrendPeriod, _monthlyStats: any[]): string {
-    return getTrendComparisonInfo(period).label;
-}
-
 // ── Helper: derive pct from ModuleTrend if backend doesn't send it ────────────
 function derivePct(trend: ModuleTrend): number | null {
-    if (trend.change_pct !== undefined) return trend.change_pct;
+    if (trend.change_pct !== undefined && trend.change_pct !== null) return trend.change_pct;
     if (trend.previous === 0) return null;
     return Math.round((trend.change / trend.previous) * 100);
+}
+
+// ── Trend Icon helper ─────────────────────────────────────────────────────────
+function TrendIcon({ direction }: { direction: 'up' | 'down' | 'stable' }) {
+    if (direction === 'up')   return <TrendingUp   className="h-3 w-3 text-red-500 flex-shrink-0" />;
+    if (direction === 'down') return <TrendingDown className="h-3 w-3 text-emerald-500 flex-shrink-0" />;
+    return <Minus className="h-3 w-3 text-muted-foreground flex-shrink-0" />;
+}
+
+// ── Trend color helper ─────────────────────────────────────────────────────────
+function trendColor(direction: 'up' | 'down' | 'stable'): string {
+    if (direction === 'up')   return 'text-red-600';
+    if (direction === 'down') return 'text-emerald-500';
+    return 'text-muted-foreground';
 }
 
 // ── Draggable Filter Panel ─────────────────────────────────────────────────────
@@ -397,7 +393,7 @@ function TrendPeriodDropdown({ value, onChange }: TrendPeriodDropdownProps) {
 }
 
 // ── Main Dashboard Component ──────────────────────────────────────────────────
-export function Dashboard({ initialStats, initialOptions, error: initialError }: DashboardProps) {
+export function Dashboard({ initialStats, initialOptions, defaultYears, error: initialError }: DashboardProps) {
     const { setIsProcessing } = useContext(TableDataContext);
     const { toast } = useToast();
 
@@ -414,21 +410,25 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
     const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('monthly');
 
     const hasLoadedOnce = useRef<boolean>(initialStats !== null);
+    const isFirstMount  = useRef(true);
 
     // ── Filter states ───────────────────────────────────────────────────────
-    const [selectedYears, setSelectedYears]         = useState<string[]>([]);
-    const [categoryFilter, setCategoryFilter]       = useState<string[]>([]);
-    const [clientFilter, setClientFilter]           = useState<string[]>([]);
-    const [moduleFilter, setModuleFilter]           = useState<string[]>([]);
+    const [selectedYears, setSelectedYears]           = useState<string[]>([]);
+    const [categoryFilter, setCategoryFilter]         = useState<string[]>([]);
+    const [clientFilter, setClientFilter]             = useState<string[]>([]);
+    const [moduleFilter, setModuleFilter]             = useState<string[]>([]);
     const [detailModuleFilter, setDetailModuleFilter] = useState<string[]>([]);
-    const [dateRange, setDateRange]                 = useState<DateRange | undefined>(undefined);
+    const [dateRange, setDateRange]                   = useState<DateRange | undefined>(undefined);
 
     useEffect(() => {
         setHasMounted(true);
-        if (initialOptions?.years?.length) {
+        // Gunakan defaultYears dari server jika ada, fallback ke getDefault3RecentYears
+        if (defaultYears && defaultYears.length > 0) {
+            setSelectedYears(defaultYears);
+        } else if (initialOptions?.years?.length) {
             setSelectedYears(getDefault3RecentYears(initialOptions.years));
         }
-    }, [initialOptions]);
+    }, [initialOptions, defaultYears]);
 
     const prevYearsRef = useRef<string[]>(initialOptions?.years ?? []);
     useEffect(() => {
@@ -478,27 +478,23 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         return available.length > 0 && selectedYears.length === available.length;
     }, [selectedYears, filterOptions?.years]);
 
-    const areFiltersActive = useMemo(() => {
-        return (
-            dateRange !== undefined ||
-            !allYearsSelected ||
-            categoryFilter.length > 0 ||
-            clientFilter.length > 0 ||
-            moduleFilter.length > 0 ||
-            detailModuleFilter.length > 0
-        );
-    }, [dateRange, allYearsSelected, categoryFilter, clientFilter, moduleFilter, detailModuleFilter]);
+    const areFiltersActive = useMemo(() => (
+        dateRange !== undefined ||
+        !allYearsSelected ||
+        categoryFilter.length > 0 ||
+        clientFilter.length > 0 ||
+        moduleFilter.length > 0 ||
+        detailModuleFilter.length > 0
+    ), [dateRange, allYearsSelected, categoryFilter, clientFilter, moduleFilter, detailModuleFilter]);
 
-    const activeFilterCount = useMemo(() => {
-        return [
-            categoryFilter.length,
-            clientFilter.length,
-            moduleFilter.length,
-            detailModuleFilter.length,
-            dateRange ? 1 : 0,
-            !allYearsSelected ? 1 : 0,
-        ].reduce((a, b) => a + b, 0);
-    }, [categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, allYearsSelected]);
+    const activeFilterCount = useMemo(() => [
+        categoryFilter.length,
+        clientFilter.length,
+        moduleFilter.length,
+        detailModuleFilter.length,
+        dateRange ? 1 : 0,
+        !allYearsSelected ? 1 : 0,
+    ].reduce((a, b) => a + b, 0), [categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, allYearsSelected]);
 
     const handleClearAllFilters = () => {
         if (filterOptions?.years?.length) setSelectedYears(getDefault3RecentYears(filterOptions.years));
@@ -509,39 +505,65 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
         setDateRange(undefined);
     };
 
-    // ── Trend comparison label + tooltip ────────────────────────────────────────
-    const { label: trendComparisonLabel, tooltip: trendComparisonTooltip } = useMemo(() => {
-        return getTrendComparisonInfo(trendPeriod);
-    }, [trendPeriod]);
+    // ── Trend comparison label + tooltip ────────────────────────────────────
+    const { label: trendComparisonLabel, tooltip: trendComparisonTooltip } = useMemo(
+        () => getTrendComparisonInfo(trendPeriod),
+        [trendPeriod]
+    );
 
-    // ── Fetcher (includes trendPeriod so backend can return correct trends) ──
-    const fetcher = useCallback(async (filters: any) => {
+    // ── Fetcher ────────────────────────────────────────────────────────────────
+    const fetcher = useCallback(async (filters: {
+        selectedYears: string[];
+        categoryFilter: string[];
+        clientFilter: string[];
+        moduleFilter: string[];
+        detailModuleFilter: string[];
+        dateRange?: DateRange;
+        trendPeriod: TrendPeriod;
+    }) => {
         const params = new URLSearchParams();
-        if (filters.dateRange)         params.append('dateRange', JSON.stringify(filters.dateRange));
-        params.append('selectedYears',     (filters.selectedYears as string[]).join(','));
-        params.append('categoryFilter',    filters.categoryFilter.join(','));
-        params.append('clientFilter',      filters.clientFilter.join(','));
-        params.append('moduleFilter',      filters.moduleFilter.join(','));
+        if (filters.dateRange) params.append('dateRange', JSON.stringify(filters.dateRange));
+        params.append('selectedYears',      filters.selectedYears.join(','));
+        params.append('categoryFilter',     filters.categoryFilter.join(','));
+        params.append('clientFilter',       filters.clientFilter.join(','));
+        params.append('moduleFilter',       filters.moduleFilter.join(','));
         params.append('detailModuleFilter', filters.detailModuleFilter.join(','));
-        params.append('trendPeriod',       filters.trendPeriod);   // ← new param
+        params.append('trendPeriod',        filters.trendPeriod);
 
-        const url      = `/api/dashboard?${params.toString()}`;
-        const response = await fetch(url);
+        const response = await fetch(`/api/dashboard?${params.toString()}`, { cache: 'no-store' });
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Failed to fetch dashboard data: ${response.status} ${errorText}`);
         }
         const result = await response.json();
         if (!result.success) throw new Error(result.error || 'An unknown error occurred');
-        return result.data;
+        return result.data as DashboardStats;
     }, []);
 
+    // ── Current filter snapshot ───────────────────────────────────────────────
+    const currentFilters = useMemo(() => ({
+        selectedYears,
+        categoryFilter,
+        clientFilter,
+        moduleFilter,
+        detailModuleFilter,
+        dateRange,
+        trendPeriod,
+    }), [selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, trendPeriod]);
+
+    // ── Filter change effect ──────────────────────────────────────────────────
     useEffect(() => {
         if (!hasMounted) return;
+
+        if (isFirstMount.current) {
+            isFirstMount.current = false;
+            if (stats !== null) return;
+        }
+
         startApplyingFilters(async () => {
             setError(null);
             try {
-                const data = await fetcher({ selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, trendPeriod });
+                const data = await fetcher(currentFilters);
                 setStats(data);
                 hasLoadedOnce.current = true;
             } catch (err: any) {
@@ -550,23 +572,38 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 toast({ variant: "destructive", title: "Could not load dashboard data", description: err.message });
             }
         });
-    }, [selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, trendPeriod, fetcher, hasMounted]);
+    }, [
+        hasMounted,
+        selectedYears,
+        categoryFilter,
+        clientFilter,
+        moduleFilter,
+        detailModuleFilter,
+        dateRange,
+        trendPeriod,
+        fetcher,
+    ]);
 
-    const handleRefresh = useCallback(() => {
+    // ── handleRefresh ─────────────────────────────────────────────────────────
+    const handleRefresh = useCallback(async () => {
+        if (isRefreshing) return;
         setIsRefreshing(true);
-        toast({ title: "Refreshing...", description: "Syncing data and recalculating stats." });
-        refreshDashboardViews().then(async () => {
-            try {
-                const data = await fetcher({ selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, trendPeriod });
-                setStats(data);
-                toast({ title: "Refreshed!", description: "Dashboard data has been updated." });
-            } catch (err: any) {
-                setError(err.message);
-                setStats(null);
-                toast({ variant: "destructive", title: "Refresh failed", description: err.message });
-            } finally {
-                setIsRefreshing(false);
-            }
+        toast({ title: "Refreshing...", description: "Syncing data terbaru." });
+
+        try {
+            await fetch('/api/dashboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ force: false }),
+            });
+
+            await refreshDashboardViews();
+
+            const data = await fetcher(currentFilters);
+            setStats(data);
+            hasLoadedOnce.current = true;
+            toast({ title: "Refreshed!", description: "Dashboard data has been updated." });
+
             getDashboardFilterOptions().then((optionsResult) => {
                 if (optionsResult.error || !optionsResult.data) {
                     setFilterOptions({ categories: [], clients: [], modules: [], detailModules: [], years: [] });
@@ -574,8 +611,61 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     setFilterOptions(optionsResult.data);
                 }
             });
-        });
-    }, [selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, trendPeriod, fetcher]);
+        } catch (err: any) {
+            setError(err.message);
+            setStats(null);
+            toast({ variant: "destructive", title: "Refresh failed", description: err.message });
+        } finally {
+            setIsRefreshing(false);
+        }
+    }, [isRefreshing, currentFilters, fetcher, toast]);
+
+    // ── handleForceReload (Ctrl+Shift+R) ─────────────────────────────────────
+    const handleForceReload = useCallback(async () => {
+        if (isRefreshing) return;
+        setIsRefreshing(true);
+        toast({ title: "Force reload semua data...", description: "Cache semua tahun dihapus." });
+
+        try {
+            await fetch('/api/dashboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ force: true }),
+            });
+
+            await refreshDashboardViews();
+
+            const data = await fetcher(currentFilters);
+            setStats(data);
+            hasLoadedOnce.current = true;
+            toast({ title: "Selesai", description: "Semua data dimuat ulang dari database." });
+
+            getDashboardFilterOptions().then((optionsResult) => {
+                if (optionsResult.error || !optionsResult.data) {
+                    setFilterOptions({ categories: [], clients: [], modules: [], detailModules: [], years: [] });
+                } else {
+                    setFilterOptions(optionsResult.data);
+                }
+            });
+        } catch (err: any) {
+            setError(err.message);
+            setStats(null);
+            toast({ variant: "destructive", title: "Force reload gagal", description: err.message });
+        } finally {
+            setIsRefreshing(false);
+        }
+    }, [isRefreshing, currentFilters, fetcher, toast]);
+
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                e.preventDefault();
+                handleForceReload();
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [handleForceReload]);
 
     const showSkeleton = !hasMounted || (isApplyingFilters && !stats && !hasLoadedOnce.current);
 
@@ -661,7 +751,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                 isFullscreen ? "flex-1 max-w-none min-h-0" : "max-w-7xl"
             )}>
 
-                {/* ── Header Cards ────────────────────────────────────── */}
+                {/* ── Header Cards ──────────────────────────────────────────── */}
                 <style>{`@media (min-width: 1024px) { .header-cards-grid { grid-template-columns: repeat(4, 7fr) 12fr !important; } }`}</style>
                 <div className="header-cards-grid grid gap-3 md:grid-cols-2 md:gap-4 shrink-0">
 
@@ -716,17 +806,15 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                         </CardContent>
                     </Card>
 
-                    {/* ── Case Trend Card (with period dropdown) ── */}
+                    {/* ── Case Trend Card ── */}
                     <Card className="flex flex-col">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4 shrink-0">
-                            {/* Left: "Case Trend" + dropdown inline */}
                             <div className="flex items-center gap-1 min-w-0">
                                 <CardTitle className="text-xs font-medium text-muted-foreground flex-shrink-0">
                                     Case Trend
                                 </CardTitle>
                                 <TrendPeriodDropdown value={trendPeriod} onChange={setTrendPeriod} />
                             </div>
-                            {/* Right: comparison label with tooltip */}
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
@@ -753,20 +841,14 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                             const pct = derivePct(t);
                                             return (
                                                 <div key={i} className="flex items-center justify-between gap-2 min-w-0">
-                                                    {/* Icon + name */}
                                                     <div className="flex items-center gap-1.5 min-w-0">
-                                                        {t.direction === 'up' ? (
-                                                            <TrendingUp className="h-3 w-3 text-emerald-500 flex-shrink-0" />
-                                                        ) : (
-                                                            <TrendingDown className="h-3 w-3 text-red-500 flex-shrink-0" />
-                                                        )}
+                                                        {/* FIX 3: TrendIcon sekarang handle 'stable' dengan ikon Minus */}
+                                                        <TrendIcon direction={t.direction} />
                                                         <span className="text-xs text-foreground truncate">{t.name}</span>
                                                     </div>
-
-                                                    {/* Absolute + percentage */}
                                                     <div className={cn(
                                                         "flex items-center gap-1 flex-shrink-0 tabular-nums",
-                                                        t.direction === 'up' ? 'text-emerald-600' : 'text-red-500'
+                                                        trendColor(t.direction)
                                                     )}>
                                                         <span className="text-xs font-semibold">
                                                             {t.direction === 'up' ? '+' : ''}{t.change}
@@ -787,7 +869,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </Card>
                 </div>
 
-                {/* ── Chart Card ──────────────────────────────────────── */}
+                {/* ── Chart Card ────────────────────────────────────────────── */}
                 <Card className={cn("flex flex-col", isFullscreen ? "flex-1 min-h-0" : "")}>
                     <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 py-[0.45rem] px-4 shrink-0">
                         <div>
@@ -823,10 +905,25 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                                 </Button>
                             )}
 
-                            <Button onClick={handleRefresh} disabled={isRefreshing || isApplyingFilters} size="sm" variant="outline">
-                                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                                Refresh Data
-                            </Button>
+                            <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            onClick={handleRefresh}
+                                            disabled={isRefreshing || isApplyingFilters}
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                            Refresh Data
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+                                        Refresh data terbaru.<br />
+                                        Data tahun lama tidak di-reload (sudah di-cache).
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
 
                             <YearMultiSelect
                                 years={filterOptions?.years ?? []}
@@ -893,7 +990,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                     </CardContent>
                 </Card>
 
-                {/* ── Bottom Cards ─────────────────────────────────────── */}
+                {/* ── Bottom Cards ──────────────────────────────────────────── */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2 shrink-0">
 
                     {/* All Clients */}
@@ -946,37 +1043,45 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             </div>
                         </CardHeader>
                         <CardContent className="pb-4">
-                            <ScrollArea className="h-[140px] pr-4 transition-all duration-300">
-                                <div className="space-y-2">
-                                    {detailModuleRankings.map((item, index) => (
-                                        <TooltipProvider key={index} delayDuration={0}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-48 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
-                                                        <div className="flex-1 flex items-center gap-2 min-w-0">
-                                                            <div className="flex-1 bg-muted rounded-full h-5 relative overflow-hidden">
-                                                                <div
-                                                                    className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
-                                                                    style={{ width: `${(item.value / maxDetailModuleValue) * 100}%` }}
-                                                                />
-                                                            </div>
-                                                            <span className="text-xs font-semibold text-foreground w-14 flex-shrink-0">{item.value.toLocaleString()}</span>
-                                                        </div>
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent><p>{item.name}</p></TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    ))}
+                            {/* FIX 1: detailModuleRankings sekarang berisi data nyata karena
+                                detail_module_case sudah ikut di-SELECT dari DB */}
+                            {detailModuleRankings.length === 0 ? (
+                                <div className="flex items-center justify-center h-[140px] text-muted-foreground text-sm border-2 border-dashed rounded-lg">
+                                    No detail module data available.
                                 </div>
-                            </ScrollArea>
+                            ) : (
+                                <ScrollArea className="h-[140px] pr-4 transition-all duration-300">
+                                    <div className="space-y-2">
+                                        {detailModuleRankings.map((item, index) => (
+                                            <TooltipProvider key={index} delayDuration={0}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-48 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
+                                                            <div className="flex-1 flex items-center gap-2 min-w-0">
+                                                                <div className="flex-1 bg-muted rounded-full h-5 relative overflow-hidden">
+                                                                    <div
+                                                                        className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
+                                                                        style={{ width: `${(item.value / maxDetailModuleValue) * 100}%` }}
+                                                                    />
+                                                                </div>
+                                                                <span className="text-xs font-semibold text-foreground w-14 flex-shrink-0">{item.value.toLocaleString()}</span>
+                                                            </div>
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>{item.name}</p></TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        ))}
+                                    </div>
+                                </ScrollArea>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
             </div>
 
-            {/* ── Draggable Filter Panel ── */}
+            {/* ── Draggable Filter Panel ─────────────────────────────────────── */}
             <DraggableFilterPanel
                 open={filterPanelOpen}
                 onClose={() => setFilterPanelOpen(false)}
@@ -1060,7 +1165,7 @@ export function Dashboard({ initialStats, initialOptions, error: initialError }:
                             variant="outline"
                             size="sm"
                             className="w-full"
-                            onClick={() => { handleClearAllFilters(); }}
+                            onClick={handleClearAllFilters}
                         >
                             <FilterX className="mr-2 h-4 w-4" />
                             Clear All Filters

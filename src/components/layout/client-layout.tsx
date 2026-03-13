@@ -4,10 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Settings, LayoutDashboard, ListTree, BarChart, Database, GitBranch, Files, Combine, RefreshCw, HardHat, LogOut, User } from "lucide-react";
+import {
+    Menu, Settings, LayoutDashboard, ListTree, BarChart, Database,
+    GitBranch, Files, Combine, RefreshCw, HardHat, LogOut, User,
+    PanelLeftClose, PanelLeftOpen,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useContext, useEffect, useRef, useState } from "react";
-import { SettingsContext } from "@/contexts/settings-provider";
+import { useContext, useEffect, useRef, useState, useCallback } from "react";
 import { TableDataContext } from "@/store/table-data-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import React from "react";
@@ -16,22 +19,21 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import type { LucideProps } from "lucide-react";
 import {
-  type MenuVisibility,
-  DEFAULT_MENU_VISIBILITY,
-  MENU_VISIBILITY_KEY,
-} from "@/app/settings/page"; // adjust import path to where you export these
+    type MenuVisibility,
+    DEFAULT_MENU_VISIBILITY,
+    MENU_VISIBILITY_KEY,
+} from "@/app/settings/page";
+import { createPortal } from "react-dom";
 
-// ── Type definition for nav items ─────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────────
 type NavItem = {
     href: string;
     label: string;
     icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
     disabled?: boolean;
-    /** Key from MenuVisibility that controls this item's visibility */
     visibilityKey?: keyof MenuVisibility;
 };
 
-// Dashboard (/dashboard) and Data All Case (/db) have no visibilityKey → always shown
 const navItems: Record<string, NavItem[]> = {
     overview: [
         { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -46,23 +48,71 @@ const navItems: Record<string, NavItem[]> = {
         { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch, visibilityKey: "showMigrasiMurid" },
         { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files, visibilityKey: "showSecondaryTools" },
         { href: "/data-weaver", label: "Edit NIS", icon: Combine, visibilityKey: "showSecondaryTools" },
-    ]
+    ],
 };
 
 type NavCategory = keyof typeof navItems;
+const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
-// ── Hook: reads and subscribes to menuVisibility from localStorage ─────────────
+// ── SidebarTooltip — portals to body, uses fixed positioning ──────────────────
+// This bypasses ALL overflow:hidden constraints anywhere in the DOM.
+function SidebarTooltip({ label, children }: { label: string; children: React.ReactNode }) {
+    const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+    const triggerRef = useRef<HTMLDivElement>(null);
+
+    const show = useCallback(() => {
+        if (!triggerRef.current) return;
+        const rect = triggerRef.current.getBoundingClientRect();
+        setPos({
+            top: rect.top + rect.height / 2,
+            // Use sidebar right edge (60px from sidebar left) + small gap
+            // rect.left is the left edge of the 60px sidebar
+            left: rect.left + 60 + 6,
+        });
+    }, []);
+
+    const hide = useCallback(() => setPos(null), []);
+
+    return (
+        <>
+            <div ref={triggerRef} onMouseEnter={show} onMouseLeave={hide} style={{ width: "100%" }}>
+                {children}
+            </div>
+            {pos && createPortal(
+                <div style={{
+                    position: "fixed",
+                    top: pos.top,
+                    left: pos.left,
+                    transform: "translateY(-50%)",
+                    zIndex: 9999,
+                    pointerEvents: "none",
+                    backgroundColor: "#18181b",
+                    color: "#fafafa",
+                    border: "1px solid #3f3f46",
+                    borderRadius: "6px",
+                    padding: "5px 10px",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    whiteSpace: "nowrap",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+                    lineHeight: "1.4",
+                }}>
+                    {label}
+                </div>,
+                document.body
+            )}
+        </>
+    );
+}
+
+// ── Hooks ──────────────────────────────────────────────────────────────────────
 function useMenuVisibility(): MenuVisibility {
     const [visibility, setVisibility] = useState<MenuVisibility>(DEFAULT_MENU_VISIBILITY);
-
     useEffect(() => {
-        // Load on mount
         try {
             const saved = localStorage.getItem(MENU_VISIBILITY_KEY);
             if (saved) setVisibility({ ...DEFAULT_MENU_VISIBILITY, ...JSON.parse(saved) });
         } catch (_) {}
-
-        // Subscribe to changes made in SettingsPage (same tab)
         const handler = (e: Event) => {
             const custom = e as CustomEvent<MenuVisibility>;
             if (custom.detail) setVisibility(custom.detail);
@@ -70,18 +120,34 @@ function useMenuVisibility(): MenuVisibility {
         window.addEventListener("menuVisibilityChange", handler);
         return () => window.removeEventListener("menuVisibilityChange", handler);
     }, []);
-
     return visibility;
 }
 
-function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
+function useSidebarCollapsed() {
+    const [collapsed, setCollapsed] = useState(false);
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+            if (saved !== null) setCollapsed(JSON.parse(saved));
+        } catch (_) {}
+    }, []);
+    const toggle = () => {
+        setCollapsed(prev => {
+            const next = !prev;
+            try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, JSON.stringify(next)); } catch (_) {}
+            return next;
+        });
+    };
+    return { collapsed, toggle };
+}
+
+// ── NavLinks ───────────────────────────────────────────────────────────────────
+function NavLinks({ isMobile = false, collapsed = false }: { isMobile?: boolean; collapsed?: boolean }) {
     const pathname = usePathname();
     const menuVisibility = useMenuVisibility();
 
-    const isVisible = (item: NavItem): boolean => {
-        if (!item.visibilityKey) return true; // always-on items (Dashboard, Data All Case)
-        return menuVisibility[item.visibilityKey] === true;
-    };
+    const isVisible = (item: NavItem) =>
+        !item.visibilityKey || menuVisibility[item.visibilityKey] === true;
 
     return (
         <nav className="grid items-start gap-0">
@@ -91,34 +157,82 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
 
                 return (
                     <div key={category} className="py-3">
-                        <h2 className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            {category}
-                        </h2>
+                        {/* Category heading */}
+                        <div className={cn(
+                            "transition-all duration-300 overflow-hidden",
+                            collapsed ? "h-0 opacity-0" : "h-6 opacity-100 mb-1"
+                        )}>
+                            <h2 className="px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                {category}
+                            </h2>
+                        </div>
+
                         {visibleItems.map((item) => {
                             const isActive = pathname === item.href;
-                            const linkEl = (
+
+                            // Mobile
+                            if (isMobile) {
+                                return (
+                                    <SheetClose key={item.label} asChild>
+                                        <Link
+                                            href={item.href}
+                                            className={cn(
+                                                "flex items-center gap-3 px-4 py-2 text-sm font-medium transition-all duration-200 border-r-[3px]",
+                                                isActive
+                                                    ? "border-primary bg-primary/10 text-primary font-semibold"
+                                                    : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                                                item.disabled && "pointer-events-none opacity-50"
+                                            )}
+                                        >
+                                            <item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                                            {item.label}
+                                        </Link>
+                                    </SheetClose>
+                                );
+                            }
+
+                            // Desktop collapsed: icon only, perfectly centered
+                            if (collapsed) {
+                                return (
+                                    <SidebarTooltip key={item.label} label={item.label}>
+                                        <Link
+                                            href={item.href}
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                width: 60,
+                                                height: 36,
+                                                borderRight: isActive ? "3px solid var(--primary)" : "3px solid transparent",
+                                                background: isActive ? "var(--primary-10, rgba(99,102,241,0.1))" : "transparent",
+                                                color: isActive ? "var(--primary)" : "inherit",
+                                                pointerEvents: item.disabled ? "none" : "auto",
+                                                opacity: item.disabled ? 0.5 : 1,
+                                            }}
+                                        >
+                                            <item.icon style={{ width: 16, height: 16, flexShrink: 0 }} strokeWidth={1.5} />
+                                        </Link>
+                                    </SidebarTooltip>
+                                );
+                            }
+
+                            // Desktop expanded: icon + label
+                            return (
                                 <Link
                                     key={item.label}
                                     href={item.href}
                                     className={cn(
-                                        "flex items-center gap-3 px-4 py-2 text-sm font-medium transition-all duration-200",
-                                        "border-r-[3px]",
+                                        "flex items-center gap-3 px-4 py-2 text-sm font-medium transition-all duration-200 border-r-[3px]",
                                         isActive
                                             ? "border-primary bg-primary/10 text-primary font-semibold"
                                             : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                                         item.disabled && "pointer-events-none opacity-50"
                                     )}
                                 >
-                                    <item.icon className="h-4 w-4" strokeWidth={1.5} />
-                                    {item.label}
+                                    <item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                                    <span className="whitespace-nowrap">{item.label}</span>
                                 </Link>
                             );
-
-                            return isMobile ? (
-                                <SheetClose key={item.label} asChild>
-                                    {linkEl}
-                                </SheetClose>
-                            ) : linkEl;
                         })}
                     </div>
                 );
@@ -127,6 +241,7 @@ function NavLinks({ isMobile = false }: { isMobile?: boolean }) {
     );
 }
 
+// ── ProcessingIndicator ────────────────────────────────────────────────────────
 function ProcessingIndicator() {
     const { isProcessing } = useContext(TableDataContext);
     if (!isProcessing) return null;
@@ -138,19 +253,18 @@ function ProcessingIndicator() {
     );
 }
 
+// ── UserMenu ───────────────────────────────────────────────────────────────────
 function UserMenu() {
     const { user, logout } = useAuth();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        function handleClickOutside(e: MouseEvent) {
-            if (ref.current && !ref.current.contains(e.target as Node)) {
-                setOpen(false);
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        const handleClickOutside = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
     return (
@@ -161,12 +275,11 @@ function UserMenu() {
             >
                 <User className="h-4 w-4 text-primary" strokeWidth={1.5} />
             </button>
-
             {open && (
                 <div className="absolute right-0 top-full mt-2 w-44 rounded-lg border bg-card shadow-lg z-50 overflow-hidden">
                     <div className="px-3 py-2.5 border-b">
-                        <p className="text-xs font-semibold text-foreground truncate">{user?.username ?? '—'}</p>
-                        <p className="text-[10px] text-muted-foreground capitalize truncate">{user?.role ?? 'user'}</p>
+                        <p className="text-xs font-semibold text-foreground truncate">{user?.username ?? "—"}</p>
+                        <p className="text-[10px] text-muted-foreground capitalize truncate">{user?.role ?? "user"}</p>
                     </div>
                     <Link
                         href="/settings"
@@ -189,10 +302,12 @@ function UserMenu() {
     );
 }
 
+// ── ClientLayout ───────────────────────────────────────────────────────────────
 export function ClientLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const isMobile = useIsMobile();
     const { setIsProcessing } = useContext(TableDataContext);
+    const { collapsed, toggle } = useSidebarCollapsed();
 
     const pageTitles: Record<string, string> = {
         "/": "Import Data",
@@ -206,61 +321,123 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         "/settings": "Settings",
     };
 
-    const currentPageTitle = pageTitles[pathname] || "Gsheet Case";
-
     useEffect(() => {
         setIsProcessing(false);
     }, [pathname, setIsProcessing]);
 
-    if (pathname === '/login') {
-        return <>{children}</>;
-    }
-
-    if (pathname === '/migrasi-murid') {
-        return (
-            <div className="h-full flex flex-col bg-background">
-                {children}
-            </div>
-        );
+    if (pathname === "/login") return <>{children}</>;
+    if (pathname === "/migrasi-murid") {
+        return <div className="h-full flex flex-col bg-background">{children}</div>;
     }
 
     return (
         <div className={cn(
             "grid w-full",
-            isMobile ? "grid-rows-[auto_1fr]" : "md:grid-cols-[220px_1fr]",
+            isMobile ? "grid-rows-[auto_1fr]" : "grid-cols-[auto_1fr]",
         )}>
+            {/* ── Desktop Sidebar ── */}
             {!isMobile && (
-                <div className="hidden border-r bg-card md:flex flex-col h-screen sticky top-0">
-                    <div className="flex h-14 items-center px-4 border-b flex-shrink-0">
-                        <Link href="/" className="flex items-center gap-2 font-bold text-primary text-base">
-                            <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-primary-foreground text-sm">
-                                📊
+                <div className={cn(
+                    "hidden md:flex flex-col h-screen sticky top-0 border-r bg-card",
+                    "transition-all duration-300 ease-in-out",
+                    collapsed ? "w-[60px] overflow-visible" : "w-[220px] overflow-hidden",
+                )}>
+                    {/* ── Logo row ── */}
+                    <div style={{ height: 56, flexShrink: 0, borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", overflow: "visible" }}>
+                        {collapsed ? (
+                            /* Collapsed: logo centered, expand button floats ON the right border */
+                            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", overflow: "visible" }}>
+                                <Link href="/" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                    <div style={{ width: 26, height: 26, background: "var(--primary)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>
+                                        📊
+                                    </div>
+                                </Link>
+                                {/* Expand tab — sits exactly on the right border */}
+                                <button
+                                    onClick={toggle}
+                                    aria-label="Expand sidebar"
+                                    style={{
+                                        position: "absolute",
+                                        right: -12,
+                                        top: "50%",
+                                        transform: "translateY(-50%)",
+                                        width: 20,
+                                        height: 20,
+                                        borderRadius: "50%",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        background: "var(--card, #fff)",
+                                        border: "1px solid var(--border)",
+                                        cursor: "pointer",
+                                        zIndex: 10,
+                                        boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
+                                    }}
+                                    className="text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                >
+                                    <PanelLeftOpen style={{ width: 11, height: 11 }} strokeWidth={2} />
+                                </button>
                             </div>
-                            <span>Gsheet Case</span>
-                        </Link>
+                        ) : (
+                            /* Expanded: logo + collapse button */
+                            <div style={{ display: "flex", alignItems: "center", width: "100%", padding: "0 12px", gap: 8 }}>
+                                <Link href="/" className="flex items-center gap-2 font-bold text-primary text-base flex-1 min-w-0">
+                                    <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-primary-foreground text-sm shrink-0">
+                                        📊
+                                    </div>
+                                    <span className="truncate">Gsheet Case</span>
+                                </Link>
+                                <button
+                                    onClick={toggle}
+                                    className="shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                    aria-label="Collapse sidebar"
+                                >
+                                    <PanelLeftClose className="h-4 w-4" strokeWidth={1.5} />
+                                </button>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="flex-1 overflow-y-auto">
-                        <NavLinks />
+                    {/* ── Nav scroll area ── */}
+                    <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                        <NavLinks collapsed={collapsed} />
                     </div>
 
-                    <div className="mt-auto flex-shrink-0 border-t p-4">
-                        <Link
-                            href="/settings"
-                            className={cn(
-                                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200",
-                                pathname === "/settings"
-                                    ? "bg-muted text-foreground"
-                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                            )}
-                        >
-                            <Settings className="h-4 w-4" strokeWidth={1.5} />
-                            Settings
-                        </Link>
+                    {/* ── Settings footer ── */}
+                    <div className="flex-shrink-0 border-t p-3">
+                        {collapsed ? (
+                            <SidebarTooltip label="Settings">
+                                <Link
+                                    href="/settings"
+                                    className={cn(
+                                        "flex items-center justify-center w-full py-2 rounded-md transition-colors",
+                                        pathname === "/settings"
+                                            ? "bg-muted text-foreground"
+                                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                    )}
+                                >
+                                    <Settings className="h-4 w-4" strokeWidth={1.5} />
+                                </Link>
+                            </SidebarTooltip>
+                        ) : (
+                            <Link
+                                href="/settings"
+                                className={cn(
+                                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                                    pathname === "/settings"
+                                        ? "bg-muted text-foreground"
+                                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                )}
+                            >
+                                <Settings className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                                <span>Settings</span>
+                            </Link>
+                        )}
                     </div>
                 </div>
             )}
 
+            {/* ── Main content ── */}
             <div className="flex flex-col h-screen overflow-hidden">
                 <header className="flex h-14 items-center gap-3 border-b bg-background px-4 lg:px-6 flex-shrink-0 z-40">
                     {isMobile && (
@@ -290,7 +467,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                         <Link
                                             href="/settings"
                                             className={cn(
-                                                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200",
+                                                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                                                 pathname === "/settings"
                                                     ? "bg-muted text-foreground"
                                                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
@@ -305,14 +482,17 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         </Sheet>
                     )}
 
-                    <div className="w-full flex-1">
-                        <h1 className="text-xl font-bold tracking-tight text-foreground">{currentPageTitle}</h1>
+                    <div className="flex-1">
+                        <h1 className="text-xl font-bold tracking-tight text-foreground">
+                            {pageTitles[pathname] || "Gsheet Case"}
+                        </h1>
                     </div>
 
                     <ProcessingIndicator />
                     <ThemeSwitch />
                     <UserMenu />
                 </header>
+
                 <main className="flex-1 flex flex-col bg-muted/20 overflow-hidden">
                     <div className="h-full w-full overflow-y-auto flex flex-col">
                         {children}

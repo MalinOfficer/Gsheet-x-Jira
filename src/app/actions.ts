@@ -8,6 +8,7 @@ import {
   type YourDBRow,
   normalizeClientName,
 } from "@/lib/db-mapper";
+import { getISOWeek, getYear, getQuarter } from 'date-fns';
 
 // ============================================
 // HELPERS
@@ -279,6 +280,8 @@ export async function getDashboardFilterOptions() {
 // GET DASHBOARD STATS
 // ============================================
 
+type TrendPeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly';
+
 type DashboardFilters = {
   selectedYears: string[];
   categoryFilter: string[];
@@ -344,42 +347,74 @@ function _emptyStats() {
   };
 }
 
-function _computeModuleTrends(data: any[]) {
-  const now = new Date();
-  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+// ─────────────────────────────────────────────────────────────────────────────
+// _getPeriodKey — maps a date to a bucketed period key
+// ─────────────────────────────────────────────────────────────────────────────
+function _getPeriodKey(d: Date, period: TrendPeriod): string {
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth() + 1).padStart(2, '0');
+  const dd   = String(d.getDate()).padStart(2, '0');
+  switch (period) {
+    case 'daily':     return `${yyyy}-${mm}-${dd}`;
+    case 'weekly': {
+      const week    = String(getISOWeek(d)).padStart(2, '0');
+      const isoYear = getYear(d);
+      return `${isoYear}-W${week}`;
+    }
+    case 'monthly':   return `${yyyy}-${mm}`;
+    case 'quarterly': return `${yyyy}-Q${getQuarter(d)}`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _computeModuleTrends
+//
+// FIX A: Tidak lagi hardcoded 'monthly' — supports semua TrendPeriod.
+// FIX B: Hapus .filter(t => t.direction !== 'stable') yang terlalu agresif.
+//         Sekarang hanya drop entri yang benar-benar nol di KEDUA periode.
+// ─────────────────────────────────────────────────────────────────────────────
+function _computeModuleTrends(data: any[], period: TrendPeriod = 'monthly') {
+  const incompletePeriod = _getPeriodKey(new Date(), period);
   const periodCounts: Record<string, Record<string, number>> = {};
 
   data.forEach(r => {
     if (!r.date || !r.module_case) return;
     const d = new Date(r.date + 'T00:00:00');
     if (isNaN(d.getTime())) return;
-    const periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    if (periodKey === currentMonthKey) return;
-    if (!periodCounts[periodKey]) periodCounts[periodKey] = {};
-    periodCounts[periodKey][r.module_case] = (periodCounts[periodKey][r.module_case] || 0) + 1;
+    const key = _getPeriodKey(d, period);
+    if (key === incompletePeriod) return; // skip periode belum selesai
+    if (!periodCounts[key]) periodCounts[key] = {};
+    periodCounts[key][r.module_case] = (periodCounts[key][r.module_case] || 0) + 1;
   });
 
   const periods = Object.keys(periodCounts).sort();
-  if (periods.length < 2) return [];
+  if (periods.length < 2) {
+    console.log(`⚠️  [actions/Trend] Hanya ${periods.length} periode lengkap — butuh ≥ 2`);
+    return [];
+  }
 
   const currentMap  = periodCounts[periods[periods.length - 1]] ?? {};
   const previousMap = periodCounts[periods[periods.length - 2]] ?? {};
   const allModules  = new Set([...Object.keys(currentMap), ...Object.keys(previousMap)]);
+
+  console.log(`📊 [actions/Trend] "${periods[periods.length - 2]}" vs "${periods[periods.length - 1]}" | ${allModules.size} modules`);
 
   return Array.from(allModules)
     .map(name => {
       const current   = currentMap[name]  ?? 0;
       const previous  = previousMap[name] ?? 0;
       const change    = current - previous;
+      const change_pct = previous === 0 ? null : Math.round((change / previous) * 100);
       const direction: 'up' | 'down' | 'stable' = change > 0 ? 'up' : change < 0 ? 'down' : 'stable';
-      return { name, current, previous, change, direction };
+      return { name, current, previous, change, change_pct, direction };
     })
-    .filter(t => t.direction !== 'stable')
+    // FIX B: hanya drop entri yang benar-benar tidak ada data di kedua periode
+    .filter(t => !(t.current === 0 && t.previous === 0))
     .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
     .slice(0, 8);
 }
 
-function _computeStats(data: any[]) {
+function _computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
   const totalCases    = data.length;
   const totalSolved   = data.filter(r => r.status_case_solved === 'SOLVED').length;
   const solvedPct     = totalCases > 0 ? (totalSolved / totalCases) * 100 : 0;
@@ -430,7 +465,7 @@ function _computeStats(data: any[]) {
     client_rankings:        clientRankings,
     module_rankings:        moduleRankings,
     detail_module_rankings: detailModuleRankings,
-    module_trends:          _computeModuleTrends(data),
+    module_trends:          _computeModuleTrends(data, trendPeriod),
   };
 }
 
@@ -484,6 +519,149 @@ async function _fetchAllRowsDirect(filters: {
   return allData;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// _fetchDetailModuleRowsDirect
+//
+// FIX C — ROOT CAUSE "Detail Module: 0 cases" di SSR path:
+// getDashboardStats (RPC mode) dulu mengandalkan out_detail_module_rankings
+// dari stored procedure → sering null → [] → "0 cases".
+//
+// Fix: query direct terpisah, dijalankan PARALLEL dengan RPC via Promise.all.
+// ─────────────────────────────────────────────────────────────────────────────
+async function _fetchDetailModuleRowsDirect(filters: {
+  dateRange?: any;
+  years: string[];
+  categories: string[];
+  clients: string[];
+  modules: string[];
+  detailModules: string[];
+}): Promise<{ name: string; value: number }[]> {
+  const BATCH = 1000;
+  const countMap: Record<string, number> = {};
+  let from = 0;
+
+  while (true) {
+    let q = supabaseAdmin
+      .from('all_cases')
+      .select('detail_module')
+      .is('deleted_at', null)
+      .not('detail_module', 'is', null)
+      .range(from, from + BATCH - 1);
+
+    if (filters.dateRange?.from) {
+      const fromDate = _formatDateDashboard(filters.dateRange.from);
+      const toDate   = filters.dateRange.to ? _formatDateDashboard(filters.dateRange.to) : fromDate;
+      q = q.gte('date', fromDate!).lte('date', toDate!);
+    } else if (filters.years.length === 1) {
+      const y = parseInt(filters.years[0], 10);
+      if (!isNaN(y)) q = q.gte('date', `${y}-01-01`).lte('date', `${y}-12-31`);
+    } else if (filters.years.length > 1) {
+      const orParts = filters.years
+        .map(y => { const n = parseInt(y, 10); return isNaN(n) ? null : `and(date.gte.${n}-01-01,date.lte.${n}-12-31)`; })
+        .filter(Boolean).join(',');
+      if (orParts) q = (q as any).or(orParts);
+    }
+
+    if (filters.categories.length    > 0) q = q.in('category_case', filters.categories);
+    if (filters.clients.length       > 0) q = q.in('client_name',   filters.clients);
+    if (filters.modules.length       > 0) q = q.in('module_case',   filters.modules);
+    if (filters.detailModules.length > 0) q = q.in('detail_module', filters.detailModules);
+
+    const { data: batch, error } = await q;
+    if (error) { console.warn('⚠️  [actions/DetailModule] query error:', error.message); break; }
+    if (!batch || batch.length === 0) break;
+
+    batch.forEach((r: any) => {
+      if (r.detail_module) countMap[r.detail_module] = (countMap[r.detail_module] || 0) + 1;
+    });
+
+    if (batch.length < BATCH) break;
+    from += BATCH;
+  }
+
+  const result = Object.entries(countMap)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  console.log(`🔍 [actions/DetailModule] ${result.length} unique, ${result.reduce((s, r) => s + r.value, 0)} total`);
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _fetchTrendRowsDirect
+//
+// FIX D — Fetch rows untuk trend computation dengan lookback 3 periode
+// agar selalu tersedia ≥ 2 periode lengkap setelah current period di-exclude.
+// ─────────────────────────────────────────────────────────────────────────────
+async function _fetchTrendRowsDirect(filters: {
+  dateRange?: any;
+  years: string[];
+  categories: string[];
+  clients: string[];
+  modules: string[];
+  detailModules: string[];
+  trendPeriod: TrendPeriod;
+}) {
+  const now = new Date();
+  let lookbackStart: Date;
+
+  switch (filters.trendPeriod) {
+    case 'daily':
+      lookbackStart = new Date(now);
+      lookbackStart.setDate(now.getDate() - 3);
+      break;
+    case 'weekly':
+      lookbackStart = new Date(now);
+      lookbackStart.setDate(now.getDate() - 21);
+      break;
+    case 'monthly':
+      // 3 bulan → exclude bulan ini → sisa 2 bulan lengkap (FIX D)
+      lookbackStart = new Date(now);
+      lookbackStart.setMonth(now.getMonth() - 3);
+      lookbackStart.setDate(1);
+      break;
+    case 'quarterly':
+      // 3 quarter → exclude quarter ini → sisa 2 quarter lengkap (FIX D)
+      lookbackStart = new Date(now);
+      lookbackStart.setMonth(now.getMonth() - 9);
+      lookbackStart.setDate(1);
+      break;
+  }
+
+  const fromDate = _formatDateDashboard(lookbackStart);
+  const toDate   = _formatDateDashboard(now);
+
+  const BATCH = 1000;
+  let allData: any[] = [];
+  let from = 0;
+
+  while (true) {
+    let q = supabaseAdmin
+      .from('all_cases')
+      .select('date, module_case')
+      .is('deleted_at', null)
+      .gte('date', fromDate!)
+      .lte('date', toDate!)
+      .range(from, from + BATCH - 1);
+
+    if (filters.categories.length    > 0) q = q.in('category_case', filters.categories);
+    if (filters.clients.length       > 0) q = q.in('client_name',   filters.clients);
+    if (filters.modules.length       > 0) q = q.in('module_case',   filters.modules);
+    if (filters.detailModules.length > 0) q = q.in('detail_module', filters.detailModules);
+
+    const { data: batch, error } = await q;
+    if (error) throw new Error(error.message);
+    if (!batch || batch.length === 0) break;
+
+    allData = allData.concat(batch);
+    if (batch.length < BATCH) break;
+    from += BATCH;
+  }
+
+  console.log(`📊 [actions/Trend] ${allData.length} rows (${fromDate} → ${toDate}, period=${filters.trendPeriod})`);
+  return allData;
+}
+
 export async function getDashboardStats(filters: DashboardFilters): Promise<{
   success: boolean;
   data?: ReturnType<typeof _emptyStats>;
@@ -492,6 +670,19 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
   try {
     const { selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange } = filters;
 
+    // actions.ts selalu dipanggil SSR tanpa trendPeriod dari client.
+    // Default ke 'monthly' — konsisten dengan default di dashboard.tsx.
+    const trendPeriod: TrendPeriod = 'monthly';
+
+    const sharedFilters = {
+      dateRange,
+      years:         selectedYears,
+      categories:    categoryFilter,
+      clients:       clientFilter,
+      modules:       moduleFilter,
+      detailModules: detailModuleFilter,
+    };
+
     const isMultiFilter =
       categoryFilter.length     > 1 ||
       clientFilter.length       > 1 ||
@@ -499,12 +690,13 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
       detailModuleFilter.length > 1 ||
       selectedYears.length      > 1;
 
+    // ── MODE 1: RPC (single filter / tanpa filter) ────────────────────────────
     if (!isMultiFilter) {
       const singleYear = selectedYears[0];
       const yearParsed = singleYear ? parseInt(singleYear, 10) : NaN;
       const yearValue  = isNaN(yearParsed) ? null : yearParsed;
 
-      const params: Record<string, any> = {
+      const rpcParams: Record<string, any> = {
         p_start_date:    _formatDateDashboard(dateRange?.from),
         p_end_date:      _formatDateDashboard(dateRange?.to),
         p_category:      categoryFilter[0]    ?? null,
@@ -514,7 +706,19 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
         p_detail_module: detailModuleFilter[0] ?? null,
       };
 
-      const { data, error } = await supabaseAdmin.rpc('fn_dashboard_filtered', params);
+      console.log('🚀 [actions] RPC fn_dashboard_filtered:', rpcParams);
+
+      // FIX C + D: Jalankan RPC + detail module query + trend query PARALLEL.
+      // Dulu: detail_module_rankings dari RPC (sering null → []).
+      //       module_trends selalu [] (hardcoded, tidak pernah dihitung).
+      // Sekarang: keduanya di-fetch dengan direct query independen dari RPC.
+      const [rpcResult, detailModuleRankings, trendRows] = await Promise.all([
+        supabaseAdmin.rpc('fn_dashboard_filtered', rpcParams),
+        _fetchDetailModuleRowsDirect(sharedFilters),   // ← FIX C
+        _fetchTrendRowsDirect({ ...sharedFilters, trendPeriod }),  // ← FIX D
+      ]);
+
+      const { data, error } = rpcResult;
 
       if (error) throw error;
 
@@ -523,8 +727,11 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
       }
 
       const result = data[0];
-      const moduleRankings       = _parseJSONB(result.out_module_rankings).map((i: any) => ({ name: i.module, value: i.cases }));
-      const detailModuleRankings = _parseJSONB(result.out_detail_module_rankings ?? null).map((i: any) => ({ name: i.detail_module ?? i.module, value: i.cases }));
+      const moduleRankings = _parseJSONB(result.out_module_rankings)
+        .map((i: any) => ({ name: i.module, value: i.cases }));
+
+      // FIX A+B: hitung trends dari trendRows dengan _computeModuleTrends
+      const moduleTrends = _computeModuleTrends(trendRows, trendPeriod);
 
       return {
         success: true,
@@ -542,24 +749,18 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
           monthly_stats:          _pivotAndOrderMonthlyStats(_parseJSONB(result.out_monthly_stats)),
           client_rankings:        _parseJSONB(result.out_client_rankings).map((i: any) => ({ name: i.client, value: i.cases })),
           module_rankings:        moduleRankings,
-          detail_module_rankings: detailModuleRankings,
-          module_trends:          [],
+          detail_module_rankings: detailModuleRankings,  // ← FIX C: dari direct query
+          module_trends:          moduleTrends,           // ← FIX A+B+D: tidak lagi []
         },
       };
     }
 
-    const allData = await _fetchAllRowsDirect({
-      dateRange,
-      years:         selectedYears,
-      categories:    categoryFilter,
-      clients:       clientFilter,
-      modules:       moduleFilter,
-      detailModules: detailModuleFilter,
-    });
+    // ── MODE 2: Direct query + pagination ─────────────────────────────────────
+    const allData = await _fetchAllRowsDirect(sharedFilters);
 
     if (allData.length === 0) return { success: true, data: _emptyStats() };
 
-    return { success: true, data: _computeStats(allData) };
+    return { success: true, data: _computeStats(allData, trendPeriod) };
 
   } catch (error: any) {
     console.error('❌ [getDashboardStats] Error:', error);
@@ -786,7 +987,7 @@ export async function addMasterDetailModule(name: string): Promise<{ success: bo
   }
 }
 
-export async function deleteMasterDetailModule(id: number): Promise<{ success: boolean; error?: string }> {
+export async function deleteMasterDetailModule(id: number): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
     const { error } = await supabaseAdmin.from('master_detail_module').update({ deleted_at: new Date().toISOString() }).eq('id_module', id);
     if (error) throw error;
@@ -879,10 +1080,6 @@ export async function getSpreadsheetTitle(url: string) {
 
 // ============================================
 // SYNC GSHEET → DB
-// ✅ FIX 1: Cek existing TANPA filter deleted_at
-//           agar tiket soft-deleted tidak lolos pengecekan
-// ✅ FIX 2: Pakai upsert + ignoreDuplicates
-//           sebagai safety net — tidak akan pernah duplicate
 // ============================================
 
 const _SYNC_COLUMN_MAP: Record<string, string> = {
@@ -1044,13 +1241,10 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
 
     if (!toProcess.length) return { success: true, inserted: 0, skipped: 0 };
 
-    // ── FIX 1: Cek existing TANPA filter deleted_at ───────────────────────────
-    // Agar tiket yang pernah soft-deleted tidak lolos dan dicoba insert ulang
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('all_cases')
       .select('ticket_number, status_case, check_in, check_out')
       .in('ticket_number', toProcess.map(r => r.ticket));
-    // ─────────────────────────────────────────────────────────────────────────
 
     if (fetchErr) return { success: false, error: `DB error: ${fetchErr.message}` };
 
@@ -1067,20 +1261,18 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
         || (!db.check_out && !!r.record.check_out);
     });
 
-    // ── FIX 2: upsert + ignoreDuplicates — tidak akan pernah error duplicate ──
     let insertedCount = 0;
     const BATCH = 500;
     for (let i = 0; i < toInsert.length; i += BATCH) {
       const { error: insErr } = await supabaseAdmin
         .from('all_cases')
         .upsert(toInsert.slice(i, i + BATCH), {
-          onConflict:       'ticket_number', // unique constraint di DB
-          ignoreDuplicates: true,            // skip tanpa error jika sudah ada
+          onConflict:       'ticket_number',
+          ignoreDuplicates: true,
         });
       if (insErr) return { success: false, inserted: insertedCount, error: `Insert error: ${insErr.message}` };
       insertedCount += Math.min(BATCH, toInsert.length - i);
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
     let updatedCount = 0;
     for (const item of toUpdate) {
