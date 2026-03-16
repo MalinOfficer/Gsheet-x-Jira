@@ -347,9 +347,6 @@ function _emptyStats() {
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _getPeriodKey — maps a date to a bucketed period key
-// ─────────────────────────────────────────────────────────────────────────────
 function _getPeriodKey(d: Date, period: TrendPeriod): string {
   const yyyy = d.getFullYear();
   const mm   = String(d.getMonth() + 1).padStart(2, '0');
@@ -366,13 +363,6 @@ function _getPeriodKey(d: Date, period: TrendPeriod): string {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _computeModuleTrends
-//
-// FIX A: Tidak lagi hardcoded 'monthly' — supports semua TrendPeriod.
-// FIX B: Hapus .filter(t => t.direction !== 'stable') yang terlalu agresif.
-//         Sekarang hanya drop entri yang benar-benar nol di KEDUA periode.
-// ─────────────────────────────────────────────────────────────────────────────
 function _computeModuleTrends(data: any[], period: TrendPeriod = 'monthly') {
   const incompletePeriod = _getPeriodKey(new Date(), period);
   const periodCounts: Record<string, Record<string, number>> = {};
@@ -382,7 +372,7 @@ function _computeModuleTrends(data: any[], period: TrendPeriod = 'monthly') {
     const d = new Date(r.date + 'T00:00:00');
     if (isNaN(d.getTime())) return;
     const key = _getPeriodKey(d, period);
-    if (key === incompletePeriod) return; // skip periode belum selesai
+    if (key === incompletePeriod) return;
     if (!periodCounts[key]) periodCounts[key] = {};
     periodCounts[key][r.module_case] = (periodCounts[key][r.module_case] || 0) + 1;
   });
@@ -408,7 +398,6 @@ function _computeModuleTrends(data: any[], period: TrendPeriod = 'monthly') {
       const direction: 'up' | 'down' | 'stable' = change > 0 ? 'up' : change < 0 ? 'down' : 'stable';
       return { name, current, previous, change, change_pct, direction };
     })
-    // FIX B: hanya drop entri yang benar-benar tidak ada data di kedua periode
     .filter(t => !(t.current === 0 && t.previous === 0))
     .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
     .slice(0, 8);
@@ -519,15 +508,6 @@ async function _fetchAllRowsDirect(filters: {
   return allData;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _fetchDetailModuleRowsDirect
-//
-// FIX C — ROOT CAUSE "Detail Module: 0 cases" di SSR path:
-// getDashboardStats (RPC mode) dulu mengandalkan out_detail_module_rankings
-// dari stored procedure → sering null → [] → "0 cases".
-//
-// Fix: query direct terpisah, dijalankan PARALLEL dengan RPC via Promise.all.
-// ─────────────────────────────────────────────────────────────────────────────
 async function _fetchDetailModuleRowsDirect(filters: {
   dateRange?: any;
   years: string[];
@@ -587,12 +567,6 @@ async function _fetchDetailModuleRowsDirect(filters: {
   return result;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _fetchTrendRowsDirect
-//
-// FIX D — Fetch rows untuk trend computation dengan lookback 3 periode
-// agar selalu tersedia ≥ 2 periode lengkap setelah current period di-exclude.
-// ─────────────────────────────────────────────────────────────────────────────
 async function _fetchTrendRowsDirect(filters: {
   dateRange?: any;
   years: string[];
@@ -615,13 +589,11 @@ async function _fetchTrendRowsDirect(filters: {
       lookbackStart.setDate(now.getDate() - 21);
       break;
     case 'monthly':
-      // 3 bulan → exclude bulan ini → sisa 2 bulan lengkap (FIX D)
       lookbackStart = new Date(now);
       lookbackStart.setMonth(now.getMonth() - 3);
       lookbackStart.setDate(1);
       break;
     case 'quarterly':
-      // 3 quarter → exclude quarter ini → sisa 2 quarter lengkap (FIX D)
       lookbackStart = new Date(now);
       lookbackStart.setMonth(now.getMonth() - 9);
       lookbackStart.setDate(1);
@@ -662,6 +634,38 @@ async function _fetchTrendRowsDirect(filters: {
   return allData;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// _buildRpcDateParams
+//
+// ROOT FIX (sama dengan route.ts): Stored procedure fn_dashboard_filtered
+// tidak memproses p_year secara konsisten di semua environment.
+// Solusi: selalu inject p_start_date & p_end_date eksplisit dari yearValue
+// jika dateRange tidak tersedia.
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildRpcDateParams(
+  dateRange: { from?: Date | string; to?: Date | string } | undefined,
+  yearValue: number | null
+): { p_start_date: string | null; p_end_date: string | null } {
+  // Priority 1: explicit date range dari user (date picker)
+  if (dateRange?.from) {
+    return {
+      p_start_date: _formatDateDashboard(dateRange.from),
+      p_end_date:   dateRange.to ? _formatDateDashboard(dateRange.to) : _formatDateDashboard(dateRange.from),
+    };
+  }
+
+  // Priority 2: derive date range dari year selection
+  if (yearValue !== null) {
+    return {
+      p_start_date: `${yearValue}-01-01`,
+      p_end_date:   `${yearValue}-12-31`,
+    };
+  }
+
+  // Priority 3: no filter — return full range
+  return { p_start_date: null, p_end_date: null };
+}
+
 export async function getDashboardStats(filters: DashboardFilters): Promise<{
   success: boolean;
   data?: ReturnType<typeof _emptyStats>;
@@ -670,8 +674,6 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
   try {
     const { selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange } = filters;
 
-    // actions.ts selalu dipanggil SSR tanpa trendPeriod dari client.
-    // Default ke 'monthly' — konsisten dengan default di dashboard.tsx.
     const trendPeriod: TrendPeriod = 'monthly';
 
     const sharedFilters = {
@@ -696,9 +698,15 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
       const yearParsed = singleYear ? parseInt(singleYear, 10) : NaN;
       const yearValue  = isNaN(yearParsed) ? null : yearParsed;
 
+      // ╔══════════════════════════════════════════════════════════════════╗
+      // ║  ROOT FIX: Inject p_start_date & p_end_date dari yearValue      ║
+      // ║  agar stored procedure pasti memfilter meski p_year diabaikan.  ║
+      // ╚══════════════════════════════════════════════════════════════════╝
+      const { p_start_date, p_end_date } = _buildRpcDateParams(dateRange, yearValue);
+
       const rpcParams: Record<string, any> = {
-        p_start_date:    _formatDateDashboard(dateRange?.from),
-        p_end_date:      _formatDateDashboard(dateRange?.to),
+        p_start_date,
+        p_end_date,
         p_category:      categoryFilter[0]    ?? null,
         p_client:        clientFilter[0]       ?? null,
         p_module:        moduleFilter[0]       ?? null,
@@ -708,14 +716,10 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
 
       console.log('🚀 [actions] RPC fn_dashboard_filtered:', rpcParams);
 
-      // FIX C + D: Jalankan RPC + detail module query + trend query PARALLEL.
-      // Dulu: detail_module_rankings dari RPC (sering null → []).
-      //       module_trends selalu [] (hardcoded, tidak pernah dihitung).
-      // Sekarang: keduanya di-fetch dengan direct query independen dari RPC.
       const [rpcResult, detailModuleRankings, trendRows] = await Promise.all([
         supabaseAdmin.rpc('fn_dashboard_filtered', rpcParams),
-        _fetchDetailModuleRowsDirect(sharedFilters),   // ← FIX C
-        _fetchTrendRowsDirect({ ...sharedFilters, trendPeriod }),  // ← FIX D
+        _fetchDetailModuleRowsDirect(sharedFilters),
+        _fetchTrendRowsDirect({ ...sharedFilters, trendPeriod }),
       ]);
 
       const { data, error } = rpcResult;
@@ -730,7 +734,6 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
       const moduleRankings = _parseJSONB(result.out_module_rankings)
         .map((i: any) => ({ name: i.module, value: i.cases }));
 
-      // FIX A+B: hitung trends dari trendRows dengan _computeModuleTrends
       const moduleTrends = _computeModuleTrends(trendRows, trendPeriod);
 
       return {
@@ -749,8 +752,8 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
           monthly_stats:          _pivotAndOrderMonthlyStats(_parseJSONB(result.out_monthly_stats)),
           client_rankings:        _parseJSONB(result.out_client_rankings).map((i: any) => ({ name: i.client, value: i.cases })),
           module_rankings:        moduleRankings,
-          detail_module_rankings: detailModuleRankings,  // ← FIX C: dari direct query
-          module_trends:          moduleTrends,           // ← FIX A+B+D: tidak lagi []
+          detail_module_rankings: detailModuleRankings,
+          module_trends:          moduleTrends,
         },
       };
     }

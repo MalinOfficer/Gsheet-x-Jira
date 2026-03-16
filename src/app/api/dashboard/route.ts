@@ -97,10 +97,6 @@ function getCurrentIncompletePeriodKey(period: TrendPeriod): string {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // computeModuleTrends
-//
-// FIX 1: Hapus .filter(t => t.direction !== 'stable') yang terlalu agresif.
-//         Kalau semua module stabil (count Jan == Feb), semua terfilter → kosong.
-//         Sekarang hanya drop entri yang benar-benar nol di KEDUA periode.
 // ─────────────────────────────────────────────────────────────────────────────
 function computeModuleTrends(data: any[], period: TrendPeriod = 'monthly'): ModuleTrend[] {
     const incompletePeriod = getCurrentIncompletePeriodKey(period);
@@ -113,7 +109,7 @@ function computeModuleTrends(data: any[], period: TrendPeriod = 'monthly'): Modu
         if (isNaN(d.getTime())) return;
 
         const key = getPeriodKey(d, period);
-        if (key === incompletePeriod) return; // skip periode belum selesai
+        if (key === incompletePeriod) return;
 
         if (!periodCounts[key]) periodCounts[key] = {};
         periodCounts[key][r.module_case] = (periodCounts[key][r.module_case] || 0) + 1;
@@ -148,7 +144,6 @@ function computeModuleTrends(data: any[], period: TrendPeriod = 'monthly'): Modu
 
     console.log(`📊 [Trend] period=${period} | "${previousPeriodKey}" vs "${currentPeriodKey}" | ${trends.length} modules`);
 
-    // FIX 1: hanya drop entri yang benar-benar tidak ada data di kedua periode
     return trends
         .filter(t => !(t.current === 0 && t.previous === 0))
         .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
@@ -216,17 +211,7 @@ async function fetchAllRows(filters: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// fetchDetailModuleRows — direct query khusus untuk card "Detail Module"
-//
-// FIX 2 — ROOT CAUSE utama "Detail Module: 0 cases":
-//
-// Di MODE 1 (RPC), kode lama mengandalkan result.out_detail_module_rankings
-// dari stored procedure fn_dashboard_filtered. Masalahnya:
-//   - Banyak RPC Supabase tidak include out_detail_module_rankings
-//   - Field itu sering null → parseJSONB(null) → [] → "0 cases"
-//
-// Fix: selalu fetch detail module dengan direct query terpisah, dijalankan
-// PARALLEL dengan RPC agar tidak menambah latency.
+// fetchDetailModuleRows
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchDetailModuleRows(filters: {
     dateRange?: DateRange;
@@ -370,6 +355,40 @@ function computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// buildRpcDateParams
+//
+// ROOT FIX: Stored procedure fn_dashboard_filtered tidak memproses p_year
+// secara konsisten. Solusi: selalu inject p_start_date & p_end_date eksplisit
+// dari yearValue jika dateRange tidak tersedia.
+//
+// Dengan ini, filter tahun DIJAMIN diproses via date range di semua DB backend,
+// tanpa bergantung pada implementasi p_year di stored procedure.
+// ─────────────────────────────────────────────────────────────────────────────
+function buildRpcDateParams(
+    dateRange: DateRange | undefined,
+    yearValue: number | null
+): { p_start_date: string | null; p_end_date: string | null } {
+    // Priority 1: explicit date range dari user (date picker)
+    if (dateRange?.from) {
+        return {
+            p_start_date: formatDate(dateRange.from),
+            p_end_date:   dateRange.to ? formatDate(dateRange.to) : formatDate(dateRange.from),
+        };
+    }
+
+    // Priority 2: derive date range dari year selection
+    if (yearValue !== null) {
+        return {
+            p_start_date: `${yearValue}-01-01`,
+            p_end_date:   `${yearValue}-12-31`,
+        };
+    }
+
+    // Priority 3: no filter — return full range
+    return { p_start_date: null, p_end_date: null };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET Handler
 // ─────────────────────────────────────────────────────────────────────────────
 export async function GET(request: Request) {
@@ -409,7 +428,6 @@ export async function GET(request: Request) {
         const modules       = moduleFilter       ? moduleFilter.split(',').map(s => s.trim()).filter(Boolean)       : [];
         const detailModules = detailModuleFilter ? detailModuleFilter.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-        // Shared filter object — dipakai di semua sub-query
         const sharedFilters = { dateRange, years: selectedYears, categories, clients, modules, detailModules };
 
         const isMultiFilter =
@@ -432,9 +450,16 @@ export async function GET(request: Request) {
                 if (!isNaN(parsed)) yearValue = parsed;
             }
 
+            // ╔══════════════════════════════════════════════════════════════╗
+            // ║  ROOT FIX: Selalu inject p_start_date & p_end_date          ║
+            // ║  dari yearValue agar stored procedure pasti memfilter        ║
+            // ║  meski implementasi p_year di SQL diabaikan.                 ║
+            // ╚══════════════════════════════════════════════════════════════╝
+            const { p_start_date, p_end_date } = buildRpcDateParams(dateRange, yearValue);
+
             const params: Record<string, any> = {
-                p_start_date:    formatDate(dateRange?.from),
-                p_end_date:      formatDate(dateRange?.to),
+                p_start_date,
+                p_end_date,
                 p_category:      categories[0]    ?? null,
                 p_client:        clients[0]        ?? null,
                 p_module:        modules[0]        ?? null,
@@ -444,14 +469,10 @@ export async function GET(request: Request) {
 
             console.log('🚀 [API] Calling RPC fn_dashboard_filtered:', params);
 
-            // FIX 2: 3 query dijalankan PARALLEL:
-            //   - RPC   → summary, monthly_stats, client_rankings, module_rankings
-            //   - trend → module_trends (direct query, narrow date window)
-            //   - detail module → detail_module_rankings (direct query, selalu)
             const [rpcResult, rawForTrends, detailModuleRankings] = await Promise.all([
                 supabaseAdmin.rpc('fn_dashboard_filtered', params),
                 fetchTrendRows({ ...sharedFilters, trendPeriod }),
-                fetchDetailModuleRows(sharedFilters),   // ← FIX 2: tidak bergantung pada RPC
+                fetchDetailModuleRows(sharedFilters),
             ]);
 
             const { data, error } = rpcResult;
@@ -493,7 +514,6 @@ export async function GET(request: Request) {
                 client_rankings:        parseJSONB(result.out_client_rankings)
                                             .map((i: any) => ({ name: i.client, value: i.cases })),
                 module_rankings:        moduleRankingsRpc,
-                // FIX 2: pakai hasil fetchDetailModuleRows, BUKAN out_detail_module_rankings dari RPC
                 detail_module_rankings: detailModuleRankings,
                 module_trends:          moduleTrends,
             }});
@@ -521,17 +541,6 @@ export async function GET(request: Request) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // fetchTrendRows — narrow date window untuk trend computation
-//
-// FIX 3: Lookback diperlebar dari 2 → 3 periode.
-// Kenapa: setelah current period di-exclude, butuh tepat 2 periode sisanya.
-// Dengan lookback 2 periode lama: sering hanya dapat 1 periode lengkap → [] trends.
-// Dengan lookback 3 periode: selalu dapat ≥ 2 periode lengkap.
-//
-// Contoh monthly (hari ini = 13 Mar 2026):
-//   Lama: setMonth(-2) → mulai 13 Jan 2026 → periode: Jan (partial), Feb
-//         → setelah exclude Mar: hanya Feb → 1 periode → gagal
-//   Baru: setMonth(-3) → mulai 13 Des 2025 → periode: Des, Jan, Feb
-//         → setelah exclude Mar: Des, Jan, Feb → 3 periode → ambil 2 terakhir (Jan vs Feb) ✓
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchTrendRows(filters: {
     dateRange?: DateRange;
@@ -547,23 +556,19 @@ async function fetchTrendRows(filters: {
 
     switch (filters.trendPeriod) {
         case 'daily':
-            // 3 hari → exclude hari ini → sisa 2 hari lengkap
             lookbackStart = new Date(now);
             lookbackStart.setDate(now.getDate() - 3);
             break;
         case 'weekly':
-            // 3 minggu → exclude minggu ini → sisa 2 minggu lengkap
             lookbackStart = new Date(now);
             lookbackStart.setDate(now.getDate() - 21);
             break;
         case 'monthly':
-            // FIX 3: 3 bulan → exclude bulan ini → sisa 2 bulan lengkap
             lookbackStart = new Date(now);
             lookbackStart.setMonth(now.getMonth() - 3);
             lookbackStart.setDate(1);
             break;
         case 'quarterly':
-            // FIX 3: 3 quarter → exclude quarter ini → sisa 2 quarter lengkap
             lookbackStart = new Date(now);
             lookbackStart.setMonth(now.getMonth() - 9);
             lookbackStart.setDate(1);

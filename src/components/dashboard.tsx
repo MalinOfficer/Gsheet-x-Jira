@@ -411,6 +411,9 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
 
     const hasLoadedOnce = useRef<boolean>(initialStats !== null);
     const isFirstMount  = useRef(true);
+    // ── FIX RACE CONDITION: setiap filter change dapat ID unik ──────────────
+    // Response dari request lama diabaikan jika sudah ada request lebih baru.
+    const requestIdRef  = useRef(0);
 
     // ── Filter states ───────────────────────────────────────────────────────
     const [selectedYears, setSelectedYears]           = useState<string[]>([]);
@@ -422,7 +425,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
 
     useEffect(() => {
         setHasMounted(true);
-        // Gunakan defaultYears dari server jika ada, fallback ke getDefault3RecentYears
         if (defaultYears && defaultYears.length > 0) {
             setSelectedYears(defaultYears);
         } else if (initialOptions?.years?.length) {
@@ -552,6 +554,21 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
     }), [selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, trendPeriod]);
 
     // ── Filter change effect ──────────────────────────────────────────────────
+    // FIX RACE CONDITION: requestId memastikan hanya response dari
+    // request TERBARU yang dipakai. Response dari request lama diabaikan
+    // meskipun datang setelah request yang lebih baru selesai.
+    //
+    // Contoh tanpa fix:
+    //   Uncheck 2024 → Request A (years=[2026,2025])
+    //   Uncheck 2025 → Request B (years=[2026])
+    //   Request B selesai → setStats(922) ✅
+    //   Request A selesai → setStats(8603) ❌ menimpa hasil yang benar
+    //
+    // Dengan fix:
+    //   Uncheck 2024 → requestId=1, Request A
+    //   Uncheck 2025 → requestId=2, Request B
+    //   Request B selesai (id=2 === current=2) → setStats(922) ✅
+    //   Request A selesai (id=1 ≠ current=2)  → DIABAIKAN ✅
     useEffect(() => {
         if (!hasMounted) return;
 
@@ -560,13 +577,23 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
             if (stats !== null) return;
         }
 
+        // Increment request ID — setiap filter change dapat ID unik
+        const requestId = ++requestIdRef.current;
+
         startApplyingFilters(async () => {
             setError(null);
             try {
                 const data = await fetcher(currentFilters);
+
+                // Abaikan response jika sudah ada request lebih baru
+                if (requestId !== requestIdRef.current) return;
+
                 setStats(data);
                 hasLoadedOnce.current = true;
             } catch (err: any) {
+                // Abaikan error dari request lama juga
+                if (requestId !== requestIdRef.current) return;
+
                 setError(err.message);
                 setStats(null);
                 toast({ variant: "destructive", title: "Could not load dashboard data", description: err.message });
@@ -842,7 +869,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                                             return (
                                                 <div key={i} className="flex items-center justify-between gap-2 min-w-0">
                                                     <div className="flex items-center gap-1.5 min-w-0">
-                                                        {/* FIX 3: TrendIcon sekarang handle 'stable' dengan ikon Minus */}
                                                         <TrendIcon direction={t.direction} />
                                                         <span className="text-xs text-foreground truncate">{t.name}</span>
                                                     </div>
@@ -1043,8 +1069,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                             </div>
                         </CardHeader>
                         <CardContent className="pb-4">
-                            {/* FIX 1: detailModuleRankings sekarang berisi data nyata karena
-                                detail_module_case sudah ikut di-SELECT dari DB */}
                             {detailModuleRankings.length === 0 ? (
                                 <div className="flex items-center justify-center h-[140px] text-muted-foreground text-sm border-2 border-dashed rounded-lg">
                                     No detail module data available.

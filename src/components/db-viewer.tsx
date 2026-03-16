@@ -1,3 +1,4 @@
+//db-viewer1
 "use client";
 
 import {
@@ -103,6 +104,9 @@ const ALL_STATUSES       = ['Solved', 'L3', 'L2', 'L1', 'PM'];
 const ALL_MODULES        = ['PPDP/PMB', 'LMS/KBM', 'Administrasi Akademik', 'CBT', 'Penilaian/Raport', 'Payment', 'Perpustakaan', 'Pesantren', 'Pintro Pay', 'Boarding', 'Migrasi Data', 'Aplikasi/Mobile', 'Akses Portal'];
 const ALL_DETAIL_MODULES = ['Payment - Angsuran', 'Payment - Daftar Ulang', 'Payment - Diskon', 'Payment - Double Bayar / Refund', 'Payment - Gagal Transaksi', 'Payment - Laporan / Selisih', 'Payment - Pintro Cash', 'Payment - SPPK', 'Payment - Tagihan tidak terupdate', 'Payment - Tambah Tagihan', 'Payment - Hapus Data', 'Payment - Update Tagihan'];
 const ALL_MONTHS         = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+// Status values that are considered "unsolved"
+const UNSOLVED_STATUSES = ['L1', 'L2', 'L3', 'PM'];
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -260,6 +264,12 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
 });
 
 // ── HeaderFilterPopover ────────────────────────────────────
+// CHANGE 1: Adds `staged` state so selections are buffered until Apply is clicked.
+// - Popover open → syncs staged from committed `selected`
+// - Toggling/SelectAll/Clear → updates staged only, not parent
+// - Apply button → commits staged → calls onSelectionChange → closes
+// - Close without Apply → staged is discarded (re-synced next open)
+// - Apply button turns blue + shows ● indicator when staged ≠ committed selected
 
 const HeaderFilterPopover = memo(({
     label, options, selected, onSelectionChange, renderOption,
@@ -280,16 +290,55 @@ const HeaderFilterPopover = memo(({
     const [showInlineAdd, setShowInlineAdd] = useState(false);
     const [deletingId, setDeletingId] = useState<number | null>(null);
 
+    // ── staged: buffered selections, only committed on Apply ──────────────────
+    const [staged, setStaged] = useState<string[]>(selected);
+
+    // Sync staged from committed selected whenever popover opens
+    const handleOpenChange = (v: boolean) => {
+        if (v) {
+            // Opening: sync staged from current committed selection
+            setStaged(selected);
+        } else {
+            // Closing (without Apply): discard staged, reset UI state
+            setSearch('');
+            setShowInlineAdd(false);
+            setNewItemInput('');
+        }
+        setOpen(v);
+    };
+
+    // Whether staged differs from committed selected (uncommitted changes exist)
+    const hasPendingChanges = useMemo(() => {
+        if (staged.length !== selected.length) return true;
+        const sortedStaged = [...staged].sort();
+        const sortedSelected = [...selected].sort();
+        return sortedStaged.some((v, i) => v !== sortedSelected[i]);
+    }, [staged, selected]);
+
     const filteredOptions = useMemo(() =>
         !search ? options : options.filter(o => o.toLowerCase().includes(search.toLowerCase())),
         [options, search]
     );
-    const toggleOption = (o: string) => onSelectionChange(selected.includes(o) ? selected.filter(s => s !== o) : [...selected, o]);
+
+    // Toggle in staged (not parent)
+    const toggleOption = (o: string) =>
+        setStaged(prev => prev.includes(o) ? prev.filter(s => s !== o) : [...prev, o]);
+
+    // Apply: commit staged → parent, close popover
+    const handleApply = () => {
+        onSelectionChange(staged);
+        setOpen(false);
+        setSearch('');
+        setShowInlineAdd(false);
+        setNewItemInput('');
+    };
+
     const handleAddInline = async () => {
         const t = newItemInput.trim();
         if (!t || !onAdd) return;
         await onAdd(t); setNewItemInput(''); setShowInlineAdd(false);
     };
+
     const handleDelete = async (e: React.MouseEvent, name: string) => {
         e.stopPropagation();
         if (!dbItemsMap || !onDeleteItem) return;
@@ -297,10 +346,14 @@ const HeaderFilterPopover = memo(({
         if (id === undefined) return;
         setDeletingId(id); await onDeleteItem(id, name); setDeletingId(null);
     };
+
+    // Trigger button indicator reflects committed `selected`, not staged
     const hasActive = selected.length > 0;
 
+    const allStagedSelected = staged.length === options.length && options.length > 0;
+
     return (
-        <Popover open={open} onOpenChange={v => { setOpen(v); if (!v) { setSearch(''); setShowInlineAdd(false); setNewItemInput(''); } }}>
+        <Popover open={open} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>
                 <button className={cn("inline-flex items-center justify-center gap-1 w-full h-full px-2 rounded transition-colors", "hover:bg-slate-100 dark:hover:bg-[#2e2e30]", open && "bg-slate-100 dark:bg-[#2e2e30]")}>
                     <span className={cn("truncate text-[11px] font-semibold tracking-wide uppercase", hasActive ? "text-primary" : "text-slate-500 dark:text-[#909098]")}>{label}</span>
@@ -336,14 +389,15 @@ const HeaderFilterPopover = memo(({
                         <CommandEmpty className="text-xs py-4 text-center text-slate-400">No results found.</CommandEmpty>
                         <CommandGroup>
                             {filteredOptions.map(option => {
-                                const isSelected = selected.includes(option);
+                                // Render checkmark based on staged (not committed selected)
+                                const isStagedSelected = staged.includes(option);
                                 const isInDB = dbItemsMap ? dbItemsMap.has(option) : true;
                                 const dbId = dbItemsMap?.get(option);
                                 const isThisDeleting = deletingId !== null && deletingId === dbId;
                                 return (
-                                    <CommandItem key={option} value={option} onSelect={() => toggleOption(option)} className={cn("flex items-center gap-2 text-xs cursor-pointer py-2 px-3 rounded-none", isSelected && "bg-primary/5")}>
-                                        <div className={cn("h-4 w-4 rounded border-[1.5px] flex items-center justify-center flex-shrink-0 transition-colors", isSelected ? "bg-primary border-primary text-white" : "border-slate-300 dark:border-[#3a3a3c] bg-white dark:bg-[#1f1f21]")}>
-                                            {isSelected && <Check className="h-2.5 w-2.5" />}
+                                    <CommandItem key={option} value={option} onSelect={() => toggleOption(option)} className={cn("flex items-center gap-2 text-xs cursor-pointer py-2 px-3 rounded-none", isStagedSelected && "bg-primary/5")}>
+                                        <div className={cn("h-4 w-4 rounded border-[1.5px] flex items-center justify-center flex-shrink-0 transition-colors", isStagedSelected ? "bg-primary border-primary text-white" : "border-slate-300 dark:border-[#3a3a3c] bg-white dark:bg-[#1f1f21]")}>
+                                            {isStagedSelected && <Check className="h-2.5 w-2.5" />}
                                         </div>
                                         <span className="flex-1 truncate min-w-0 font-medium">{renderOption ? renderOption(option) : option}</span>
                                         <div className="flex-shrink-0">
@@ -361,14 +415,42 @@ const HeaderFilterPopover = memo(({
                         </CommandGroup>
                     </CommandList>
                 </Command>
-                {options.length > 0 && (
-                    <div className="border-t border-slate-100 dark:border-[#3a3a3c] px-3 py-2 flex items-center justify-between bg-slate-50 dark:bg-[#242426]/80">
-                        <button onClick={() => onSelectionChange(selected.length === options.length ? [] : [...options])} className="text-xs text-primary font-medium hover:underline">
-                            {selected.length === options.length ? 'Deselect All' : 'Select All'}
-                        </button>
-                        {hasActive && <button onClick={() => onSelectionChange([])} className="text-xs text-slate-400 hover:text-red-500 font-medium transition-colors">Clear ({selected.length})</button>}
+
+                {/* Footer: SelectAll/Clear + Apply button */}
+                <div className="border-t border-slate-100 dark:border-[#3a3a3c] px-3 py-2 flex items-center justify-between bg-slate-50 dark:bg-[#242426]/80 gap-2">
+                    <div className="flex items-center gap-2">
+                        {options.length > 0 && (
+                            <button
+                                onClick={() => setStaged(allStagedSelected ? [] : [...options])}
+                                className="text-xs text-primary font-medium hover:underline"
+                            >
+                                {allStagedSelected ? 'Deselect All' : 'Select All'}
+                            </button>
+                        )}
+                        {staged.length > 0 && (
+                            <button
+                                onClick={() => setStaged([])}
+                                className="text-xs text-slate-400 hover:text-red-500 font-medium transition-colors"
+                            >
+                                Clear ({staged.length})
+                            </button>
+                        )}
                     </div>
-                )}
+                    {/* Apply button — turns blue with ● when there are uncommitted changes */}
+                    <Button
+                        size="sm"
+                        onClick={handleApply}
+                        className={cn(
+                            "h-7 px-3 text-xs font-semibold rounded-lg transition-all",
+                            hasPendingChanges
+                                ? "bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-sm"
+                                : "bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-[#2e2e30] dark:hover:bg-[#3a3a3c] dark:text-[#c8c8cc] border border-slate-200 dark:border-[#3a3a3c]"
+                        )}
+                    >
+                        {hasPendingChanges && <span className="mr-1 text-[10px]">●</span>}
+                        Apply
+                    </Button>
+                </div>
             </PopoverContent>
         </Popover>
     );
@@ -582,7 +664,18 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
-    const [yearFilter, setYearFilter] = useState<string>('all');
+
+    // CHANGE 2: yearFilter defaults to the most recent year from availableYears
+    const [yearFilter, setYearFilter] = useState<string>(() => {
+        if (availableYears.length > 0) {
+            return [...availableYears].sort((a, b) => parseInt(b) - parseInt(a))[0];
+        }
+        return 'all';
+    });
+
+    // CHANGE 2: showUnsolvedOnly — default true, filters to L1/L2/L3/PM unless user has custom status filter
+    const [showUnsolvedOnly, setShowUnsolvedOnly] = useState(true);
+
     const [pageSize, setPageSize] = useState(50);
     const [pageSizeInput, setPageSizeInput] = useState('50');
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -629,9 +722,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     } | null>(null);
 
     // ── FIX: ref selalu tunjuk ke state.data terbaru ──────────────────────────
-    // Ini mencegah stale closure di handleCellSave yang pakai setTimeout 800ms.
-    // Tanpa ini, handleCellSave akan capture state.data LAMA (sebelum user edit),
-    // sehingga perubahan tidak pernah terkirim ke DB.
     const stateDataRef = useRef(state.data);
     useEffect(() => {
         stateDataRef.current = state.data;
@@ -694,9 +784,33 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         }
     }, [resizingColumn, handleResizeMove, handleResizeEnd]);
 
-    const activeFilterCount = useMemo(() => Object.values(columnFilters).reduce((s, a) => s + a.length, 0) + (dateRange ? 1 : 0) + (yearFilter !== 'all' ? 1 : 0), [columnFilters, dateRange, yearFilter]);
+    // CHANGE 2: effectiveStatus — uses custom status filter if set, otherwise UNSOLVED_STATUSES when showUnsolvedOnly
+    const effectiveStatus = useMemo<string[] | undefined>(() => {
+        if ((columnFilters['status'] ?? []).length > 0) return columnFilters['status'];
+        if (showUnsolvedOnly) return UNSOLVED_STATUSES;
+        return undefined;
+    }, [columnFilters, showUnsolvedOnly]);
+
+    // Whether unsolvedOnly is actively suppressing a status filter (i.e. no custom status filter is set)
+    const isUnsolvedOnlyActive = showUnsolvedOnly && (columnFilters['status'] ?? []).length === 0;
+
+    const activeFilterCount = useMemo(() =>
+        Object.values(columnFilters).reduce((s, a) => s + a.length, 0)
+        + (dateRange ? 1 : 0)
+        + (yearFilter !== 'all' ? 1 : 0),
+        [columnFilters, dateRange, yearFilter]
+    );
+
     const setFilterForColumn = useCallback((col: string, vals: string[]) => { setColumnFilters(p => { const n = {...p}; if (!vals.length) delete n[col]; else n[col] = vals; return n; }); setCurrentPage(1); }, []);
-    const clearAllFilters = useCallback(() => { setColumnFilters({}); setDateRange(undefined); setCurrentPage(1); setYearFilter('all'); }, []);
+
+    // CHANGE 2: clearAllFilters also resets showUnsolvedOnly to false
+    const clearAllFilters = useCallback(() => {
+        setColumnFilters({});
+        setDateRange(undefined);
+        setCurrentPage(1);
+        setYearFilter('all');
+        setShowUnsolvedOnly(false);
+    }, []);
 
     const filterOptionsMap = useMemo(() => ({ client_name: availableClients, status: statusOptions, ticket_category: categoryOptions, module: moduleOptions, detail_module: detailModuleOptions, month: ALL_MONTHS }), [availableClients, statusOptions, categoryOptions, moduleOptions, detailModuleOptions]);
     const dbItemsMapsForColumn = useMemo(() => ({ status: dbStatusMap, ticket_category: dbCategoryMap, module: dbModuleMap, detail_module: dbDetailModuleMap }), [dbStatusMap, dbCategoryMap, dbModuleMap, dbDetailModuleMap]);
@@ -727,13 +841,26 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         }
     }, []);
 
+    // CHANGE 2: fetchData uses effectiveStatus instead of raw columnFilters['status']
     const fetchData = useCallback(() => {
         startTransition(async () => {
-            const r = await getAllCaseData({ year: yearFilter !== 'all' ? yearFilter : undefined, dateRange, category: columnFilters['ticket_category'], client: columnFilters['client_name'], module: columnFilters['module'], status: columnFilters['status'], detailModule: columnFilters['detail_module'], month: columnFilters['month'], search: debouncedSearchTerm || undefined, page: currentPage, pageSize });
+            const r = await getAllCaseData({
+                year: yearFilter !== 'all' ? yearFilter : undefined,
+                dateRange,
+                category: columnFilters['ticket_category'],
+                client: columnFilters['client_name'],
+                module: columnFilters['module'],
+                status: effectiveStatus,
+                detailModule: columnFilters['detail_module'],
+                month: columnFilters['month'],
+                search: debouncedSearchTerm || undefined,
+                page: currentPage,
+                pageSize,
+            });
             if (r.error) { setState({ data: null, source: 'N/A', error: r.error }); setTotalRows(0); setTotalPages(0); }
             else { setState({ data: r.data || null, source: (r.source as any) || 'N/A', error: null }); if (r.pagination) { setTotalRows(r.pagination.total); setTotalPages(r.pagination.totalPages); } }
         });
-    }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize]);
+    }, [yearFilter, dateRange, columnFilters, debouncedSearchTerm, currentPage, pageSize, effectiveStatus]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -844,14 +971,10 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     }, []);
 
     // ── FIX: handleCellSave pakai stateDataRef bukan state.data ──────────────
-    // Root cause bug: state.data di-capture saat useCallback dibuat (stale closure).
-    // Ketika user edit lalu handleCellSave dipanggil, setTimeout 800ms jalan
-    // SETELAH setState selesai — tapi state.data di closure masih nilai LAMA.
-    // Solusi: baca dari stateDataRef.current yang selalu up-to-date.
     const handleCellSave = useCallback((id: number) => {
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(async () => {
-            const row = stateDataRef.current?.find(r => r.id === id); // ← pakai ref, bukan state.data
+            const row = stateDataRef.current?.find(r => r.id === id);
             if (!row) return;
             setIsSaving(true);
             const r = await updateCase(id, row);
@@ -862,7 +985,7 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
             }
             setIsSaving(false);
         }, 800);
-    }, [toast]); // ← state.data DIHAPUS dari deps, diganti stateDataRef
+    }, [toast]);
     // ─────────────────────────────────────────────────────────────────────────
 
     const confirmDelete = useCallback(async () => {
@@ -948,9 +1071,29 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                     {allAvailableYears.map(y => <SelectItem key={y} value={y} className="text-sm">{y}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            {activeFilterCount > 0 && (
+
+                            {/* CHANGE 2: Unsolved Only toggle button */}
+                            <button
+                                onClick={() => setShowUnsolvedOnly(p => !p)}
+                                className={cn(
+                                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors",
+                                    isUnsolvedOnlyActive
+                                        ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"
+                                        : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 dark:bg-[#2e2e30] dark:text-[#909098] dark:border-[#3a3a3c] dark:hover:bg-[#3a3a3c]"
+                                )}
+                            >
+                                <span className={cn(
+                                    "h-1.5 w-1.5 rounded-full flex-shrink-0",
+                                    isUnsolvedOnlyActive ? "bg-amber-500" : "bg-slate-400 dark:bg-[#909098]"
+                                )} />
+                                Unsolved Only
+                            </button>
+
+                            {/* Clear filters — also clears showUnsolvedOnly */}
+                            {(activeFilterCount > 0 || isUnsolvedOnlyActive) && (
                                 <button onClick={clearAllFilters} className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold", "bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400", "border border-red-200 dark:border-red-800 transition-colors")}>
-                                    <FilterX className="h-3 w-3" /> Clear {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''}
+                                    <FilterX className="h-3 w-3" />
+                                    Clear {activeFilterCount + (isUnsolvedOnlyActive ? 1 : 0)} filter{(activeFilterCount + (isUnsolvedOnlyActive ? 1 : 0)) > 1 ? 's' : ''}
                                 </button>
                             )}
                         </div>
@@ -982,9 +1125,9 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                 <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-[#2e2e30] flex items-center justify-center"><Database className="h-8 w-8 text-slate-400" /></div>
                                 <div className="text-center">
                                     <p className="text-sm font-semibold text-slate-600 dark:text-[#909098]">Tidak ada data</p>
-                                    <p className="text-xs text-slate-400 dark:text-[#6e6e76] mt-1">{activeFilterCount > 0 ? 'Coba ubah atau hapus filter Anda' : 'Belum ada data untuk ditampilkan'}</p>
+                                    <p className="text-xs text-slate-400 dark:text-[#6e6e76] mt-1">{(activeFilterCount > 0 || isUnsolvedOnlyActive) ? 'Coba ubah atau hapus filter Anda' : 'Belum ada data untuk ditampilkan'}</p>
                                 </div>
-                                {activeFilterCount > 0 && <button onClick={clearAllFilters} className="text-xs text-primary font-semibold hover:underline">Hapus semua filter</button>}
+                                {(activeFilterCount > 0 || isUnsolvedOnlyActive) && <button onClick={clearAllFilters} className="text-xs text-primary font-semibold hover:underline">Hapus semua filter</button>}
                             </div>
                         ) : (
                             <div style={{ width: `${totalWidth}px` }}>
@@ -1066,6 +1209,15 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                 <span className="font-semibold text-slate-700 dark:text-[#e0e0e2]">{totalRows.toLocaleString()}</span>
                                 {' rows'}
                             </span>
+
+                            {/* CHANGE 2: "unsolved" badge in footer when unsolvedOnly is active */}
+                            {isUnsolvedOnlyActive && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800 font-semibold text-[11px]">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 flex-shrink-0" />
+                                    unsolved
+                                </span>
+                            )}
+
                             {selectedRows.size > 0 && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-primary font-semibold text-[11px]">
                                     {selectedRows.size} selected
