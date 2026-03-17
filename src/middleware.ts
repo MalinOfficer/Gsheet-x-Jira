@@ -1,52 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-// PENTING: taruh file ini di src/middleware.ts (bukan root)
-
 const SECRET_KEY = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-min-32-chars-long!!'
 );
 
-// Route yang tidak perlu login
-const PUBLIC_ROUTES = [
-  '/login',
-  '/api/auth/login',
-  '/api/auth/logout',
-  '/api/auth/me',
-  '/api/webhook-gsheet', // ← webhook bypass auth
-];
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Lewati route publik
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
-    // Kalau sudah login dan buka /login → redirect ke dashboard
-    if (pathname.startsWith('/login')) {
-      const token = request.cookies.get('auth-token')?.value;
-      if (token) {
-        try {
-          await jwtVerify(token, SECRET_KEY);
-          return NextResponse.redirect(new URL('/dashboard', request.url));
-        } catch {
-          // Token invalid → biarkan buka /login
-        }
-      }
-    }
+  // ✅ Skip semua static assets
+  if (
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/favicon.ico')
+  ) {
+    return NextResponse.next();
+  }
+
+  // ✅ Skip semua /api/* — auth dicek di masing-masing handler
+  // Tidak perlu middleware cek token di sini karena bisa sebabkan
+  // race condition saat cookie baru di-set oleh /api/auth/login
+  if (pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
   const token = request.cookies.get('auth-token')?.value;
 
+  // ✅ Halaman login
+  if (pathname.startsWith('/login')) {
+    if (token) {
+      try {
+        await jwtVerify(token, SECRET_KEY);
+        // Sudah login → redirect ke dashboard
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      } catch {
+        // Token invalid/expired → biarkan buka login
+        // Hapus cookie yang rusak
+        const response = NextResponse.next();
+        response.cookies.set('auth-token', '', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 0,
+          path: '/',
+        });
+        return response;
+      }
+    }
+    return NextResponse.next();
+  }
+
+  // ✅ Semua route lain butuh auth
   if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    const loginUrl = new URL('/login', request.url);
+    // Simpan intended URL untuk redirect balik setelah login (opsional)
+    loginUrl.searchParams.set('from', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   try {
     await jwtVerify(token, SECRET_KEY);
     return NextResponse.next();
   } catch {
-    // Token tidak valid / expired → hapus cookie dan redirect ke /login
+    // Token tidak valid / expired → hapus cookie dan redirect ke login
     const response = NextResponse.redirect(new URL('/login', request.url));
     response.cookies.set('auth-token', '', {
       httpOnly: true,
@@ -61,7 +76,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Protect semua route kecuali static files
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

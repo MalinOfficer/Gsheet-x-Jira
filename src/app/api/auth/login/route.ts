@@ -18,10 +18,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ambil user dari tabel users_account via Supabase
+    // ✅ FIX: Hanya select kolom yang ada di tabel
+    // users_account columns: id, username, password, created_at, updated_at
     const { data: user, error } = await supabaseAdmin
       .from('users_account')
-      .select('*')
+      .select('id, username, password')
       .eq('username', username)
       .single();
 
@@ -32,13 +33,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verifikasi password — support bcrypt hash & plain text
     let isValid = false;
     if (user.password?.startsWith('$2')) {
-      // password sudah di-hash dengan bcrypt
       isValid = await bcrypt.compare(password, user.password);
     } else {
-      // password masih plain text
       isValid = password === user.password;
     }
 
@@ -49,12 +47,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buat JWT token
+    // ✅ JWT payload — simpan data yang tersedia
+    // email dan role tidak ada di tabel, default ke empty/user
     const token = await new SignJWT({
-      id:       user.id,
+      id:       String(user.id),
       username: user.username,
-      email:    user.email,
-      role:     user.role,
+      email:    '',       // tidak ada di tabel
+      role:     'user',   // tidak ada di tabel, default 'user'
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -64,19 +63,18 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       user: {
-        id:       user.id,
+        id:       String(user.id),
         username: user.username,
-        email:    user.email,
-        role:     user.role,
+        email:    '',
+        role:     'user',
       },
     });
 
-    // Set cookie httpOnly
     response.cookies.set('auth-token', token, {
       httpOnly: true,
       secure:   process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge:   60 * 60 * 24, // 24 jam
+      maxAge:   60 * 60 * 24,
       path:     '/',
     });
 

@@ -14,25 +14,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
     }
 
-    // Verifikasi token
     const { payload } = await jwtVerify(token, SECRET_KEY);
 
-    // Ambil data terbaru dari Supabase
-    // FIX: gunakan Number() untuk konversi eksplisit, bukan "as string"
-    // payload.id dari JWT adalah number — type cast "as string" tidak mengubah nilainya
-    // sehingga query Supabase gagal silently dan user tidak ditemukan
+    // ✅ FIX: Hanya select kolom yang ada di tabel
+    // users_account columns: id, username, password, created_at, updated_at
+    // Tidak ada: email, role, deleted_at
     const { data: user, error } = await supabaseAdmin
       .from('users_account')
-      .select('id, username, email, role')
-      .eq('id', Number(payload.id))
-      .is('deleted_at', null)
+      .select('id, username')
+      .eq('id', String(payload.id))
       .single();
 
     if (error || !user) {
       return NextResponse.json({ error: 'User tidak ditemukan' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, user });
+    return NextResponse.json({
+      success: true,
+      user: {
+        id:       String(user.id),
+        username: user.username,
+        email:    payload.email as string ?? '',  // dari JWT payload
+        role:     payload.role  as string ?? 'user', // dari JWT payload
+      }
+    });
 
   } catch {
     return NextResponse.json({ error: 'Token tidak valid' }, { status: 401 });

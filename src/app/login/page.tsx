@@ -16,9 +16,13 @@ export default function LoginPage() {
   const router = useRouter();
   const prefetchedRef = useRef(false);
 
+  // ✅ Hanya redirect kalau user sudah ada SEBELUM login (sudah login sebelumnya)
+  // Tidak konflik dengan handleSubmit karena isLoading akan true saat submit
   useEffect(() => {
-    if (user) router.replace('/dashboard');
-  }, [user, router]);
+    if (user && !isLoading) {
+      window.location.replace('/dashboard');
+    }
+  }, []); // hanya run sekali saat mount
 
   useEffect(() => {
     router.prefetch('/dashboard');
@@ -38,16 +42,13 @@ export default function LoginPage() {
     setIsLoading(true);
     setLoadingText('Memverifikasi...');
 
-    // ✅ FIX: Fire-and-forget prefetch — tidak memblokir proses login
-    fetch('/api/dashboard', { method: 'GET' }).catch(() => null);
-
-    // ✅ FIX: Hanya await login, tidak terikat kecepatan API dashboard
     const result = await login(username, password);
 
     if (result.success) {
       setLoadingText('Membuka dashboard...');
-      router.replace('/dashboard');
-      // Biarkan spinner tetap tampil sampai navigasi selesai
+      // ✅ Full page navigation — cookie pasti terbaca middleware, tidak ada race condition
+      // isLoading sengaja TIDAK di-reset agar spinner tetap tampil sampai halaman ganti
+      window.location.replace('/dashboard');
     } else {
       setError(result.error || 'Login gagal');
       setIsLoading(false);

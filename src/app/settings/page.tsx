@@ -32,6 +32,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { getSpreadsheetTitle, syncGSheetToDB, saveAppSetting, getAppSetting } from '@/app/actions';
 import { previewGSheetSync, type PreviewRow } from '@/app/preview-sync';
+import { useUserPreferences } from '@/hooks/use-user-preferences'; // ✅ tambah
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,6 +82,7 @@ function formatRelativeTime(isoString: string | null): string {
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
   return `${Math.floor(diff / 86_400_000)}d ago`;
 }
+
 function formatNextRun(isoString: string | null): string {
   if (!isoString) return '—';
   const diff = new Date(isoString).getTime() - Date.now();
@@ -151,7 +153,6 @@ function SyncPreviewDialog({
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-4xl w-full max-h-[90vh] flex flex-col p-0 gap-0">
 
-        {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Eye className="h-5 w-5 text-primary" />
@@ -163,7 +164,6 @@ function SyncPreviewDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Stats row */}
         <div className="flex items-center gap-3 px-6 py-4 bg-muted/30 border-b flex-wrap">
           <div className="flex items-center gap-2 rounded-lg bg-background border px-3 py-2">
             <Database className="h-4 w-4 text-muted-foreground" />
@@ -203,7 +203,6 @@ function SyncPreviewDialog({
           )}
         </div>
 
-        {/* Table area */}
         <div className="flex-1 overflow-hidden px-6 py-4">
           {newCount === 0 && updateCount === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-center">
@@ -218,7 +217,8 @@ function SyncPreviewDialog({
               <RefreshCw className="h-12 w-12 text-blue-500 mb-3" />
               <p className="font-semibold text-lg">Ada {updateCount} data yang perlu diperbarui</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Tidak ada tiket baru, tapi {updateCount} tiket akan diisi <strong>Created At</strong>, <strong>Resolved At</strong>, atau status-nya diperbarui.
+                Tidak ada tiket baru, tapi {updateCount} tiket akan diisi <strong>Created At</strong>,{' '}
+                <strong>Resolved At</strong>, atau status-nya diperbarui.
               </p>
             </div>
           ) : (
@@ -251,31 +251,20 @@ function SyncPreviewDialog({
                           {row.ticket_number || '—'}
                         </span>
                       </td>
-                      <td className="py-2 px-3 text-xs text-muted-foreground whitespace-nowrap">
-                        {row.date || '—'}
-                      </td>
-                      <td className="py-2 px-3 text-xs font-medium max-w-[120px] truncate" title={row.client_name ?? ''}>
-                        {row.client_name || '—'}
-                      </td>
+                      <td className="py-2 px-3 text-xs text-muted-foreground whitespace-nowrap">{row.date || '—'}</td>
+                      <td className="py-2 px-3 text-xs font-medium max-w-[120px] truncate" title={row.client_name ?? ''}>{row.client_name || '—'}</td>
                       <td className="py-2 px-3">
                         {row.status_case ? (
                           <Badge
                             variant={row.status_case.toLowerCase() === 'solved' ? 'default' : 'secondary'}
-                            className={cn(
-                              'text-[10px] px-1.5 py-0',
-                              row.status_case.toLowerCase() === 'solved' && 'bg-green-600 hover:bg-green-700'
-                            )}
+                            className={cn('text-[10px] px-1.5 py-0', row.status_case.toLowerCase() === 'solved' && 'bg-green-600 hover:bg-green-700')}
                           >
                             {row.status_case}
                           </Badge>
                         ) : '—'}
                       </td>
-                      <td className="py-2 px-3 text-xs text-muted-foreground max-w-[100px] truncate" title={row.module_case ?? ''}>
-                        {row.module_case || '—'}
-                      </td>
-                      <td className="py-2 px-3 text-xs max-w-[200px] truncate text-muted-foreground" title={row.detail_case ?? ''}>
-                        {row.detail_case || '—'}
-                      </td>
+                      <td className="py-2 px-3 text-xs text-muted-foreground max-w-[100px] truncate" title={row.module_case ?? ''}>{row.module_case || '—'}</td>
+                      <td className="py-2 px-3 text-xs max-w-[200px] truncate text-muted-foreground" title={row.detail_case ?? ''}>{row.detail_case || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -284,23 +273,14 @@ function SyncPreviewDialog({
           )}
         </div>
 
-        {/* Footer */}
         <DialogFooter className="px-6 py-4 border-t bg-muted/20 gap-2">
-          <Button variant="outline" onClick={onClose} disabled={isConfirming}>
-            Batal
-          </Button>
-
+          <Button variant="outline" onClick={onClose} disabled={isConfirming}>Batal</Button>
           {totalActions > 0 && (
-            <Button
-              onClick={onConfirm}
-              disabled={isConfirming}
-              className="gap-2 min-w-[140px]"
-            >
-              {isConfirming ? (
-                <><RefreshCw className="h-4 w-4 animate-spin" />Menyimpan...</>
-              ) : (
-                <><CheckCircle2 className="h-4 w-4" />Lanjut &amp; Sync ({totalActions})</>
-              )}
+            <Button onClick={onConfirm} disabled={isConfirming} className="gap-2 min-w-[140px]">
+              {isConfirming
+                ? <><RefreshCw className="h-4 w-4 animate-spin" />Menyimpan...</>
+                : <><CheckCircle2 className="h-4 w-4" />Lanjut &amp; Sync ({totalActions})</>
+              }
             </Button>
           )}
         </DialogFooter>
@@ -319,23 +299,25 @@ export default function SettingsPage() {
     spreadsheetTitle, setSpreadsheetTitle,
   } = useContext(SettingsContext);
 
-  const [isClient, setIsClient] = useState(false);
-  const [isSaving, startSaving] = useTransition();
-  const [isSyncing, startSyncing] = useTransition();
-  const [isEditing, setIsEditing] = useState(false);
-  const [isValidating, setIsValidating] = useState(false);
+  // ✅ User preferences — sync menuVisibility ke DB
+  const { prefs, updatePref, isLoading: isPrefsLoading } = useUserPreferences();
 
-  const [sheetUrl, setSheetUrl] = useState('');
+  const [isClient, setIsClient]           = useState(false);
+  const [isSaving, startSaving]           = useTransition();
+  const [isEditing, setIsEditing]         = useState(false);
+  const [isValidating, setIsValidating]   = useState(false);
+  const [sheetUrl, setSheetUrl]           = useState('');
   const [mainSheetError, setMainSheetError] = useState<string | null>(null);
   const [lastSyncResult, setLastSyncResult] = useState<{ inserted: number; skipped: number } | null>(null);
   const [isSyncRunning, setIsSyncRunning] = useState(false);
 
-  // ── Menu Visibility ─────────────────────────────────────────────────────────
+  // ── Menu Visibility
+  // Inisialisasi dari localStorage untuk tampil cepat, DB akan override setelah load
   const [menuVisibility, setMenuVisibility] = useState<MenuVisibility>(DEFAULT_MENU_VISIBILITY);
 
-  // ── Preview dialog state ────────────────────────────────────────────────────
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isFetchingPreview, setIsFetchingPreview] = useState(false);
+  // ── Preview dialog state
+  const [isPreviewOpen, setIsPreviewOpen]             = useState(false);
+  const [isFetchingPreview, setIsFetchingPreview]     = useState(false);
   const [isConfirmingSyncRef, setIsConfirmingSyncRef] = useState(false);
   const [previewData, setPreviewData] = useState<{
     rows: PreviewRow[];
@@ -345,7 +327,7 @@ export default function SettingsPage() {
     unmappedHeaders: string[];
   } | null>(null);
 
-  // ── Cron state ──────────────────────────────────────────────────────────────
+  // ── Cron state
   const [cronConfig, setCronConfig] = useState<CronConfig>({
     interval: 'off', enabled: false, lastRun: null, nextRun: null,
   });
@@ -354,51 +336,60 @@ export default function SettingsPage() {
   const { toast } = useToast();
 
   // ── Init ────────────────────────────────────────────────────────────────────
-
   useEffect(() => {
     setIsClient(true);
 
     const initUrl = async () => {
       let url = contextSheetUrl;
-
       if (!url) {
         try { url = localStorage.getItem('globalSheetUrl') || ''; } catch (_) {}
       }
-
       if (!url) {
         try {
           const res = await getAppSetting('global_sheet_url');
           if (res.success && res.value) url = res.value;
         } catch (_) {}
       }
-
-      if (url) {
-        setSheetUrl(url);
-        setContextSheetUrl(url);
-      }
-
+      if (url) { setSheetUrl(url); setContextSheetUrl(url); }
       if (spreadsheetTitle && contextSheetUrl === verifiedUrl) setMainSheetError(null);
       setIsEditing(!spreadsheetTitle && !url);
     };
 
     initUrl();
 
+    // Load cron config dari localStorage
     try {
       const saved = localStorage.getItem('cronConfig');
       if (saved) setCronConfig(JSON.parse(saved));
     } catch (_) {}
 
-    // Load saved menu visibility
+    // ✅ Load menuVisibility dari localStorage dulu (fast path)
+    // DB preferences akan override via useEffect setelah prefs load
     try {
       const saved = localStorage.getItem(MENU_VISIBILITY_KEY);
-      if (saved) {
-        setMenuVisibility({ ...DEFAULT_MENU_VISIBILITY, ...JSON.parse(saved) });
-      }
+      if (saved) setMenuVisibility({ ...DEFAULT_MENU_VISIBILITY, ...JSON.parse(saved) });
     } catch (_) {}
   }, []);
 
-  // ── Cron scheduler ──────────────────────────────────────────────────────────
+  // ✅ Sync menuVisibility dari DB setelah prefs selesai load
+  // Prioritas: DB > localStorage — sehingga setting dari device lain ikut ter-apply
+  useEffect(() => {
+    if (isPrefsLoading) return;
+    if (!prefs.menuVisibility) return;
 
+    const merged = { ...DEFAULT_MENU_VISIBILITY, ...prefs.menuVisibility };
+    setMenuVisibility(merged);
+
+    // Sync ke localStorage agar client-layout bisa baca langsung
+    try { localStorage.setItem(MENU_VISIBILITY_KEY, JSON.stringify(merged)); } catch (_) {}
+
+    // Dispatch event agar sidebar langsung update
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('menuVisibilityChange', { detail: merged }));
+    }, 0);
+  }, [isPrefsLoading, prefs.menuVisibility]);
+
+  // ── Cron scheduler ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (cronTimerId) clearTimeout(cronTimerId);
     if (!cronConfig.enabled || cronConfig.interval === 'off') return;
@@ -422,21 +413,23 @@ export default function SettingsPage() {
   }
 
   function updateMenuVisibility(key: keyof MenuVisibility, value: boolean) {
-    // Compute next state synchronously
     const next: MenuVisibility = { ...menuVisibility, [key]: value };
 
-    // Persist to localStorage
-    try { localStorage.setItem(MENU_VISIBILITY_KEY, JSON.stringify(next)); } catch (_) {}
-
-    // Update local state
+    // 1. Update React state (instan)
     setMenuVisibility(next);
 
-    // Dispatch event AFTER React finishes rendering this update (avoids setState-during-render)
+    // 2. Persist ke localStorage
+    try { localStorage.setItem(MENU_VISIBILITY_KEY, JSON.stringify(next)); } catch (_) {}
+
+    // 3. ✅ Persist ke DB via user preferences (auto-save dengan debounce 1.5 detik)
+    updatePref('menuVisibility', next);
+
+    // 4. Dispatch event agar sidebar langsung update tanpa reload
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent('menuVisibilityChange', { detail: next }));
     }, 0);
 
-    // Keep SettingsContext in sync for secondary tools
+    // 5. Sync SettingsContext untuk secondary tools
     if (key === 'showSecondaryTools' && value !== areSecondaryToolsEnabled) {
       toggleSecondaryTools();
     }
@@ -467,7 +460,6 @@ export default function SettingsPage() {
       try { localStorage.setItem('globalSheetUrl', sheetUrl); } catch (_) {}
 
       const saveRes = await saveAppSetting('global_sheet_url', sheetUrl);
-
       if (saveRes.success) {
         toast({
           title: '✅ URL Disimpan sebagai Default Global',
@@ -479,7 +471,6 @@ export default function SettingsPage() {
           description: 'Tersimpan di browser ini. Gagal simpan ke server: ' + saveRes.error,
         });
       }
-
       setIsValidating(false);
     });
   };
@@ -492,14 +483,9 @@ export default function SettingsPage() {
     try {
       const result = await previewGSheetSync(targetUrl);
       if (!result.success) {
-        toast({
-          variant: 'destructive',
-          title: 'Gagal Fetch Preview',
-          description: result.error,
-        });
+        toast({ variant: 'destructive', title: 'Gagal Fetch Preview', description: result.error });
         return;
       }
-
       setPreviewData({
         rows: result.toInsert ?? [],
         updateRows: result.toUpdate ?? [],
@@ -521,12 +507,8 @@ export default function SettingsPage() {
       const res = await syncGSheetToDB(verifiedUrl || sheetUrl);
       if (res.success) {
         setLastSyncResult({ inserted: res.inserted ?? 0, skipped: res.skipped ?? 0 });
-        const now = new Date().toISOString();
-        toast({
-          title: '✅ Sync Complete',
-          description: `${res.inserted} rows inserted, ${res.skipped} skipped.`,
-        });
-        updateCronConfig({ lastRun: now });
+        toast({ title: '✅ Sync Complete', description: `${res.inserted} rows inserted, ${res.skipped} skipped.` });
+        updateCronConfig({ lastRun: new Date().toISOString() });
         setIsPreviewOpen(false);
         setPreviewData(null);
       } else {
@@ -591,7 +573,7 @@ export default function SettingsPage() {
     });
   };
 
-  // ── Feature toggles definition ───────────────────────────────────────────────
+  // ── Menu toggles definition ──────────────────────────────────────────────────
 
   type MenuToggle = {
     id: string;
@@ -599,7 +581,6 @@ export default function SettingsPage() {
     description: string;
     icon: React.ElementType;
     visibilityKey: keyof MenuVisibility;
-    alwaysVisible?: boolean;
   };
 
   const menuToggles: MenuToggle[] = [
@@ -640,6 +621,8 @@ export default function SettingsPage() {
     },
   ];
 
+  // ── Render ───────────────────────────────────────────────────────────────────
+
   if (!isClient) {
     return (
       <div className="flex-1 overflow-auto p-4 sm:p-6 md:p-8">
@@ -669,7 +652,6 @@ export default function SettingsPage() {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {/* URL Input */}
             <div className="grid gap-2">
               <Label htmlFor="url-destination">URL Destination (Import & Update)</Label>
               <div className="flex items-center gap-2">
@@ -690,7 +672,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* ── Sync Controls Panel ── */}
             <div className={cn(
               'rounded-xl border bg-muted/30 p-4 space-y-4 transition-opacity duration-200',
               !canSync && 'opacity-40 pointer-events-none'
@@ -705,9 +686,7 @@ export default function SettingsPage() {
                 {lastSyncResult && <SyncResultBadge result={lastSyncResult} />}
               </div>
 
-              {/* Action row */}
               <div className="flex flex-wrap items-center gap-3">
-
                 <Button
                   variant="default"
                   size="sm"
@@ -721,7 +700,6 @@ export default function SettingsPage() {
                   }
                 </Button>
 
-                {/* Cron Interval */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
@@ -741,7 +719,6 @@ export default function SettingsPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {/* Toggle cron */}
                 <Button
                   variant={cronIsActive ? 'secondary' : 'outline'}
                   size="sm"
@@ -756,7 +733,6 @@ export default function SettingsPage() {
                 </Button>
               </div>
 
-              {/* Cron status row */}
               {(cronConfig.lastRun || cronIsActive) && (
                 <div className="flex items-center gap-4 text-xs text-muted-foreground border-t pt-3">
                   {cronIsActive && (
@@ -800,6 +776,13 @@ export default function SettingsPage() {
             <CardDescription>
               Aktifkan atau nonaktifkan menu navigasi tertentu. Menu <strong>Dashboard</strong> dan{' '}
               <strong>Data All Case</strong> selalu ditampilkan.
+              {/* ✅ Indikator loading preferences dari DB */}
+              {isPrefsLoading && (
+                <span className="ml-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  Memuat preferensi...
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -815,22 +798,13 @@ export default function SettingsPage() {
                     )}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className={cn(
-                        'p-2 rounded-full transition-colors',
-                        isOn ? 'bg-primary/10' : 'bg-muted'
-                      )}>
-                        <toggle.icon className={cn(
-                          'h-5 w-5 transition-colors',
-                          isOn ? 'text-primary' : 'text-muted-foreground'
-                        )} />
+                      <div className={cn('p-2 rounded-full transition-colors', isOn ? 'bg-primary/10' : 'bg-muted')}>
+                        <toggle.icon className={cn('h-5 w-5 transition-colors', isOn ? 'text-primary' : 'text-muted-foreground')} />
                       </div>
                       <div className="space-y-0.5">
                         <Label
                           htmlFor={toggle.id}
-                          className={cn(
-                            'text-base font-medium cursor-pointer',
-                            !isOn && 'text-muted-foreground'
-                          )}
+                          className={cn('text-base font-medium cursor-pointer', !isOn && 'text-muted-foreground')}
                         >
                           {toggle.label}
                         </Label>
@@ -842,17 +816,20 @@ export default function SettingsPage() {
                       checked={isOn}
                       onCheckedChange={val => updateMenuVisibility(toggle.visibilityKey, val)}
                       aria-label={`Toggle ${toggle.label}`}
+                      disabled={isPrefsLoading}
                     />
                   </div>
                 );
               })}
             </div>
 
-            {/* Pinned info */}
             <div className="mt-4 rounded-lg border border-dashed bg-muted/20 px-4 py-3">
               <p className="text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground">Selalu tampil:</span>{' '}
                 Dashboard dan Data All Case tidak dapat disembunyikan.
+                <span className="ml-2 text-muted-foreground/70">
+                  · Pengaturan tersimpan otomatis dan berlaku di semua perangkat.
+                </span>
               </p>
             </div>
           </CardContent>

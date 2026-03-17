@@ -16,6 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import React from "react";
 import { ThemeSwitch } from "../ui/theme-switch";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import type { LucideProps } from "lucide-react";
 import {
@@ -36,39 +37,32 @@ type NavItem = {
 
 const navItems: Record<string, NavItem[]> = {
     overview: [
-        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/", label: "Import Data", icon: ListTree, visibilityKey: "showImportData" },
-        { href: "/db", label: "Data All Case", icon: Database },
+        { href: "/dashboard", label: "Dashboard",    icon: LayoutDashboard },
+        { href: "/",          label: "Import Data",  icon: ListTree,  visibilityKey: "showImportData" },
+        { href: "/db",        label: "Data All Case",icon: Database },
     ],
     reports: [
-        { href: "/report-harian", label: "Daily Report", icon: BarChart, visibilityKey: "showDailyReport" },
-        { href: "/knowledge-base", label: "Knowledge Base", icon: HardHat, disabled: true, visibilityKey: "showKnowledgeBase" },
+        { href: "/report-harian",  label: "Daily Report",  icon: BarChart, visibilityKey: "showDailyReport" },
+        { href: "/knowledge-base", label: "Knowledge Base", icon: HardHat,  disabled: true, visibilityKey: "showKnowledgeBase" },
     ],
     tools: [
         { href: "/migrasi-murid", label: "Migrasi Murid", icon: GitBranch, visibilityKey: "showMigrasiMurid" },
-        { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files, visibilityKey: "showSecondaryTools" },
-        { href: "/data-weaver", label: "Edit NIS", icon: Combine, visibilityKey: "showSecondaryTools" },
+        { href: "/cek-duplikasi", label: "Cek Duplikasi", icon: Files,     visibilityKey: "showSecondaryTools" },
+        { href: "/data-weaver",   label: "Edit NIS",      icon: Combine,   visibilityKey: "showSecondaryTools" },
     ],
 };
 
 type NavCategory = keyof typeof navItems;
-const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
-// ── SidebarTooltip — portals to body, uses fixed positioning ──────────────────
-// This bypasses ALL overflow:hidden constraints anywhere in the DOM.
+// ── SidebarTooltip ─────────────────────────────────────────────────────────────
 function SidebarTooltip({ label, children }: { label: string; children: React.ReactNode }) {
-    const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-    const triggerRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos]  = useState<{ top: number; left: number } | null>(null);
+    const triggerRef     = useRef<HTMLDivElement>(null);
 
     const show = useCallback(() => {
         if (!triggerRef.current) return;
         const rect = triggerRef.current.getBoundingClientRect();
-        setPos({
-            top: rect.top + rect.height / 2,
-            // Use sidebar right edge (60px from sidebar left) + small gap
-            // rect.left is the left edge of the 60px sidebar
-            left: rect.left + 60 + 6,
-        });
+        setPos({ top: rect.top + rect.height / 2, left: rect.left + 60 + 6 });
     }, []);
 
     const hide = useCallback(() => setPos(null), []);
@@ -106,13 +100,35 @@ function SidebarTooltip({ label, children }: { label: string; children: React.Re
 }
 
 // ── Hooks ──────────────────────────────────────────────────────────────────────
+
+// ✅ useMenuVisibility — sync dari DB preferences, fallback ke localStorage
+// Prioritas: DB prefs > localStorage > DEFAULT_MENU_VISIBILITY
+// ✅ FIX HYDRATION: initial state selalu DEFAULT, baca localStorage di useEffect
 function useMenuVisibility(): MenuVisibility {
+    const { prefs } = useUserPreferences();
+
+    // ✅ SELALU mulai dengan DEFAULT — server dan client render sama
     const [visibility, setVisibility] = useState<MenuVisibility>(DEFAULT_MENU_VISIBILITY);
+
+    // ✅ Baca localStorage setelah mount (client-only, tidak ada di server)
     useEffect(() => {
         try {
             const saved = localStorage.getItem(MENU_VISIBILITY_KEY);
             if (saved) setVisibility({ ...DEFAULT_MENU_VISIBILITY, ...JSON.parse(saved) });
-        } catch (_) {}
+        } catch {}
+    }, []);
+
+    // ✅ Override dari DB preferences saat prefs load — berlaku di semua device
+    useEffect(() => {
+        if (!prefs.menuVisibility) return;
+        const merged = { ...DEFAULT_MENU_VISIBILITY, ...prefs.menuVisibility };
+        setVisibility(merged);
+        // Sync balik ke localStorage agar sinkron
+        try { localStorage.setItem(MENU_VISIBILITY_KEY, JSON.stringify(merged)); } catch {}
+    }, [prefs.menuVisibility]);
+
+    // ✅ Listen event dari settings page saat user ubah toggle
+    useEffect(() => {
         const handler = (e: Event) => {
             const custom = e as CustomEvent<MenuVisibility>;
             if (custom.detail) setVisibility(custom.detail);
@@ -120,30 +136,52 @@ function useMenuVisibility(): MenuVisibility {
         window.addEventListener("menuVisibilityChange", handler);
         return () => window.removeEventListener("menuVisibilityChange", handler);
     }, []);
+
     return visibility;
 }
 
+// ✅ useSidebarCollapsed — sync dari DB preferences, fallback ke localStorage
+// Prioritas: DB prefs > localStorage > false
+// ✅ FIX HYDRATION: initial state selalu false, baca localStorage di useEffect
 function useSidebarCollapsed() {
-    const [collapsed, setCollapsed] = useState(false);
+    const { prefs, updatePref } = useUserPreferences();
+
+    // ✅ SELALU mulai dengan false — server dan client render sama
+    const [collapsed, setCollapsed] = useState<boolean>(false);
+
+    // ✅ Baca localStorage setelah mount (client-only, tidak ada di server)
     useEffect(() => {
         try {
-            const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+            const saved = localStorage.getItem("sidebar-collapsed");
             if (saved !== null) setCollapsed(JSON.parse(saved));
-        } catch (_) {}
+        } catch {}
     }, []);
-    const toggle = () => {
+
+    // ✅ Override dari DB preferences saat prefs load
+    useEffect(() => {
+        if (prefs.sidebarCollapsed === undefined) return;
+        setCollapsed(prefs.sidebarCollapsed);
+        // Sync ke localStorage
+        try { localStorage.setItem("sidebar-collapsed", JSON.stringify(prefs.sidebarCollapsed)); } catch {}
+    }, [prefs.sidebarCollapsed]);
+
+    const toggle = useCallback(() => {
         setCollapsed(prev => {
             const next = !prev;
-            try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, JSON.stringify(next)); } catch (_) {}
+            // ✅ Simpan ke DB via preferences (auto-debounce 1.5 detik)
+            updatePref('sidebarCollapsed', next);
+            // Langsung sync ke localStorage untuk akses sinkron
+            try { localStorage.setItem("sidebar-collapsed", JSON.stringify(next)); } catch {}
             return next;
         });
-    };
+    }, [updatePref]);
+
     return { collapsed, toggle };
 }
 
 // ── NavLinks ───────────────────────────────────────────────────────────────────
 function NavLinks({ isMobile = false, collapsed = false }: { isMobile?: boolean; collapsed?: boolean }) {
-    const pathname = usePathname();
+    const pathname       = usePathname();
     const menuVisibility = useMenuVisibility();
 
     const isVisible = (item: NavItem) =>
@@ -157,7 +195,6 @@ function NavLinks({ isMobile = false, collapsed = false }: { isMobile?: boolean;
 
                 return (
                     <div key={category} className="py-3">
-                        {/* Category heading */}
                         <div className={cn(
                             "transition-all duration-300 overflow-hidden",
                             collapsed ? "h-0 opacity-0" : "h-6 opacity-100 mb-1"
@@ -170,7 +207,6 @@ function NavLinks({ isMobile = false, collapsed = false }: { isMobile?: boolean;
                         {visibleItems.map((item) => {
                             const isActive = pathname === item.href;
 
-                            // Mobile
                             if (isMobile) {
                                 return (
                                     <SheetClose key={item.label} asChild>
@@ -191,7 +227,6 @@ function NavLinks({ isMobile = false, collapsed = false }: { isMobile?: boolean;
                                 );
                             }
 
-                            // Desktop collapsed: icon only, perfectly centered
                             if (collapsed) {
                                 return (
                                     <SidebarTooltip key={item.label} label={item.label}>
@@ -216,7 +251,6 @@ function NavLinks({ isMobile = false, collapsed = false }: { isMobile?: boolean;
                                 );
                             }
 
-                            // Desktop expanded: icon + label
                             return (
                                 <Link
                                     key={item.label}
@@ -255,9 +289,10 @@ function ProcessingIndicator() {
 
 // ── UserMenu ───────────────────────────────────────────────────────────────────
 function UserMenu() {
-    const { user, logout } = useAuth();
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
+    const { user, logout }          = useAuth();
+    const { clearPrefsCache }       = useUserPreferences();
+    const [open, setOpen]           = useState(false);
+    const ref                       = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -266,6 +301,12 @@ function UserMenu() {
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    const handleLogout = useCallback(() => {
+        setOpen(false);
+        clearPrefsCache(); // ✅ Clear preferences cache sebelum logout
+        logout();
+    }, [clearPrefsCache, logout]);
 
     return (
         <div className="relative" ref={ref}>
@@ -290,7 +331,7 @@ function UserMenu() {
                         Settings
                     </Link>
                     <button
-                        onClick={() => { setOpen(false); logout(); }}
+                        onClick={handleLogout}
                         className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
                     >
                         <LogOut className="h-4 w-4" strokeWidth={1.5} />
@@ -304,21 +345,21 @@ function UserMenu() {
 
 // ── ClientLayout ───────────────────────────────────────────────────────────────
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-    const pathname = usePathname();
-    const isMobile = useIsMobile();
-    const { setIsProcessing } = useContext(TableDataContext);
-    const { collapsed, toggle } = useSidebarCollapsed();
+    const pathname                  = usePathname();
+    const isMobile                  = useIsMobile();
+    const { setIsProcessing }       = useContext(TableDataContext);
+    const { collapsed, toggle }     = useSidebarCollapsed();
 
     const pageTitles: Record<string, string> = {
-        "/": "Import Data",
-        "/dashboard": "Dashboard",
-        "/db": "All Cases",
-        "/knowledge-base": "Knowledge Base",
+        "/":              "Import Data",
+        "/dashboard":     "Dashboard",
+        "/db":            "All Cases",
+        "/knowledge-base":"Knowledge Base",
         "/report-harian": "Daily Report",
         "/migrasi-murid": "Migrasi Murid",
         "/cek-duplikasi": "Cek Duplikasi",
-        "/data-weaver": "Edit NIS",
-        "/settings": "Settings",
+        "/data-weaver":   "Edit NIS",
+        "/settings":      "Settings",
     };
 
     useEffect(() => {
@@ -345,14 +386,12 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     {/* ── Logo row ── */}
                     <div style={{ height: 56, flexShrink: 0, borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", overflow: "visible" }}>
                         {collapsed ? (
-                            /* Collapsed: logo centered, expand button floats ON the right border */
                             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", overflow: "visible" }}>
                                 <Link href="/" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                                     <div style={{ width: 26, height: 26, background: "var(--primary)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>
                                         📊
                                     </div>
                                 </Link>
-                                {/* Expand tab — sits exactly on the right border */}
                                 <button
                                     onClick={toggle}
                                     aria-label="Expand sidebar"
@@ -379,7 +418,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                                 </button>
                             </div>
                         ) : (
-                            /* Expanded: logo + collapse button */
                             <div style={{ display: "flex", alignItems: "center", width: "100%", padding: "0 12px", gap: 8 }}>
                                 <Link href="/" className="flex items-center gap-2 font-bold text-primary text-base flex-1 min-w-0">
                                     <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-primary-foreground text-sm shrink-0">

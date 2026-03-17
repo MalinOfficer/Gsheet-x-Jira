@@ -2,6 +2,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
+import { unstable_noStore as noStore } from 'next/cache';
 import {
   mapDBArrayToFrontend,
   getSelectColumns,
@@ -237,6 +238,9 @@ export async function refreshDashboardViews() {
 // ============================================
 
 const _getDashboardFilterOptions = async () => {
+  // ✅ Prevent Next.js server-side caching — filter options harus selalu fresh
+  noStore();
+
   try {
     const [categoriesResult, clientsResult, modulesResult, detailModulesResult, yearsResult] = await Promise.all([
       supabaseAdmin.from("ticket_categories").select("name").is('deleted_at', null).order('name', { ascending: true }),
@@ -391,9 +395,9 @@ function _computeModuleTrends(data: any[], period: TrendPeriod = 'monthly') {
 
   return Array.from(allModules)
     .map(name => {
-      const current   = currentMap[name]  ?? 0;
-      const previous  = previousMap[name] ?? 0;
-      const change    = current - previous;
+      const current    = currentMap[name]  ?? 0;
+      const previous   = previousMap[name] ?? 0;
+      const change     = current - previous;
       const change_pct = previous === 0 ? null : Math.round((change / previous) * 100);
       const direction: 'up' | 'down' | 'stable' = change > 0 ? 'up' : change < 0 ? 'down' : 'stable';
       return { name, current, previous, change, change_pct, direction };
@@ -634,35 +638,22 @@ async function _fetchTrendRowsDirect(filters: {
   return allData;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _buildRpcDateParams
-//
-// ROOT FIX (sama dengan route.ts): Stored procedure fn_dashboard_filtered
-// tidak memproses p_year secara konsisten di semua environment.
-// Solusi: selalu inject p_start_date & p_end_date eksplisit dari yearValue
-// jika dateRange tidak tersedia.
-// ─────────────────────────────────────────────────────────────────────────────
 function _buildRpcDateParams(
   dateRange: { from?: Date | string; to?: Date | string } | undefined,
   yearValue: number | null
 ): { p_start_date: string | null; p_end_date: string | null } {
-  // Priority 1: explicit date range dari user (date picker)
   if (dateRange?.from) {
     return {
       p_start_date: _formatDateDashboard(dateRange.from),
       p_end_date:   dateRange.to ? _formatDateDashboard(dateRange.to) : _formatDateDashboard(dateRange.from),
     };
   }
-
-  // Priority 2: derive date range dari year selection
   if (yearValue !== null) {
     return {
       p_start_date: `${yearValue}-01-01`,
       p_end_date:   `${yearValue}-12-31`,
     };
   }
-
-  // Priority 3: no filter — return full range
   return { p_start_date: null, p_end_date: null };
 }
 
@@ -692,16 +683,11 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
       detailModuleFilter.length > 1 ||
       selectedYears.length      > 1;
 
-    // ── MODE 1: RPC (single filter / tanpa filter) ────────────────────────────
     if (!isMultiFilter) {
       const singleYear = selectedYears[0];
       const yearParsed = singleYear ? parseInt(singleYear, 10) : NaN;
       const yearValue  = isNaN(yearParsed) ? null : yearParsed;
 
-      // ╔══════════════════════════════════════════════════════════════════╗
-      // ║  ROOT FIX: Inject p_start_date & p_end_date dari yearValue      ║
-      // ║  agar stored procedure pasti memfilter meski p_year diabaikan.  ║
-      // ╚══════════════════════════════════════════════════════════════════╝
       const { p_start_date, p_end_date } = _buildRpcDateParams(dateRange, yearValue);
 
       const rpcParams: Record<string, any> = {
@@ -758,7 +744,6 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
       };
     }
 
-    // ── MODE 2: Direct query + pagination ─────────────────────────────────────
     const allData = await _fetchAllRowsDirect(sharedFilters);
 
     if (allData.length === 0) return { success: true, data: _emptyStats() };
@@ -769,6 +754,81 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
     console.error('❌ [getDashboardStats] Error:', error);
     return { success: false, error: error.message || 'Failed to fetch dashboard stats' };
   }
+}
+
+// ============================================
+// USER PREFERENCES
+// ============================================
+
+export type UserPreferences = {
+    theme?:                  'light' | 'dark' | 'system';
+    sidebarCollapsed?:       boolean;
+    menuVisibility?:         Record<string, boolean>;
+    dashboardTrendPeriod?:   'daily' | 'weekly' | 'monthly' | 'quarterly';
+    dashboardDefaultYears?:  string[];
+};
+
+export async function getUserPreferences(userId: string): Promise<{
+    success: boolean;
+    data?: UserPreferences;
+    error?: string;
+}> {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('user_preferences')
+            .select('preferences')
+            .eq('user_id', userId)
+            .single();
+
+        // Row belum ada → return empty, akan dibuat saat pertama save
+        if (error && error.code === 'PGRST116') {
+            return { success: true, data: {} };
+        }
+        if (error) throw error;
+
+        return { success: true, data: data.preferences as UserPreferences };
+    } catch (err: any) {
+        console.error('❌ [getUserPreferences]:', err);
+        return { success: false, error: err.message };
+    }
+}
+
+export async function saveUserPreferences(
+    userId: string,
+    preferences: Partial<UserPreferences>
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        // Ambil preferences lama untuk deep merge
+        const { data: existing } = await supabaseAdmin
+            .from('user_preferences')
+            .select('preferences')
+            .eq('user_id', userId)
+            .single();
+
+        const merged: UserPreferences = {
+            ...(existing?.preferences ?? {}),
+            ...preferences,
+            // Deep merge menuVisibility agar tidak overwrite semua key
+            menuVisibility: {
+                ...(existing?.preferences?.menuVisibility ?? {}),
+                ...(preferences.menuVisibility ?? {}),
+            },
+        };
+
+        const { error } = await supabaseAdmin
+            .from('user_preferences')
+            .upsert({
+                user_id:     userId,
+                preferences: merged,
+                updated_at:  new Date().toISOString(),
+            }, { onConflict: 'user_id' });
+
+        if (error) throw error;
+        return { success: true };
+    } catch (err: any) {
+        console.error('❌ [saveUserPreferences]:', err);
+        return { success: false, error: err.message };
+    }
 }
 
 // ============================================
@@ -1007,7 +1067,12 @@ export async function deleteMasterDetailModule(id: number): Promise<{ success: b
 
 export async function getMasterData(): Promise<{
   success: boolean;
-  data?: { statuses: { id: number; name: string }[]; categories: { id: number; name: string }[]; modules: { id: number; name: string }[]; detailModules: { id: number; name: string }[]; };
+  data?: {
+    statuses:      { id: number; name: string }[];
+    categories:    { id: number; name: string }[];
+    modules:       { id: number; name: string }[];
+    detailModules: { id: number; name: string }[];
+  };
   error?: string;
 }> {
   try {
