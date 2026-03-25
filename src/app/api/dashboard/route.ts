@@ -1,3 +1,4 @@
+//route dashboard
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { type DateRange } from 'react-day-picker';

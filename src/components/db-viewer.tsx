@@ -56,6 +56,15 @@ interface DbViewerState {
     error?: string | null;
 }
 
+// ── CellOptions type ───────────────────────────────────────
+
+interface CellOptions {
+    status: string[];
+    ticket_category: string[];
+    module: string[];
+    detail_module: string[];
+}
+
 // ── Constants ──────────────────────────────────────────────
 
 let FILTER_COLUMNS: string[] = [];
@@ -264,12 +273,6 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
 });
 
 // ── HeaderFilterPopover ────────────────────────────────────
-// CHANGE 1: Adds `staged` state so selections are buffered until Apply is clicked.
-// - Popover open → syncs staged from committed `selected`
-// - Toggling/SelectAll/Clear → updates staged only, not parent
-// - Apply button → commits staged → calls onSelectionChange → closes
-// - Close without Apply → staged is discarded (re-synced next open)
-// - Apply button turns blue + shows ● indicator when staged ≠ committed selected
 
 const HeaderFilterPopover = memo(({
     label, options, selected, onSelectionChange, renderOption,
@@ -290,16 +293,12 @@ const HeaderFilterPopover = memo(({
     const [showInlineAdd, setShowInlineAdd] = useState(false);
     const [deletingId, setDeletingId] = useState<number | null>(null);
 
-    // ── staged: buffered selections, only committed on Apply ──────────────────
     const [staged, setStaged] = useState<string[]>(selected);
 
-    // Sync staged from committed selected whenever popover opens
     const handleOpenChange = (v: boolean) => {
         if (v) {
-            // Opening: sync staged from current committed selection
             setStaged(selected);
         } else {
-            // Closing (without Apply): discard staged, reset UI state
             setSearch('');
             setShowInlineAdd(false);
             setNewItemInput('');
@@ -307,7 +306,6 @@ const HeaderFilterPopover = memo(({
         setOpen(v);
     };
 
-    // Whether staged differs from committed selected (uncommitted changes exist)
     const hasPendingChanges = useMemo(() => {
         if (staged.length !== selected.length) return true;
         const sortedStaged = [...staged].sort();
@@ -320,11 +318,9 @@ const HeaderFilterPopover = memo(({
         [options, search]
     );
 
-    // Toggle in staged (not parent)
     const toggleOption = (o: string) =>
         setStaged(prev => prev.includes(o) ? prev.filter(s => s !== o) : [...prev, o]);
 
-    // Apply: commit staged → parent, close popover
     const handleApply = () => {
         onSelectionChange(staged);
         setOpen(false);
@@ -347,9 +343,7 @@ const HeaderFilterPopover = memo(({
         setDeletingId(id); await onDeleteItem(id, name); setDeletingId(null);
     };
 
-    // Trigger button indicator reflects committed `selected`, not staged
     const hasActive = selected.length > 0;
-
     const allStagedSelected = staged.length === options.length && options.length > 0;
 
     return (
@@ -389,7 +383,6 @@ const HeaderFilterPopover = memo(({
                         <CommandEmpty className="text-xs py-4 text-center text-slate-400">No results found.</CommandEmpty>
                         <CommandGroup>
                             {filteredOptions.map(option => {
-                                // Render checkmark based on staged (not committed selected)
                                 const isStagedSelected = staged.includes(option);
                                 const isInDB = dbItemsMap ? dbItemsMap.has(option) : true;
                                 const dbId = dbItemsMap?.get(option);
@@ -416,7 +409,6 @@ const HeaderFilterPopover = memo(({
                     </CommandList>
                 </Command>
 
-                {/* Footer: SelectAll/Clear + Apply button */}
                 <div className="border-t border-slate-100 dark:border-[#3a3a3c] px-3 py-2 flex items-center justify-between bg-slate-50 dark:bg-[#242426]/80 gap-2">
                     <div className="flex items-center gap-2">
                         {options.length > 0 && (
@@ -436,7 +428,6 @@ const HeaderFilterPopover = memo(({
                             </button>
                         )}
                     </div>
-                    {/* Apply button — turns blue with ● when there are uncommitted changes */}
                     <Button
                         size="sm"
                         onClick={handleApply}
@@ -522,18 +513,96 @@ const AddClientDialog = memo(({ isOpen, onOpenChange, onClientAdded, existingCli
 });
 AddClientDialog.displayName = "AddClientDialog";
 
+// ── SearchableComboboxCell ─────────────────────────────────
+// Reusable inline cell combobox with search, used for client_name, module, detail_module
+
+const SearchableComboboxCell = memo(({
+    value, options, onSelect, onClose, placeholder, cellStyle,
+    renderOption,
+}: {
+    value: string;
+    options: string[];
+    onSelect: (v: string) => void;
+    onClose: () => void;
+    placeholder?: string;
+    cellStyle: React.CSSProperties;
+    renderOption?: (v: string) => React.ReactNode;
+}) => {
+    return (
+        <div className="align-middle relative" style={cellStyle}>
+            <Popover open onOpenChange={o => { if (!o) onClose(); }}>
+                <PopoverTrigger asChild>
+                    <button className="h-full w-full rounded-none border-2 border-primary bg-white dark:bg-[#1f1f21] px-3 text-xs text-left flex items-center gap-1 focus:outline-none min-h-[48px]">
+                        <span className="flex-1 truncate text-slate-800 dark:text-[#e0e0e2]">
+                            {value || <span className="text-slate-400">{placeholder || 'Pilih...'}</span>}
+                        </span>
+                        <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent
+                    className="w-[240px] p-0 shadow-xl rounded-xl border-slate-200 dark:border-[#3a3a3c] overflow-hidden"
+                    align="start"
+                    side="bottom"
+                    sideOffset={2}
+                >
+                    <Command>
+                        <CommandInput
+                            placeholder="Cari..."
+                            className="text-xs h-8 border-b border-slate-100 dark:border-[#3a3a3c]"
+                            autoFocus
+                        />
+                        <CommandList className="max-h-[220px]">
+                            <CommandEmpty className="text-xs py-3 text-center text-slate-400">
+                                Tidak ditemukan.
+                            </CommandEmpty>
+                            <CommandGroup>
+                                {options.map(o => (
+                                    <CommandItem
+                                        key={o}
+                                        value={o}
+                                        onSelect={() => onSelect(o)}
+                                        className={cn(
+                                            'text-xs cursor-pointer py-1.5 px-3 flex items-center gap-2',
+                                            value === o && 'bg-primary/10'
+                                        )}
+                                    >
+                                        <div className={cn(
+                                            'h-3.5 w-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors',
+                                            value === o
+                                                ? 'bg-primary border-primary text-white'
+                                                : 'border-slate-300 dark:border-[#3a3a3c] bg-white dark:bg-[#1f1f21]'
+                                        )}>
+                                            {value === o && <Check className="h-2.5 w-2.5" />}
+                                        </div>
+                                        <span className="flex-1 truncate min-w-0">
+                                            {renderOption ? renderOption(o) : o}
+                                        </span>
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+});
+SearchableComboboxCell.displayName = "SearchableComboboxCell";
+
 // ── LazyEditableCell ───────────────────────────────────────
 
 const LazyEditableCell = memo(({
     header, value, rowId, rowNumber, columnWidth,
     onCellChange, onCellSave, availableClients, availableClientsSet,
     activeCell, onCellClick, isSelected, onToggleSelect, isEditMode,
+    cellOptions,
 }: {
     header: string; value: any; rowId: number; rowNumber: number; columnWidth: number;
     onCellChange: (id: number, h: string, v: string) => void; onCellSave: (id: number) => void;
     availableClients: string[]; availableClientsSet: Set<string>;
     activeCell: { rowId: number; header: string } | null; onCellClick: (rowId: number, h: string) => void;
     isSelected: boolean; onToggleSelect: (id: number) => void; isEditMode: boolean;
+    cellOptions: CellOptions;
 }) => {
     const [local, setLocal] = useState(value);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -561,17 +630,27 @@ const LazyEditableCell = memo(({
         </div>
     );
 
+    // ── client_name: searchable combobox ──
     if (header === 'client_name') {
         const str = (value as string) || '';
         const valid = availableClientsSet.has(str.toLowerCase());
+
         if (isActive && isEditMode) return (
-            <div className="align-middle relative" style={cellStyle}>
-                <Select value={local} onValueChange={v => { setLocal(v); onCellChange(rowId, header, v); onCellSave(rowId); onCellClick(0, ''); }} open onOpenChange={o => { if (!o) onCellClick(0, ''); }}>
-                    <SelectTrigger className={cn("h-full w-full rounded-none border-2 border-primary bg-white dark:bg-[#1f1f21] px-2 text-xs focus:ring-0", !valid && str && "text-red-600 font-semibold")}><SelectValue placeholder="Pilih client..." /></SelectTrigger>
-                    <SelectContent><SelectScrollUpButton /><SelectViewport>{availableClients.map(o => <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>)}</SelectViewport><SelectScrollDownButton /></SelectContent>
-                </Select>
-            </div>
+            <SearchableComboboxCell
+                value={local ?? ''}
+                options={availableClients}
+                placeholder="Pilih client..."
+                cellStyle={cellStyle}
+                onClose={() => onCellClick(0, '')}
+                onSelect={v => {
+                    setLocal(v);
+                    onCellChange(rowId, header, v);
+                    onCellSave(rowId);
+                    onCellClick(0, '');
+                }}
+            />
         );
+
         return (
             <div className={cn("align-middle relative h-full transition-colors", isEditable && "cursor-pointer hover:bg-slate-50 dark:hover:bg-[#2e2e30]/60")} style={cellStyle} onClick={() => isEditable && onCellClick(rowId, header)}>
                 <div className="py-2 px-3 flex items-center h-full justify-center">
@@ -581,20 +660,36 @@ const LazyEditableCell = memo(({
         );
     }
 
-    const isDropdown = ['status','ticket_category','module','detail_module'].includes(header);
-    if (isDropdown && isActive && isEditMode) {
-        const opts = header === 'ticket_category' ? ALL_CATEGORIES : header === 'status' ? ALL_STATUSES : header === 'module' ? ALL_MODULES : ALL_DETAIL_MODULES;
+    // ── status, ticket_category: simple dropdown (short list, no search needed) ──
+    const isSimpleDropdown = ['status', 'ticket_category'].includes(header);
+    if (isSimpleDropdown && isActive && isEditMode) {
+        const opts = header === 'ticket_category'
+            ? cellOptions.ticket_category
+            : cellOptions.status;
+
         return (
             <div className="align-middle" style={frozenStyle}>
-                <Select value={local ?? ''} onValueChange={v => { setLocal(v); onCellChange(rowId, header, v); onCellSave(rowId); onCellClick(0, ''); }} open onOpenChange={o => { if (!o) onCellClick(0, ''); }}>
-                    <SelectTrigger className="h-full w-full rounded-none border-2 border-primary bg-white dark:bg-[#1f1f21] px-2 text-xs focus:ring-0"><SelectValue /></SelectTrigger>
+                <Select
+                    value={local ?? ''}
+                    onValueChange={v => {
+                        setLocal(v);
+                        onCellChange(rowId, header, v);
+                        onCellSave(rowId);
+                        onCellClick(0, '');
+                    }}
+                    open
+                    onOpenChange={o => { if (!o) onCellClick(0, ''); }}
+                >
+                    <SelectTrigger className="h-full w-full rounded-none border-2 border-primary bg-white dark:bg-[#1f1f21] px-2 text-xs focus:ring-0">
+                        <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                         {opts.map(o => (
                             <SelectItem key={o} value={o} className="text-xs">
-                                {header === 'status' ? <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[o] || statusColorMap.default)}>{o}</span>
-                                : header === 'ticket_category' ? <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', categoryColorMap[o] || categoryColorMap.default)}>{o}</span>
-                                : header === 'module' ? <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', moduleColorMap[o] || moduleColorMap.default)}>{o}</span>
-                                : o}
+                                {header === 'status'
+                                    ? <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[o] || statusColorMap.default)}>{o}</span>
+                                    : <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', categoryColorMap[o] || categoryColorMap.default)}>{o}</span>
+                                }
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -602,6 +697,45 @@ const LazyEditableCell = memo(({
             </div>
         );
     }
+
+    // ── module: searchable combobox ──
+    if (header === 'module' && isActive && isEditMode) return (
+        <SearchableComboboxCell
+            value={local ?? ''}
+            options={cellOptions.module}
+            placeholder="Pilih module..."
+            cellStyle={cellStyle}
+            onClose={() => onCellClick(0, '')}
+            renderOption={o => (
+                <span className={cn('px-2 py-0.5 rounded-full text-[11px] font-medium', moduleColorMap[o] || moduleColorMap.default)}>
+                    {o}
+                </span>
+            )}
+            onSelect={v => {
+                setLocal(v);
+                onCellChange(rowId, header, v);
+                onCellSave(rowId);
+                onCellClick(0, '');
+            }}
+        />
+    );
+
+    // ── detail_module: searchable combobox (uses dynamic DB options) ──
+    if (header === 'detail_module' && isActive && isEditMode) return (
+        <SearchableComboboxCell
+            value={local ?? ''}
+            options={cellOptions.detail_module}
+            placeholder="Pilih detail module..."
+            cellStyle={cellStyle}
+            onClose={() => onCellClick(0, '')}
+            onSelect={v => {
+                setLocal(v);
+                onCellChange(rowId, header, v);
+                onCellSave(rowId);
+                onCellClick(0, '');
+            }}
+        />
+    );
 
     if (isEditable && isActive) return (
         <div className="align-middle" style={frozenStyle}>
@@ -634,16 +768,34 @@ LazyEditableCell.displayName = "LazyEditableCell";
 
 // ── MemoizedRow ────────────────────────────────────────────
 
-const MemoizedRow = memo(({ row, headers, columnWidths, rowNumber, handleCellChange, handleCellSave, availableClients, availableClientsSet, activeCell, onCellClick, isSelected, onToggleSelect, isEditMode }: {
+const MemoizedRow = memo(({ row, headers, columnWidths, rowNumber, handleCellChange, handleCellSave, availableClients, availableClientsSet, activeCell, onCellClick, isSelected, onToggleSelect, isEditMode, cellOptions }: {
     row: any; headers: string[]; columnWidths: Record<string,number>; rowNumber: number;
     handleCellChange: (id: number, h: string, v: string) => void; handleCellSave: (id: number) => void;
     availableClients: string[]; availableClientsSet: Set<string>;
     activeCell: { rowId: number; header: string } | null; onCellClick: (id: number, h: string) => void;
     isSelected: boolean; onToggleSelect: (id: number) => void; isEditMode: boolean;
+    cellOptions: CellOptions;
 }) => (
     <div className={cn("flex border-b border-slate-100 dark:border-[#3a3a3c] transition-colors h-full", isSelected ? "bg-primary/5 dark:bg-primary/8" : "hover:bg-slate-50/80 dark:hover:bg-[#2e2e30]/40")}>
         {headers.map(h => (
-            <LazyEditableCell key={`${row.id}-${h}`} header={h} value={row[h]} rowId={row.id} rowNumber={rowNumber} columnWidth={columnWidths[h]} onCellChange={handleCellChange} onCellSave={handleCellSave} availableClients={availableClients} availableClientsSet={availableClientsSet} activeCell={activeCell} onCellClick={onCellClick} isSelected={isSelected} onToggleSelect={onToggleSelect} isEditMode={isEditMode} />
+            <LazyEditableCell
+                key={`${row.id}-${h}`}
+                header={h}
+                value={row[h]}
+                rowId={row.id}
+                rowNumber={rowNumber}
+                columnWidth={columnWidths[h]}
+                onCellChange={handleCellChange}
+                onCellSave={handleCellSave}
+                availableClients={availableClients}
+                availableClientsSet={availableClientsSet}
+                activeCell={activeCell}
+                onCellClick={onCellClick}
+                isSelected={isSelected}
+                onToggleSelect={onToggleSelect}
+                isEditMode={isEditMode}
+                cellOptions={cellOptions}
+            />
         ))}
     </div>
 ));
@@ -665,7 +817,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
 
-    // CHANGE 2: yearFilter defaults to the most recent year from availableYears
     const [yearFilter, setYearFilter] = useState<string>(() => {
         if (availableYears.length > 0) {
             return [...availableYears].sort((a, b) => parseInt(b) - parseInt(a))[0];
@@ -673,7 +824,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         return 'all';
     });
 
-    // CHANGE 2: showUnsolvedOnly — default true, filters to L1/L2/L3/PM unless user has custom status filter
     const [showUnsolvedOnly, setShowUnsolvedOnly] = useState(true);
 
     const [pageSize, setPageSize] = useState(50);
@@ -695,6 +845,10 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
+
+    // ── Edit confirmation dialog state ──
+    const [isEditConfirmOpen, setIsEditConfirmOpen] = useState(false);
+
     const [resizingColumn, setResizingColumn] = useState<string | null>(null);
     const [startX, setStartX] = useState(0);
     const [startWidth, setStartWidth] = useState(0);
@@ -721,12 +875,10 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         unmappedHeaders: string[];
     } | null>(null);
 
-    // ── FIX: ref selalu tunjuk ke state.data terbaru ──────────────────────────
     const stateDataRef = useRef(state.data);
     useEffect(() => {
         stateDataRef.current = state.data;
     }, [state.data]);
-    // ─────────────────────────────────────────────────────────────────────────
 
     useEffect(() => {
         getMasterData().then(res => {
@@ -736,10 +888,12 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
             setDbCategoryMap(new Map(categories.map(c => [c.name, c.id])));
             setDbModuleMap(new Map(modules.map(m => [m.name, m.id])));
             setDbDetailModuleMap(new Map(detailModules.map(d => [d.name, d.id])));
+            // Replace with DB data (authoritative), then merge any local fallbacks not yet in DB
             setStatusOptions(prev => [...new Set([...statuses.map(s => s.name), ...prev])]);
             setCategoryOptions(prev => [...new Set([...categories.map(c => c.name), ...prev])]);
             setModuleOptions(prev => [...new Set([...modules.map(m => m.name), ...prev])]);
-            setDetailModuleOptions(prev => [...new Set([...detailModules.map(d => d.name), ...prev])]);
+            // FIX #1: detail_module now comes from DB, not hardcoded constant
+            setDetailModuleOptions(detailModules.map(d => d.name));
         });
     }, []);
 
@@ -784,14 +938,12 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         }
     }, [resizingColumn, handleResizeMove, handleResizeEnd]);
 
-    // CHANGE 2: effectiveStatus — uses custom status filter if set, otherwise UNSOLVED_STATUSES when showUnsolvedOnly
     const effectiveStatus = useMemo<string[] | undefined>(() => {
         if ((columnFilters['status'] ?? []).length > 0) return columnFilters['status'];
         if (showUnsolvedOnly) return UNSOLVED_STATUSES;
         return undefined;
     }, [columnFilters, showUnsolvedOnly]);
 
-    // Whether unsolvedOnly is actively suppressing a status filter (i.e. no custom status filter is set)
     const isUnsolvedOnlyActive = showUnsolvedOnly && (columnFilters['status'] ?? []).length === 0;
 
     const activeFilterCount = useMemo(() =>
@@ -803,7 +955,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
 
     const setFilterForColumn = useCallback((col: string, vals: string[]) => { setColumnFilters(p => { const n = {...p}; if (!vals.length) delete n[col]; else n[col] = vals; return n; }); setCurrentPage(1); }, []);
 
-    // CHANGE 2: clearAllFilters also resets showUnsolvedOnly to false
     const clearAllFilters = useCallback(() => {
         setColumnFilters({});
         setDateRange(undefined);
@@ -841,7 +992,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         }
     }, []);
 
-    // CHANGE 2: fetchData uses effectiveStatus instead of raw columnFilters['status']
     const fetchData = useCallback(() => {
         startTransition(async () => {
             const r = await getAllCaseData({
@@ -935,6 +1085,14 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         });
     }, [state.data]);
 
+    // FIX #2: cellOptions memo — always uses live dynamic state, not hardcoded constants
+    const cellOptions = useMemo<CellOptions>(() => ({
+        status: statusOptions,
+        ticket_category: categoryOptions,
+        module: moduleOptions,
+        detail_module: detailModuleOptions,
+    }), [statusOptions, categoryOptions, moduleOptions, detailModuleOptions]);
+
     const handleToggleSelect = useCallback((id: number) => { setSelectedRows(p => { const s = new Set(p); s.has(id) ? s.delete(id) : s.add(id); return s; }); }, []);
     const handleSelectAll = useCallback(() => { setSelectedRows(p => p.size === displayData.length ? new Set() : new Set(displayData.map(r => r.id))); }, [displayData]);
     const handleBulkDelete = useCallback(async () => {
@@ -970,7 +1128,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         });
     }, []);
 
-    // ── FIX: handleCellSave pakai stateDataRef bukan state.data ──────────────
     const handleCellSave = useCallback((id: number) => {
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(async () => {
@@ -986,7 +1143,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
             setIsSaving(false);
         }, 800);
     }, [toast]);
-    // ─────────────────────────────────────────────────────────────────────────
 
     const confirmDelete = useCallback(async () => {
         if (deleteConfirmId === null) return;
@@ -1044,12 +1200,61 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
 
             <AddClientDialog isOpen={isAddClientOpen} onOpenChange={setIsAddClientOpen} existingClientsSet={availableClientsSet} onClientAdded={name => setAvailableClients(p => { if (p.some(c => c.toLowerCase() === name.toLowerCase())) return p; return [...p, name].sort((a, b) => a.localeCompare(b)); })} />
 
+            {/* ── Delete single row confirm ── */}
             <Dialog open={deleteConfirmId !== null} onOpenChange={o => { if (!o) setDeleteConfirmId(null); }}>
                 <DialogContent className="sm:max-w-[380px] rounded-xl shadow-2xl">
                     <DialogHeader><DialogTitle className="text-base font-semibold">Hapus Row</DialogTitle><DialogDescription className="text-sm text-slate-500">Tindakan ini tidak dapat dibatalkan.</DialogDescription></DialogHeader>
                     <DialogFooter className="flex-row justify-end gap-2 pt-2">
                         <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)} disabled={isDeleting}>Cancel</Button>
                         <Button variant="destructive" size="sm" onClick={confirmDelete} disabled={isDeleting}>{isDeleting ? <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}Delete</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Edit mode confirmation dialog ── */}
+            <Dialog open={isEditConfirmOpen} onOpenChange={setIsEditConfirmOpen}>
+                <DialogContent className="sm:max-w-[420px] rounded-xl shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-semibold flex items-center gap-2">
+                            <Pencil className="h-4 w-4 text-amber-500" />
+                            Aktifkan Mode Edit
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-slate-500 mt-2 leading-relaxed">
+                            Perubahan yang kamu buat hanya akan tersimpan di{' '}
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">Dashboard</span>{' '}
+                            dan{' '}
+                            <span className="font-semibold text-red-500">tidak akan mempengaruhi</span>{' '}
+                            file Google Sheet yang terhubung.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex items-start gap-3 px-3 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 mt-1">
+                        <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                            Untuk mengubah data di Google Sheet, lakukan perubahan langsung di GSheet lalu gunakan fitur{' '}
+                            <strong>Sync Now</strong> untuk menyinkronkan ke Dashboard.
+                        </p>
+                    </div>
+
+                    <DialogFooter className="gap-2 mt-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsEditConfirmOpen(false)}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            size="sm"
+                            className="bg-amber-500 hover:bg-amber-600 text-white border-0 shadow-sm"
+                            onClick={() => {
+                                setIsEditMode(true);
+                                setIsEditConfirmOpen(false);
+                            }}
+                        >
+                            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                            Lanjut Edit
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1072,7 +1277,7 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                 </SelectContent>
                             </Select>
 
-                            {/* CHANGE 2: Unsolved Only toggle button */}
+                            {/* Unsolved Only toggle */}
                             <button
                                 onClick={() => setShowUnsolvedOnly(p => !p)}
                                 className={cn(
@@ -1089,7 +1294,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                 Unsolved Only
                             </button>
 
-                            {/* Clear filters — also clears showUnsolvedOnly */}
                             {(activeFilterCount > 0 || isUnsolvedOnlyActive) && (
                                 <button onClick={clearAllFilters} className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold", "bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400", "border border-red-200 dark:border-red-800 transition-colors")}>
                                     <FilterX className="h-3 w-3" />
@@ -1110,8 +1314,23 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                             <Button onClick={handleExport} size="sm" variant="outline" className="h-9 text-xs font-semibold rounded-lg border-slate-200 dark:border-[#3a3a3c]">
                                 <Download className="mr-1.5 h-3.5 w-3.5" /> Export
                             </Button>
-                            <Button onClick={() => { setIsEditMode(p => !p); setSelectedRows(new Set()); }} size="sm" variant={isEditMode ? "default" : "outline"} className={cn("h-9 text-xs font-semibold rounded-lg", !isEditMode && "border-slate-200 dark:border-[#3a3a3c]")}>
-                                <Pencil className="mr-1.5 h-3.5 w-3.5" /> {isEditMode ? "Done Editing" : "Edit"}
+
+                            {/* Edit button with confirmation on activate */}
+                            <Button
+                                onClick={() => {
+                                    if (isEditMode) {
+                                        setIsEditMode(false);
+                                        setSelectedRows(new Set());
+                                    } else {
+                                        setIsEditConfirmOpen(true);
+                                    }
+                                }}
+                                size="sm"
+                                variant={isEditMode ? "default" : "outline"}
+                                className={cn("h-9 text-xs font-semibold rounded-lg", !isEditMode && "border-slate-200 dark:border-[#3a3a3c]")}
+                            >
+                                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                                {isEditMode ? "Done Editing" : "Edit"}
                             </Button>
                         </div>
                     </div>
@@ -1186,7 +1405,22 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                         const rowNumber = (currentPage - 1) * pageSize + vr.index + 1;
                                         return (
                                             <div key={vr.key} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: `${vr.size}px`, transform: `translateY(${vr.start}px)` }}>
-                                                <MemoizedRow row={row} headers={headers} columnWidths={columnWidths} rowNumber={rowNumber} handleCellChange={handleCellChange} handleCellSave={handleCellSave} availableClients={availableClients} availableClientsSet={availableClientsSet} activeCell={activeCell} onCellClick={handleCellClick} isSelected={selectedRows.has(row.id)} onToggleSelect={handleToggleSelect} isEditMode={isEditMode} />
+                                                <MemoizedRow
+                                                    row={row}
+                                                    headers={headers}
+                                                    columnWidths={columnWidths}
+                                                    rowNumber={rowNumber}
+                                                    handleCellChange={handleCellChange}
+                                                    handleCellSave={handleCellSave}
+                                                    availableClients={availableClients}
+                                                    availableClientsSet={availableClientsSet}
+                                                    activeCell={activeCell}
+                                                    onCellClick={handleCellClick}
+                                                    isSelected={selectedRows.has(row.id)}
+                                                    onToggleSelect={handleToggleSelect}
+                                                    isEditMode={isEditMode}
+                                                    cellOptions={cellOptions}
+                                                />
                                             </div>
                                         );
                                     })}
@@ -1210,7 +1444,6 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
                                 {' rows'}
                             </span>
 
-                            {/* CHANGE 2: "unsolved" badge in footer when unsolvedOnly is active */}
                             {isUnsolvedOnlyActive && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800 font-semibold text-[11px]">
                                     <span className="h-1.5 w-1.5 rounded-full bg-amber-500 flex-shrink-0" />

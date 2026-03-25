@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart as BarChartIcon, CheckCircle, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon, X, GripHorizontal, Maximize2, Minimize2, ChevronDown, Check, Layers, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { BarChart as BarChartIcon, CheckCircle, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon, X, GripHorizontal, Maximize2, Minimize2, ChevronDown, Check, Layers, TrendingUp, TrendingDown, Minus, Download, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useContext, useState, useEffect, useTransition, useCallback, useMemo, useRef } from "react";
 import { TableDataContext } from "@/store/table-data-context";
@@ -193,6 +193,93 @@ function trendColor(direction: 'up' | 'down' | 'stable'): string {
     if (direction === 'up')   return 'text-red-600';
     if (direction === 'down') return 'text-emerald-500';
     return 'text-muted-foreground';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DownloadReportButton — DOCX only, no dropdown
+// ─────────────────────────────────────────────────────────────────────────────
+interface DownloadReportButtonProps {
+    stats: DashboardStats;
+    filterSummary: {
+        years: string[];
+        dateRange?: string;
+        categories: string[];
+        clients: string[];
+        modules: string[];
+        detailModules: string[];
+        trendPeriod: string;
+    };
+    disabled?: boolean;
+}
+
+function DownloadReportButton({ stats, filterSummary, disabled }: DownloadReportButtonProps) {
+    const [isLoading, setIsLoading] = useState(false);
+    const { toast }                 = useToast();
+
+    const handleDownload = useCallback(async () => {
+        setIsLoading(true);
+        toast({
+            title:       'Generating Report…',
+            description: 'Menyiapkan laporan Word, harap tunggu.',
+        });
+
+        try {
+            const response = await fetch('/api/dashboard/report', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ stats, filterSummary }),
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+                throw new Error(err.error ?? `HTTP ${response.status}`);
+            }
+
+            const blob     = await response.blob();
+            const url      = URL.createObjectURL(blob);
+            const dateSlug = new Date().toISOString().slice(0, 10);
+            const a        = document.createElement('a');
+            a.href         = url;
+            a.download     = `dashboard-report-${dateSlug}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            toast({ title: 'Download selesai!', description: 'Laporan Word berhasil diunduh.' });
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: 'Download gagal', description: err.message });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [stats, filterSummary, toast]);
+
+    return (
+        <TooltipProvider delayDuration={200}>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={disabled || isLoading}
+                        onClick={handleDownload}
+                        className="gap-1.5"
+                    >
+                        {isLoading
+                            ? <RefreshCw className="h-4 w-4 animate-spin" />
+                            : <FileText   className="h-4 w-4" />
+                        }
+                        <span className="hidden sm:inline">
+                            {isLoading ? 'Generating…' : 'Report'}
+                        </span>
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                    Download laporan Word (.docx) sesuai filter aktif
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -408,7 +495,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
     const { setIsProcessing }   = useContext(TableDataContext);
     const { toast }             = useToast();
 
-    // ✅ User preferences — trendPeriod & defaultYears tersimpan ke DB
     const { prefs, updatePref } = useUserPreferences();
 
     const [stats, setStats]                 = useState<DashboardStats | null>(_dashboardCache.current?.stats ?? initialStats ?? null);
@@ -421,14 +507,12 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
     const [isFullscreen, setIsFullscreen]   = useState(false);
     const [hasMounted, setHasMounted]       = useState(false);
 
-    // ✅ trendPeriod — default dari DB preferences, fallback ke 'monthly'
     const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>(
         prefs.dashboardTrendPeriod ?? 'monthly'
     );
 
     const hasLoadedOnce = useRef<boolean>(_dashboardCache.current !== null || initialStats !== null);
     const requestIdRef  = useRef(0);
-    // ✅ Track apakah trendPeriod sudah di-sync dari prefs (hanya sekali)
     const trendPeriodSyncedRef = useRef(false);
 
     // Filter states
@@ -439,8 +523,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
     const [detailModuleFilter, setDetailModuleFilter] = useState<string[]>([]);
     const [dateRange, setDateRange]                   = useState<DateRange | undefined>(undefined);
 
-    // ✅ Sync trendPeriod dari DB preferences saat pertama load
-    // Hanya sekali — setelah itu user yang kontrol
     useEffect(() => {
         if (trendPeriodSyncedRef.current) return;
         if (!prefs.dashboardTrendPeriod) return;
@@ -448,7 +530,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
         trendPeriodSyncedRef.current = true;
     }, [prefs.dashboardTrendPeriod]);
 
-    // ✅ Handler trendPeriod yang juga simpan ke DB
     const handleTrendPeriodChange = useCallback((period: TrendPeriod) => {
         setTrendPeriod(period);
         updatePref('dashboardTrendPeriod', period);
@@ -456,8 +537,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
 
     useEffect(() => {
         setHasMounted(true);
-
-        // ✅ Prioritas default years: prop > DB prefs > computed dari filterOptions
         if (defaultYears && defaultYears.length > 0) {
             setSelectedYears(defaultYears);
         } else if (prefs.dashboardDefaultYears?.length) {
@@ -467,12 +546,10 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
         }
     }, [initialOptions, defaultYears]);
 
-    // ✅ Sync selectedYears dari DB prefs saat prefs load (hanya sekali)
     const yearsSyncedRef = useRef(false);
     useEffect(() => {
         if (yearsSyncedRef.current) return;
         if (!prefs.dashboardDefaultYears?.length) return;
-        // Hanya apply jika selectedYears masih kosong (belum di-set dari sumber lain)
         if (selectedYears.length > 0) {
             yearsSyncedRef.current = true;
             return;
@@ -532,12 +609,10 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
         detailModuleFilter.length, dateRange ? 1 : 0, !allYearsSelected ? 1 : 0,
     ].reduce((a, b) => a + b, 0), [categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, allYearsSelected]);
 
-    // ✅ handleClearAllFilters — simpan default years ke DB
     const handleClearAllFilters = useCallback(() => {
         const defaultYearsValue = filterOptions?.years?.length
             ? getDefault3RecentYears(filterOptions.years)
             : [];
-
         if (defaultYearsValue.length) {
             setSelectedYears(defaultYearsValue);
             updatePref('dashboardDefaultYears', defaultYearsValue);
@@ -549,7 +624,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
         setDateRange(undefined);
     }, [filterOptions?.years, updatePref]);
 
-    // ✅ handleYearsChange — simpan ke DB saat user ubah tahun
     const handleYearsChange = useCallback((years: string[]) => {
         setSelectedYears(years);
         updatePref('dashboardDefaultYears', years);
@@ -587,6 +661,19 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
         selectedYears, categoryFilter, clientFilter,
         moduleFilter, detailModuleFilter, dateRange, trendPeriod,
     }), [selectedYears, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, dateRange, trendPeriod]);
+
+    // ── Filter summary for report ─────────────────────────────────────────────
+    const reportFilterSummary = useMemo(() => ({
+        years:         selectedYears,
+        dateRange:     dateRange
+            ? `${format(dateRange.from!, 'LLL dd, yyyy')}${dateRange.to ? ` – ${format(dateRange.to, 'LLL dd, yyyy')}` : ''}`
+            : undefined,
+        categories:    categoryFilter,
+        clients:       clientFilter,
+        modules:       moduleFilter,
+        detailModules: detailModuleFilter,
+        trendPeriod,
+    }), [selectedYears, dateRange, categoryFilter, clientFilter, moduleFilter, detailModuleFilter, trendPeriod]);
 
     // ── Stale-While-Revalidate effect ─────────────────────────────────────────
     const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -795,7 +882,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4 shrink-0">
                             <div className="flex items-center gap-1 min-w-0">
                                 <CardTitle className="text-xs font-medium text-muted-foreground flex-shrink-0">Case Trend</CardTitle>
-                                {/* ✅ Pakai handleTrendPeriodChange agar tersimpan ke DB */}
                                 <TrendPeriodDropdown value={trendPeriod} onChange={handleTrendPeriodChange} />
                             </div>
                             <TooltipProvider delayDuration={100}>
@@ -880,7 +966,13 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                                 </Tooltip>
                             </TooltipProvider>
 
-                            {/* ✅ Pakai handleYearsChange agar tersimpan ke DB */}
+                            {/* Download Report Button — DOCX only */}
+                            <DownloadReportButton
+                                stats={stats}
+                                filterSummary={reportFilterSummary}
+                                disabled={isApplyingFilters || isRefreshing}
+                            />
+
                             <YearMultiSelect
                                 years={filterOptions?.years ?? []}
                                 selectedYears={selectedYears}
@@ -894,8 +986,12 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                         </div>
                     </CardHeader>
 
-                    <CardContent className={cn("pb-1", isFullscreen ? "flex-1 min-h-0" : "")}>
-                        <div className={cn("relative transition-opacity duration-300", isUpdating ? "opacity-60 pointer-events-none" : "opacity-100")}>
+                    <CardContent className={cn("pb-1", isFullscreen ? "flex-1 min-h-0 flex flex-col" : "")}>
+                        <div className={cn(
+                            "relative transition-opacity duration-300",
+                            isUpdating ? "opacity-60 pointer-events-none" : "opacity-100",
+                            isFullscreen ? "flex-1 h-full" : ""
+                        )}>
                             {stats.monthly_stats.length > 0 ? (
                                 <ChartContainer config={dynamicChartConfig as ChartConfig}
                                     className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[310px]")}>
