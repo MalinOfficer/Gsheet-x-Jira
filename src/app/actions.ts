@@ -238,7 +238,6 @@ export async function refreshDashboardViews() {
 // ============================================
 
 const _getDashboardFilterOptions = async () => {
-  // ✅ Prevent Next.js server-side caching — filter options harus selalu fresh
   noStore();
 
   try {
@@ -348,6 +347,7 @@ function _emptyStats() {
     module_rankings:        [],
     detail_module_rankings: [],
     module_trends:          [],
+    category_rankings:      [], // ← NEW
   };
 }
 
@@ -407,6 +407,69 @@ function _computeModuleTrends(data: any[], period: TrendPeriod = 'monthly') {
     .slice(0, 8);
 }
 
+// ============================================
+// ★ NEW: Fetch category rankings langsung dari DB
+// ============================================
+
+async function _fetchCategoryRankingsDirect(filters: {
+  dateRange?: any;
+  years: string[];
+  categories: string[];
+  clients: string[];
+  modules: string[];
+  detailModules: string[];
+}): Promise<{ name: string; value: number }[]> {
+  const BATCH = 1000;
+  const countMap: Record<string, number> = {};
+  let from = 0;
+
+  while (true) {
+    let q = supabaseAdmin
+      .from('all_cases')
+      .select('category_case')
+      .is('deleted_at', null)
+      .not('category_case', 'is', null)
+      .range(from, from + BATCH - 1);
+
+    if (filters.dateRange?.from) {
+      const fromDate = _formatDateDashboard(filters.dateRange.from);
+      const toDate   = filters.dateRange.to ? _formatDateDashboard(filters.dateRange.to) : fromDate;
+      q = q.gte('date', fromDate!).lte('date', toDate!);
+    } else if (filters.years.length === 1) {
+      const y = parseInt(filters.years[0], 10);
+      if (!isNaN(y)) q = q.gte('date', `${y}-01-01`).lte('date', `${y}-12-31`);
+    } else if (filters.years.length > 1) {
+      const orParts = filters.years
+        .map(y => { const n = parseInt(y, 10); return isNaN(n) ? null : `and(date.gte.${n}-01-01,date.lte.${n}-12-31)`; })
+        .filter(Boolean).join(',');
+      if (orParts) q = (q as any).or(orParts);
+    }
+
+    if (filters.categories.length    > 0) q = q.in('category_case', filters.categories);
+    if (filters.clients.length       > 0) q = q.in('client_name',   filters.clients);
+    if (filters.modules.length       > 0) q = q.in('module_case',   filters.modules);
+    if (filters.detailModules.length > 0) q = q.in('detail_module', filters.detailModules);
+
+    const { data: batch, error } = await q;
+    if (error) { console.warn('⚠️  [actions/Category] query error:', error.message); break; }
+    if (!batch || batch.length === 0) break;
+
+    batch.forEach((r: any) => {
+      if (r.category_case) countMap[r.category_case] = (countMap[r.category_case] || 0) + 1;
+    });
+
+    if (batch.length < BATCH) break;
+    from += BATCH;
+  }
+
+  const result = Object.entries(countMap)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  console.log(`🏷️  [actions/Category] ${result.length} unique, ${result.reduce((s, r) => s + r.value, 0)} total`);
+  return result;
+}
+
 function _computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
   const totalCases    = data.length;
   const totalSolved   = data.filter(r => r.status_case_solved === 'SOLVED').length;
@@ -416,6 +479,11 @@ function _computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
   const categoryCounts: Record<string, number> = {};
   data.forEach(r => { if (r.category_case) categoryCounts[r.category_case] = (categoryCounts[r.category_case] || 0) + 1; });
   const trendingCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'N/A';
+
+  // ★ NEW: category rankings sorted by count
+  const categoryRankings = Object.entries(categoryCounts)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
 
   const clientCounts: Record<string, number> = {};
   data.forEach(r => { if (r.client_name) clientCounts[r.client_name] = (clientCounts[r.client_name] || 0) + 1; });
@@ -459,6 +527,7 @@ function _computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
     module_rankings:        moduleRankings,
     detail_module_rankings: detailModuleRankings,
     module_trends:          _computeModuleTrends(data, trendPeriod),
+    category_rankings:      categoryRankings, // ★ NEW
   };
 }
 
@@ -702,10 +771,12 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
 
       console.log('🚀 [actions] RPC fn_dashboard_filtered:', rpcParams);
 
-      const [rpcResult, detailModuleRankings, trendRows] = await Promise.all([
+      // ★ UPDATED: tambahkan _fetchCategoryRankingsDirect ke Promise.all
+      const [rpcResult, detailModuleRankings, trendRows, categoryRankings] = await Promise.all([
         supabaseAdmin.rpc('fn_dashboard_filtered', rpcParams),
         _fetchDetailModuleRowsDirect(sharedFilters),
         _fetchTrendRowsDirect({ ...sharedFilters, trendPeriod }),
+        _fetchCategoryRankingsDirect(sharedFilters), // ★ NEW
       ]);
 
       const { data, error } = rpcResult;
@@ -740,10 +811,12 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
           module_rankings:        moduleRankings,
           detail_module_rankings: detailModuleRankings,
           module_trends:          moduleTrends,
+          category_rankings:      categoryRankings, // ★ NEW
         },
       };
     }
 
+    // Multi-filter path: _computeStats already includes category_rankings
     const allData = await _fetchAllRowsDirect(sharedFilters);
 
     if (allData.length === 0) return { success: true, data: _emptyStats() };
@@ -780,7 +853,6 @@ export async function getUserPreferences(userId: string): Promise<{
             .eq('user_id', userId)
             .single();
 
-        // Row belum ada → return empty, akan dibuat saat pertama save
         if (error && error.code === 'PGRST116') {
             return { success: true, data: {} };
         }
@@ -798,7 +870,6 @@ export async function saveUserPreferences(
     preferences: Partial<UserPreferences>
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        // Ambil preferences lama untuk deep merge
         const { data: existing } = await supabaseAdmin
             .from('user_preferences')
             .select('preferences')
@@ -808,7 +879,6 @@ export async function saveUserPreferences(
         const merged: UserPreferences = {
             ...(existing?.preferences ?? {}),
             ...preferences,
-            // Deep merge menuVisibility agar tidak overwrite semua key
             menuVisibility: {
                 ...(existing?.preferences?.menuVisibility ?? {}),
                 ...(preferences.menuVisibility ?? {}),

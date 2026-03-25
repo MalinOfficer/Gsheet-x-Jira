@@ -284,6 +284,78 @@ async function fetchDetailModuleRows(filters: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ★ NEW: fetchCategoryRows
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchCategoryRows(filters: {
+    dateRange?: DateRange;
+    years: string[];
+    categories: string[];
+    clients: string[];
+    modules: string[];
+    detailModules: string[];
+}): Promise<{ name: string; value: number }[]> {
+    const BATCH = 1000;
+    const countMap: Record<string, number> = {};
+    let from = 0;
+
+    while (true) {
+        let q = supabaseAdmin
+            .from('all_cases')
+            .select('category_case')
+            .is('deleted_at', null)
+            .not('category_case', 'is', null)
+            .range(from, from + BATCH - 1);
+
+        if (filters.dateRange?.from) {
+            const fromDate = formatDate(filters.dateRange.from);
+            const toDate   = filters.dateRange.to ? formatDate(filters.dateRange.to) : fromDate;
+            q = q.gte('date', fromDate!).lte('date', toDate!);
+        } else if (filters.years.length === 1) {
+            const y = parseInt(filters.years[0], 10);
+            if (!isNaN(y)) q = q.gte('date', `${y}-01-01`).lte('date', `${y}-12-31`);
+        } else if (filters.years.length > 1) {
+            const orParts = filters.years
+                .map(y => {
+                    const n = parseInt(y, 10);
+                    return isNaN(n) ? null : `and(date.gte.${n}-01-01,date.lte.${n}-12-31)`;
+                })
+                .filter(Boolean)
+                .join(',');
+            if (orParts) q = q.or(orParts);
+        }
+
+        if (filters.categories.length    > 0) q = q.in('category_case', filters.categories);
+        if (filters.clients.length       > 0) q = q.in('client_name',   filters.clients);
+        if (filters.modules.length       > 0) q = q.in('module_case',   filters.modules);
+        if (filters.detailModules.length > 0) q = q.in('detail_module', filters.detailModules);
+
+        const { data: batch, error } = await q;
+
+        if (error) {
+            console.warn('⚠️  [Category] query error:', error.message);
+            break;
+        }
+        if (!batch || batch.length === 0) break;
+
+        batch.forEach((r: any) => {
+            if (r.category_case) {
+                countMap[r.category_case] = (countMap[r.category_case] || 0) + 1;
+            }
+        });
+
+        if (batch.length < BATCH) break;
+        from += BATCH;
+    }
+
+    const result = Object.entries(countMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+    console.log(`🏷️  [Category] ${result.length} unique, ${result.reduce((s, r) => s + r.value, 0)} total cases`);
+    return result;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // computeStats — untuk MODE 2 (Direct Query)
 // ─────────────────────────────────────────────────────────────────────────────
 function computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
@@ -298,6 +370,11 @@ function computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
         if (r.category_case) categoryCounts[r.category_case] = (categoryCounts[r.category_case] || 0) + 1;
     });
     const trendingCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'N/A';
+
+    // ★ category rankings sorted by count
+    const categoryRankings = Object.entries(categoryCounts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
 
     const clientCounts: Record<string, number> = {};
     data.forEach(r => { if (r.client_name) clientCounts[r.client_name] = (clientCounts[r.client_name] || 0) + 1; });
@@ -352,24 +429,17 @@ function computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
         module_rankings:        moduleRankings,
         detail_module_rankings: detailModuleRankings,
         module_trends:          moduleTrends,
+        category_rankings:      categoryRankings, // ★ FIX
     };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // buildRpcDateParams
-//
-// ROOT FIX: Stored procedure fn_dashboard_filtered tidak memproses p_year
-// secara konsisten. Solusi: selalu inject p_start_date & p_end_date eksplisit
-// dari yearValue jika dateRange tidak tersedia.
-//
-// Dengan ini, filter tahun DIJAMIN diproses via date range di semua DB backend,
-// tanpa bergantung pada implementasi p_year di stored procedure.
 // ─────────────────────────────────────────────────────────────────────────────
 function buildRpcDateParams(
     dateRange: DateRange | undefined,
     yearValue: number | null
 ): { p_start_date: string | null; p_end_date: string | null } {
-    // Priority 1: explicit date range dari user (date picker)
     if (dateRange?.from) {
         return {
             p_start_date: formatDate(dateRange.from),
@@ -377,7 +447,6 @@ function buildRpcDateParams(
         };
     }
 
-    // Priority 2: derive date range dari year selection
     if (yearValue !== null) {
         return {
             p_start_date: `${yearValue}-01-01`,
@@ -385,7 +454,6 @@ function buildRpcDateParams(
         };
     }
 
-    // Priority 3: no filter — return full range
     return { p_start_date: null, p_end_date: null };
 }
 
@@ -451,11 +519,6 @@ export async function GET(request: Request) {
                 if (!isNaN(parsed)) yearValue = parsed;
             }
 
-            // ╔══════════════════════════════════════════════════════════════╗
-            // ║  ROOT FIX: Selalu inject p_start_date & p_end_date          ║
-            // ║  dari yearValue agar stored procedure pasti memfilter        ║
-            // ║  meski implementasi p_year di SQL diabaikan.                 ║
-            // ╚══════════════════════════════════════════════════════════════╝
             const { p_start_date, p_end_date } = buildRpcDateParams(dateRange, yearValue);
 
             const params: Record<string, any> = {
@@ -470,10 +533,12 @@ export async function GET(request: Request) {
 
             console.log('🚀 [API] Calling RPC fn_dashboard_filtered:', params);
 
-            const [rpcResult, rawForTrends, detailModuleRankings] = await Promise.all([
+            // ★ FIX: tambahkan fetchCategoryRows ke Promise.all
+            const [rpcResult, rawForTrends, detailModuleRankings, categoryRankings] = await Promise.all([
                 supabaseAdmin.rpc('fn_dashboard_filtered', params),
                 fetchTrendRows({ ...sharedFilters, trendPeriod }),
                 fetchDetailModuleRows(sharedFilters),
+                fetchCategoryRows(sharedFilters), // ★ FIX
             ]);
 
             const { data, error } = rpcResult;
@@ -500,6 +565,7 @@ export async function GET(request: Request) {
 
             const moduleTrends = computeModuleTrends(rawForTrends, trendPeriod);
 
+            // ★ FIX: sertakan category_rankings di response
             return NextResponse.json({ success: true, data: {
                 summary: {
                     total_cases:       result.out_total_cases       ?? 0,
@@ -517,10 +583,11 @@ export async function GET(request: Request) {
                 module_rankings:        moduleRankingsRpc,
                 detail_module_rankings: detailModuleRankings,
                 module_trends:          moduleTrends,
+                category_rankings:      categoryRankings, // ★ FIX
             }});
         }
 
-        // ── MODE 2: Direct query + pagination ─────────────────────────────────
+        // ── MODE 2: Direct query ──────────────────────────────────────────────
         const allData = await fetchAllRows(sharedFilters);
 
         console.log(`✅ [API] Total rows fetched: ${allData.length}`);
@@ -529,6 +596,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ success: true, data: emptyStats() });
         }
 
+        // computeStats sudah include category_rankings ★
         return NextResponse.json({ success: true, data: computeStats(allData, trendPeriod) });
 
     } catch (error: any) {
@@ -630,5 +698,6 @@ function emptyStats() {
         module_rankings:        [],
         detail_module_rankings: [],
         module_trends:          [],
+        category_rankings:      [], // ★ FIX
     };
 }

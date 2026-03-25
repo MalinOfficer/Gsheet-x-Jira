@@ -34,6 +34,7 @@ type DashboardStats = {
     module_rankings: { name: string; value: number }[];
     detail_module_rankings: { name: string; value: number }[];
     module_trends: ModuleTrend[];
+    category_rankings: { name: string; value: number }[]; // ← NEW
 };
 
 type FilterSummary = {
@@ -202,7 +203,33 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         ],
     });
 
-    // ── 3. Module Trends table ────────────────────────────────────────────────
+    // ── 3. Category Rankings table (NEW) ──────────────────────────────────────
+    const catC1 = 900, catC2 = 6100, catC3 = 2360;
+    const categoryRankings = stats.category_rankings ?? [];
+    const categoryTable = categoryRankings.length === 0 ? null : new Table({
+        width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
+        columnWidths: [catC1, catC2, catC3],
+        rows: [
+            new TableRow({
+                children: [
+                    headerCell('#',        catC1),
+                    headerCell('Category', catC2),
+                    headerCell('Cases',    catC3),
+                ],
+            }),
+            ...categoryRankings.map((item, i) =>
+                new TableRow({
+                    children: [
+                        dataCell(String(i + 1),               catC1, { center: true, stripe: i % 2 === 1, color: '6B7280' }),
+                        dataCell(item.name,                   catC2, { stripe: i % 2 === 1, bold: i === 0 }),
+                        dataCell(item.value.toLocaleString(), catC3, { center: true, bold: true, stripe: i % 2 === 1 }),
+                    ],
+                })
+            ),
+        ],
+    });
+
+    // ── 4. Module Trends table ────────────────────────────────────────────────
     const tC1 = 3200, tC2 = 1900, tC3 = 1900, tC4 = 2360;
     const trendsTable = (stats.module_trends?.length ?? 0) === 0 ? null : new Table({
         width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
@@ -235,7 +262,7 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         ],
     });
 
-    // ── 4. Monthly Statistics table ───────────────────────────────────────────
+    // ── 5. Monthly Statistics table ───────────────────────────────────────────
     let monthlyTable: Table | null = null;
     if (stats.monthly_stats?.length > 0) {
         const yearKeys = Object.keys(stats.monthly_stats[0]).filter(k => /^\d{4}$/.test(k)).sort();
@@ -273,7 +300,7 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         }
     }
 
-    // ── 5. Client Rankings table ──────────────────────────────────────────────
+    // ── 6. Client Rankings table ──────────────────────────────────────────────
     const rC1 = 900, rC2 = 6100, rC3 = 2360;
     const clientTable = new Table({
         width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
@@ -298,7 +325,7 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         ],
     });
 
-    // ── 6. Detail Module Rankings table ──────────────────────────────────────
+    // ── 7. Detail Module Rankings table ──────────────────────────────────────
     const dmC1 = 900, dmC2 = 6100, dmC3 = 2360;
     const moduleTable = new Table({
         width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
@@ -336,6 +363,10 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         ],
     });
 
+    // ── Dynamic section numbering ─────────────────────────────────────────────
+    let sectionNum = 1;
+    const s = () => sectionNum++;
+
     // ── Assemble document ─────────────────────────────────────────────────────
     const doc = new Document({
         styles: {
@@ -367,12 +398,22 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
                 children: [
                     ...coverSection,
 
-                    sectionHeading('1. Executive Summary'),
+                    // Section 1: Executive Summary
+                    sectionHeading(`${s()}. Executive Summary`),
                     spacer(80),
                     summaryTable,
                     spacer(200),
 
-                    sectionHeading(`2. Case Trend — ${trendLabel}`),
+                    // Section 2: Category Rankings (NEW — only if data exists)
+                    ...(categoryTable ? [
+                        sectionHeading(`${s()}. Category Rankings`),
+                        spacer(80),
+                        categoryTable,
+                        spacer(200),
+                    ] : []),
+
+                    // Section 3: Case Trend
+                    sectionHeading(`${s()}. Case Trend — ${trendLabel}`),
                     spacer(80),
                     ...(trendsTable
                         ? [trendsTable]
@@ -380,19 +421,22 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
                     ),
                     spacer(200),
 
+                    // Section 4: Monthly Statistics (optional)
                     ...(monthlyTable ? [
-                        sectionHeading('3. Monthly Statistics'),
+                        sectionHeading(`${s()}. Monthly Statistics`),
                         spacer(80),
                         monthlyTable,
                         spacer(200),
                     ] : []),
 
-                    sectionHeading(monthlyTable ? '4. Client Rankings' : '3. Client Rankings'),
+                    // Section 5: Client Rankings
+                    sectionHeading(`${s()}. Client Rankings`),
                     spacer(80),
                     clientTable,
                     spacer(200),
 
-                    sectionHeading(monthlyTable ? '5. Detail Module Rankings' : '4. Detail Module Rankings'),
+                    // Section 6: Detail Module Rankings
+                    sectionHeading(`${s()}. Detail Module Rankings`),
                     spacer(80),
                     moduleTable,
                     spacer(80),

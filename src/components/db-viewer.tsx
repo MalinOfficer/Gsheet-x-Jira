@@ -824,7 +824,7 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
         return 'all';
     });
 
-    const [showUnsolvedOnly, setShowUnsolvedOnly] = useState(true);
+    const [showUnsolvedOnly, setShowUnsolvedOnly] = useState(false);
 
     const [pageSize, setPageSize] = useState(50);
     const [pageSizeInput, setPageSizeInput] = useState('50');
