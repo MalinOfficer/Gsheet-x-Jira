@@ -124,40 +124,70 @@ interface DashboardProps {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// isSubstantiallyComplete
+// ─────────────────────────────────────────────────────────────────────────────
+function isSubstantiallyComplete(period: TrendPeriod): boolean {
+    const now   = new Date();
+    const day   = now.getDate();
+    const month = now.getMonth();
+
+    switch (period) {
+        case 'daily':
+            return now.getHours() >= 18;
+        case 'weekly':
+            return now.getDay() >= 4;
+        case 'monthly':
+            return day >= 20;
+        case 'quarterly': {
+            const isLastMonthOfQ = [2, 5, 8, 11].includes(month);
+            return isLastMonthOfQ && day >= 15;
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 function getTrendComparisonInfo(period: TrendPeriod): { label: string; tooltip: string } {
-    const now = new Date();
+    const now              = new Date();
+    const includesCurrent  = isSubstantiallyComplete(period);
+
+    const prevOffset    = includesCurrent ? 1 : 2;
+    const currentOffset = includesCurrent ? 0 : 1;
+
     if (period === 'daily') {
-        const d1 = subDays(now, 2);
-        const d2 = subDays(now, 1);
+        const d1 = subDays(now, prevOffset);
+        const d2 = subDays(now, currentOffset);
         return {
             label:   `${format(d1, 'd MMM')} vs ${format(d2, 'd MMM')}`,
             tooltip: `${format(d1, 'EEE d MMM yyyy')}  vs  ${format(d2, 'EEE d MMM yyyy')}`,
         };
     }
+
     if (period === 'weekly') {
-        const w1Start = startOfISOWeek(subWeeks(now, 2));
-        const w1End   = endOfISOWeek(subWeeks(now, 2));
-        const w2Start = startOfISOWeek(subWeeks(now, 1));
-        const w2End   = endOfISOWeek(subWeeks(now, 1));
+        const w1Start = startOfISOWeek(subWeeks(now, prevOffset));
+        const w1End   = endOfISOWeek(subWeeks(now, prevOffset));
+        const w2Start = startOfISOWeek(subWeeks(now, currentOffset));
+        const w2End   = endOfISOWeek(subWeeks(now, currentOffset));
         const sameYear = w1Start.getFullYear() === w2End.getFullYear();
         return {
             label:   `W${getISOWeek(w1Start)} vs W${getISOWeek(w2Start)}`,
             tooltip: `${format(w1Start, sameYear ? 'd MMM' : 'd MMM yyyy')}–${format(w1End, 'd MMM')}  vs  ${format(w2Start, 'd MMM')}–${format(w2End, 'd MMM yyyy')}`,
         };
     }
+
     if (period === 'monthly') {
-        const m1 = subMonths(now, 2);
-        const m2 = subMonths(now, 1);
+        const m1 = subMonths(now, prevOffset);
+        const m2 = subMonths(now, currentOffset);
         return {
             label:   `${format(m1, 'MMM')} vs ${format(m2, 'MMM')}`,
             tooltip: `${format(startOfMonth(m1), 'MMM yyyy')}  vs  ${format(startOfMonth(m2), 'MMM yyyy')}`,
         };
     }
+
     if (period === 'quarterly') {
-        const q1 = subQuarters(now, 2);
-        const q2 = subQuarters(now, 1);
+        const q1 = subQuarters(now, prevOffset);
+        const q2 = subQuarters(now, currentOffset);
         const sameYear = q1.getFullYear() === q2.getFullYear();
         return {
             label: sameYear
@@ -166,6 +196,7 @@ function getTrendComparisonInfo(period: TrendPeriod): { label: string; tooltip: 
             tooltip: `${format(startOfQuarter(q1), 'MMM')}–${format(endOfQuarter(q1), 'MMM yyyy')}  vs  ${format(startOfQuarter(q2), 'MMM')}–${format(endOfQuarter(q2), 'MMM yyyy')}`,
         };
     }
+
     return { label: 'vs last period', tooltip: '' };
 }
 
@@ -196,7 +227,7 @@ function trendColor(direction: 'up' | 'down' | 'stable'): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DownloadReportButton — DOCX only, no dropdown
+// DownloadReportButton
 // ─────────────────────────────────────────────────────────────────────────────
 interface DownloadReportButtonProps {
     stats: DashboardStats;
@@ -263,11 +294,11 @@ function DownloadReportButton({ stats, filterSummary, disabled }: DownloadReport
                         variant="outline"
                         disabled={disabled || isLoading}
                         onClick={handleDownload}
-                        className="gap-1.5"
+                        className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white border-0"
                     >
                         {isLoading
                             ? <RefreshCw className="h-4 w-4 animate-spin" />
-                            : <FileText   className="h-4 w-4" />
+                            : <Download className="h-4 w-4" />
                         }
                         <span className="hidden sm:inline">
                             {isLoading ? 'Generating…' : 'Report'}
@@ -812,10 +843,14 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
 
     const { client_rankings, module_rankings, detail_module_rankings } = stats;
     const detailModuleRankings   = detail_module_rankings ?? module_rankings ?? [];
-    const maxClientValue         = client_rankings.length > 0 ? client_rankings[0].value : 1;
-    const maxDetailModuleValue   = detailModuleRankings.length > 0 ? detailModuleRankings[0].value : 1;
+
+    // ── FIX: guard against undefined value in rankings ────────────────────────
+    const maxClientValue       = client_rankings.length > 0 ? (client_rankings[0].value ?? 1) : 1;
+    const maxDetailModuleValue = detailModuleRankings.length > 0 ? (detailModuleRankings[0].value ?? 1) : 1;
+    // ─────────────────────────────────────────────────────────────────────────
+
     const totalClientsCount      = client_rankings.length;
-    const totalDetailModuleCases = detailModuleRankings.reduce((sum, item) => sum + item.value, 0);
+    const totalDetailModuleCases = detailModuleRankings.reduce((sum, item) => sum + (item.value ?? 0), 0);
     const isUpdating             = (isApplyingFilters && hasLoadedOnce.current) || isRevalidating;
 
     return (
@@ -966,7 +1001,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                                 </Tooltip>
                             </TooltipProvider>
 
-                            {/* Download Report Button — DOCX only */}
                             <DownloadReportButton
                                 stats={stats}
                                 filterSummary={reportFilterSummary}
@@ -1037,25 +1071,29 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                         <CardContent className="pb-4">
                             <ScrollArea className="h-[140px] pr-4">
                                 <div className="space-y-2">
-                                    {client_rankings.map((item, index) => (
-                                        <TooltipProvider key={index} delayDuration={0}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-32 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
-                                                        <div className="flex-1 flex items-center gap-2 min-w-0">
-                                                            <div className="flex-1 bg-muted rounded-full h-5 relative overflow-hidden">
-                                                                <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500"
-                                                                    style={{ width: `${(item.value / maxClientValue) * 100}%` }} />
+                                    {client_rankings.map((item, index) => {
+                                        // FIX: guard undefined value
+                                        const safeValue = item.value ?? 0;
+                                        return (
+                                            <TooltipProvider key={index} delayDuration={0}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-32 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
+                                                            <div className="flex-1 flex items-center gap-2 min-w-0">
+                                                                <div className="flex-1 bg-muted rounded-full h-5 relative overflow-hidden">
+                                                                    <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500"
+                                                                        style={{ width: `${(safeValue / maxClientValue) * 100}%` }} />
+                                                                </div>
+                                                                <span className="text-xs font-semibold text-foreground w-14 flex-shrink-0">{safeValue.toLocaleString()}</span>
                                                             </div>
-                                                            <span className="text-xs font-semibold text-foreground w-14 flex-shrink-0">{item.value.toLocaleString()}</span>
                                                         </div>
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent><p>{item.name}</p></TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    ))}
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>{item.name}</p></TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        );
+                                    })}
                                 </div>
                             </ScrollArea>
                         </CardContent>
@@ -1074,25 +1112,29 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                             ) : (
                                 <ScrollArea className="h-[140px] pr-4">
                                     <div className="space-y-2">
-                                        {detailModuleRankings.map((item, index) => (
-                                            <TooltipProvider key={index} delayDuration={0}>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-48 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
-                                                            <div className="flex-1 flex items-center gap-2 min-w-0">
-                                                                <div className="flex-1 bg-muted rounded-full h-5 relative overflow-hidden">
-                                                                    <div className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
-                                                                        style={{ width: `${(item.value / maxDetailModuleValue) * 100}%` }} />
+                                        {detailModuleRankings.map((item, index) => {
+                                            // FIX: guard undefined value
+                                            const safeValue = item.value ?? 0;
+                                            return (
+                                                <TooltipProvider key={index} delayDuration={0}>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-48 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
+                                                                <div className="flex-1 flex items-center gap-2 min-w-0">
+                                                                    <div className="flex-1 bg-muted rounded-full h-5 relative overflow-hidden">
+                                                                        <div className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
+                                                                            style={{ width: `${(safeValue / maxDetailModuleValue) * 100}%` }} />
+                                                                    </div>
+                                                                    <span className="text-xs font-semibold text-foreground w-14 flex-shrink-0">{safeValue.toLocaleString()}</span>
                                                                 </div>
-                                                                <span className="text-xs font-semibold text-foreground w-14 flex-shrink-0">{item.value.toLocaleString()}</span>
                                                             </div>
-                                                        </div>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent><p>{item.name}</p></TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        ))}
+                                                        </TooltipTrigger>
+                                                        <TooltipContent><p>{item.name}</p></TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            );
+                                        })}
                                     </div>
                                 </ScrollArea>
                             )}

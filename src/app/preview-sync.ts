@@ -22,16 +22,26 @@ export interface PreviewRow {
 export interface PreviewUpdateRow {
   ticket_number: string;
   changes: {
-    status_case?: { from: string | null; to: string };
-    check_in?: { from: null; to: string };
-    check_out?: { from: null; to: string };
+    status_case?:   { from: string | null; to: string };
+    check_in?:      { from: null; to: string };
+    check_out?:     { from: null; to: string };
+    client_name?:   { from: string | null; to: string };
+    module_case?:   { from: string | null; to: string };
+    detail_module?: { from: string | null; to: string };
+    category_case?: { from: string | null; to: string };
+    pic_client?:    { from: string | null; to: string };
+    detail_case?:   { from: string | null; to: string };
+    source_link_op?:{ from: string | null; to: string };
+    note?:          { from: string | null; to: string };
+    month?:         { from: string | null; to: string };
+    date?:          { from: string | null; to: string };
   };
 }
 
 export interface PreviewResult {
   success: boolean;
   toInsert?: PreviewRow[];
-  toUpdate?: PreviewUpdateRow[];   // ← baris yang perlu di-update
+  toUpdate?: PreviewUpdateRow[];
   skippedCount?: number;
   totalSheetRows?: number;
   headers?: string[];
@@ -157,6 +167,19 @@ function _normalizeSyncDatetime(rawTime: string | null, dateStr: string | null):
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+// ─── Helper: bandingkan dua string, null-safe ─────────────────────────────────
+function _isDifferent(
+  fromDB: string | null | undefined,
+  fromSheet: string | null | undefined,
+  caseInsensitive = false
+): boolean {
+  const a = (fromDB   || '').trim();
+  const b = (fromSheet || '').trim();
+  if (!b) return false; // GSheet kosong → jangan update
+  if (caseInsensitive) return a.toLowerCase() !== b.toLowerCase();
+  return a !== b;
+}
+
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 
 export async function previewGSheetSync(sheetUrl: string): Promise<PreviewResult> {
@@ -185,12 +208,14 @@ export async function previewGSheetSync(sheetUrl: string): Promise<PreviewResult
     }
 
     const rawHeaders = rows[0];
+
+    // ─── FIX: normalize internal whitespace agar "PIC  CLIENT" → "pic client" ───
     const headers: (string | null)[] = rawHeaders.map(
-      h => _SYNC_COLUMN_MAP[h.toLowerCase().trim()] ?? null
+      h => _SYNC_COLUMN_MAP[h.toLowerCase().trim().replace(/\s+/g, ' ')] ?? null
     );
 
     const unmappedHeaders = rawHeaders.filter(h => {
-      const lower = h.toLowerCase().trim();
+      const lower = h.toLowerCase().trim().replace(/\s+/g, ' ');
       return !_SYNC_COLUMN_MAP[lower] && !_IGNORED_HEADERS.has(lower);
     });
 
@@ -223,7 +248,7 @@ export async function previewGSheetSync(sheetUrl: string): Promise<PreviewResult
       headers.forEach((col, i) => {
         if (!col || col === 'detail_case' || col === 'check_in' || col === 'check_out') return;
         let val: string | null = (row[i] || '').trim() || null;
-        if (col === 'date' && val) val = _normalizeSyncDate(val);
+        if (col === 'date' && val)        val = _normalizeSyncDate(val);
         if (col === 'client_name' && val) val = normalizeClientName(val);
         fields[col] = val;
       });
@@ -247,64 +272,62 @@ export async function previewGSheetSync(sheetUrl: string): Promise<PreviewResult
 
     const allTickets = rawRecords.map(r => r.ticket_number);
 
-    // Fetch existing: ambil status_case, check_in, check_out untuk deteksi update
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('all_cases')
-      .select('ticket_number, status_case, check_in, check_out')
+      .select('ticket_number, status_case, check_in, check_out, client_name, module_case, category_case, detail_module, pic_client, detail_case, source_link_op, note, month, date')
       .in('ticket_number', allTickets)
       .is('deleted_at', null);
 
     if (fetchErr) return { success: false, error: `DB error: ${fetchErr.message}` };
 
-    const existingMap = new Map<string, { status_case: string | null; check_in: string | null; check_out: string | null }>(
-      (existing || []).map((r: any) => [r.ticket_number, {
-        status_case: r.status_case,
-        check_in: r.check_in,
-        check_out: r.check_out,
-      }])
+    const existingMap = new Map<string, Record<string, any>>(
+      (existing || []).map((r: any) => [r.ticket_number, r])
     );
 
-    // ── Baris baru (INSERT) ───────────────────────────────────────────────
+    // ── Baris baru (INSERT) ───────────────────────────────────────────────────
     const toInsert: PreviewRow[] = rawRecords
       .filter(r => !existingMap.has(r.ticket_number))
       .map(r => ({
         ticket_number:   r.fields.ticket_number,
-        date:            r.fields.date ?? null,
-        month:           r.fields.month ?? null,
-        client_name:     r.fields.client_name ?? null,
-        pic_client:      r.fields.pic_client ?? null,
-        status_case:     r.fields.status_case ?? null,
-        category_case:   r.fields.category_case ?? null,
-        module_case:     r.fields.module_case ?? null,
-        detail_module:   r.fields.detail_module ?? null,
-        check_in:        r.fields.check_in ?? null,
-        detail_case:     r.fields.detail_case ?? null,
+        date:            r.fields.date            ?? null,
+        month:           r.fields.month           ?? null,
+        client_name:     r.fields.client_name     ?? null,
+        pic_client:      r.fields.pic_client      ?? null,
+        status_case:     r.fields.status_case     ?? null,
+        category_case:   r.fields.category_case   ?? null,
+        module_case:     r.fields.module_case     ?? null,
+        detail_module:   r.fields.detail_module   ?? null,
+        check_in:        r.fields.check_in        ?? null,
+        detail_case:     r.fields.detail_case     ?? null,
         detail_case_raw: r.detail_case_raw,
-        note:            r.fields.note ?? null,
+        note:            r.fields.note            ?? null,
       }));
 
-    // ── Baris yang perlu di-UPDATE ─────────────────────────────────────────
+    // ── Baris yang perlu di-UPDATE ────────────────────────────────────────────
     const toUpdate: PreviewUpdateRow[] = [];
 
     for (const r of rawRecords) {
       const db = existingMap.get(r.ticket_number);
-      if (!db) continue; // baris baru, bukan update
+      if (!db) continue;
 
       const changes: PreviewUpdateRow['changes'] = {};
 
-      // Status berubah?
-      if (r.fields.status_case &&
-          (db.status_case || '').trim().toLowerCase() !== (r.fields.status_case || '').trim().toLowerCase()) {
+      if (_isDifferent(db.status_case, r.fields.status_case, true)) {
         changes.status_case = { from: db.status_case, to: r.fields.status_case };
       }
-      // check_in kosong di DB, ada di GSheet?
-      if (!db.check_in && r.fields.check_in) {
-        changes.check_in = { from: null, to: r.fields.check_in };
-      }
-      // check_out kosong di DB, ada di GSheet?
-      if (!db.check_out && r.fields.check_out) {
-        changes.check_out = { from: null, to: r.fields.check_out };
-      }
+      if (!db.check_in  && r.fields.check_in)  changes.check_in  = { from: null, to: r.fields.check_in };
+      if (!db.check_out && r.fields.check_out) changes.check_out = { from: null, to: r.fields.check_out };
+
+      if (_isDifferent(db.client_name,    r.fields.client_name))    changes.client_name    = { from: db.client_name,    to: r.fields.client_name };
+      if (_isDifferent(db.module_case,    r.fields.module_case))    changes.module_case    = { from: db.module_case,    to: r.fields.module_case };
+      if (_isDifferent(db.detail_module,  r.fields.detail_module))  changes.detail_module  = { from: db.detail_module,  to: r.fields.detail_module };
+      if (_isDifferent(db.category_case,  r.fields.category_case))  changes.category_case  = { from: db.category_case,  to: r.fields.category_case };
+      if (_isDifferent(db.pic_client,     r.fields.pic_client))     changes.pic_client     = { from: db.pic_client,     to: r.fields.pic_client };
+      if (_isDifferent(db.detail_case,    r.fields.detail_case))    changes.detail_case    = { from: db.detail_case,    to: r.fields.detail_case };
+      if (_isDifferent(db.source_link_op, r.fields.source_link_op)) changes.source_link_op = { from: db.source_link_op, to: r.fields.source_link_op };
+      if (_isDifferent(db.note,           r.fields.note))           changes.note           = { from: db.note,           to: r.fields.note };
+      if (_isDifferent(db.month,          r.fields.month))          changes.month          = { from: db.month,          to: r.fields.month };
+      if (_isDifferent(db.date,           r.fields.date))           changes.date           = { from: db.date,           to: r.fields.date };
 
       if (Object.keys(changes).length > 0) {
         toUpdate.push({ ticket_number: r.ticket_number, changes });

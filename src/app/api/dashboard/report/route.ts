@@ -5,10 +5,17 @@ import {
     AlignmentType, HeadingLevel, BorderStyle, WidthType, ShadingType,
     VerticalAlign, PageNumber, Footer, LevelFormat,
 } from 'docx';
+import {
+    format, subDays, subWeeks, subMonths, subQuarters,
+    startOfISOWeek, endOfISOWeek, startOfMonth, endOfMonth,
+    startOfQuarter, endOfQuarter, getISOWeek, getQuarter,
+} from 'date-fns';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
+type TrendPeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly';
+
 type ModuleTrend = {
     name: string;
     current: number;
@@ -16,6 +23,13 @@ type ModuleTrend = {
     change: number;
     change_pct?: number | null;
     direction: 'up' | 'down' | 'stable';
+};
+
+// RankingItem bisa single-year { name, value } atau multi-year { name, "2024": N, "2025": N }
+type RankingItem = {
+    name: string;
+    value?: number;
+    [year: string]: any;
 };
 
 type DashboardStats = {
@@ -30,11 +44,11 @@ type DashboardStats = {
         top_module: string;
     };
     monthly_stats: Record<string, any>[];
-    client_rankings: { name: string; value: number }[];
-    module_rankings: { name: string; value: number }[];
-    detail_module_rankings: { name: string; value: number }[];
+    client_rankings: RankingItem[];
+    module_rankings: RankingItem[];
+    detail_module_rankings: RankingItem[];
     module_trends: ModuleTrend[];
-    category_rankings: { name: string; value: number }[]; // ← NEW
+    category_rankings: RankingItem[];
 };
 
 type FilterSummary = {
@@ -46,6 +60,99 @@ type FilterSummary = {
     detailModules: string[];
     trendPeriod: string;
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// extractYearKeys — ambil semua kolom tahun dari array RankingItem
+// Jika semua item hanya punya `value` (single-year), kembalikan []
+// ─────────────────────────────────────────────────────────────────────────────
+function extractYearKeys(items: RankingItem[]): string[] {
+    const yearSet = new Set<string>();
+    items.forEach(item => {
+        Object.keys(item).forEach(k => {
+            if (/^\d{4}$/.test(k)) yearSet.add(k);
+        });
+    });
+    return Array.from(yearSet).sort();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getRankingValue — nilai numerik per item, dengan fallback ke value/0
+// ─────────────────────────────────────────────────────────────────────────────
+function getRankingTotal(item: RankingItem, yearKeys: string[]): number {
+    if (yearKeys.length > 0) {
+        return yearKeys.reduce((sum, y) => sum + (item[y] ?? 0), 0);
+    }
+    return item.value ?? 0;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// isSubstantiallyComplete — mirror dari route.ts
+// ─────────────────────────────────────────────────────────────────────────────
+function isSubstantiallyComplete(period: TrendPeriod): boolean {
+    const now   = new Date();
+    const day   = now.getDate();
+    const month = now.getMonth();
+
+    switch (period) {
+        case 'daily':
+            return now.getHours() >= 18;
+        case 'weekly':
+            return now.getDay() >= 4;
+        case 'monthly':
+            return day >= 20;
+        case 'quarterly': {
+            const isLastMonthOfQ = [2, 5, 8, 11].includes(month);
+            return isLastMonthOfQ && day >= 15;
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getPeriodLabels
+// ─────────────────────────────────────────────────────────────────────────────
+function getPeriodLabels(period: TrendPeriod): { previous: string; current: string } {
+    const now             = new Date();
+    const includesCurrent = isSubstantiallyComplete(period);
+    const prevOffset      = includesCurrent ? 1 : 2;
+    const currentOffset   = includesCurrent ? 0 : 1;
+
+    switch (period) {
+        case 'daily': {
+            const d1 = subDays(now, prevOffset);
+            const d2 = subDays(now, currentOffset);
+            return {
+                previous: format(d1, 'EEE, d MMM yyyy'),
+                current:  format(d2, 'EEE, d MMM yyyy'),
+            };
+        }
+        case 'weekly': {
+            const w1Start = startOfISOWeek(subWeeks(now, prevOffset));
+            const w1End   = endOfISOWeek(subWeeks(now, prevOffset));
+            const w2Start = startOfISOWeek(subWeeks(now, currentOffset));
+            const w2End   = endOfISOWeek(subWeeks(now, currentOffset));
+            return {
+                previous: `W${getISOWeek(w1Start)} (${format(w1Start, 'd MMM')}–${format(w1End, 'd MMM')})`,
+                current:  `W${getISOWeek(w2Start)} (${format(w2Start, 'd MMM')}–${format(w2End, 'd MMM')})`,
+            };
+        }
+        case 'monthly': {
+            const m1 = subMonths(now, prevOffset);
+            const m2 = subMonths(now, currentOffset);
+            return {
+                previous: format(startOfMonth(m1), 'MMMM yyyy'),
+                current:  format(startOfMonth(m2), 'MMMM yyyy'),
+            };
+        }
+        case 'quarterly': {
+            const q1 = subQuarters(now, prevOffset);
+            const q2 = subQuarters(now, currentOffset);
+            return {
+                previous: `Q${getQuarter(q1)} ${q1.getFullYear()}`,
+                current:  `Q${getQuarter(q2)} ${q2.getFullYear()}`,
+            };
+        }
+    }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Style helpers
@@ -65,11 +172,11 @@ const WHITE        = 'FFFFFF';
 
 function headerCell(text: string, width: number, span?: number): TableCell {
     return new TableCell({
-        width:   { size: width, type: WidthType.DXA },
-        borders: ALL_BORDERS,
-        shading: { fill: HEADER_COLOR, type: ShadingType.CLEAR },
-        margins: CELL_MARGINS,
-        columnSpan: span,
+        width:         { size: width, type: WidthType.DXA },
+        borders:       ALL_BORDERS,
+        shading:       { fill: HEADER_COLOR, type: ShadingType.CLEAR },
+        margins:       CELL_MARGINS,
+        columnSpan:    span,
         verticalAlign: VerticalAlign.CENTER,
         children: [new Paragraph({
             alignment: AlignmentType.CENTER,
@@ -78,15 +185,36 @@ function headerCell(text: string, width: number, span?: number): TableCell {
     });
 }
 
+function headerCellTwoLine(line1: string, line2: string, width: number): TableCell {
+    return new TableCell({
+        width:         { size: width, type: WidthType.DXA },
+        borders:       ALL_BORDERS,
+        shading:       { fill: HEADER_COLOR, type: ShadingType.CLEAR },
+        margins:       CELL_MARGINS,
+        verticalAlign: VerticalAlign.CENTER,
+        children: [
+            new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing:   { after: 30 },
+                children:  [new TextRun({ text: line1, bold: true, color: WHITE, size: 20, font: 'Arial' })],
+            }),
+            new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children:  [new TextRun({ text: line2, bold: false, color: 'BDD0F0', size: 17, font: 'Arial' })],
+            }),
+        ],
+    });
+}
+
 function dataCell(text: string, width: number, opts: {
     bold?: boolean; center?: boolean; stripe?: boolean; color?: string; size?: number;
 } = {}): TableCell {
     const { bold = false, center = false, stripe = false, color, size = 20 } = opts;
     return new TableCell({
-        width:   { size: width, type: WidthType.DXA },
-        borders: ALL_BORDERS,
-        shading: { fill: stripe ? STRIPE_COLOR : WHITE, type: ShadingType.CLEAR },
-        margins: CELL_MARGINS,
+        width:         { size: width, type: WidthType.DXA },
+        borders:       ALL_BORDERS,
+        shading:       { fill: stripe ? STRIPE_COLOR : WHITE, type: ShadingType.CLEAR },
+        margins:       CELL_MARGINS,
         verticalAlign: VerticalAlign.CENTER,
         children: [new Paragraph({
             alignment: center ? AlignmentType.CENTER : AlignmentType.LEFT,
@@ -112,14 +240,120 @@ function spacer(space = 160): Paragraph {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// buildRankingTable
+// Tabel generik yang mendukung single-year { name, value }
+// maupun multi-year { name, "2024": N, "2025": N, … }
+//
+// Layout kolom:
+//   No  |  Name  |  [year1]  |  [year2]  |  …  |  Total (hanya jika multi-year)
+// ─────────────────────────────────────────────────────────────────────────────
+function buildRankingTable(
+    items: RankingItem[],
+    nameHeader: string,
+    limit = 50
+): Table | null {
+    if (!items || items.length === 0) return null;
+
+    const sliced   = items.slice(0, limit);
+    const yearKeys = extractYearKeys(sliced);
+    const isMulti  = yearKeys.length > 0;
+
+    // ── Hitung lebar kolom ────────────────────────────────────────────────────
+    // No = 700, Total (jika ada) = 1400, sisanya dibagi rata untuk Name + year cols
+    const COL_NO    = 700;
+    const COL_TOTAL = isMulti ? 1400 : 0;
+    const yearColW  = isMulti
+        ? Math.max(1000, Math.floor((CONTENT_WIDTH - COL_NO - COL_TOTAL) / (yearKeys.length + 1)))
+        : 0;
+    const nameColW  = isMulti
+        ? CONTENT_WIDTH - COL_NO - yearColW * yearKeys.length - COL_TOTAL
+        : CONTENT_WIDTH - COL_NO - 2360;   // fallback: name + cases (2360)
+    const singleValW = 2360;
+
+    // ── Header row ────────────────────────────────────────────────────────────
+    const headerChildren: TableCell[] = [
+        headerCell('#', COL_NO),
+        headerCell(nameHeader, nameColW),
+    ];
+
+    if (isMulti) {
+        yearKeys.forEach(y => headerChildren.push(headerCell(y, yearColW)));
+        headerChildren.push(headerCell('Total', COL_TOTAL));
+    } else {
+        headerChildren.push(headerCell('Cases', singleValW));
+    }
+
+    // ── Column widths array ───────────────────────────────────────────────────
+    const colWidths: number[] = [COL_NO, nameColW];
+    if (isMulti) {
+        yearKeys.forEach(() => colWidths.push(yearColW));
+        colWidths.push(COL_TOTAL);
+    } else {
+        colWidths.push(singleValW);
+    }
+
+    // ── Data rows ─────────────────────────────────────────────────────────────
+    const dataRows = sliced.map((item, i) => {
+        const stripe = i % 2 === 1;
+        const total  = getRankingTotal(item, yearKeys);
+
+        const cells: TableCell[] = [
+            dataCell(String(i + 1), COL_NO,   { center: true, stripe, color: '6B7280' }),
+            dataCell(item.name,     nameColW, { stripe, bold: i === 0 }),
+        ];
+
+        if (isMulti) {
+            yearKeys.forEach(y => {
+                const val = item[y] ?? 0;
+                cells.push(dataCell(
+                    val > 0 ? val.toLocaleString() : '—',
+                    yearColW,
+                    { center: true, stripe }
+                ));
+            });
+            cells.push(dataCell(
+                total.toLocaleString(),
+                COL_TOTAL,
+                { center: true, bold: true, stripe }
+            ));
+        } else {
+            cells.push(dataCell(
+                (item.value ?? 0).toLocaleString(),
+                singleValW,
+                { center: true, bold: true, stripe }
+            ));
+        }
+
+        return new TableRow({ children: cells });
+    });
+
+    return new Table({
+        width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
+        columnWidths: colWidths,
+        rows: [
+            new TableRow({ children: headerChildren }),
+            ...dataRows,
+        ],
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // DOCX Generator
 // ─────────────────────────────────────────────────────────────────────────────
 async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary): Promise<Buffer> {
-    const now         = new Date();
-    const reportDate  = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const reportTime  = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const now        = new Date();
+    const reportDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const reportTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const { summary } = stats;
     const detailModules = stats.detail_module_rankings ?? stats.module_rankings ?? [];
+
+    const trendPeriod = (
+        ['daily', 'weekly', 'monthly', 'quarterly'].includes(filters.trendPeriod ?? '')
+            ? filters.trendPeriod
+            : 'monthly'
+    ) as TrendPeriod;
+
+    const periodLabels = getPeriodLabels(trendPeriod);
 
     // ── Filter summary string ─────────────────────────────────────────────────
     const filterParts: string[] = [];
@@ -129,10 +363,8 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
     if (filters.clients?.length)       filterParts.push(`Clients: ${filters.clients.join(', ')}`);
     if (filters.modules?.length)       filterParts.push(`Modules: ${filters.modules.join(', ')}`);
     if (filters.detailModules?.length) filterParts.push(`Detail Modules: ${filters.detailModules.join(', ')}`);
-    const filterText = filterParts.length ? filterParts.join('  |  ') : 'No filters applied — showing all data';
-    const trendLabel = filters.trendPeriod
-        ? filters.trendPeriod.charAt(0).toUpperCase() + filters.trendPeriod.slice(1)
-        : 'Monthly';
+    const filterText  = filterParts.length ? filterParts.join('  |  ') : 'No filters applied — showing all data';
+    const trendLabel  = trendPeriod.charAt(0).toUpperCase() + trendPeriod.slice(1);
 
     // ── 1. Cover / Title ──────────────────────────────────────────────────────
     const coverSection: Paragraph[] = [
@@ -203,31 +435,11 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         ],
     });
 
-    // ── 3. Category Rankings table (NEW) ──────────────────────────────────────
-    const catC1 = 900, catC2 = 6100, catC3 = 2360;
-    const categoryRankings = stats.category_rankings ?? [];
-    const categoryTable = categoryRankings.length === 0 ? null : new Table({
-        width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
-        columnWidths: [catC1, catC2, catC3],
-        rows: [
-            new TableRow({
-                children: [
-                    headerCell('#',        catC1),
-                    headerCell('Category', catC2),
-                    headerCell('Cases',    catC3),
-                ],
-            }),
-            ...categoryRankings.map((item, i) =>
-                new TableRow({
-                    children: [
-                        dataCell(String(i + 1),               catC1, { center: true, stripe: i % 2 === 1, color: '6B7280' }),
-                        dataCell(item.name,                   catC2, { stripe: i % 2 === 1, bold: i === 0 }),
-                        dataCell(item.value.toLocaleString(), catC3, { center: true, bold: true, stripe: i % 2 === 1 }),
-                    ],
-                })
-            ),
-        ],
-    });
+    // ── 3. Category Rankings table (multi-year aware) ─────────────────────────
+    const categoryTable = buildRankingTable(
+        stats.category_rankings ?? [],
+        'Category'
+    );
 
     // ── 4. Module Trends table ────────────────────────────────────────────────
     const tC1 = 3200, tC2 = 1900, tC3 = 1900, tC4 = 2360;
@@ -237,10 +449,10 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         rows: [
             new TableRow({
                 children: [
-                    headerCell('Module',   tC1),
-                    headerCell('Previous', tC2),
-                    headerCell('Current',  tC3),
-                    headerCell('Change',   tC4),
+                    headerCell('Module',                                     tC1),
+                    headerCellTwoLine('Previous', periodLabels.previous,     tC2),
+                    headerCellTwoLine('Current',  periodLabels.current,      tC3),
+                    headerCell('Change',                                     tC4),
                 ],
             }),
             ...stats.module_trends.map((t, i) => {
@@ -300,55 +512,17 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         }
     }
 
-    // ── 6. Client Rankings table ──────────────────────────────────────────────
-    const rC1 = 900, rC2 = 6100, rC3 = 2360;
-    const clientTable = new Table({
-        width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
-        columnWidths: [rC1, rC2, rC3],
-        rows: [
-            new TableRow({
-                children: [
-                    headerCell('#',      rC1),
-                    headerCell('Client', rC2),
-                    headerCell('Cases',  rC3),
-                ],
-            }),
-            ...stats.client_rankings.slice(0, 50).map((item, i) =>
-                new TableRow({
-                    children: [
-                        dataCell(String(i + 1),              rC1, { center: true, stripe: i % 2 === 1, color: '6B7280' }),
-                        dataCell(item.name,                  rC2, { stripe: i % 2 === 1 }),
-                        dataCell(item.value.toLocaleString(), rC3, { center: true, bold: true, stripe: i % 2 === 1 }),
-                    ],
-                })
-            ),
-        ],
-    });
+    // ── 6. Client Rankings table (multi-year aware) ───────────────────────────
+    const clientTable = buildRankingTable(
+        stats.client_rankings ?? [],
+        'Client'
+    );
 
-    // ── 7. Detail Module Rankings table ──────────────────────────────────────
-    const dmC1 = 900, dmC2 = 6100, dmC3 = 2360;
-    const moduleTable = new Table({
-        width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
-        columnWidths: [dmC1, dmC2, dmC3],
-        rows: [
-            new TableRow({
-                children: [
-                    headerCell('#',             dmC1),
-                    headerCell('Detail Module', dmC2),
-                    headerCell('Cases',         dmC3),
-                ],
-            }),
-            ...detailModules.slice(0, 50).map((item, i) =>
-                new TableRow({
-                    children: [
-                        dataCell(String(i + 1),              dmC1, { center: true, stripe: i % 2 === 1, color: '6B7280' }),
-                        dataCell(item.name,                  dmC2, { stripe: i % 2 === 1 }),
-                        dataCell(item.value.toLocaleString(), dmC3, { center: true, bold: true, stripe: i % 2 === 1 }),
-                    ],
-                })
-            ),
-        ],
-    });
+    // ── 7. Detail Module Rankings table (multi-year aware) ────────────────────
+    const moduleTable = buildRankingTable(
+        detailModules,
+        'Detail Module'
+    );
 
     // ── Footer ────────────────────────────────────────────────────────────────
     const footerParagraph = new Paragraph({
@@ -404,7 +578,7 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
                     summaryTable,
                     spacer(200),
 
-                    // Section 2: Category Rankings (NEW — only if data exists)
+                    // Section 2: Category Rankings (only if data exists)
                     ...(categoryTable ? [
                         sectionHeading(`${s()}. Category Rankings`),
                         spacer(80),
@@ -430,16 +604,20 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
                     ] : []),
 
                     // Section 5: Client Rankings
-                    sectionHeading(`${s()}. Client Rankings`),
-                    spacer(80),
-                    clientTable,
-                    spacer(200),
+                    ...(clientTable ? [
+                        sectionHeading(`${s()}. Client Rankings`),
+                        spacer(80),
+                        clientTable,
+                        spacer(200),
+                    ] : []),
 
                     // Section 6: Detail Module Rankings
-                    sectionHeading(`${s()}. Detail Module Rankings`),
-                    spacer(80),
-                    moduleTable,
-                    spacer(80),
+                    ...(moduleTable ? [
+                        sectionHeading(`${s()}. Detail Module Rankings`),
+                        spacer(80),
+                        moduleTable,
+                        spacer(80),
+                    ] : []),
                 ],
             },
         ],

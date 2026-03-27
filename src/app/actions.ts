@@ -40,6 +40,56 @@ const _formatDateDashboard = (date: any): string | null => {
     } catch { return null; }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// buildYearRankings
+// ─────────────────────────────────────────────────────────────────────────────
+type RankingItem = {
+    name: string;
+    value?: number;
+    [year: string]: any;
+};
+
+function buildYearRankings(data: any[], nameKey: string): RankingItem[] {
+    const yearSet = new Set<string>();
+    data.forEach(r => {
+        if (!r.date) return;
+        const d = new Date(r.date + 'T00:00:00');
+        if (!isNaN(d.getTime())) yearSet.add(String(d.getFullYear()));
+    });
+    const years = Array.from(yearSet).sort();
+
+    if (years.length > 1) {
+        const countMap: Record<string, Record<string, number>> = {};
+        data.forEach(r => {
+            const name = r[nameKey];
+            if (!name || !r.date) return;
+            const d = new Date(r.date + 'T00:00:00');
+            if (isNaN(d.getTime())) return;
+            const year = String(d.getFullYear());
+            if (!countMap[name]) countMap[name] = {};
+            countMap[name][year] = (countMap[name][year] || 0) + 1;
+        });
+        return Object.entries(countMap)
+            .map(([name, yearData]) => {
+                const total = Object.values(yearData).reduce((a, b) => a + b, 0);
+                const obj: RankingItem = { name, value: total };
+                years.forEach(y => { obj[y] = yearData[y] ?? 0; });
+                return { ...obj, _total: total };
+            })
+            .sort((a: any, b: any) => b._total - a._total)
+            .map(({ _total, ...rest }: any) => rest as RankingItem);
+    } else {
+        const countMap: Record<string, number> = {};
+        data.forEach(r => {
+            const name = r[nameKey];
+            if (name) countMap[name] = (countMap[name] || 0) + 1;
+        });
+        return Object.entries(countMap)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    }
+}
+
 // ============================================
 // FETCH ALL CASES DATA
 // ============================================
@@ -347,7 +397,7 @@ function _emptyStats() {
     module_rankings:        [],
     detail_module_rankings: [],
     module_trends:          [],
-    category_rankings:      [], // ← NEW
+    category_rankings:      [],
   };
 }
 
@@ -407,10 +457,6 @@ function _computeModuleTrends(data: any[], period: TrendPeriod = 'monthly') {
     .slice(0, 8);
 }
 
-// ============================================
-// ★ NEW: Fetch category rankings langsung dari DB
-// ============================================
-
 async function _fetchCategoryRankingsDirect(filters: {
   dateRange?: any;
   years: string[];
@@ -418,15 +464,15 @@ async function _fetchCategoryRankingsDirect(filters: {
   clients: string[];
   modules: string[];
   detailModules: string[];
-}): Promise<{ name: string; value: number }[]> {
+}): Promise<RankingItem[]> {
   const BATCH = 1000;
-  const countMap: Record<string, number> = {};
+  const rows: any[] = [];
   let from = 0;
 
   while (true) {
     let q = supabaseAdmin
       .from('all_cases')
-      .select('category_case')
+      .select('date, category_case')
       .is('deleted_at', null)
       .not('category_case', 'is', null)
       .range(from, from + BATCH - 1);
@@ -454,19 +500,14 @@ async function _fetchCategoryRankingsDirect(filters: {
     if (error) { console.warn('⚠️  [actions/Category] query error:', error.message); break; }
     if (!batch || batch.length === 0) break;
 
-    batch.forEach((r: any) => {
-      if (r.category_case) countMap[r.category_case] = (countMap[r.category_case] || 0) + 1;
-    });
+    batch.forEach((r: any) => { if (r.category_case) rows.push(r); });
 
     if (batch.length < BATCH) break;
     from += BATCH;
   }
 
-  const result = Object.entries(countMap)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
-
-  console.log(`🏷️  [actions/Category] ${result.length} unique, ${result.reduce((s, r) => s + r.value, 0)} total`);
+  const result = buildYearRankings(rows, 'category_case');
+  console.log(`🏷️  [actions/Category] ${result.length} unique entries`);
   return result;
 }
 
@@ -476,26 +517,18 @@ function _computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
   const solvedPct     = totalCases > 0 ? (totalSolved / totalCases) * 100 : 0;
   const uniqueClients = new Set(data.map(r => r.client_name).filter(Boolean));
 
-  const categoryCounts: Record<string, number> = {};
-  data.forEach(r => { if (r.category_case) categoryCounts[r.category_case] = (categoryCounts[r.category_case] || 0) + 1; });
-  const trendingCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'N/A';
-
-  // ★ NEW: category rankings sorted by count
-  const categoryRankings = Object.entries(categoryCounts)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
-
-  const clientCounts: Record<string, number> = {};
-  data.forEach(r => { if (r.client_name) clientCounts[r.client_name] = (clientCounts[r.client_name] || 0) + 1; });
-  const clientRankings = Object.entries(clientCounts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  const clientRankings       = buildYearRankings(data, 'client_name');
+  const categoryRankings     = buildYearRankings(data, 'category_case');
+  const detailModuleRankings = buildYearRankings(data, 'detail_module');
 
   const moduleCounts: Record<string, number> = {};
   data.forEach(r => { if (r.module_case) moduleCounts[r.module_case] = (moduleCounts[r.module_case] || 0) + 1; });
-  const moduleRankings = Object.entries(moduleCounts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  const moduleRankings = Object.entries(moduleCounts)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
 
-  const detailModuleCounts: Record<string, number> = {};
-  data.forEach(r => { if (r.detail_module) detailModuleCounts[r.detail_module] = (detailModuleCounts[r.detail_module] || 0) + 1; });
-  const detailModuleRankings = Object.entries(detailModuleCounts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  const trendingCategory = categoryRankings[0]?.name ?? 'N/A';
+  const trendingModule   = moduleRankings[0]?.name   ?? 'N/A';
 
   const monthAbbr = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const monthYearCounts: Record<string, number> = {};
@@ -518,7 +551,7 @@ function _computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
       total_clients:     uniqueClients.size,
       solved_percentage: solvedPct,
       trending_category: trendingCategory,
-      trending_module:   moduleRankings[0]?.name ?? 'N/A',
+      trending_module:   trendingModule,
       top_client:        clientRankings[0]?.name ?? 'N/A',
       top_module:        moduleRankings[0]?.name ?? 'N/A',
     },
@@ -527,7 +560,7 @@ function _computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
     module_rankings:        moduleRankings,
     detail_module_rankings: detailModuleRankings,
     module_trends:          _computeModuleTrends(data, trendPeriod),
-    category_rankings:      categoryRankings, // ★ NEW
+    category_rankings:      categoryRankings,
   };
 }
 
@@ -579,65 +612,6 @@ async function _fetchAllRowsDirect(filters: {
   }
 
   return allData;
-}
-
-async function _fetchDetailModuleRowsDirect(filters: {
-  dateRange?: any;
-  years: string[];
-  categories: string[];
-  clients: string[];
-  modules: string[];
-  detailModules: string[];
-}): Promise<{ name: string; value: number }[]> {
-  const BATCH = 1000;
-  const countMap: Record<string, number> = {};
-  let from = 0;
-
-  while (true) {
-    let q = supabaseAdmin
-      .from('all_cases')
-      .select('detail_module')
-      .is('deleted_at', null)
-      .not('detail_module', 'is', null)
-      .range(from, from + BATCH - 1);
-
-    if (filters.dateRange?.from) {
-      const fromDate = _formatDateDashboard(filters.dateRange.from);
-      const toDate   = filters.dateRange.to ? _formatDateDashboard(filters.dateRange.to) : fromDate;
-      q = q.gte('date', fromDate!).lte('date', toDate!);
-    } else if (filters.years.length === 1) {
-      const y = parseInt(filters.years[0], 10);
-      if (!isNaN(y)) q = q.gte('date', `${y}-01-01`).lte('date', `${y}-12-31`);
-    } else if (filters.years.length > 1) {
-      const orParts = filters.years
-        .map(y => { const n = parseInt(y, 10); return isNaN(n) ? null : `and(date.gte.${n}-01-01,date.lte.${n}-12-31)`; })
-        .filter(Boolean).join(',');
-      if (orParts) q = (q as any).or(orParts);
-    }
-
-    if (filters.categories.length    > 0) q = q.in('category_case', filters.categories);
-    if (filters.clients.length       > 0) q = q.in('client_name',   filters.clients);
-    if (filters.modules.length       > 0) q = q.in('module_case',   filters.modules);
-    if (filters.detailModules.length > 0) q = q.in('detail_module', filters.detailModules);
-
-    const { data: batch, error } = await q;
-    if (error) { console.warn('⚠️  [actions/DetailModule] query error:', error.message); break; }
-    if (!batch || batch.length === 0) break;
-
-    batch.forEach((r: any) => {
-      if (r.detail_module) countMap[r.detail_module] = (countMap[r.detail_module] || 0) + 1;
-    });
-
-    if (batch.length < BATCH) break;
-    from += BATCH;
-  }
-
-  const result = Object.entries(countMap)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
-
-  console.log(`🔍 [actions/DetailModule] ${result.length} unique, ${result.reduce((s, r) => s + r.value, 0)} total`);
-  return result;
 }
 
 async function _fetchTrendRowsDirect(filters: {
@@ -771,12 +745,10 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
 
       console.log('🚀 [actions] RPC fn_dashboard_filtered:', rpcParams);
 
-      // ★ UPDATED: tambahkan _fetchCategoryRankingsDirect ke Promise.all
-      const [rpcResult, detailModuleRankings, trendRows, categoryRankings] = await Promise.all([
+      const [rpcResult, trendRows, categoryRankings] = await Promise.all([
         supabaseAdmin.rpc('fn_dashboard_filtered', rpcParams),
-        _fetchDetailModuleRowsDirect(sharedFilters),
         _fetchTrendRowsDirect({ ...sharedFilters, trendPeriod }),
-        _fetchCategoryRankingsDirect(sharedFilters), // ★ NEW
+        _fetchCategoryRankingsDirect(sharedFilters),
       ]);
 
       const { data, error } = rpcResult;
@@ -788,8 +760,15 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
       }
 
       const result = data[0];
+
       const moduleRankings = _parseJSONB(result.out_module_rankings)
         .map((i: any) => ({ name: i.module, value: i.cases }));
+
+      const clientRankings = _parseJSONB(result.out_client_rankings)
+        .map((i: any) => ({ name: i.client, value: i.cases }));
+
+      const detailModuleRankings = _parseJSONB(result.out_detail_module_rankings)
+        .map((i: any) => ({ name: i.detail_module, value: i.cases }));
 
       const moduleTrends = _computeModuleTrends(trendRows, trendPeriod);
 
@@ -807,16 +786,15 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
             top_module:        result.out_top_module         ?? 'N/A',
           },
           monthly_stats:          _pivotAndOrderMonthlyStats(_parseJSONB(result.out_monthly_stats)),
-          client_rankings:        _parseJSONB(result.out_client_rankings).map((i: any) => ({ name: i.client, value: i.cases })),
+          client_rankings:        clientRankings,
           module_rankings:        moduleRankings,
           detail_module_rankings: detailModuleRankings,
           module_trends:          moduleTrends,
-          category_rankings:      categoryRankings, // ★ NEW
+          category_rankings:      categoryRankings,
         },
       };
     }
 
-    // Multi-filter path: _computeStats already includes category_rankings
     const allData = await _fetchAllRowsDirect(sharedFilters);
 
     if (allData.length === 0) return { success: true, data: _emptyStats() };
@@ -1341,7 +1319,11 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
     if (rows.length < 2) return { success: true, inserted: 0, skipped: 0 };
 
     const rawHeaders = rows[0];
-    const headers: (string | null)[] = rawHeaders.map(h => _SYNC_COLUMN_MAP[h.toLowerCase().trim()] ?? null);
+
+    // ─── FIX: normalize internal whitespace agar "PIC  CLIENT" → "pic client" ───
+    const headers: (string | null)[] = rawHeaders.map(
+      h => _SYNC_COLUMN_MAP[h.toLowerCase().trim().replace(/\s+/g, ' ')] ?? null
+    );
 
     const detailCaseColIdx = headers.indexOf('detail_case');
     const ticketColIdx     = headers.indexOf('ticket_number');
@@ -1381,23 +1363,23 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
 
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('all_cases')
-      .select('ticket_number, status_case, check_in, check_out')
-      .in('ticket_number', toProcess.map(r => r.ticket));
+      .select('ticket_number, status_case, check_in, check_out, client_name, module_case, category_case, detail_module, pic_client, detail_case, source_link_op, note, month, date')
+      .in('ticket_number', toProcess.map(r => r.ticket))
+      .is('deleted_at', null);
 
     if (fetchErr) return { success: false, error: `DB error: ${fetchErr.message}` };
 
-    const existingMap = new Map<string, { status_case: string | null; check_in: string | null; check_out: string | null }>(
-      (existing || []).map((r: any) => [r.ticket_number, { status_case: r.status_case, check_in: r.check_in, check_out: r.check_out }])
+    const existingMap = new Map<string, Record<string, any>>(
+      (existing || []).map((r: any) => [r.ticket_number, r])
     );
 
-    const toInsert = toProcess.filter(r => !existingMap.has(r.ticket)).map(r => r.record);
-    const toUpdate = toProcess.filter(r => {
-      const db = existingMap.get(r.ticket);
-      if (!db) return false;
-      return (r.record.status_case && (db.status_case || '').trim().toLowerCase() !== (r.record.status_case || '').trim().toLowerCase())
-        || (!db.check_in  && !!r.record.check_in)
-        || (!db.check_out && !!r.record.check_out);
-    });
+    // ── INSERT ──
+    const toInsert = toProcess
+      .filter(r => !existingMap.has(r.ticket))
+      .map(r => r.record);
+
+    // ── UPDATE ──
+    const toUpdate = toProcess.filter(r => existingMap.has(r.ticket));
 
     let insertedCount = 0;
     const BATCH = 500;
@@ -1413,22 +1395,65 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
     }
 
     let updatedCount = 0;
+    let skippedCount = 0;
+
     for (const item of toUpdate) {
-      const db    = existingMap.get(item.ticket)!;
+      const db = existingMap.get(item.ticket)!;
       const patch: Record<string, any> = {};
-      if (item.record.status_case && (db.status_case || '').trim().toLowerCase() !== (item.record.status_case || '').trim().toLowerCase()) patch.status_case = item.record.status_case;
-      if (!db.check_in  && item.record.check_in)  patch.check_in  = item.record.check_in;
-      if (!db.check_out && item.record.check_out) patch.check_out = item.record.check_out;
+
+      // ── helper: trim kedua sisi sebelum bandingkan ──
+      const _diff = (dbVal: any, sheetVal: any, caseInsensitive = false): boolean => {
+        const a = (dbVal    || '').toString().trim();
+        const b = (sheetVal || '').toString().trim();
+        if (!b) return false; // sheet kosong → jangan update
+        return caseInsensitive ? a.toLowerCase() !== b.toLowerCase() : a !== b;
+      };
+
+      if (_diff(db.status_case,    item.record.status_case, true)) patch.status_case    = item.record.status_case;
+      if (!db.check_in  && item.record.check_in)                   patch.check_in       = item.record.check_in;
+      if (!db.check_out && item.record.check_out)                  patch.check_out      = item.record.check_out;
+      if (_diff(db.client_name,    item.record.client_name))       patch.client_name    = item.record.client_name;
+      if (_diff(db.module_case,    item.record.module_case))       patch.module_case    = item.record.module_case;
+      if (_diff(db.detail_module,  item.record.detail_module))     patch.detail_module  = item.record.detail_module;
+      if (_diff(db.category_case,  item.record.category_case))     patch.category_case  = item.record.category_case;
+      if (_diff(db.pic_client,     item.record.pic_client))        patch.pic_client     = item.record.pic_client;
+      if (_diff(db.detail_case,    item.record.detail_case))       patch.detail_case    = item.record.detail_case;
+      if (_diff(db.source_link_op, item.record.source_link_op))    patch.source_link_op = item.record.source_link_op;
+      if (_diff(db.note,           item.record.note))              patch.note           = item.record.note;
+      if (_diff(db.month,          item.record.month))             patch.month          = item.record.month;
+      if (_diff(db.date,           item.record.date))              patch.date           = item.record.date;
+
       if (item.record.status_case_solved) patch.status_case_solved = item.record.status_case_solved;
-      if (Object.keys(patch).length === 0) continue;
-      const { error: updErr } = await supabaseAdmin.from('all_cases').update(patch).eq('ticket_number', item.ticket).is('deleted_at', null);
-      if (!updErr) updatedCount++;
+
+      if (Object.keys(patch).length === 0) {
+        skippedCount++;
+        continue;
+      }
+
+      const { error: updErr } = await supabaseAdmin
+        .from('all_cases')
+        .update(patch)
+        .eq('ticket_number', item.ticket)
+        .is('deleted_at', null);
+
+      if (!updErr) {
+        updatedCount++;
+      } else {
+        console.error(`❌ [SYNC] Update error for ${item.ticket}:`, updErr.message);
+      }
     }
 
     revalidatePath('/db');
     revalidatePath('/dashboard');
 
-    return { success: true, inserted: insertedCount, updated: updatedCount, skipped: existingMap.size - updatedCount };
+    console.log(`✅ [SYNC] inserted=${insertedCount}, updated=${updatedCount}, skipped=${skippedCount}`);
+
+    return {
+      success: true,
+      inserted: insertedCount,
+      updated:  updatedCount,
+      skipped:  skippedCount,
+    };
 
   } catch (err: any) {
     console.error('❌ [SYNC] Unexpected error:', err);

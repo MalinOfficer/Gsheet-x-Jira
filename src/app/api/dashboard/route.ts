@@ -1,4 +1,3 @@
-//route dashboard
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { type DateRange } from 'react-day-picker';
@@ -19,6 +18,12 @@ type ModuleTrend = {
     change: number;
     change_pct: number | null;
     direction: 'up' | 'down' | 'stable';
+};
+
+type RankingItem = {
+    name: string;
+    value?: number;
+    [year: string]: any;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,6 +73,74 @@ const formatDate = (date: any): string | null => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// buildYearRankings
+// Jika data mencakup lebih dari 1 tahun → { name, "2024": N, "2025": N, … }
+// Jika hanya 1 tahun / tidak ada date → { name, value: N }
+// ─────────────────────────────────────────────────────────────────────────────
+function buildYearRankings(data: any[], nameKey: string): RankingItem[] {
+    const yearSet = new Set<string>();
+    data.forEach(r => {
+        if (!r.date) return;
+        const d = new Date(r.date + 'T00:00:00');
+        if (!isNaN(d.getTime())) yearSet.add(String(d.getFullYear()));
+    });
+    const years = Array.from(yearSet).sort();
+
+    if (years.length > 1) {
+        const countMap: Record<string, Record<string, number>> = {};
+        data.forEach(r => {
+            const name = r[nameKey];
+            if (!name || !r.date) return;
+            const d = new Date(r.date + 'T00:00:00');
+            if (isNaN(d.getTime())) return;
+            const year = String(d.getFullYear());
+            if (!countMap[name]) countMap[name] = {};
+            countMap[name][year] = (countMap[name][year] || 0) + 1;
+        });
+        return Object.entries(countMap)
+            .map(([name, yearData]) => {
+                const total = Object.values(yearData).reduce((a, b) => a + b, 0);
+                const obj: RankingItem = { name, value: total }; // ★ FIX: selalu sertakan value = total
+                years.forEach(y => { obj[y] = yearData[y] ?? 0; });
+                return { ...obj, _total: total };
+            })
+            .sort((a: any, b: any) => b._total - a._total)
+            .map(({ _total, ...rest }: any) => rest as RankingItem);
+    } else {
+        const countMap: Record<string, number> = {};
+        data.forEach(r => {
+            const name = r[nameKey];
+            if (name) countMap[name] = (countMap[name] || 0) + 1;
+        });
+        return Object.entries(countMap)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// isSubstantiallyComplete
+// ─────────────────────────────────────────────────────────────────────────────
+export function isSubstantiallyComplete(period: TrendPeriod): boolean {
+    const now   = new Date();
+    const day   = now.getDate();
+    const month = now.getMonth();
+
+    switch (period) {
+        case 'daily':
+            return now.getHours() >= 18;
+        case 'weekly':
+            return now.getDay() >= 4;
+        case 'monthly':
+            return day >= 20;
+        case 'quarterly': {
+            const isLastMonthOfQ = [2, 5, 8, 11].includes(month);
+            return isLastMonthOfQ && day >= 15;
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Period key generator
 // ─────────────────────────────────────────────────────────────────────────────
 function getPeriodKey(d: Date, period: TrendPeriod): string {
@@ -100,7 +173,8 @@ function getCurrentIncompletePeriodKey(period: TrendPeriod): string {
 // computeModuleTrends
 // ─────────────────────────────────────────────────────────────────────────────
 function computeModuleTrends(data: any[], period: TrendPeriod = 'monthly'): ModuleTrend[] {
-    const incompletePeriod = getCurrentIncompletePeriodKey(period);
+    const incompletePeriod  = getCurrentIncompletePeriodKey(period);
+    const skipCurrentPeriod = !isSubstantiallyComplete(period);
 
     const periodCounts: Record<string, Record<string, number>> = {};
 
@@ -110,7 +184,7 @@ function computeModuleTrends(data: any[], period: TrendPeriod = 'monthly'): Modu
         if (isNaN(d.getTime())) return;
 
         const key = getPeriodKey(d, period);
-        if (key === incompletePeriod) return;
+        if (skipCurrentPeriod && key === incompletePeriod) return;
 
         if (!periodCounts[key]) periodCounts[key] = {};
         periodCounts[key][r.module_case] = (periodCounts[key][r.module_case] || 0) + 1;
@@ -132,9 +206,9 @@ function computeModuleTrends(data: any[], period: TrendPeriod = 'monthly'): Modu
     const allModules = new Set([...Object.keys(currentMap), ...Object.keys(previousMap)]);
 
     const trends: ModuleTrend[] = Array.from(allModules).map(name => {
-        const current   = currentMap[name]  ?? 0;
-        const previous  = previousMap[name] ?? 0;
-        const change    = current - previous;
+        const current    = currentMap[name]  ?? 0;
+        const previous   = previousMap[name] ?? 0;
+        const change     = current - previous;
         const change_pct: number | null =
             previous === 0 ? null : Math.round((change / previous) * 100);
         const direction: 'up' | 'down' | 'stable' =
@@ -143,16 +217,18 @@ function computeModuleTrends(data: any[], period: TrendPeriod = 'monthly'): Modu
         return { name, current, previous, change, change_pct, direction };
     });
 
-    console.log(`📊 [Trend] period=${period} | "${previousPeriodKey}" vs "${currentPeriodKey}" | ${trends.length} modules`);
+    console.log(
+        `📊 [Trend] period=${period} | skip_incomplete=${skipCurrentPeriod} | ` +
+        `"${previousPeriodKey}" vs "${currentPeriodKey}" | ${trends.length} modules`
+    );
 
     return trends
         .filter(t => !(t.current === 0 && t.previous === 0))
-        .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
-        .slice(0, 8);
+        .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// fetchAllRows — untuk MODE 2 (Direct Query / multi-filter)
+// fetchAllRows
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchAllRows(filters: {
     dateRange?: DateRange;
@@ -212,79 +288,7 @@ async function fetchAllRows(filters: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// fetchDetailModuleRows
-// ─────────────────────────────────────────────────────────────────────────────
-async function fetchDetailModuleRows(filters: {
-    dateRange?: DateRange;
-    years: string[];
-    categories: string[];
-    clients: string[];
-    modules: string[];
-    detailModules: string[];
-}): Promise<{ name: string; value: number }[]> {
-    const BATCH = 1000;
-    const countMap: Record<string, number> = {};
-    let from = 0;
-
-    while (true) {
-        let q = supabaseAdmin
-            .from('all_cases')
-            .select('detail_module')
-            .is('deleted_at', null)
-            .not('detail_module', 'is', null)
-            .range(from, from + BATCH - 1);
-
-        if (filters.dateRange?.from) {
-            const fromDate = formatDate(filters.dateRange.from);
-            const toDate   = filters.dateRange.to ? formatDate(filters.dateRange.to) : fromDate;
-            q = q.gte('date', fromDate!).lte('date', toDate!);
-        } else if (filters.years.length === 1) {
-            const y = parseInt(filters.years[0], 10);
-            if (!isNaN(y)) q = q.gte('date', `${y}-01-01`).lte('date', `${y}-12-31`);
-        } else if (filters.years.length > 1) {
-            const orParts = filters.years
-                .map(y => {
-                    const n = parseInt(y, 10);
-                    return isNaN(n) ? null : `and(date.gte.${n}-01-01,date.lte.${n}-12-31)`;
-                })
-                .filter(Boolean)
-                .join(',');
-            if (orParts) q = q.or(orParts);
-        }
-
-        if (filters.categories.length    > 0) q = q.in('category_case', filters.categories);
-        if (filters.clients.length       > 0) q = q.in('client_name',   filters.clients);
-        if (filters.modules.length       > 0) q = q.in('module_case',   filters.modules);
-        if (filters.detailModules.length > 0) q = q.in('detail_module', filters.detailModules);
-
-        const { data: batch, error } = await q;
-
-        if (error) {
-            console.warn('⚠️  [Detail Module] query error:', error.message);
-            break;
-        }
-        if (!batch || batch.length === 0) break;
-
-        batch.forEach((r: any) => {
-            if (r.detail_module) {
-                countMap[r.detail_module] = (countMap[r.detail_module] || 0) + 1;
-            }
-        });
-
-        if (batch.length < BATCH) break;
-        from += BATCH;
-    }
-
-    const result = Object.entries(countMap)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-
-    console.log(`🔍 [Detail Module] ${result.length} unique, ${result.reduce((s, r) => s + r.value, 0)} total cases`);
-    return result;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ★ NEW: fetchCategoryRows
+// fetchCategoryRows
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchCategoryRows(filters: {
     dateRange?: DateRange;
@@ -293,15 +297,15 @@ async function fetchCategoryRows(filters: {
     clients: string[];
     modules: string[];
     detailModules: string[];
-}): Promise<{ name: string; value: number }[]> {
+}): Promise<RankingItem[]> {
     const BATCH = 1000;
-    const countMap: Record<string, number> = {};
+    const rows: any[] = [];
     let from = 0;
 
     while (true) {
         let q = supabaseAdmin
             .from('all_cases')
-            .select('category_case')
+            .select('date, category_case')
             .is('deleted_at', null)
             .not('category_case', 'is', null)
             .range(from, from + BATCH - 1);
@@ -337,26 +341,19 @@ async function fetchCategoryRows(filters: {
         }
         if (!batch || batch.length === 0) break;
 
-        batch.forEach((r: any) => {
-            if (r.category_case) {
-                countMap[r.category_case] = (countMap[r.category_case] || 0) + 1;
-            }
-        });
+        batch.forEach((r: any) => { if (r.category_case) rows.push(r); });
 
         if (batch.length < BATCH) break;
         from += BATCH;
     }
 
-    const result = Object.entries(countMap)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-
-    console.log(`🏷️  [Category] ${result.length} unique, ${result.reduce((s, r) => s + r.value, 0)} total cases`);
+    const result = buildYearRankings(rows, 'category_case');
+    console.log(`🏷️  [Category] ${result.length} unique entries`);
     return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// computeStats — untuk MODE 2 (Direct Query)
+// computeStats — MODE 2 (Direct Query / multi-filter)
 // ─────────────────────────────────────────────────────────────────────────────
 function computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
     const totalCases  = data.length;
@@ -365,37 +362,20 @@ function computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
 
     const uniqueClients = new Set(data.map(r => r.client_name).filter(Boolean));
 
-    const categoryCounts: Record<string, number> = {};
-    data.forEach(r => {
-        if (r.category_case) categoryCounts[r.category_case] = (categoryCounts[r.category_case] || 0) + 1;
-    });
-    const trendingCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'N/A';
+    // ★ multi-year aware rankings — selalu include value = total
+    const clientRankings       = buildYearRankings(data, 'client_name');
+    const categoryRankings     = buildYearRankings(data, 'category_case');
+    const detailModuleRankings = buildYearRankings(data, 'detail_module');
 
-    // ★ category rankings sorted by count
-    const categoryRankings = Object.entries(categoryCounts)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-
-    const clientCounts: Record<string, number> = {};
-    data.forEach(r => { if (r.client_name) clientCounts[r.client_name] = (clientCounts[r.client_name] || 0) + 1; });
-    const clientRankings = Object.entries(clientCounts)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-
+    // module_rankings stays { name, value }
     const moduleCounts: Record<string, number> = {};
     data.forEach(r => { if (r.module_case) moduleCounts[r.module_case] = (moduleCounts[r.module_case] || 0) + 1; });
     const moduleRankings = Object.entries(moduleCounts)
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value);
-    const trendingModule = moduleRankings[0]?.name ?? 'N/A';
 
-    const detailModuleCounts: Record<string, number> = {};
-    data.forEach(r => {
-        if (r.detail_module) detailModuleCounts[r.detail_module] = (detailModuleCounts[r.detail_module] || 0) + 1;
-    });
-    const detailModuleRankings = Object.entries(detailModuleCounts)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
+    const trendingCategory = categoryRankings[0]?.name ?? 'N/A';
+    const trendingModule   = moduleRankings[0]?.name   ?? 'N/A';
 
     const monthAbbr = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const monthYearCounts: Record<string, number> = {};
@@ -429,7 +409,7 @@ function computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
         module_rankings:        moduleRankings,
         detail_module_rankings: detailModuleRankings,
         module_trends:          moduleTrends,
-        category_rankings:      categoryRankings, // ★ FIX
+        category_rankings:      categoryRankings,
     };
 }
 
@@ -510,7 +490,7 @@ export async function GET(request: Request) {
             selectedYears, categories, clients, modules, detailModules, trendPeriod
         });
 
-        // ── MODE 1: RPC ───────────────────────────────────────────────────────
+        // ── MODE 1: RPC (single-year / single-filter) ─────────────────────────
         if (!isMultiFilter) {
             const singleYear = selectedYears[0];
             let yearValue: number | null = null;
@@ -533,12 +513,11 @@ export async function GET(request: Request) {
 
             console.log('🚀 [API] Calling RPC fn_dashboard_filtered:', params);
 
-            // ★ FIX: tambahkan fetchCategoryRows ke Promise.all
-            const [rpcResult, rawForTrends, detailModuleRankings, categoryRankings] = await Promise.all([
+            // ★ FIX: hapus fetchDetailModuleRows terpisah — pakai out_detail_module_rankings dari RPC
+            const [rpcResult, rawForTrends, categoryRankings] = await Promise.all([
                 supabaseAdmin.rpc('fn_dashboard_filtered', params),
                 fetchTrendRows({ ...sharedFilters, trendPeriod }),
-                fetchDetailModuleRows(sharedFilters),
-                fetchCategoryRows(sharedFilters), // ★ FIX
+                fetchCategoryRows(sharedFilters),
             ]);
 
             const { data, error } = rpcResult;
@@ -563,9 +542,16 @@ export async function GET(request: Request) {
             const moduleRankingsRpc = parseJSONB(result.out_module_rankings)
                 .map((i: any) => ({ name: i.module, value: i.cases }));
 
+            // ★ FIX: client_rankings dari RPC → format { name, value }
+            const clientRankingsRpc = parseJSONB(result.out_client_rankings)
+                .map((i: any) => ({ name: i.client, value: i.cases }));
+
+            // ★ FIX: detail_module_rankings dari RPC langsung → format { name, value }
+            const detailModuleRankingsRpc = parseJSONB(result.out_detail_module_rankings)
+                .map((i: any) => ({ name: i.detail_module, value: i.cases }));
+
             const moduleTrends = computeModuleTrends(rawForTrends, trendPeriod);
 
-            // ★ FIX: sertakan category_rankings di response
             return NextResponse.json({ success: true, data: {
                 summary: {
                     total_cases:       result.out_total_cases       ?? 0,
@@ -578,16 +564,15 @@ export async function GET(request: Request) {
                     top_module:        result.out_top_module         ?? 'N/A',
                 },
                 monthly_stats:          pivotAndOrderMonthlyStats(parseJSONB(result.out_monthly_stats)),
-                client_rankings:        parseJSONB(result.out_client_rankings)
-                                            .map((i: any) => ({ name: i.client, value: i.cases })),
+                client_rankings:        clientRankingsRpc,
                 module_rankings:        moduleRankingsRpc,
-                detail_module_rankings: detailModuleRankings,
+                detail_module_rankings: detailModuleRankingsRpc,  // ★ FIX
                 module_trends:          moduleTrends,
-                category_rankings:      categoryRankings, // ★ FIX
+                category_rankings:      categoryRankings,
             }});
         }
 
-        // ── MODE 2: Direct query ──────────────────────────────────────────────
+        // ── MODE 2: Direct query (multi-filter / multi-year) ──────────────────
         const allData = await fetchAllRows(sharedFilters);
 
         console.log(`✅ [API] Total rows fetched: ${allData.length}`);
@@ -596,7 +581,6 @@ export async function GET(request: Request) {
             return NextResponse.json({ success: true, data: emptyStats() });
         }
 
-        // computeStats sudah include category_rankings ★
         return NextResponse.json({ success: true, data: computeStats(allData, trendPeriod) });
 
     } catch (error: any) {
@@ -609,7 +593,7 @@ export async function GET(request: Request) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// fetchTrendRows — narrow date window untuk trend computation
+// fetchTrendRows
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchTrendRows(filters: {
     dateRange?: DateRange;
@@ -698,6 +682,6 @@ function emptyStats() {
         module_rankings:        [],
         detail_module_rankings: [],
         module_trends:          [],
-        category_rankings:      [], // ★ FIX
+        category_rankings:      [],
     };
 }
