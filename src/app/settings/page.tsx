@@ -32,7 +32,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { getSpreadsheetTitle, syncGSheetToDB, saveAppSetting, getAppSetting } from '@/app/actions';
 import { previewGSheetSync, type PreviewRow } from '@/app/preview-sync';
-import { useUserPreferences } from '@/hooks/use-user-preferences'; // ✅ tambah
+import { useUserPreferences } from '@/hooks/use-user-preferences';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -224,7 +224,10 @@ function SyncPreviewDialog({
           ) : (
             <ScrollArea className="h-[340px] rounded-lg border">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
+                {/* FIX: Hapus backdrop-blur-sm — menyebabkan konten tabel di bawah header terlihat blur
+                    di beberapa browser (terutama Chromium) ketika dirender dalam ScrollArea.
+                    Ganti bg-muted/80 → bg-muted agar background solid tanpa efek blur. */}
+                <thead className="sticky top-0 bg-muted z-10">
                   <tr className="border-b">
                     <th className="text-left py-2.5 px-3 font-medium text-xs text-muted-foreground w-6">#</th>
                     <th className="text-left py-2.5 px-3 font-medium text-xs text-muted-foreground whitespace-nowrap">Ticket</th>
@@ -299,7 +302,6 @@ export default function SettingsPage() {
     spreadsheetTitle, setSpreadsheetTitle,
   } = useContext(SettingsContext);
 
-  // ✅ User preferences — sync menuVisibility ke DB
   const { prefs, updatePref, isLoading: isPrefsLoading } = useUserPreferences();
 
   const [isClient, setIsClient]           = useState(false);
@@ -311,11 +313,8 @@ export default function SettingsPage() {
   const [lastSyncResult, setLastSyncResult] = useState<{ inserted: number; skipped: number } | null>(null);
   const [isSyncRunning, setIsSyncRunning] = useState(false);
 
-  // ── Menu Visibility
-  // Inisialisasi dari localStorage untuk tampil cepat, DB akan override setelah load
   const [menuVisibility, setMenuVisibility] = useState<MenuVisibility>(DEFAULT_MENU_VISIBILITY);
 
-  // ── Preview dialog state
   const [isPreviewOpen, setIsPreviewOpen]             = useState(false);
   const [isFetchingPreview, setIsFetchingPreview]     = useState(false);
   const [isConfirmingSyncRef, setIsConfirmingSyncRef] = useState(false);
@@ -327,7 +326,6 @@ export default function SettingsPage() {
     unmappedHeaders: string[];
   } | null>(null);
 
-  // ── Cron state
   const [cronConfig, setCronConfig] = useState<CronConfig>({
     interval: 'off', enabled: false, lastRun: null, nextRun: null,
   });
@@ -357,22 +355,18 @@ export default function SettingsPage() {
 
     initUrl();
 
-    // Load cron config dari localStorage
     try {
       const saved = localStorage.getItem('cronConfig');
       if (saved) setCronConfig(JSON.parse(saved));
     } catch (_) {}
 
-    // ✅ Load menuVisibility dari localStorage dulu (fast path)
-    // DB preferences akan override via useEffect setelah prefs load
     try {
       const saved = localStorage.getItem(MENU_VISIBILITY_KEY);
       if (saved) setMenuVisibility({ ...DEFAULT_MENU_VISIBILITY, ...JSON.parse(saved) });
     } catch (_) {}
   }, []);
 
-  // ✅ Sync menuVisibility dari DB setelah prefs selesai load
-  // Prioritas: DB > localStorage — sehingga setting dari device lain ikut ter-apply
+  // ── Sync menuVisibility dari DB ──────────────────────────────────────────────
   useEffect(() => {
     if (isPrefsLoading) return;
     if (!prefs.menuVisibility) return;
@@ -380,10 +374,8 @@ export default function SettingsPage() {
     const merged = { ...DEFAULT_MENU_VISIBILITY, ...prefs.menuVisibility };
     setMenuVisibility(merged);
 
-    // Sync ke localStorage agar client-layout bisa baca langsung
     try { localStorage.setItem(MENU_VISIBILITY_KEY, JSON.stringify(merged)); } catch (_) {}
 
-    // Dispatch event agar sidebar langsung update
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent('menuVisibilityChange', { detail: merged }));
     }, 0);
@@ -415,21 +407,16 @@ export default function SettingsPage() {
   function updateMenuVisibility(key: keyof MenuVisibility, value: boolean) {
     const next: MenuVisibility = { ...menuVisibility, [key]: value };
 
-    // 1. Update React state (instan)
     setMenuVisibility(next);
 
-    // 2. Persist ke localStorage
     try { localStorage.setItem(MENU_VISIBILITY_KEY, JSON.stringify(next)); } catch (_) {}
 
-    // 3. ✅ Persist ke DB via user preferences (auto-save dengan debounce 1.5 detik)
     updatePref('menuVisibility', next);
 
-    // 4. Dispatch event agar sidebar langsung update tanpa reload
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent('menuVisibilityChange', { detail: next }));
     }, 0);
 
-    // 5. Sync SettingsContext untuk secondary tools
     if (key === 'showSecondaryTools' && value !== areSecondaryToolsEnabled) {
       toggleSecondaryTools();
     }
@@ -776,7 +763,6 @@ export default function SettingsPage() {
             <CardDescription>
               Aktifkan atau nonaktifkan menu navigasi tertentu. Menu <strong>Dashboard</strong> dan{' '}
               <strong>Data All Case</strong> selalu ditampilkan.
-              {/* ✅ Indikator loading preferences dari DB */}
               {isPrefsLoading && (
                 <span className="ml-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
                   <RefreshCw className="h-3 w-3 animate-spin" />

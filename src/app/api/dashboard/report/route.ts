@@ -63,7 +63,6 @@ type FilterSummary = {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // extractYearKeys — ambil semua kolom tahun dari array RankingItem
-// Jika semua item hanya punya `value` (single-year), kembalikan []
 // ─────────────────────────────────────────────────────────────────────────────
 function extractYearKeys(items: RankingItem[]): string[] {
     const yearSet = new Set<string>();
@@ -76,7 +75,7 @@ function extractYearKeys(items: RankingItem[]): string[] {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// getRankingValue — nilai numerik per item, dengan fallback ke value/0
+// getRankingTotal — jumlahkan semua tahun, atau fallback ke value
 // ─────────────────────────────────────────────────────────────────────────────
 function getRankingTotal(item: RankingItem, yearKeys: string[]): number {
     if (yearKeys.length > 0) {
@@ -86,7 +85,49 @@ function getRankingTotal(item: RankingItem, yearKeys: string[]): number {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isSubstantiallyComplete — mirror dari route.ts
+// getChangeInfo — hitung change antara 2 tahun terakhir dari yearKeys
+//
+// Aturan:
+//   - yearKeys.length >= 2  → change = item[lastYear] - item[secondToLastYear]
+//                             label  = "YY1 → YY2"
+//   - yearKeys.length === 1 → no change (kembalikan null)
+// ─────────────────────────────────────────────────────────────────────────────
+function getChangeInfo(
+    item: RankingItem,
+    yearKeys: string[]
+): { change: number; fromYear: string; toYear: string } | null {
+    if (yearKeys.length < 2) return null;
+    const fromYear = yearKeys[yearKeys.length - 2];
+    const toYear   = yearKeys[yearKeys.length - 1];
+    const prev     = item[fromYear] ?? 0;
+    const curr     = item[toYear]   ?? 0;
+    return { change: curr - prev, fromYear, toYear };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// formatChangeStr — "+120 (+15%)" / "-30 (-5%)" / "—"
+// ─────────────────────────────────────────────────────────────────────────────
+function formatChangeStr(change: number, prev: number): string {
+    if (change === 0) return '—';
+    const sign   = change > 0 ? '+' : '';
+    const pct    = prev !== 0
+        ? ` (${sign}${Math.round((change / prev) * 100)}%)`
+        : '';
+    return `${sign}${change.toLocaleString()}${pct}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getChangeColor — merah naik, hijau turun, abu netral
+// (konsisten dengan tabel Module Trends)
+// ─────────────────────────────────────────────────────────────────────────────
+function getChangeColor(change: number): string {
+    if (change > 0) return 'DC2626';
+    if (change < 0) return '16A34A';
+    return '6B7280';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// isSubstantiallyComplete
 // ─────────────────────────────────────────────────────────────────────────────
 function isSubstantiallyComplete(period: TrendPeriod): boolean {
     const now   = new Date();
@@ -241,11 +282,14 @@ function spacer(space = 160): Paragraph {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // buildRankingTable
-// Tabel generik yang mendukung single-year { name, value }
-// maupun multi-year { name, "2024": N, "2025": N, … }
 //
-// Layout kolom:
-//   No  |  Name  |  [year1]  |  [year2]  |  …  |  Total (hanya jika multi-year)
+// Kolom layout:
+//   No | Name | [year1] | [year2] | … | Total | Change (YY1→YY2)
+//
+// Aturan Change:
+//   - yearKeys.length >= 2 → tampilkan Change (delta 2 tahun terakhir)
+//   - yearKeys.length === 1 → TIDAK tampilkan Change
+//   - yearKeys.length === 0 (single-year value) → TIDAK tampilkan Change
 // ─────────────────────────────────────────────────────────────────────────────
 function buildRankingTable(
     items: RankingItem[],
@@ -254,33 +298,52 @@ function buildRankingTable(
 ): Table | null {
     if (!items || items.length === 0) return null;
 
-    const sliced   = items.slice(0, limit);
-    const yearKeys = extractYearKeys(sliced);
-    const isMulti  = yearKeys.length > 0;
+    const sliced    = items.slice(0, limit);
+    const yearKeys  = extractYearKeys(sliced);
+    const isMulti   = yearKeys.length > 0;
+    const hasChange = yearKeys.length >= 2;
+
+    // ── Derive change label dari 2 tahun terakhir ─────────────────────────────
+    const changeFromYear = hasChange ? yearKeys[yearKeys.length - 2] : '';
+    const changeToYear   = hasChange ? yearKeys[yearKeys.length - 1]  : '';
+    const changeLabel    = hasChange
+        ? `Change\n${changeFromYear.slice(2)}→${changeToYear.slice(2)}`
+        : 'Change';
 
     // ── Hitung lebar kolom ────────────────────────────────────────────────────
-    // No = 700, Total (jika ada) = 1400, sisanya dibagi rata untuk Name + year cols
-    const COL_NO    = 700;
-    const COL_TOTAL = isMulti ? 1400 : 0;
-    const yearColW  = isMulti
-        ? Math.max(1000, Math.floor((CONTENT_WIDTH - COL_NO - COL_TOTAL) / (yearKeys.length + 1)))
-        : 0;
-    const nameColW  = isMulti
-        ? CONTENT_WIDTH - COL_NO - yearColW * yearKeys.length - COL_TOTAL
-        : CONTENT_WIDTH - COL_NO - 2360;   // fallback: name + cases (2360)
+    const COL_NO     = 700;
+    const COL_TOTAL  = isMulti ? 1300 : 0;
+    const COL_CHANGE = hasChange ? 1800 : 0;
     const singleValW = 2360;
 
+    // Sisa untuk name + year columns
+    const fixedWidth = COL_NO + COL_TOTAL + COL_CHANGE;
+    const yearColW   = isMulti
+        ? Math.max(900, Math.floor((CONTENT_WIDTH - fixedWidth) / (yearKeys.length + 1.5)))
+        : 0;
+    const nameColW   = isMulti
+        ? CONTENT_WIDTH - COL_NO - yearColW * yearKeys.length - COL_TOTAL - COL_CHANGE
+        : CONTENT_WIDTH - COL_NO - singleValW;
+
     // ── Header row ────────────────────────────────────────────────────────────
-    const headerChildren: TableCell[] = [
-        headerCell('#', COL_NO),
-        headerCell(nameHeader, nameColW),
+    const headerCells: TableCell[] = [
+        headerCell('#',          COL_NO),
+        headerCell(nameHeader,   nameColW),
     ];
 
     if (isMulti) {
-        yearKeys.forEach(y => headerChildren.push(headerCell(y, yearColW)));
-        headerChildren.push(headerCell('Total', COL_TOTAL));
+        yearKeys.forEach(y => headerCells.push(headerCell(y, yearColW)));
+        headerCells.push(headerCell('Total', COL_TOTAL));
+        if (hasChange) {
+            // Two-line header: "Change" + "YY1→YY2"
+            headerCells.push(headerCellTwoLine(
+                'Change',
+                `${changeFromYear} → ${changeToYear}`,
+                COL_CHANGE
+            ));
+        }
     } else {
-        headerChildren.push(headerCell('Cases', singleValW));
+        headerCells.push(headerCell('Cases', singleValW));
     }
 
     // ── Column widths array ───────────────────────────────────────────────────
@@ -288,14 +351,16 @@ function buildRankingTable(
     if (isMulti) {
         yearKeys.forEach(() => colWidths.push(yearColW));
         colWidths.push(COL_TOTAL);
+        if (hasChange) colWidths.push(COL_CHANGE);
     } else {
         colWidths.push(singleValW);
     }
 
     // ── Data rows ─────────────────────────────────────────────────────────────
     const dataRows = sliced.map((item, i) => {
-        const stripe = i % 2 === 1;
-        const total  = getRankingTotal(item, yearKeys);
+        const stripe    = i % 2 === 1;
+        const total     = getRankingTotal(item, yearKeys);
+        const changeInfo = hasChange ? getChangeInfo(item, yearKeys) : null;
 
         const cells: TableCell[] = [
             dataCell(String(i + 1), COL_NO,   { center: true, stripe, color: '6B7280' }),
@@ -311,11 +376,25 @@ function buildRankingTable(
                     { center: true, stripe }
                 ));
             });
+
+            // Total
             cells.push(dataCell(
                 total.toLocaleString(),
                 COL_TOTAL,
                 { center: true, bold: true, stripe }
             ));
+
+            // Change
+            if (hasChange && changeInfo !== null) {
+                const prevVal    = item[changeInfo.fromYear] ?? 0;
+                const changeStr  = formatChangeStr(changeInfo.change, prevVal);
+                const changeColor = getChangeColor(changeInfo.change);
+                cells.push(dataCell(
+                    changeStr,
+                    COL_CHANGE,
+                    { center: true, bold: changeInfo.change !== 0, color: changeColor, stripe }
+                ));
+            }
         } else {
             cells.push(dataCell(
                 (item.value ?? 0).toLocaleString(),
@@ -331,7 +410,101 @@ function buildRankingTable(
         width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
         columnWidths: colWidths,
         rows: [
-            new TableRow({ children: headerChildren }),
+            new TableRow({ children: headerCells }),
+            ...dataRows,
+        ],
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// buildMonthlyTable
+//
+// Kolom layout:
+//   Month | [year1] | [year2] | … | Total | Change (YY1→YY2)
+//
+// Aturan Change:
+//   - yearKeys.length >= 2 → tampilkan Change
+//   - yearKeys.length === 1 → TIDAK tampilkan Change
+// ─────────────────────────────────────────────────────────────────────────────
+function buildMonthlyTable(monthlyStats: Record<string, any>[]): Table | null {
+    if (!monthlyStats || monthlyStats.length === 0) return null;
+
+    const yearKeys = Object.keys(monthlyStats[0])
+        .filter(k => /^\d{4}$/.test(k))
+        .sort();
+
+    if (yearKeys.length === 0) return null;
+
+    const hasChange      = yearKeys.length >= 2;
+    const changeFromYear = hasChange ? yearKeys[yearKeys.length - 2] : '';
+    const changeToYear   = hasChange ? yearKeys[yearKeys.length - 1]  : '';
+
+    // ── Lebar kolom ───────────────────────────────────────────────────────────
+    const COL_MONTH  = 1400;
+    const COL_TOTAL  = 1300;
+    const COL_CHANGE = hasChange ? 1800 : 0;
+    const fixedWidth = COL_MONTH + COL_TOTAL + COL_CHANGE;
+    const yearColW   = Math.max(
+        900,
+        Math.floor((CONTENT_WIDTH - fixedWidth) / yearKeys.length)
+    );
+    // Sesuaikan MONTH agar total tepat = CONTENT_WIDTH
+    const actualMonthW = CONTENT_WIDTH - yearColW * yearKeys.length - COL_TOTAL - COL_CHANGE;
+
+    const colWidths: number[] = [actualMonthW, ...yearKeys.map(() => yearColW), COL_TOTAL];
+    if (hasChange) colWidths.push(COL_CHANGE);
+
+    // ── Header ────────────────────────────────────────────────────────────────
+    const headerCells: TableCell[] = [
+        headerCell('Month', actualMonthW),
+        ...yearKeys.map(y => headerCell(y, yearColW)),
+        headerCell('Total', COL_TOTAL),
+    ];
+    if (hasChange) {
+        headerCells.push(headerCellTwoLine(
+            'Change',
+            `${changeFromYear} → ${changeToYear}`,
+            COL_CHANGE
+        ));
+    }
+
+    // ── Data rows ─────────────────────────────────────────────────────────────
+    const dataRows = monthlyStats.map((row, i) => {
+        const stripe     = i % 2 === 1;
+        const yearVals   = yearKeys.map(y => (row[y] ?? 0) as number);
+        const total      = yearVals.reduce((s, v) => s + v, 0);
+        const prevVal    = hasChange ? (row[changeFromYear] ?? 0) as number : 0;
+        const currVal    = hasChange ? (row[changeToYear]   ?? 0) as number : 0;
+        const change     = currVal - prevVal;
+
+        const cells: TableCell[] = [
+            dataCell(row.month ?? '', actualMonthW, { bold: true, stripe }),
+            ...yearKeys.map(y =>
+                dataCell(
+                    row[y] !== undefined ? (row[y] as number).toLocaleString() : '—',
+                    yearColW,
+                    { center: true, stripe }
+                )
+            ),
+            dataCell(total.toLocaleString(), COL_TOTAL, { center: true, bold: true, stripe }),
+        ];
+
+        if (hasChange) {
+            cells.push(dataCell(
+                formatChangeStr(change, prevVal),
+                COL_CHANGE,
+                { center: true, bold: change !== 0, color: getChangeColor(change), stripe }
+            ));
+        }
+
+        return new TableRow({ children: cells });
+    });
+
+    return new Table({
+        width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
+        columnWidths: colWidths,
+        rows: [
+            new TableRow({ children: headerCells }),
             ...dataRows,
         ],
     });
@@ -363,8 +536,8 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
     if (filters.clients?.length)       filterParts.push(`Clients: ${filters.clients.join(', ')}`);
     if (filters.modules?.length)       filterParts.push(`Modules: ${filters.modules.join(', ')}`);
     if (filters.detailModules?.length) filterParts.push(`Detail Modules: ${filters.detailModules.join(', ')}`);
-    const filterText  = filterParts.length ? filterParts.join('  |  ') : 'No filters applied — showing all data';
-    const trendLabel  = trendPeriod.charAt(0).toUpperCase() + trendPeriod.slice(1);
+    const filterText = filterParts.length ? filterParts.join('  |  ') : 'No filters applied — showing all data';
+    const trendLabel = trendPeriod.charAt(0).toUpperCase() + trendPeriod.slice(1);
 
     // ── 1. Cover / Title ──────────────────────────────────────────────────────
     const coverSection: Paragraph[] = [
@@ -435,7 +608,7 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         ],
     });
 
-    // ── 3. Category Rankings table (multi-year aware) ─────────────────────────
+    // ── 3. Category Rankings table ────────────────────────────────────────────
     const categoryTable = buildRankingTable(
         stats.category_rankings ?? [],
         'Category'
@@ -475,50 +648,15 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
     });
 
     // ── 5. Monthly Statistics table ───────────────────────────────────────────
-    let monthlyTable: Table | null = null;
-    if (stats.monthly_stats?.length > 0) {
-        const yearKeys = Object.keys(stats.monthly_stats[0]).filter(k => /^\d{4}$/.test(k)).sort();
-        if (yearKeys.length > 0) {
-            const mC0       = 1600;
-            const rest      = CONTENT_WIDTH - mC0;
-            const mCN       = Math.floor(rest / yearKeys.length);
-            const allWidths = [mC0, ...yearKeys.map(() => mCN)];
-            monthlyTable = new Table({
-                width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
-                columnWidths: allWidths,
-                rows: [
-                    new TableRow({
-                        children: [
-                            headerCell('Month', mC0),
-                            ...yearKeys.map(y => headerCell(y, mCN)),
-                        ],
-                    }),
-                    ...stats.monthly_stats.map((row, i) =>
-                        new TableRow({
-                            children: [
-                                dataCell(row.month ?? '', mC0, { bold: true, stripe: i % 2 === 1 }),
-                                ...yearKeys.map(y =>
-                                    dataCell(
-                                        row[y] !== undefined ? row[y].toLocaleString() : '—',
-                                        mCN,
-                                        { center: true, stripe: i % 2 === 1 }
-                                    )
-                                ),
-                            ],
-                        })
-                    ),
-                ],
-            });
-        }
-    }
+    const monthlyTable = buildMonthlyTable(stats.monthly_stats ?? []);
 
-    // ── 6. Client Rankings table (multi-year aware) ───────────────────────────
+    // ── 6. Client Rankings table ──────────────────────────────────────────────
     const clientTable = buildRankingTable(
         stats.client_rankings ?? [],
         'Client'
     );
 
-    // ── 7. Detail Module Rankings table (multi-year aware) ────────────────────
+    // ── 7. Detail Module Rankings table ──────────────────────────────────────
     const moduleTable = buildRankingTable(
         detailModules,
         'Detail Module'
@@ -578,7 +716,7 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
                     summaryTable,
                     spacer(200),
 
-                    // Section 2: Category Rankings (only if data exists)
+                    // Section 2: Category Rankings
                     ...(categoryTable ? [
                         sectionHeading(`${s()}. Category Rankings`),
                         spacer(80),
@@ -595,7 +733,7 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
                     ),
                     spacer(200),
 
-                    // Section 4: Monthly Statistics (optional)
+                    // Section 4: Monthly Statistics
                     ...(monthlyTable ? [
                         sectionHeading(`${s()}. Monthly Statistics`),
                         spacer(80),

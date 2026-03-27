@@ -1195,70 +1195,33 @@ export async function getSpreadsheetTitle(url: string) {
 }
 
 // ============================================
-// SYNC GSHEET → DB
+// SYNC HELPERS — digunakan oleh syncGSheetToDB
 // ============================================
 
-const _SYNC_COLUMN_MAP: Record<string, string> = {
-  "no ticket": "ticket_number", "ticket number": "ticket_number",
-  "ticket_number": "ticket_number", "no. ticket": "ticket_number",
-  "tiket": "ticket_number", "no tiket": "ticket_number",
-  "tanggal": "date", "date": "date",
-  "bulan": "month", "month": "month",
-  "client": "client_name", "client name": "client_name",
-  "nama client": "client_name", "client_name": "client_name",
-  "pic client": "pic_client", "pic": "pic_client", "pic_client": "pic_client",
-  "customer name": "pic_client", "customer_name": "pic_client",
-  "status": "status_case", "status case": "status_case", "status_case": "status_case",
-  "kategori": "category_case", "category": "category_case",
-  "category case": "category_case", "category_case": "category_case",
-  "ticket category": "category_case", "ticket_category": "category_case",
-  "modul": "module_case", "module": "module_case",
-  "module case": "module_case", "module_case": "module_case",
-  "detail modul": "detail_module", "detail module": "detail_module",
-  "detail_module": "detail_module",
-  "check in": "check_in", "check_in": "check_in", "masuk": "check_in",
-  "created at": "check_in", "created_at": "check_in",
-  "detail case": "detail_case", "detail_case": "detail_case",
-  "judul": "detail_case", "title": "detail_case",
-  "check out": "check_out", "check_out": "check_out", "selesai": "check_out",
-  "resolved at": "check_out", "resolved_at": "check_out",
-  "status solved": "status_case_solved", "status_case_solved": "status_case_solved",
-  "link op": "source_link_op", "source link op": "source_link_op",
-  "source_link_op": "source_link_op", "link": "source_link_op",
-  "ticket op": "source_link_op", "ticket_op": "source_link_op",
-  "catatan": "note", "note": "note", "notes": "note",
-};
+/**
+ * FIX: Semua helper ini sebelumnya hanya ada di preview-sync.ts,
+ * sehingga syncGSheetToDB di actions.ts melempar ReferenceError
+ * "_extractSheetId is not defined" saat dijalankan.
+ */
 
-const _TICKET_REGEX = /^(IHO-\d+)\s*(.*)/i;
-
-function _extractTicketFromDetail(raw: string | null): { ticketNumber: string | null; detailCase: string | null } {
-  if (!raw?.trim()) return { ticketNumber: null, detailCase: null };
-  const match = raw.trim().match(_TICKET_REGEX);
-  if (match) return { ticketNumber: match[1].toUpperCase(), detailCase: match[2].trim() || null };
-  return { ticketNumber: null, detailCase: raw.trim() };
+function _extractSheetId(url: string): string | null {
+  return url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1] ?? null;
 }
 
-function _extractSheetId(url: string): string | null { return url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1] ?? null; }
-function _extractGid(url: string): string | null { return url.match(/[?&#]gid=(\d+)/)?.[1] ?? null; }
+function _extractGid(url: string): string | null {
+  return url.match(/[?&#]gid=(\d+)/)?.[1] ?? null;
+}
 
-function _parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  for (const line of text.split(/\r?\n/)) {
-    if (!line.trim()) continue;
-    const row: string[] = [];
-    let inQuotes = false, field = '';
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (inQuotes && line[i + 1] === '"') { field += '"'; i++; }
-        else inQuotes = !inQuotes;
-      } else if (ch === ',' && !inQuotes) { row.push(field.trim()); field = ''; }
-      else { field += ch; }
-    }
-    row.push(field.trim());
-    rows.push(row);
+function _extractTicketFromDetail(raw: string | null): {
+  ticketNumber: string | null;
+  detailCase: string | null;
+} {
+  if (!raw?.trim()) return { ticketNumber: null, detailCase: null };
+  const match = raw.trim().match(/^(IHO-\d+)\s*(.*)/i);
+  if (match) {
+    return { ticketNumber: match[1].toUpperCase(), detailCase: match[2].trim() || null };
   }
-  return rows;
+  return { ticketNumber: null, detailCase: raw.trim() };
 }
 
 function _normalizeSyncDate(raw: string): string | null {
@@ -1277,20 +1240,167 @@ function _normalizeSyncDate(raw: string): string | null {
 function _normalizeSyncDatetime(rawTime: string | null, dateStr: string | null): string | null {
   if (!rawTime?.trim()) return null;
   const t = rawTime.trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(t)) { const d = new Date(t); return isNaN(d.getTime()) ? null : d.toISOString(); }
+  if (/^\d{4}-\d{2}-\d{2}/.test(t)) {
+    const d = new Date(t);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
   if (t.includes('/')) {
     const parts = t.split('/');
     if (parts.length === 3) {
       const [a, b, c] = parts.map(Number);
-      if (c > 1900) { const d = new Date(`${c}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`); return isNaN(d.getTime()) ? null : d.toISOString(); }
+      if (c > 1900) {
+        const d = new Date(`${c}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`);
+        return isNaN(d.getTime()) ? null : d.toISOString();
+      }
     }
   }
   if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(t) && dateStr) {
-    const combined = new Date(`${dateStr}T${t.length === 4 ? '0'+t : t}:00`);
+    const timePadded = t.length === 4 ? `0${t}` : t;
+    const combined = new Date(`${dateStr}T${timePadded}:00`);
     return isNaN(combined.getTime()) ? null : combined.toISOString();
   }
   const d = new Date(t);
   return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+// ============================================
+// SYNC GSHEET → DB
+// ============================================
+
+const _SYNC_COLUMN_MAP: Record<string, string> = {
+  // Ticket Number
+  "no ticket": "ticket_number", "ticket number": "ticket_number",
+  "ticket_number": "ticket_number", "no. ticket": "ticket_number",
+  "tiket": "ticket_number", "no tiket": "ticket_number",
+  "nomor tiket": "ticket_number", "no. tiket": "ticket_number",
+
+  // Date
+  "tanggal": "date", "date": "date", "tgl": "date",
+
+  // Month
+  "bulan": "month", "month": "month",
+
+  // Client
+  "client": "client_name", "client name": "client_name",
+  "nama client": "client_name", "client_name": "client_name",
+  "nama klien": "client_name", "klien": "client_name",
+  "customer": "client_name",
+
+  // PIC Client
+  "pic client": "pic_client", "pic": "pic_client", "pic_client": "pic_client",
+  "customer name": "pic_client", "customer_name": "pic_client",
+  "nama customer": "pic_client", "nama pic": "pic_client",
+
+  // Status
+  "status": "status_case", "status case": "status_case", "status_case": "status_case",
+  "status tiket": "status_case",
+
+  // Category
+  "kategori": "category_case", "category": "category_case",
+  "category case": "category_case", "category_case": "category_case",
+  "ticket category": "category_case", "ticket_category": "category_case",
+  "kategori tiket": "category_case", "jenis": "category_case",
+  "jenis tiket": "category_case", "tipe": "category_case",
+  "tipe tiket": "category_case",
+
+  // Module
+  "modul": "module_case", "module": "module_case",
+  "module case": "module_case", "module_case": "module_case",
+  "nama modul": "module_case", "nama module": "module_case",
+
+  // Detail Module
+  "detail modul": "detail_module", "detail module": "detail_module",
+  "detail_module": "detail_module", "modul detail": "detail_module",
+  "sub modul": "detail_module", "sub module": "detail_module",
+  "sub-modul": "detail_module",
+
+  // Check In / Created At
+  "check in": "check_in", "check_in": "check_in", "masuk": "check_in",
+  "created at": "check_in", "created_at": "check_in",
+  "tgl masuk": "check_in", "tanggal masuk": "check_in",
+  "waktu masuk": "check_in",
+
+  // Detail Case / Title
+  "detail case": "detail_case", "detail_case": "detail_case",
+  "judul": "detail_case", "title": "detail_case",
+  "deskripsi": "detail_case", "description": "detail_case",
+  "detail": "detail_case",
+
+  // Check Out / Resolved At
+  "check out": "check_out", "check_out": "check_out", "selesai": "check_out",
+  "resolved at": "check_out", "resolved_at": "check_out",
+  "tgl selesai": "check_out", "tanggal selesai": "check_out",
+  "waktu selesai": "check_out",
+
+  // Status Solved
+  "status solved": "status_case_solved", "status_case_solved": "status_case_solved",
+
+  // Source Link / Ticket OP
+  "link op": "source_link_op", "source link op": "source_link_op",
+  "source_link_op": "source_link_op", "link": "source_link_op",
+  "ticket op": "source_link_op", "ticket_op": "source_link_op",
+  "url": "source_link_op", "url jira": "source_link_op",
+  "jira": "source_link_op", "link tiket": "source_link_op",
+
+  // Note
+  "catatan": "note", "note": "note", "notes": "note",
+  "keterangan": "note", "remarks": "note",
+};
+
+/**
+ * CSV parser yang benar untuk multi-line quoted fields.
+ * Mencegah kolom setelah field multi-line (detail_case/note) menjadi undefined.
+ */
+function _parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch   = text[i];
+    const next = text[i + 1];
+
+    if (inQuotes) {
+      if (ch === '"') {
+        if (next === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        row.push(field.trim());
+        field = '';
+      } else if (ch === '\r') {
+        if (next === '\n') i++;
+        row.push(field.trim());
+        field = '';
+        if (row.some(f => f !== '')) rows.push(row);
+        row = [];
+      } else if (ch === '\n') {
+        row.push(field.trim());
+        field = '';
+        if (row.some(f => f !== '')) rows.push(row);
+        row = [];
+      } else {
+        field += ch;
+      }
+    }
+  }
+
+  if (field !== '' || row.length > 0) {
+    row.push(field.trim());
+    if (row.some(f => f !== '')) rows.push(row);
+  }
+
+  return rows;
 }
 
 export async function syncGSheetToDB(sheetUrl: string): Promise<{
@@ -1316,14 +1426,22 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
     if (!response.ok) return { success: false, error: `Gagal fetch GSheet (HTTP ${response.status}). Pastikan sheet bersifat publik.` };
 
     const rows = _parseCsv(await response.text());
-    if (rows.length < 2) return { success: true, inserted: 0, skipped: 0 };
+    if (rows.length < 2) return { success: true, inserted: 0, updated: 0, skipped: 0 };
 
     const rawHeaders = rows[0];
-
-    // ─── FIX: normalize internal whitespace agar "PIC  CLIENT" → "pic client" ───
     const headers: (string | null)[] = rawHeaders.map(
       h => _SYNC_COLUMN_MAP[h.toLowerCase().trim().replace(/\s+/g, ' ')] ?? null
     );
+
+    console.log('[SYNC] Header mapping:', rawHeaders.map((h, i) => `"${h}"→${headers[i] ?? 'null'}`).join(' | '));
+
+    const unmappedHeaders = rawHeaders.filter(h => {
+      const lower = h.toLowerCase().trim().replace(/\s+/g, ' ');
+      return !_SYNC_COLUMN_MAP[lower];
+    });
+    if (unmappedHeaders.length > 0) {
+      console.warn('[SYNC] ⚠️ Header tidak ter-map:', unmappedHeaders);
+    }
 
     const detailCaseColIdx = headers.indexOf('detail_case');
     const ticketColIdx     = headers.indexOf('ticket_number');
@@ -1359,7 +1477,7 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
       toProcess.push({ ticket: finalTicket, record });
     }
 
-    if (!toProcess.length) return { success: true, inserted: 0, skipped: 0 };
+    if (!toProcess.length) return { success: true, inserted: 0, updated: 0, skipped: 0 };
 
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('all_cases')
@@ -1401,27 +1519,27 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
       const db = existingMap.get(item.ticket)!;
       const patch: Record<string, any> = {};
 
-      // ── helper: trim kedua sisi sebelum bandingkan ──
-      const _diff = (dbVal: any, sheetVal: any, caseInsensitive = false): boolean => {
+      // Selalu case-insensitive: jika GSheet kosong → skip (jangan overwrite DB)
+      const _diff = (dbVal: any, sheetVal: any): boolean => {
         const a = (dbVal    || '').toString().trim();
         const b = (sheetVal || '').toString().trim();
-        if (!b) return false; // sheet kosong → jangan update
-        return caseInsensitive ? a.toLowerCase() !== b.toLowerCase() : a !== b;
+        if (!b) return false;
+        return a.toLowerCase() !== b.toLowerCase();
       };
 
-      if (_diff(db.status_case,    item.record.status_case, true)) patch.status_case    = item.record.status_case;
-      if (!db.check_in  && item.record.check_in)                   patch.check_in       = item.record.check_in;
-      if (!db.check_out && item.record.check_out)                  patch.check_out      = item.record.check_out;
-      if (_diff(db.client_name,    item.record.client_name))       patch.client_name    = item.record.client_name;
-      if (_diff(db.module_case,    item.record.module_case))       patch.module_case    = item.record.module_case;
-      if (_diff(db.detail_module,  item.record.detail_module))     patch.detail_module  = item.record.detail_module;
-      if (_diff(db.category_case,  item.record.category_case))     patch.category_case  = item.record.category_case;
-      if (_diff(db.pic_client,     item.record.pic_client))        patch.pic_client     = item.record.pic_client;
-      if (_diff(db.detail_case,    item.record.detail_case))       patch.detail_case    = item.record.detail_case;
-      if (_diff(db.source_link_op, item.record.source_link_op))    patch.source_link_op = item.record.source_link_op;
-      if (_diff(db.note,           item.record.note))              patch.note           = item.record.note;
-      if (_diff(db.month,          item.record.month))             patch.month          = item.record.month;
-      if (_diff(db.date,           item.record.date))              patch.date           = item.record.date;
+      if (_diff(db.status_case,    item.record.status_case))    patch.status_case    = item.record.status_case;
+      if (!db.check_in  && item.record.check_in)                patch.check_in       = item.record.check_in;
+      if (!db.check_out && item.record.check_out)               patch.check_out      = item.record.check_out;
+      if (_diff(db.client_name,    item.record.client_name))    patch.client_name    = item.record.client_name;
+      if (_diff(db.module_case,    item.record.module_case))    patch.module_case    = item.record.module_case;
+      if (_diff(db.detail_module,  item.record.detail_module))  patch.detail_module  = item.record.detail_module;
+      if (_diff(db.category_case,  item.record.category_case))  patch.category_case  = item.record.category_case;
+      if (_diff(db.pic_client,     item.record.pic_client))     patch.pic_client     = item.record.pic_client;
+      if (_diff(db.detail_case,    item.record.detail_case))    patch.detail_case    = item.record.detail_case;
+      if (_diff(db.source_link_op, item.record.source_link_op)) patch.source_link_op = item.record.source_link_op;
+      if (_diff(db.note,           item.record.note))           patch.note           = item.record.note;
+      if (_diff(db.month,          item.record.month))          patch.month          = item.record.month;
+      if (_diff(db.date,           item.record.date))           patch.date           = item.record.date;
 
       if (item.record.status_case_solved) patch.status_case_solved = item.record.status_case_solved;
 
@@ -1429,6 +1547,8 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
         skippedCount++;
         continue;
       }
+
+      console.log(`[SYNC] 🔄 Update ${item.ticket}: ${Object.keys(patch).join(', ')}`);
 
       const { error: updErr } = await supabaseAdmin
         .from('all_cases')
