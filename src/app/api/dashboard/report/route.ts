@@ -25,11 +25,19 @@ type ModuleTrend = {
     direction: 'up' | 'down' | 'stable';
 };
 
-// RankingItem bisa single-year { name, value } atau multi-year { name, "2024": N, "2025": N }
 type RankingItem = {
     name: string;
     value?: number;
     [year: string]: any;
+};
+
+export type UnresolvedCase = {
+    client_name: string;
+    title: string;
+    status: string;
+    module?: string;
+    detail_module?: string;
+    created_at?: string;
 };
 
 type DashboardStats = {
@@ -49,6 +57,7 @@ type DashboardStats = {
     detail_module_rankings: RankingItem[];
     module_trends: ModuleTrend[];
     category_rankings: RankingItem[];
+    unresolved_cases?: UnresolvedCase[];
 };
 
 type FilterSummary = {
@@ -62,7 +71,7 @@ type FilterSummary = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// extractYearKeys — ambil semua kolom tahun dari array RankingItem
+// Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 function extractYearKeys(items: RankingItem[]): string[] {
     const yearSet = new Set<string>();
@@ -74,9 +83,6 @@ function extractYearKeys(items: RankingItem[]): string[] {
     return Array.from(yearSet).sort();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// getRankingTotal — jumlahkan semua tahun, atau fallback ke value
-// ─────────────────────────────────────────────────────────────────────────────
 function getRankingTotal(item: RankingItem, yearKeys: string[]): number {
     if (yearKeys.length > 0) {
         return yearKeys.reduce((sum, y) => sum + (item[y] ?? 0), 0);
@@ -84,14 +90,6 @@ function getRankingTotal(item: RankingItem, yearKeys: string[]): number {
     return item.value ?? 0;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// getChangeInfo — hitung change antara 2 tahun terakhir dari yearKeys
-//
-// Aturan:
-//   - yearKeys.length >= 2  → change = item[lastYear] - item[secondToLastYear]
-//                             label  = "YY1 → YY2"
-//   - yearKeys.length === 1 → no change (kembalikan null)
-// ─────────────────────────────────────────────────────────────────────────────
 function getChangeInfo(
     item: RankingItem,
     yearKeys: string[]
@@ -104,43 +102,39 @@ function getChangeInfo(
     return { change: curr - prev, fromYear, toYear };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// formatChangeStr — "+120 (+15%)" / "-30 (-5%)" / "—"
-// ─────────────────────────────────────────────────────────────────────────────
 function formatChangeStr(change: number, prev: number): string {
     if (change === 0) return '—';
-    const sign   = change > 0 ? '+' : '';
-    const pct    = prev !== 0
+    const sign = change > 0 ? '+' : '';
+    const pct  = prev !== 0
         ? ` (${sign}${Math.round((change / prev) * 100)}%)`
         : '';
     return `${sign}${change.toLocaleString()}${pct}`;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// getChangeColor — merah naik, hijau turun, abu netral
-// (konsisten dengan tabel Module Trends)
-// ─────────────────────────────────────────────────────────────────────────────
 function getChangeColor(change: number): string {
     if (change > 0) return 'DC2626';
     if (change < 0) return '16A34A';
     return '6B7280';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// isSubstantiallyComplete
-// ─────────────────────────────────────────────────────────────────────────────
+function getStatusColor(status: string): string {
+    const s = status.toLowerCase();
+    if (s === 'l3')       return 'DC2626';
+    if (s === 'l2')       return 'EA580C';
+    if (s === 'l1')       return 'D97706';
+    if (s === 'pending')  return '7C3AED';
+    if (s === 'on hold')  return '6B7280';
+    return '374151';
+}
+
 function isSubstantiallyComplete(period: TrendPeriod): boolean {
     const now   = new Date();
     const day   = now.getDate();
     const month = now.getMonth();
-
     switch (period) {
-        case 'daily':
-            return now.getHours() >= 18;
-        case 'weekly':
-            return now.getDay() >= 4;
-        case 'monthly':
-            return day >= 20;
+        case 'daily':     return now.getHours() >= 18;
+        case 'weekly':    return now.getDay() >= 4;
+        case 'monthly':   return day >= 20;
         case 'quarterly': {
             const isLastMonthOfQ = [2, 5, 8, 11].includes(month);
             return isLastMonthOfQ && day >= 15;
@@ -148,9 +142,6 @@ function isSubstantiallyComplete(period: TrendPeriod): boolean {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// getPeriodLabels
-// ─────────────────────────────────────────────────────────────────────────────
 function getPeriodLabels(period: TrendPeriod): { previous: string; current: string } {
     const now             = new Date();
     const includesCurrent = isSubstantiallyComplete(period);
@@ -210,6 +201,7 @@ const HEADER_COLOR = '1E3A5F';
 const ACCENT_COLOR = '2563EB';
 const STRIPE_COLOR = 'F0F4FF';
 const WHITE        = 'FFFFFF';
+const STRIPE_WARN  = 'FFF5F5';
 
 function headerCell(text: string, width: number, span?: number): TableCell {
     return new TableCell({
@@ -248,13 +240,14 @@ function headerCellTwoLine(line1: string, line2: string, width: number): TableCe
 }
 
 function dataCell(text: string, width: number, opts: {
-    bold?: boolean; center?: boolean; stripe?: boolean; color?: string; size?: number;
+    bold?: boolean; center?: boolean; stripe?: boolean; color?: string; size?: number; warnStripe?: boolean;
 } = {}): TableCell {
-    const { bold = false, center = false, stripe = false, color, size = 20 } = opts;
+    const { bold = false, center = false, stripe = false, warnStripe = false, color, size = 20 } = opts;
+    const fillColor = warnStripe ? STRIPE_WARN : stripe ? STRIPE_COLOR : WHITE;
     return new TableCell({
         width:         { size: width, type: WidthType.DXA },
         borders:       ALL_BORDERS,
-        shading:       { fill: stripe ? STRIPE_COLOR : WHITE, type: ShadingType.CLEAR },
+        shading:       { fill: fillColor, type: ShadingType.CLEAR },
         margins:       CELL_MARGINS,
         verticalAlign: VerticalAlign.CENTER,
         children: [new Paragraph({
@@ -282,20 +275,8 @@ function spacer(space = 160): Paragraph {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // buildRankingTable
-//
-// Kolom layout:
-//   No | Name | [year1] | [year2] | … | Total | Change (YY1→YY2)
-//
-// Aturan Change:
-//   - yearKeys.length >= 2 → tampilkan Change (delta 2 tahun terakhir)
-//   - yearKeys.length === 1 → TIDAK tampilkan Change
-//   - yearKeys.length === 0 (single-year value) → TIDAK tampilkan Change
 // ─────────────────────────────────────────────────────────────────────────────
-function buildRankingTable(
-    items: RankingItem[],
-    nameHeader: string,
-    limit = 50
-): Table | null {
+function buildRankingTable(items: RankingItem[], nameHeader: string, limit = 50): Table | null {
     if (!items || items.length === 0) return null;
 
     const sliced    = items.slice(0, limit);
@@ -303,20 +284,11 @@ function buildRankingTable(
     const isMulti   = yearKeys.length > 0;
     const hasChange = yearKeys.length >= 2;
 
-    // ── Derive change label dari 2 tahun terakhir ─────────────────────────────
-    const changeFromYear = hasChange ? yearKeys[yearKeys.length - 2] : '';
-    const changeToYear   = hasChange ? yearKeys[yearKeys.length - 1]  : '';
-    const changeLabel    = hasChange
-        ? `Change\n${changeFromYear.slice(2)}→${changeToYear.slice(2)}`
-        : 'Change';
-
-    // ── Hitung lebar kolom ────────────────────────────────────────────────────
     const COL_NO     = 700;
     const COL_TOTAL  = isMulti ? 1300 : 0;
     const COL_CHANGE = hasChange ? 1800 : 0;
     const singleValW = 2360;
 
-    // Sisa untuk name + year columns
     const fixedWidth = COL_NO + COL_TOTAL + COL_CHANGE;
     const yearColW   = isMulti
         ? Math.max(900, Math.floor((CONTENT_WIDTH - fixedWidth) / (yearKeys.length + 1.5)))
@@ -325,20 +297,18 @@ function buildRankingTable(
         ? CONTENT_WIDTH - COL_NO - yearColW * yearKeys.length - COL_TOTAL - COL_CHANGE
         : CONTENT_WIDTH - COL_NO - singleValW;
 
-    // ── Header row ────────────────────────────────────────────────────────────
     const headerCells: TableCell[] = [
-        headerCell('#',          COL_NO),
-        headerCell(nameHeader,   nameColW),
+        headerCell('#',        COL_NO),
+        headerCell(nameHeader, nameColW),
     ];
 
     if (isMulti) {
         yearKeys.forEach(y => headerCells.push(headerCell(y, yearColW)));
         headerCells.push(headerCell('Total', COL_TOTAL));
         if (hasChange) {
-            // Two-line header: "Change" + "YY1→YY2"
             headerCells.push(headerCellTwoLine(
                 'Change',
-                `${changeFromYear} → ${changeToYear}`,
+                `${yearKeys[yearKeys.length - 2]} → ${yearKeys[yearKeys.length - 1]}`,
                 COL_CHANGE
             ));
         }
@@ -346,7 +316,6 @@ function buildRankingTable(
         headerCells.push(headerCell('Cases', singleValW));
     }
 
-    // ── Column widths array ───────────────────────────────────────────────────
     const colWidths: number[] = [COL_NO, nameColW];
     if (isMulti) {
         yearKeys.forEach(() => colWidths.push(yearColW));
@@ -356,10 +325,9 @@ function buildRankingTable(
         colWidths.push(singleValW);
     }
 
-    // ── Data rows ─────────────────────────────────────────────────────────────
     const dataRows = sliced.map((item, i) => {
-        const stripe    = i % 2 === 1;
-        const total     = getRankingTotal(item, yearKeys);
+        const stripe     = i % 2 === 1;
+        const total      = getRankingTotal(item, yearKeys);
         const changeInfo = hasChange ? getChangeInfo(item, yearKeys) : null;
 
         const cells: TableCell[] = [
@@ -377,23 +345,19 @@ function buildRankingTable(
                 ));
             });
 
-            // Total
             cells.push(dataCell(
                 total.toLocaleString(),
                 COL_TOTAL,
                 { center: true, bold: true, stripe }
             ));
 
-            // Change
             if (hasChange && changeInfo !== null) {
-                const prevVal    = item[changeInfo.fromYear] ?? 0;
-                const changeStr  = formatChangeStr(changeInfo.change, prevVal);
+                const prevVal     = item[changeInfo.fromYear] ?? 0;
+                const changeStr   = formatChangeStr(changeInfo.change, prevVal);
                 const changeColor = getChangeColor(changeInfo.change);
-                cells.push(dataCell(
-                    changeStr,
-                    COL_CHANGE,
-                    { center: true, bold: changeInfo.change !== 0, color: changeColor, stripe }
-                ));
+                cells.push(dataCell(changeStr, COL_CHANGE, {
+                    center: true, bold: changeInfo.change !== 0, color: changeColor, stripe,
+                }));
             }
         } else {
             cells.push(dataCell(
@@ -409,22 +373,12 @@ function buildRankingTable(
     return new Table({
         width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
         columnWidths: colWidths,
-        rows: [
-            new TableRow({ children: headerCells }),
-            ...dataRows,
-        ],
+        rows: [new TableRow({ children: headerCells }), ...dataRows],
     });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // buildMonthlyTable
-//
-// Kolom layout:
-//   Month | [year1] | [year2] | … | Total | Change (YY1→YY2)
-//
-// Aturan Change:
-//   - yearKeys.length >= 2 → tampilkan Change
-//   - yearKeys.length === 1 → TIDAK tampilkan Change
 // ─────────────────────────────────────────────────────────────────────────────
 function buildMonthlyTable(monthlyStats: Record<string, any>[]): Table | null {
     if (!monthlyStats || monthlyStats.length === 0) return null;
@@ -439,43 +393,32 @@ function buildMonthlyTable(monthlyStats: Record<string, any>[]): Table | null {
     const changeFromYear = hasChange ? yearKeys[yearKeys.length - 2] : '';
     const changeToYear   = hasChange ? yearKeys[yearKeys.length - 1]  : '';
 
-    // ── Lebar kolom ───────────────────────────────────────────────────────────
     const COL_MONTH  = 1400;
     const COL_TOTAL  = 1300;
     const COL_CHANGE = hasChange ? 1800 : 0;
     const fixedWidth = COL_MONTH + COL_TOTAL + COL_CHANGE;
-    const yearColW   = Math.max(
-        900,
-        Math.floor((CONTENT_WIDTH - fixedWidth) / yearKeys.length)
-    );
-    // Sesuaikan MONTH agar total tepat = CONTENT_WIDTH
+    const yearColW   = Math.max(900, Math.floor((CONTENT_WIDTH - fixedWidth) / yearKeys.length));
     const actualMonthW = CONTENT_WIDTH - yearColW * yearKeys.length - COL_TOTAL - COL_CHANGE;
 
     const colWidths: number[] = [actualMonthW, ...yearKeys.map(() => yearColW), COL_TOTAL];
     if (hasChange) colWidths.push(COL_CHANGE);
 
-    // ── Header ────────────────────────────────────────────────────────────────
     const headerCells: TableCell[] = [
         headerCell('Month', actualMonthW),
         ...yearKeys.map(y => headerCell(y, yearColW)),
         headerCell('Total', COL_TOTAL),
     ];
     if (hasChange) {
-        headerCells.push(headerCellTwoLine(
-            'Change',
-            `${changeFromYear} → ${changeToYear}`,
-            COL_CHANGE
-        ));
+        headerCells.push(headerCellTwoLine('Change', `${changeFromYear} → ${changeToYear}`, COL_CHANGE));
     }
 
-    // ── Data rows ─────────────────────────────────────────────────────────────
     const dataRows = monthlyStats.map((row, i) => {
-        const stripe     = i % 2 === 1;
-        const yearVals   = yearKeys.map(y => (row[y] ?? 0) as number);
-        const total      = yearVals.reduce((s, v) => s + v, 0);
-        const prevVal    = hasChange ? (row[changeFromYear] ?? 0) as number : 0;
-        const currVal    = hasChange ? (row[changeToYear]   ?? 0) as number : 0;
-        const change     = currVal - prevVal;
+        const stripe   = i % 2 === 1;
+        const yearVals = yearKeys.map(y => (row[y] ?? 0) as number);
+        const total    = yearVals.reduce((s, v) => s + v, 0);
+        const prevVal  = hasChange ? (row[changeFromYear] ?? 0) as number : 0;
+        const currVal  = hasChange ? (row[changeToYear]   ?? 0) as number : 0;
+        const change   = currVal - prevVal;
 
         const cells: TableCell[] = [
             dataCell(row.month ?? '', actualMonthW, { bold: true, stripe }),
@@ -503,10 +446,108 @@ function buildMonthlyTable(monthlyStats: Record<string, any>[]): Table | null {
     return new Table({
         width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
         columnWidths: colWidths,
-        rows: [
-            new TableRow({ children: headerCells }),
-            ...dataRows,
-        ],
+        rows: [new TableRow({ children: headerCells }), ...dataRows],
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// buildUnresolvedCasesTable
+// ─────────────────────────────────────────────────────────────────────────────
+function buildUnresolvedCasesTable(cases: UnresolvedCase[]): Table | null {
+    if (!cases || cases.length === 0) return null;
+
+    const hasModule       = cases.some(c => c.module       && c.module.trim()        !== '');
+    const hasDetailModule = cases.some(c => c.detail_module && c.detail_module.trim() !== '');
+    const hasCreatedAt    = cases.some(c => c.created_at   && c.created_at.trim()    !== '');
+
+    const COL_NO         = 600;
+    const COL_STATUS     = 1100;
+    const COL_CREATED    = hasCreatedAt    ? 1600 : 0;
+    const COL_MODULE     = hasModule       ? 1600 : 0;
+    const COL_DETAIL_MOD = hasDetailModule ? 1800 : 0;
+
+    const fixedWidth = COL_NO + COL_STATUS + COL_CREATED + COL_MODULE + COL_DETAIL_MOD;
+    const remaining  = CONTENT_WIDTH - fixedWidth;
+
+    const COL_CLIENT = Math.floor(remaining * 0.38);
+    const COL_TITLE  = remaining - COL_CLIENT;
+
+    const colWidths: number[] = [COL_NO, COL_CLIENT, COL_TITLE, COL_STATUS];
+    if (hasModule)       colWidths.push(COL_MODULE);
+    if (hasDetailModule) colWidths.push(COL_DETAIL_MOD);
+    if (hasCreatedAt)    colWidths.push(COL_CREATED);
+
+    const UNRESOLVED_HDR = '7F1D1D';
+
+    const mkUnresolvedHeader = (text: string, width: number): TableCell =>
+        new TableCell({
+            width:         { size: width, type: WidthType.DXA },
+            borders:       ALL_BORDERS,
+            shading:       { fill: UNRESOLVED_HDR, type: ShadingType.CLEAR },
+            margins:       CELL_MARGINS,
+            verticalAlign: VerticalAlign.CENTER,
+            children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children:  [new TextRun({ text, bold: true, color: WHITE, size: 20, font: 'Arial' })],
+            })],
+        });
+
+    const headerCells: TableCell[] = [
+        mkUnresolvedHeader('#',            COL_NO),
+        mkUnresolvedHeader('Client',       COL_CLIENT),
+        mkUnresolvedHeader('Case / Title', COL_TITLE),
+        mkUnresolvedHeader('Status',       COL_STATUS),
+    ];
+    if (hasModule)       headerCells.push(mkUnresolvedHeader('Module',        COL_MODULE));
+    if (hasDetailModule) headerCells.push(mkUnresolvedHeader('Detail Module', COL_DETAIL_MOD));
+    if (hasCreatedAt)    headerCells.push(mkUnresolvedHeader('Created At',    COL_CREATED));
+
+    const STATUS_ORDER: Record<string, number> = {
+        l3: 0, l2: 1, l1: 2, pending: 3, 'on hold': 4,
+    };
+    const sorted = [...cases].sort((a, b) => {
+        const ao = STATUS_ORDER[a.status.toLowerCase()] ?? 99;
+        const bo = STATUS_ORDER[b.status.toLowerCase()] ?? 99;
+        return ao - bo;
+    });
+
+    const dataRows = sorted.map((c, i) => {
+        const warnStripe  = i % 2 === 1;
+        const statusColor = getStatusColor(c.status);
+
+        const cells: TableCell[] = [
+            dataCell(String(i + 1),              COL_NO,     { center: true, warnStripe, color: '6B7280' }),
+            dataCell(c.client_name ?? '—',       COL_CLIENT, { warnStripe }),
+            dataCell(c.title       ?? '—',       COL_TITLE,  { warnStripe }),
+            dataCell(c.status.toUpperCase(),     COL_STATUS, { center: true, bold: true, warnStripe, color: statusColor }),
+        ];
+
+        if (hasModule) {
+            cells.push(dataCell(c.module ?? '—', COL_MODULE, { warnStripe }));
+        }
+        if (hasDetailModule) {
+            cells.push(dataCell(c.detail_module ?? '—', COL_DETAIL_MOD, { warnStripe }));
+        }
+        if (hasCreatedAt) {
+            let displayDate = c.created_at ?? '—';
+            if (displayDate !== '—') {
+                try {
+                    const d = new Date(displayDate);
+                    if (!isNaN(d.getTime())) {
+                        displayDate = format(d, 'd MMM yyyy HH:mm');
+                    }
+                } catch { /* leave as-is */ }
+            }
+            cells.push(dataCell(displayDate, COL_CREATED, { center: true, warnStripe, size: 18 }));
+        }
+
+        return new TableRow({ children: cells });
+    });
+
+    return new Table({
+        width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
+        columnWidths: colWidths,
+        rows: [new TableRow({ children: headerCells }), ...dataRows],
     });
 }
 
@@ -520,6 +561,23 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
     const { summary } = stats;
     const detailModules = stats.detail_module_rankings ?? stats.module_rankings ?? [];
 
+    // ── FIX: Re-validate unresolved_cases setelah diterima dari JSON parse ──
+    // JSON.parse mempertahankan array, tapi pastikan tidak ada item corrupt
+    const rawUnresolved = stats.unresolved_cases;
+    const unresolvedCases: UnresolvedCase[] = Array.isArray(rawUnresolved)
+        ? rawUnresolved.filter(c =>
+            c != null &&
+            typeof c.client_name === 'string' && c.client_name.trim() !== '' &&
+            typeof c.title       === 'string' && c.title.trim()       !== '' &&
+            typeof c.status      === 'string' && c.status.trim()      !== ''
+          )
+        : [];
+
+    console.log(`[generateDocxBuffer] unresolved_cases received: ${unresolvedCases.length}`);
+    if (unresolvedCases.length > 0) {
+        console.log(`[generateDocxBuffer] sample[0]:`, JSON.stringify(unresolvedCases[0]));
+    }
+
     const trendPeriod = (
         ['daily', 'weekly', 'monthly', 'quarterly'].includes(filters.trendPeriod ?? '')
             ? filters.trendPeriod
@@ -528,7 +586,7 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
 
     const periodLabels = getPeriodLabels(trendPeriod);
 
-    // ── Filter summary string ─────────────────────────────────────────────────
+    // ── Filter summary string ────────────────────────────────────────────────
     const filterParts: string[] = [];
     if (filters.years?.length)         filterParts.push(`Years: ${filters.years.join(', ')}`);
     if (filters.dateRange)             filterParts.push(`Date Range: ${filters.dateRange}`);
@@ -539,7 +597,7 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
     const filterText = filterParts.length ? filterParts.join('  |  ') : 'No filters applied — showing all data';
     const trendLabel = trendPeriod.charAt(0).toUpperCase() + trendPeriod.slice(1);
 
-    // ── 1. Cover / Title ──────────────────────────────────────────────────────
+    // ── Cover section ────────────────────────────────────────────────────────
     const coverSection: Paragraph[] = [
         spacer(480),
         new Paragraph({
@@ -575,28 +633,24 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         }),
     ];
 
-    // ── 2. Executive Summary table ────────────────────────────────────────────
+    // ── Executive Summary table ──────────────────────────────────────────────
     const col1 = 5000, col2 = 4360;
     const summaryRows = [
-        ['Total Cases',       summary.total_cases.toLocaleString()],
-        ['Total Solved',      summary.total_solved.toLocaleString()],
-        ['Solved Rate',       `${summary.solved_percentage?.toFixed(1) ?? '0.0'}%`],
-        ['Total Clients',     (summary.total_clients ?? 0).toLocaleString()],
-        ['Trending Category', summary.trending_category ?? '—'],
-        ['Trending Module',   summary.trending_module ?? summary.top_module ?? '—'],
-        ['Top Client',        summary.top_client ?? '—'],
+        ['Total Cases',      summary.total_cases.toLocaleString()],
+        ['Total Solved',     summary.total_solved.toLocaleString()],
+        ['Solved Rate',      `${summary.solved_percentage?.toFixed(1) ?? '0.0'}%`],
+        ['Unresolved Cases', unresolvedCases.length.toLocaleString()],
+        ['Total Clients',    (summary.total_clients ?? 0).toLocaleString()],
+        ['Trending Category',summary.trending_category ?? '—'],
+        ['Trending Module',  summary.trending_module ?? summary.top_module ?? '—'],
+        ['Top Client',       summary.top_client ?? '—'],
     ];
 
     const summaryTable = new Table({
         width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
         columnWidths: [col1, col2],
         rows: [
-            new TableRow({
-                children: [
-                    headerCell('Metric', col1),
-                    headerCell('Value',  col2),
-                ],
-            }),
+            new TableRow({ children: [headerCell('Metric', col1), headerCell('Value', col2)] }),
             ...summaryRows.map(([label, value], i) =>
                 new TableRow({
                     children: [
@@ -608,13 +662,10 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         ],
     });
 
-    // ── 3. Category Rankings table ────────────────────────────────────────────
-    const categoryTable = buildRankingTable(
-        stats.category_rankings ?? [],
-        'Category'
-    );
+    // ── Category Rankings table ──────────────────────────────────────────────
+    const categoryTable = buildRankingTable(stats.category_rankings ?? [], 'Category');
 
-    // ── 4. Module Trends table ────────────────────────────────────────────────
+    // ── Module Trends table ──────────────────────────────────────────────────
     const tC1 = 3200, tC2 = 1900, tC3 = 1900, tC4 = 2360;
     const trendsTable = (stats.module_trends?.length ?? 0) === 0 ? null : new Table({
         width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
@@ -622,10 +673,10 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         rows: [
             new TableRow({
                 children: [
-                    headerCell('Module',                                     tC1),
-                    headerCellTwoLine('Previous', periodLabels.previous,     tC2),
-                    headerCellTwoLine('Current',  periodLabels.current,      tC3),
-                    headerCell('Change',                                     tC4),
+                    headerCell('Module',                                    tC1),
+                    headerCellTwoLine('Previous', periodLabels.previous,    tC2),
+                    headerCellTwoLine('Current',  periodLabels.current,     tC3),
+                    headerCell('Change',                                    tC4),
                 ],
             }),
             ...stats.module_trends.map((t, i) => {
@@ -647,22 +698,19 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         ],
     });
 
-    // ── 5. Monthly Statistics table ───────────────────────────────────────────
+    // ── Monthly Statistics table ─────────────────────────────────────────────
     const monthlyTable = buildMonthlyTable(stats.monthly_stats ?? []);
 
-    // ── 6. Client Rankings table ──────────────────────────────────────────────
-    const clientTable = buildRankingTable(
-        stats.client_rankings ?? [],
-        'Client'
-    );
+    // ── Client Rankings table ────────────────────────────────────────────────
+    const clientTable = buildRankingTable(stats.client_rankings ?? [], 'Client');
 
-    // ── 7. Detail Module Rankings table ──────────────────────────────────────
-    const moduleTable = buildRankingTable(
-        detailModules,
-        'Detail Module'
-    );
+    // ── Detail Module Rankings table ─────────────────────────────────────────
+    const moduleTable = buildRankingTable(detailModules, 'Detail Module');
 
-    // ── Footer ────────────────────────────────────────────────────────────────
+    // ── Unresolved Cases table ───────────────────────────────────────────────
+    const unresolvedTable = buildUnresolvedCasesTable(unresolvedCases);
+
+    // ── Footer ───────────────────────────────────────────────────────────────
     const footerParagraph = new Paragraph({
         alignment: AlignmentType.CENTER,
         border: { top: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC', space: 4 } },
@@ -675,7 +723,7 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         ],
     });
 
-    // ── Dynamic section numbering ─────────────────────────────────────────────
+    // ── Section numbering ────────────────────────────────────────────────────
     let sectionNum = 1;
     const s = () => sectionNum++;
 
@@ -710,13 +758,11 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
                 children: [
                     ...coverSection,
 
-                    // Section 1: Executive Summary
                     sectionHeading(`${s()}. Executive Summary`),
                     spacer(80),
                     summaryTable,
                     spacer(200),
 
-                    // Section 2: Category Rankings
                     ...(categoryTable ? [
                         sectionHeading(`${s()}. Category Rankings`),
                         spacer(80),
@@ -724,7 +770,6 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
                         spacer(200),
                     ] : []),
 
-                    // Section 3: Case Trend
                     sectionHeading(`${s()}. Case Trend — ${trendLabel}`),
                     spacer(80),
                     ...(trendsTable
@@ -733,7 +778,6 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
                     ),
                     spacer(200),
 
-                    // Section 4: Monthly Statistics
                     ...(monthlyTable ? [
                         sectionHeading(`${s()}. Monthly Statistics`),
                         spacer(80),
@@ -741,7 +785,6 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
                         spacer(200),
                     ] : []),
 
-                    // Section 5: Client Rankings
                     ...(clientTable ? [
                         sectionHeading(`${s()}. Client Rankings`),
                         spacer(80),
@@ -749,13 +792,41 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
                         spacer(200),
                     ] : []),
 
-                    // Section 6: Detail Module Rankings
                     ...(moduleTable ? [
                         sectionHeading(`${s()}. Detail Module Rankings`),
                         spacer(80),
                         moduleTable,
-                        spacer(80),
+                        spacer(200),
                     ] : []),
+
+                    sectionHeading(`${s()}. Outstanding Unresolved Cases`),
+                    spacer(80),
+                    new Paragraph({
+                        spacing: { after: 120 },
+                        children: [
+                            new TextRun({
+                                text: `${unresolvedCases.length} case${unresolvedCases.length !== 1 ? 's' : ''} outstanding`,
+                                bold: true, size: 22, font: 'Arial',
+                                color: unresolvedCases.length > 0 ? 'DC2626' : '16A34A',
+                            }),
+                            new TextRun({
+                                text: unresolvedCases.length > 0
+                                    ? '  —  sorted by severity (L3 → L2 → L1 → Pending → On Hold)'
+                                    : '  —  all cases have been resolved ✓',
+                                size: 19, font: 'Arial', color: '6B7280', italics: true,
+                            }),
+                        ],
+                    }),
+                    ...(unresolvedTable
+                        ? [unresolvedTable]
+                        : [new Paragraph({
+                            children: [new TextRun({
+                                text: 'No outstanding cases at the time of this report.',
+                                italics: true, color: '16A34A', font: 'Arial', size: 20,
+                            })],
+                          })]
+                    ),
+                    spacer(80),
                 ],
             },
         ],
@@ -769,17 +840,31 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
     try {
-        const { stats, filterSummary } = (await request.json()) as {
+        const body = await request.json() as {
             stats: DashboardStats;
             filterSummary: FilterSummary;
         };
+
+        const { stats, filterSummary } = body;
 
         if (!stats) {
             return NextResponse.json({ error: 'Missing stats' }, { status: 400 });
         }
 
-        const docxBuffer = await generateDocxBuffer(stats, filterSummary ?? {});
-        const dateSlug   = new Date().toISOString().slice(0, 10);
+        // ── FIX: Log payload yang diterima untuk debug ───────────────────────
+        const rawCount = Array.isArray(stats.unresolved_cases)
+            ? stats.unresolved_cases.length
+            : 'undefined/null';
+        console.log(`[POST /api/report] unresolved_cases received: ${rawCount}`);
+        if (Array.isArray(stats.unresolved_cases) && stats.unresolved_cases.length > 0) {
+            console.log(`[POST /api/report] sample[0]:`, JSON.stringify(stats.unresolved_cases[0]));
+        }
+
+        const docxBuffer = await generateDocxBuffer(stats, filterSummary ?? {
+            years: [], categories: [], clients: [], modules: [], detailModules: [], trendPeriod: 'monthly',
+        });
+
+        const dateSlug = new Date().toISOString().slice(0, 10);
 
         return new NextResponse(docxBuffer, {
             headers: {

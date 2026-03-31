@@ -26,6 +26,20 @@ type RankingItem = {
     [year: string]: any;
 };
 
+type UnresolvedCase = {
+    client_name: string;
+    title: string;
+    status: string;
+    module?: string;
+    detail_module?: string;
+    created_at?: string;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+const UNRESOLVED_STATUSES = ['l1', 'l2', 'l3', 'pending', 'on hold'];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,8 +88,6 @@ const formatDate = (date: any): string | null => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // buildYearRankings
-// Jika data mencakup lebih dari 1 tahun → { name, "2024": N, "2025": N, … }
-// Jika hanya 1 tahun / tidak ada date → { name, value: N }
 // ─────────────────────────────────────────────────────────────────────────────
 function buildYearRankings(data: any[], nameKey: string): RankingItem[] {
     const yearSet = new Set<string>();
@@ -100,7 +112,7 @@ function buildYearRankings(data: any[], nameKey: string): RankingItem[] {
         return Object.entries(countMap)
             .map(([name, yearData]) => {
                 const total = Object.values(yearData).reduce((a, b) => a + b, 0);
-                const obj: RankingItem = { name, value: total }; // ★ FIX: selalu sertakan value = total
+                const obj: RankingItem = { name, value: total };
                 years.forEach(y => { obj[y] = yearData[y] ?? 0; });
                 return { ...obj, _total: total };
             })
@@ -115,6 +127,75 @@ function buildYearRankings(data: any[], nameKey: string): RankingItem[] {
         return Object.entries(countMap)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// buildUnresolvedCases — derive dari raw rows (MODE 2)
+// ─────────────────────────────────────────────────────────────────────────────
+function buildUnresolvedCases(data: any[]): UnresolvedCase[] {
+    return data
+        .filter(r => UNRESOLVED_STATUSES.includes(String(r.status_case ?? '').toLowerCase().trim()))
+        .map(r => ({
+            client_name:   String(r.client_name   ?? '').trim(),
+            title:         String(r.title ?? r.detail_module ?? r.module_case ?? '').trim(),
+            status:        String(r.status_case   ?? '').trim(),
+            module:        String(r.module_case   ?? '').trim(),
+            detail_module: String(r.detail_module ?? '').trim(),
+            created_at:    r.date ?? '',
+        }))
+        .filter(c => c.client_name !== '' && c.title !== '' && c.status !== '');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fetchUnresolvedCases — query terpisah untuk MODE 1 (RPC)
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchUnresolvedCases(filters: {
+    p_start_date: string | null;
+    p_end_date: string | null;
+    categories: string[];
+    clients: string[];
+    modules: string[];
+    detailModules: string[];
+}): Promise<UnresolvedCase[]> {
+    try {
+        let q = supabaseAdmin
+            .from('all_cases')
+            .select('client_name, title, status_case, module_case, detail_module, date')
+            .is('deleted_at', null)
+            .in('status_case', UNRESOLVED_STATUSES);
+
+        if (filters.p_start_date) q = q.gte('date', filters.p_start_date);
+        if (filters.p_end_date)   q = q.lte('date', filters.p_end_date);
+        if (filters.categories[0])    q = q.eq('category_case', filters.categories[0]);
+        if (filters.clients[0])       q = q.eq('client_name',   filters.clients[0]);
+        if (filters.modules[0])       q = q.eq('module_case',   filters.modules[0]);
+        if (filters.detailModules[0]) q = q.eq('detail_module', filters.detailModules[0]);
+
+        const { data, error } = await q;
+
+        if (error) {
+            console.warn('⚠️  [Unresolved] query error:', error.message);
+            return [];
+        }
+
+        const result = (data ?? [])
+            .map(r => ({
+                client_name:   String(r.client_name   ?? '').trim(),
+                title:         String((r as any).title ?? r.detail_module ?? r.module_case ?? '').trim(),
+                status:        String(r.status_case   ?? '').trim(),
+                module:        String(r.module_case   ?? '').trim(),
+                detail_module: String(r.detail_module ?? '').trim(),
+                created_at:    (r as any).date ?? '',
+            }))
+            .filter(c => c.client_name !== '' && c.title !== '' && c.status !== '');
+
+        console.log(`🔴 [Unresolved] ${result.length} unresolved case(s) found`);
+        return result;
+
+    } catch (err: any) {
+        console.error('❌ [Unresolved] fetch failed:', err.message);
+        return [];
     }
 }
 
@@ -362,12 +443,10 @@ function computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
 
     const uniqueClients = new Set(data.map(r => r.client_name).filter(Boolean));
 
-    // ★ multi-year aware rankings — selalu include value = total
     const clientRankings       = buildYearRankings(data, 'client_name');
     const categoryRankings     = buildYearRankings(data, 'category_case');
     const detailModuleRankings = buildYearRankings(data, 'detail_module');
 
-    // module_rankings stays { name, value }
     const moduleCounts: Record<string, number> = {};
     data.forEach(r => { if (r.module_case) moduleCounts[r.module_case] = (moduleCounts[r.module_case] || 0) + 1; });
     const moduleRankings = Object.entries(moduleCounts)
@@ -391,7 +470,10 @@ function computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
         return { month, year: parseInt(yearStr), cases: count };
     });
 
-    const moduleTrends = computeModuleTrends(data, trendPeriod);
+    const moduleTrends    = computeModuleTrends(data, trendPeriod);
+    const unresolvedCases = buildUnresolvedCases(data);
+
+    console.log(`🔴 [MODE2 Unresolved] ${unresolvedCases.length} case(s)`);
 
     return {
         summary: {
@@ -410,6 +492,7 @@ function computeStats(data: any[], trendPeriod: TrendPeriod = 'monthly') {
         detail_module_rankings: detailModuleRankings,
         module_trends:          moduleTrends,
         category_rankings:      categoryRankings,
+        unresolved_cases:       unresolvedCases,
     };
 }
 
@@ -513,11 +596,12 @@ export async function GET(request: Request) {
 
             console.log('🚀 [API] Calling RPC fn_dashboard_filtered:', params);
 
-            // ★ FIX: hapus fetchDetailModuleRows terpisah — pakai out_detail_module_rankings dari RPC
-            const [rpcResult, rawForTrends, categoryRankings] = await Promise.all([
+            // ── Jalankan RPC, trend rows, category rows, DAN unresolved cases secara parallel
+            const [rpcResult, rawForTrends, categoryRankings, unresolvedCases] = await Promise.all([
                 supabaseAdmin.rpc('fn_dashboard_filtered', params),
                 fetchTrendRows({ ...sharedFilters, trendPeriod }),
                 fetchCategoryRows(sharedFilters),
+                fetchUnresolvedCases({ p_start_date, p_end_date, categories, clients, modules, detailModules }),
             ]);
 
             const { data, error } = rpcResult;
@@ -542,15 +626,15 @@ export async function GET(request: Request) {
             const moduleRankingsRpc = parseJSONB(result.out_module_rankings)
                 .map((i: any) => ({ name: i.module, value: i.cases }));
 
-            // ★ FIX: client_rankings dari RPC → format { name, value }
             const clientRankingsRpc = parseJSONB(result.out_client_rankings)
                 .map((i: any) => ({ name: i.client, value: i.cases }));
 
-            // ★ FIX: detail_module_rankings dari RPC langsung → format { name, value }
             const detailModuleRankingsRpc = parseJSONB(result.out_detail_module_rankings)
                 .map((i: any) => ({ name: i.detail_module, value: i.cases }));
 
             const moduleTrends = computeModuleTrends(rawForTrends, trendPeriod);
+
+            console.log(`🔴 [MODE1 Unresolved] ${unresolvedCases.length} case(s)`);
 
             return NextResponse.json({ success: true, data: {
                 summary: {
@@ -566,9 +650,10 @@ export async function GET(request: Request) {
                 monthly_stats:          pivotAndOrderMonthlyStats(parseJSONB(result.out_monthly_stats)),
                 client_rankings:        clientRankingsRpc,
                 module_rankings:        moduleRankingsRpc,
-                detail_module_rankings: detailModuleRankingsRpc,  // ★ FIX
+                detail_module_rankings: detailModuleRankingsRpc,
                 module_trends:          moduleTrends,
                 category_rankings:      categoryRankings,
+                unresolved_cases:       unresolvedCases,  // ← FIX: tidak lagi hardcoded []
             }});
         }
 
@@ -683,5 +768,6 @@ function emptyStats() {
         detail_module_rankings: [],
         module_trends:          [],
         category_rankings:      [],
+        unresolved_cases:       [],
     };
 }

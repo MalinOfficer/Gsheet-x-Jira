@@ -99,16 +99,31 @@ const statusColorMap: Record<string, string> = {
 const moduleColorMap: Record<string, string> = {
     'Payment':      'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-900/25 dark:text-red-300 dark:ring-red-800',
     'Perpustakaan': 'bg-teal-50 text-teal-700 ring-1 ring-teal-200 dark:bg-teal-900/25 dark:text-teal-300 dark:ring-teal-800',
-    'Pesantren':    'bg-blue-50 text-blue-700 ring-1 ring-blue-200 dark:bg-blue-900/25 dark:text-blue-300 dark:ring-blue-800',
     'Pintro Pay':   'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/25 dark:text-amber-300 dark:ring-amber-800',
     'Boarding':     'bg-orange-50 text-orange-700 ring-1 ring-orange-200 dark:bg-orange-900/25 dark:text-orange-300 dark:ring-orange-800',
     'Migrasi Data': 'bg-violet-50 text-violet-700 ring-1 ring-violet-200 dark:bg-violet-900/25 dark:text-violet-300 dark:ring-violet-800',
     'default':      'bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-[#2e2e30] dark:text-[#c8c8cc] dark:ring-[#3a3a3c]',
 };
 
+const detailModuleColorMap: Record<string, string> = {
+    'Payment - Angsuran':                'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-900/25 dark:text-red-300 dark:ring-red-800',
+    'Payment - Daftar Ulang':            'bg-rose-50 text-rose-700 ring-1 ring-rose-200 dark:bg-rose-900/25 dark:text-rose-300 dark:ring-rose-800',
+    'Payment - Diskon':                  'bg-pink-50 text-pink-700 ring-1 ring-pink-200 dark:bg-pink-900/25 dark:text-pink-300 dark:ring-pink-800',
+    'Payment - Double Bayar / Refund':   'bg-orange-50 text-orange-700 ring-1 ring-orange-200 dark:bg-orange-900/25 dark:text-orange-300 dark:ring-orange-800',
+    'Payment - Gagal Transaksi':         'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/25 dark:text-amber-300 dark:ring-amber-800',
+    'Payment - Laporan / Selisih':       'bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200 dark:bg-yellow-900/25 dark:text-yellow-300 dark:ring-yellow-800',
+    'Payment - Pintro Cash':             'bg-lime-50 text-lime-700 ring-1 ring-lime-200 dark:bg-lime-900/25 dark:text-lime-300 dark:ring-lime-800',
+    'Payment - SPPK':                    'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/25 dark:text-emerald-300 dark:ring-emerald-800',
+    'Payment - Tagihan tidak terupdate': 'bg-teal-50 text-teal-700 ring-1 ring-teal-200 dark:bg-teal-900/25 dark:text-teal-300 dark:ring-teal-800',
+    'Payment - Tambah Tagihan':          'bg-cyan-50 text-cyan-700 ring-1 ring-cyan-200 dark:bg-cyan-900/25 dark:text-cyan-300 dark:ring-cyan-800',
+    'Payment - Hapus Data':              'bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-900/25 dark:text-sky-300 dark:ring-sky-800',
+    'Payment - Update Tagihan':          'bg-blue-50 text-blue-700 ring-1 ring-blue-200 dark:bg-blue-900/25 dark:text-blue-300 dark:ring-blue-800',
+    'default':                           'bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-[#2e2e30] dark:text-[#c8c8cc] dark:ring-[#3a3a3c]',
+};
+
 const ALL_CATEGORIES     = ['Adjustment', 'Assistance', 'Bug Fixing', 'Enhancement', 'Parameter Setup', 'Q & A'];
 const ALL_STATUSES       = ['Solved', 'L3', 'L2', 'L1', 'PM'];
-const ALL_MODULES        = ['PPDP/PMB', 'LMS/KBM', 'Administrasi Akademik', 'CBT', 'Penilaian/Raport', 'Payment', 'Perpustakaan', 'Pesantren', 'Pintro Pay', 'Boarding', 'Migrasi Data', 'Aplikasi/Mobile', 'Akses Portal'];
+const ALL_MODULES        = ['PPDP/PMB', 'LMS/KBM', 'Administrasi Akademik', 'CBT', 'Penilaian/Raport', 'Payment', 'Perpustakaan', 'Pintro Pay', 'Boarding', 'Migrasi Data', 'Aplikasi/Mobile', 'Akses Portal'];
 const ALL_DETAIL_MODULES = ['Payment - Angsuran', 'Payment - Daftar Ulang', 'Payment - Diskon', 'Payment - Double Bayar / Refund', 'Payment - Gagal Transaksi', 'Payment - Laporan / Selisih', 'Payment - Pintro Cash', 'Payment - SPPK', 'Payment - Tagihan tidak terupdate', 'Payment - Tambah Tagihan', 'Payment - Hapus Data', 'Payment - Update Tagihan'];
 const ALL_MONTHS         = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -148,7 +163,6 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
     const newCount    = previewRows.length;
     const totalActions = newCount + updateCount;
 
-    // ── Shared table header
     const TABLE_COLS = (showTypeBadge: boolean) => (
         <tr className="border-b">
             <th className="text-left py-2.5 px-3 font-medium text-xs text-muted-foreground w-6">#</th>
@@ -165,9 +179,7 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
         </tr>
     );
 
-    // ── Shared table row renderer
     const TABLE_ROW = (row: any, i: number, type: 'insert' | 'update', showTypeBadge: boolean) => {
-        // Untuk update: highlight field mana saja yang berubah
         const changedFields: string[] = type === 'update' ? (row.changedFields ?? []) : [];
         const isChanged = (field: string) => type === 'update' && changedFields.some(f =>
             f.toLowerCase() === field.toLowerCase()
@@ -196,14 +208,12 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                     </td>
                 )}
 
-                {/* Ticket */}
                 <td className="py-2 px-3">
                     <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded font-medium">
                         {row.ticket_number || '—'}
                     </span>
                 </td>
 
-                {/* Client — highlight jika berubah */}
                 <td className={cn(
                     "py-2 px-3 text-xs font-medium max-w-[110px] truncate",
                     isChanged('Client') && "bg-blue-50 dark:bg-blue-950/30 rounded"
@@ -211,7 +221,6 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                     {row.client_name || '—'}
                 </td>
 
-                {/* Status — highlight jika berubah */}
                 <td className={cn(
                     "py-2 px-3",
                     isChanged('Status') && "bg-blue-50 dark:bg-blue-950/30 rounded"
@@ -229,7 +238,6 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                     ) : '—'}
                 </td>
 
-                {/* Kategori — highlight jika berubah */}
                 <td className={cn(
                     "py-2 px-3",
                     isChanged('Kategori') && "bg-blue-50 dark:bg-blue-950/30 rounded"
@@ -244,7 +252,6 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                     ) : '—'}
                 </td>
 
-                {/* Modul — highlight jika berubah */}
                 <td className={cn(
                     "py-2 px-3",
                     isChanged('Modul') && "bg-blue-50 dark:bg-blue-950/30 rounded"
@@ -259,15 +266,20 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                     ) : '—'}
                 </td>
 
-                {/* Detail Modul — highlight jika berubah */}
                 <td className={cn(
-                    "py-2 px-3 text-xs text-muted-foreground max-w-[140px] truncate",
+                    "py-2 px-3",
                     isChanged('Detail Modul') && "bg-blue-50 dark:bg-blue-950/30 rounded"
-                )} title={row.detail_module ?? ''}>
-                    {row.detail_module || '—'}
+                )}>
+                    {row.detail_module ? (
+                        <span className={cn(
+                            'text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap',
+                            detailModuleColorMap[row.detail_module] || detailModuleColorMap.default
+                        )}>
+                            {row.detail_module}
+                        </span>
+                    ) : '—'}
                 </td>
 
-                {/* Field Berubah — badge ringkas */}
                 <td className="py-2 px-3">
                     {type === 'update' && changedFields.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
@@ -288,7 +300,6 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
         );
     };
 
-    // ── Render tabel tunggal
     const renderTable = (rows: any[], type: 'insert' | 'update') => (
         <ScrollArea className="h-[340px] rounded-lg border">
             <table className="w-full text-sm">
@@ -316,7 +327,6 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* ── Stats bar ── */}
                 <div className="flex items-center gap-3 px-6 py-4 bg-muted/30 border-b flex-wrap">
                     <div className="flex items-center gap-2 rounded-lg bg-background border px-3 py-2">
                         <Database className="h-4 w-4 text-muted-foreground" />
@@ -351,7 +361,6 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                     )}
                 </div>
 
-                {/* ── Table content ── */}
                 <div className="flex-1 overflow-hidden px-6 py-4">
                     {newCount === 0 && updateCount === 0 ? (
                         <div className="flex flex-col items-center justify-center h-48 text-center">
@@ -361,9 +370,7 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                                 Tidak ada tiket baru dan tidak ada data yang perlu diperbarui.
                             </p>
                         </div>
-
                     ) : newCount === 0 && updateCount > 0 ? (
-                        // Hanya update
                         <div className="flex flex-col gap-3 h-full">
                             <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 flex-shrink-0">
                                 <RefreshCw className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
@@ -374,9 +381,7 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                             </div>
                             {renderTable(updateRows, 'update')}
                         </div>
-
                     ) : newCount > 0 && updateCount > 0 ? (
-                        // Insert + update gabungan
                         <div className="flex flex-col gap-3 h-full">
                             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted border flex-shrink-0 text-xs text-muted-foreground">
                                 <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-bold px-1.5 py-0.5 rounded text-[10px]">NEW</span>
@@ -399,9 +404,7 @@ const SyncPreviewDialog = memo(function SyncPreviewDialog({
                                 </table>
                             </ScrollArea>
                         </div>
-
                     ) : (
-                        // Hanya insert
                         renderTable(previewRows, 'insert')
                     )}
                 </div>
@@ -457,10 +460,22 @@ const HeaderFilterPopover = memo(({
         return sortedStaged.some((v, i) => v !== sortedSelected[i]);
     }, [staged, selected]);
 
-    const filteredOptions = useMemo(() =>
-        !search ? options : options.filter(o => o.toLowerCase().includes(search.toLowerCase())),
-        [options, search]
-    );
+    // ── Sort: DB items first (alphabetically), then missing items (alphabetically) ──
+    const filteredOptions = useMemo(() => {
+        const list = !search
+            ? options
+            : options.filter(o => o.toLowerCase().includes(search.toLowerCase()));
+
+        if (!dbItemsMap) return list;
+
+        return [...list].sort((a, b) => {
+            const aInDb = dbItemsMap.has(a);
+            const bInDb = dbItemsMap.has(b);
+            if (aInDb && !bInDb) return -1;
+            if (!aInDb && bInDb) return 1;
+            return a.localeCompare(b);
+        });
+    }, [options, search, dbItemsMap]);
 
     const toggleOption = (o: string) =>
         setStaged(prev => prev.includes(o) ? prev.filter(s => s !== o) : [...prev, o]);
@@ -490,6 +505,12 @@ const HeaderFilterPopover = memo(({
     const hasActive = selected.length > 0;
     const allStagedSelected = staged.length === options.length && options.length > 0;
 
+    // Count how many options are missing from DB
+    const missingCount = useMemo(() =>
+        dbItemsMap ? options.filter(o => !dbItemsMap.has(o)).length : 0,
+        [options, dbItemsMap]
+    );
+
     return (
         <Popover open={open} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>
@@ -497,9 +518,13 @@ const HeaderFilterPopover = memo(({
                     <span className={cn("truncate text-[11px] font-semibold tracking-wide uppercase", hasActive ? "text-primary" : "text-slate-500 dark:text-[#909098]")}>{label}</span>
                     <ChevronDown className={cn("h-3 w-3 flex-shrink-0 transition-transform duration-150", hasActive ? "text-primary" : "text-slate-400", open && "rotate-180")} />
                     {hasActive && <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary shadow-sm" />}
+                    {/* Red dot indicator when there are missing items */}
+                    {!hasActive && missingCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-red-500 shadow-sm" />
+                    )}
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[260px] p-0 shadow-xl border-slate-200 dark:border-[#3a3a3c] rounded-xl overflow-hidden" align="center">
+            <PopoverContent className="w-[280px] p-0 shadow-xl border-slate-200 dark:border-[#3a3a3c] rounded-xl overflow-hidden" align="center">
                 <Command>
                     {showAddClient && onAddClient && (
                         <div className="border-b border-slate-100 dark:border-[#3a3a3c] p-2 bg-slate-50 dark:bg-[#242426]/80">
@@ -522,24 +547,49 @@ const HeaderFilterPopover = memo(({
                             )}
                         </div>
                     )}
+
+                    {/* Missing items warning banner */}
+                    {missingCount > 0 && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/40">
+                            <AlertCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+                            <span className="text-[11px] text-red-600 dark:text-red-400 font-medium">
+                                {missingCount} item tidak ada di master DB
+                            </span>
+                        </div>
+                    )}
+
                     <CommandInput placeholder="Search..." value={search} onValueChange={setSearch} className="text-xs h-9 border-b border-slate-100 dark:border-[#3a3a3c]" />
                     <CommandList className="max-h-[220px]">
                         <CommandEmpty className="text-xs py-4 text-center text-slate-400">No results found.</CommandEmpty>
                         <CommandGroup>
                             {filteredOptions.map(option => {
                                 const isStagedSelected = staged.includes(option);
+                                // If dbItemsMap is provided, check membership; if not provided, treat as in-DB
                                 const isInDB = dbItemsMap ? dbItemsMap.has(option) : true;
                                 const dbId = dbItemsMap?.get(option);
                                 const isThisDeleting = deletingId !== null && deletingId === dbId;
                                 return (
-                                    <CommandItem key={option} value={option} onSelect={() => toggleOption(option)} className={cn("flex items-center gap-2 text-xs cursor-pointer py-2 px-3 rounded-none", isStagedSelected && "bg-primary/5")}>
+                                    <CommandItem
+                                        key={option}
+                                        value={option}
+                                        onSelect={() => toggleOption(option)}
+                                        className={cn(
+                                            "flex items-center gap-2 text-xs cursor-pointer py-2 px-3 rounded-none",
+                                            isStagedSelected && "bg-primary/5",
+                                            !isInDB && "bg-red-50/50 dark:bg-red-900/10"
+                                        )}
+                                    >
                                         <div className={cn("h-4 w-4 rounded border-[1.5px] flex items-center justify-center flex-shrink-0 transition-colors", isStagedSelected ? "bg-primary border-primary text-white" : "border-slate-300 dark:border-[#3a3a3c] bg-white dark:bg-[#1f1f21]")}>
                                             {isStagedSelected && <Check className="h-2.5 w-2.5" />}
                                         </div>
-                                        <span className="flex-1 truncate min-w-0 font-medium">{renderOption ? renderOption(option) : option}</span>
-                                        <div className="flex-shrink-0">
+                                        <span className={cn("flex-1 truncate min-w-0 font-medium", !isInDB && "text-red-600 dark:text-red-400")}>
+                                            {renderOption ? renderOption(option) : option}
+                                        </span>
+                                        <div className="flex-shrink-0 flex items-center gap-1">
                                             {!isInDB ? (
-                                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-50 text-red-600 dark:bg-red-900/40 dark:text-red-400 border border-red-200 dark:border-red-800">● missing</span>
+                                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-50 text-red-600 dark:bg-red-900/40 dark:text-red-400 border border-red-200 dark:border-red-800">
+                                                    ● missing
+                                                </span>
                                             ) : isEditMode && onDeleteItem ? (
                                                 <button onClick={e => handleDelete(e, option)} disabled={isThisDeleting} className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-40">
                                                     {isThisDeleting ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
@@ -771,6 +821,7 @@ const LazyEditableCell = memo(({
 
     if (header === 'detail_module' && isActive && isEditMode) return (
         <SearchableComboboxCell value={local ?? ''} options={cellOptions.detail_module} placeholder="Pilih detail module..." cellStyle={cellStyle} onClose={() => onCellClick(0, '')}
+            renderOption={o => <span className={cn('px-2 py-0.5 rounded-full text-[11px] font-medium', detailModuleColorMap[o] || detailModuleColorMap.default)}>{o}</span>}
             onSelect={v => { setLocal(v); onCellChange(rowId, header, v); onCellSave(rowId); onCellClick(0, ''); }}
         />
     );
@@ -792,6 +843,7 @@ const LazyEditableCell = memo(({
                     if (header === 'ticket_category' && value) return <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap', categoryColorMap[value as string] || categoryColorMap.default)}>{value}</span>;
                     if (header === 'status' && value) return <span className={cn('inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap', statusColorMap[value as string] || statusColorMap.default)}><span className="h-1.5 w-1.5 rounded-full bg-current opacity-70 flex-shrink-0" />{value}</span>;
                     if (header === 'module' && value) return <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap', moduleColorMap[value] || moduleColorMap.default)}>{value}</span>;
+                    if (header === 'detail_module' && value) return <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap', detailModuleColorMap[value as string] || detailModuleColorMap.default)}>{value}</span>;
                     if (header === 'title' && value) {
                         const m = String(value).match(/^(IHO-\d+)/);
                         if (m) { const t = m[0]; const rest = String(value).substring(t.length).trim(); return <span className="truncate text-xs flex items-center gap-1.5"><a href={`https://pintro.atlassian.net/browse/${t}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className={cn("flex-shrink-0 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded", "bg-primary/10 text-primary hover:bg-primary/20 transition-colors")}>{t}</a><span className="truncate text-slate-700 dark:text-[#c8c8cc] font-medium">{rest}</span></span>; }
@@ -967,12 +1019,82 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
     const setFilterForColumn = useCallback((col: string, vals: string[]) => { setColumnFilters(p => { const n = {...p}; if (!vals.length) delete n[col]; else n[col] = vals; return n; }); setCurrentPage(1); }, []);
     const clearAllFilters = useCallback(() => { setColumnFilters({}); setDateRange(undefined); setCurrentPage(1); setYearFilter('all'); setShowUnsolvedOnly(false); }, []);
 
-    const filterOptionsMap = useMemo(() => ({ client_name: availableClients, status: statusOptions, ticket_category: categoryOptions, module: moduleOptions, detail_module: detailModuleOptions, month: ALL_MONTHS }), [availableClients, statusOptions, categoryOptions, moduleOptions, detailModuleOptions]);
-    const dbItemsMapsForColumn = useMemo(() => ({ status: dbStatusMap, ticket_category: dbCategoryMap, module: dbModuleMap, detail_module: dbDetailModuleMap }), [dbStatusMap, dbCategoryMap, dbModuleMap, dbDetailModuleMap]);
+    // ── Collect all unique values that actually appear in the loaded data ──────────────────
+    const dataValueSets = useMemo(() => {
+        const clients   = new Set<string>();
+        const statuses  = new Set<string>();
+        const categories = new Set<string>();
+        const modules   = new Set<string>();
+        const detailMods = new Set<string>();
+
+        state.data?.forEach(row => {
+            if (row.client_name)   clients.add(row.client_name as string);
+            if (row.status)        statuses.add(row.status as string);
+            if (row.ticket_category) categories.add(row.ticket_category as string);
+            if (row.module)        modules.add(row.module as string);
+            if (row.detail_module) detailMods.add(row.detail_module as string);
+        });
+
+        return { clients, statuses, categories, modules, detailMods };
+    }, [state.data]);
+
+    // ── Merged filter options: master DB options + any extra values found in data ──────────
+    // Items from master DB come first (sorted), then missing items (sorted) — handled inside HeaderFilterPopover
+
+    const clientFilterOptions = useMemo(() => {
+        const merged = new Set([...availableClients, ...dataValueSets.clients]);
+        return Array.from(merged).sort((a, b) => a.localeCompare(b));
+    }, [availableClients, dataValueSets.clients]);
+
+    const statusFilterOptions = useMemo(() => {
+        const merged = new Set([...statusOptions, ...dataValueSets.statuses]);
+        return Array.from(merged).sort((a, b) => a.localeCompare(b));
+    }, [statusOptions, dataValueSets.statuses]);
+
+    const categoryFilterOptions = useMemo(() => {
+        const merged = new Set([...categoryOptions, ...dataValueSets.categories]);
+        return Array.from(merged).sort((a, b) => a.localeCompare(b));
+    }, [categoryOptions, dataValueSets.categories]);
+
+    const moduleFilterOptions = useMemo(() => {
+        const merged = new Set([...moduleOptions, ...dataValueSets.modules]);
+        return Array.from(merged).sort((a, b) => a.localeCompare(b));
+    }, [moduleOptions, dataValueSets.modules]);
+
+    const detailModuleFilterOptions = useMemo(() => {
+        const merged = new Set([...detailModuleOptions, ...dataValueSets.detailMods]);
+        return Array.from(merged).sort((a, b) => a.localeCompare(b));
+    }, [detailModuleOptions, dataValueSets.detailMods]);
+
+    // ── clientDbMap: only master-DB clients have an entry → non-DB ones show red "missing" ─
+    const clientDbMap = useMemo(() =>
+        new Map(availableClients.map((c, i) => [c, i + 1] as [string, number])),
+        [availableClients]
+    );
+
+    const filterOptionsMap = useMemo(() => ({
+        client_name:   clientFilterOptions,        // merged: master + data
+        status:        statusFilterOptions,         // merged: master + data
+        ticket_category: categoryFilterOptions,     // merged: master + data
+        module:        moduleFilterOptions,         // merged: master + data
+        detail_module: detailModuleFilterOptions,   // merged: master + data
+        month:         ALL_MONTHS,
+    }), [clientFilterOptions, statusFilterOptions, categoryFilterOptions, moduleFilterOptions, detailModuleFilterOptions]);
+
+    // ── dbItemsMapsForColumn: used by HeaderFilterPopover to detect "missing" items ─────────
+    const dbItemsMapsForColumn = useMemo(() => ({
+        client_name:     clientDbMap,      // non-master clients will be red
+        status:          dbStatusMap,      // non-master statuses will be red
+        ticket_category: dbCategoryMap,    // non-master categories will be red
+        module:          dbModuleMap,      // non-master modules will be red
+        detail_module:   dbDetailModuleMap, // non-master detail modules will be red
+    }), [clientDbMap, dbStatusMap, dbCategoryMap, dbModuleMap, dbDetailModuleMap]);
+
     const renderFilterOption = useCallback((col: string) => (v: string) => {
         if (col === 'status') return <span className={cn('inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold', statusColorMap[v] || statusColorMap.default)}><span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />{v}</span>;
         if (col === 'ticket_category') return <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', categoryColorMap[v] || categoryColorMap.default)}>{v}</span>;
         if (col === 'module') return <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', moduleColorMap[v] || moduleColorMap.default)}>{v}</span>;
+        if (col === 'detail_module') return <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', detailModuleColorMap[v] || detailModuleColorMap.default)}>{v}</span>;
         return <span className="text-xs">{v}</span>;
     }, []);
 
@@ -983,9 +1105,9 @@ export function DbViewer({ initialData, initialSource, initialError, availableYe
 
     const handleDeleteMasterItem = useCallback(async (column: string, id: number, name: string) => {
         let result: { success: boolean; error?: string };
-        if (column === 'status')        result = await deleteMasterStatus(id);
+        if (column === 'status')             result = await deleteMasterStatus(id);
         else if (column === 'ticket_category') result = await deleteCategory(id);
-        else if (column === 'module')   result = await deleteMasterModule(id);
+        else if (column === 'module')        result = await deleteMasterModule(id);
         else if (column === 'detail_module') result = await deleteMasterDetailModule(id);
         else return;
         if (result.success) {

@@ -889,7 +889,7 @@ export async function getL3ReportFromDB() {
       .from('all_cases')
       .select('client_name, detail_case, check_in, module_case, source_link_op, status_case, ticket_number')
       .is('deleted_at', null)
-      .in('status_case', ['L3', 'ON HOLD'])
+      .or('status_case.ilike.L3,status_case.ilike.ON HOLD')
       .order('check_in', { ascending: true });
 
     if (error) throw new Error(`Database error: ${error.message}`);
@@ -900,8 +900,15 @@ export async function getL3ReportFromDB() {
       return `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`;
     };
 
-    const minDate    = new Date(data[0].check_in!);
-    const maxDate    = new Date(data[data.length - 1].check_in!);
+    // ✅ Sesudah — filter null dulu sebelum ambil min/max
+    const validDates = data
+    .filter(d => d.check_in != null)
+    .map(d => new Date(d.check_in!))
+    .filter(d => !isNaN(d.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+    const minDate = validDates.length > 0 ? validDates[0]                        : new Date();
+    const maxDate = validDates.length > 0 ? validDates[validDates.length - 1]    : new Date();
     const today      = new Date();
     const header     = `*Update cases yang belum solved L3 on hold (${formatDateLocal(minDate)} - ${formatDateLocal(maxDate)})*`;
     const totalCases = data.length;
@@ -948,6 +955,77 @@ export async function getL3ReportFromDB() {
   } catch (err: any) {
     return { success: false, error: err.message };
   }
+}
+
+// ============================================
+// GET L3 CASES FOR REPORT (DOCX download)
+//
+// FIX: Pisah query menjadi 2 request terpisah:
+//   1. L1/L2/L3/PENDING — tidak ada spasi di nilai, aman di-or()
+//   2. ON HOLD — di-query terpisah via .ilike() untuk hindari
+//      space-parsing issue di PostgREST .or() string
+//
+// FIX: Tambah noStore() agar tidak ada stale cache dari Next.js
+// FIX: Throw error alih-alih return [] agar caller bisa handle
+// ============================================
+export async function getL3CasesForReport(): Promise<{
+  client_name: string;
+  title: string;
+  status: string;
+  module?: string;
+  detail_module?: string;
+  created_at?: string;
+}[]> {
+  noStore();
+
+  const SELECT_COLS = 'client_name, detail_case, check_in, module_case, detail_module, status_case, ticket_number';
+
+  // ── Query 1: L1 / L2 / L3 / PENDING ────────────────────────────────────
+  const { data: escalated, error: err1 } = await supabaseAdmin
+    .from('all_cases')
+    .select(SELECT_COLS)
+    .is('deleted_at', null)
+    .or('status_case.ilike.L3,status_case.ilike.L2,status_case.ilike.L1,status_case.ilike.PENDING')
+    .order('check_in', { ascending: true });
+
+  if (err1) {
+    console.error('❌ [getL3CasesForReport] Query escalated error:', err1);
+    throw new Error(`Gagal mengambil data escalated: ${err1.message}`);
+  }
+
+  // ── Query 2: ON HOLD — query terpisah agar spasi tidak break parser ─────
+  const { data: onHold, error: err2 } = await supabaseAdmin
+    .from('all_cases')
+    .select(SELECT_COLS)
+    .is('deleted_at', null)
+    .ilike('status_case', 'ON HOLD')
+    .order('check_in', { ascending: true });
+
+  if (err2) {
+    console.error('❌ [getL3CasesForReport] Query onHold error:', err2);
+    throw new Error(`Gagal mengambil data On Hold: ${err2.message}`);
+  }
+
+  const combined = [...(escalated ?? []), ...(onHold ?? [])];
+
+  console.log(
+    `✅ [getL3CasesForReport] escalated=${escalated?.length ?? 0}, ` +
+    `onHold=${onHold?.length ?? 0}, total=${combined.length}`
+  );
+
+  if (combined.length === 0) return [];
+
+  return combined.map((row: any) => {
+    const parts = [row.ticket_number, row.detail_case].filter(Boolean);
+    return {
+      client_name:   row.client_name   ?? '—',
+      title:         parts.join(' ').trim() || '—',
+      status:        row.status_case   ?? 'L3',
+      module:        row.module_case   ?? '',
+      detail_module: row.detail_module ?? '',
+      created_at:    row.check_in      ?? '',
+    };
+  });
 }
 
 // ============================================
@@ -1198,12 +1276,6 @@ export async function getSpreadsheetTitle(url: string) {
 // SYNC HELPERS — digunakan oleh syncGSheetToDB
 // ============================================
 
-/**
- * FIX: Semua helper ini sebelumnya hanya ada di preview-sync.ts,
- * sehingga syncGSheetToDB di actions.ts melempar ReferenceError
- * "_extractSheetId is not defined" saat dijalankan.
- */
-
 function _extractSheetId(url: string): string | null {
   return url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1] ?? null;
 }
@@ -1268,89 +1340,56 @@ function _normalizeSyncDatetime(rawTime: string | null, dateStr: string | null):
 // ============================================
 
 const _SYNC_COLUMN_MAP: Record<string, string> = {
-  // Ticket Number
   "no ticket": "ticket_number", "ticket number": "ticket_number",
   "ticket_number": "ticket_number", "no. ticket": "ticket_number",
   "tiket": "ticket_number", "no tiket": "ticket_number",
   "nomor tiket": "ticket_number", "no. tiket": "ticket_number",
-
-  // Date
   "tanggal": "date", "date": "date", "tgl": "date",
-
-  // Month
   "bulan": "month", "month": "month",
-
-  // Client
   "client": "client_name", "client name": "client_name",
   "nama client": "client_name", "client_name": "client_name",
   "nama klien": "client_name", "klien": "client_name",
   "customer": "client_name",
-
-  // PIC Client
   "pic client": "pic_client", "pic": "pic_client", "pic_client": "pic_client",
   "customer name": "pic_client", "customer_name": "pic_client",
   "nama customer": "pic_client", "nama pic": "pic_client",
-
-  // Status
   "status": "status_case", "status case": "status_case", "status_case": "status_case",
   "status tiket": "status_case",
-
-  // Category
   "kategori": "category_case", "category": "category_case",
   "category case": "category_case", "category_case": "category_case",
   "ticket category": "category_case", "ticket_category": "category_case",
   "kategori tiket": "category_case", "jenis": "category_case",
   "jenis tiket": "category_case", "tipe": "category_case",
   "tipe tiket": "category_case",
-
-  // Module
   "modul": "module_case", "module": "module_case",
   "module case": "module_case", "module_case": "module_case",
   "nama modul": "module_case", "nama module": "module_case",
-
-  // Detail Module
   "detail modul": "detail_module", "detail module": "detail_module",
   "detail_module": "detail_module", "modul detail": "detail_module",
   "sub modul": "detail_module", "sub module": "detail_module",
   "sub-modul": "detail_module",
-
-  // Check In / Created At
   "check in": "check_in", "check_in": "check_in", "masuk": "check_in",
   "created at": "check_in", "created_at": "check_in",
   "tgl masuk": "check_in", "tanggal masuk": "check_in",
   "waktu masuk": "check_in",
-
-  // Detail Case / Title
   "detail case": "detail_case", "detail_case": "detail_case",
   "judul": "detail_case", "title": "detail_case",
   "deskripsi": "detail_case", "description": "detail_case",
   "detail": "detail_case",
-
-  // Check Out / Resolved At
   "check out": "check_out", "check_out": "check_out", "selesai": "check_out",
   "resolved at": "check_out", "resolved_at": "check_out",
   "tgl selesai": "check_out", "tanggal selesai": "check_out",
   "waktu selesai": "check_out",
-
-  // Status Solved
   "status solved": "status_case_solved", "status_case_solved": "status_case_solved",
-
-  // Source Link / Ticket OP
   "link op": "source_link_op", "source link op": "source_link_op",
   "source_link_op": "source_link_op", "link": "source_link_op",
   "ticket op": "source_link_op", "ticket_op": "source_link_op",
   "url": "source_link_op", "url jira": "source_link_op",
   "jira": "source_link_op", "link tiket": "source_link_op",
-
-  // Note
   "catatan": "note", "note": "note", "notes": "note",
   "keterangan": "note", "remarks": "note",
 };
 
-/**
- * CSV parser yang benar untuk multi-line quoted fields.
- * Mencegah kolom setelah field multi-line (detail_case/note) menjadi undefined.
- */
 function _parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -1491,12 +1530,10 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
       (existing || []).map((r: any) => [r.ticket_number, r])
     );
 
-    // ── INSERT ──
     const toInsert = toProcess
       .filter(r => !existingMap.has(r.ticket))
       .map(r => r.record);
 
-    // ── UPDATE ──
     const toUpdate = toProcess.filter(r => existingMap.has(r.ticket));
 
     let insertedCount = 0;
@@ -1519,7 +1556,6 @@ export async function syncGSheetToDB(sheetUrl: string): Promise<{
       const db = existingMap.get(item.ticket)!;
       const patch: Record<string, any> = {};
 
-      // Selalu case-insensitive: jika GSheet kosong → skip (jangan overwrite DB)
       const _diff = (dbVal: any, sheetVal: any): boolean => {
         const a = (dbVal    || '').toString().trim();
         const b = (sheetVal || '').toString().trim();

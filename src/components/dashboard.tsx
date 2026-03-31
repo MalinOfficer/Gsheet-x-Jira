@@ -6,7 +6,7 @@ import { useContext, useState, useEffect, useTransition, useCallback, useMemo, u
 import { TableDataContext } from "@/store/table-data-context";
 import { Area, AreaChart, Legend, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { getDashboardFilterOptions, refreshDashboardViews } from "@/app/actions";
+import { getDashboardFilterOptions, refreshDashboardViews, getL3CasesForReport } from "@/app/actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +20,7 @@ import { format, getISOWeek, getQuarter, subDays, subWeeks, subQuarters, subMont
 import { Calendar } from "@/components/ui/calendar";
 import { Separator } from "./ui/separator";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Module-level cache
@@ -56,6 +57,16 @@ function buildFiltersKey(filters: {
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 type TrendPeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly';
+
+// ── UnresolvedCase — shape yang dikirim ke route.ts ──────────────────────────
+type UnresolvedCase = {
+    client_name: string;
+    title: string;
+    status: string;
+    module?: string;
+    detail_module?: string;
+    created_at?: string;
+};
 
 const TREND_PERIOD_OPTIONS: { value: TrendPeriod; label: string }[] = [
     { value: 'daily',     label: 'D' },
@@ -106,6 +117,7 @@ type DashboardStats = {
     module_rankings: { name: string; value: number }[];
     detail_module_rankings: { name: string; value: number }[];
     module_trends: ModuleTrend[];
+    unresolved_cases?: UnresolvedCase[];
 };
 
 type FilterOptions = {
@@ -121,6 +133,45 @@ interface DashboardProps {
     initialOptions: FilterOptions | null;
     defaultYears?:  string[];
     error?:         string | null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// buildUnresolvedFromTableData
+// Ambil unresolved cases langsung dari tableData — tidak perlu DB call.
+// Status yang dianggap unresolved: L1, L2, L3, Pending, On Hold
+// ─────────────────────────────────────────────────────────────────────────────
+const UNRESOLVED_STATUSES = new Set(['l1', 'l2', 'l3', 'pending', 'on hold']);
+
+function buildUnresolvedFromTableData(rows: any[]): UnresolvedCase[] {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    return rows
+        .filter(r => {
+            const status = String(r.Status ?? r.status ?? r.status_case ?? '').toLowerCase().trim();
+            return UNRESOLVED_STATUSES.has(status);
+        })
+        .map(r => {
+            const clientName   = String(r['Client Name'] ?? r.client_name ?? '').trim();
+            const title        = String(r.Title ?? r.title ?? r['Detail Case'] ?? r.detail_case ?? '').trim();
+            const status       = String(r.Status ?? r.status ?? r.status_case ?? '').trim();
+            const module       = String(r.Module ?? r.module ?? r.module_case ?? '').trim();
+            const detailModule = String(r['Detail Module'] ?? r.detail_module ?? '').trim();
+            const createdAt    = String(r['Created At'] ?? r.created_at ?? r.check_in ?? '').trim();
+
+            return {
+                client_name:   clientName  || '—',
+                title:         title       || '—',
+                status:        status      || '—',
+                module:        module,
+                detail_module: detailModule,
+                created_at:    createdAt,
+            };
+        })
+        .filter(c =>
+            c.client_name !== '—' &&
+            c.title       !== '—' &&
+            c.status      !== '—'
+        );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -228,6 +279,10 @@ function trendColor(direction: 'up' | 'down' | 'stable'): string {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DownloadReportButton
+//
+// FIX: Ambil unresolved cases langsung dari tableData (TableDataContext),
+//      bukan dari DB call yang rawan gagal.
+//      tableData sudah pasti ada di memory karena sudah di-load di halaman.
 // ─────────────────────────────────────────────────────────────────────────────
 interface DownloadReportButtonProps {
     stats: DashboardStats;
@@ -253,12 +308,30 @@ function DownloadReportButton({ stats, filterSummary, disabled }: DownloadReport
             title:       'Generating Report…',
             description: 'Menyiapkan laporan Word, harap tunggu.',
         });
-
+    
         try {
+            // ── Ambil dari sumber yang sama dengan L3 Report ─────────────────
+            // getL3CasesForReport() tidak pakai date filter → semua unresolved
+            let unresolvedCases: UnresolvedCase[] = [];
+            try {
+                unresolvedCases = await getL3CasesForReport();
+            } catch (fetchErr: any) {
+                console.warn('[DownloadReport] fallback ke stats:', fetchErr.message);
+                unresolvedCases = stats.unresolved_cases ?? [];
+            }
+    
+            const statsWithUnresolved = {
+                ...stats,
+                unresolved_cases: unresolvedCases,
+            };
+
             const response = await fetch('/api/dashboard/report', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ stats, filterSummary }),
+                body:    JSON.stringify({
+                    stats:         statsWithUnresolved,
+                    filterSummary,
+                }),
             });
 
             if (!response.ok) {
@@ -277,7 +350,10 @@ function DownloadReportButton({ stats, filterSummary, disabled }: DownloadReport
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            toast({ title: 'Download selesai!', description: 'Laporan Word berhasil diunduh.' });
+            toast({
+                title:       'Download selesai!',
+                description: `Laporan Word berhasil diunduh. ${unresolvedCases.length} unresolved case(s) disertakan.`,
+            });
         } catch (err: any) {
             toast({ variant: 'destructive', title: 'Download gagal', description: err.message });
         } finally {
@@ -393,6 +469,11 @@ function YearMultiSelect({ years, selectedYears, onChange }: YearMultiSelectProp
     const noneSelected     = selectedYears.length === 0;
 
     const toggleYear = (year: string) => {
+        // Jika semua tahun tercentang → klik salah satu = isolasi hanya tahun itu
+        if (allSelected) {
+            onChange([year]);
+            return;
+        }
         if (selectedYears.includes(year)) {
             if (selectedYears.length === 1) return;
             onChange(selectedYears.filter(y => y !== year));
@@ -844,10 +925,8 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
     const { client_rankings, module_rankings, detail_module_rankings } = stats;
     const detailModuleRankings   = detail_module_rankings ?? module_rankings ?? [];
 
-    // ── FIX: guard against undefined value in rankings ────────────────────────
     const maxClientValue       = client_rankings.length > 0 ? (client_rankings[0].value ?? 1) : 1;
     const maxDetailModuleValue = detailModuleRankings.length > 0 ? (detailModuleRankings[0].value ?? 1) : 1;
-    // ─────────────────────────────────────────────────────────────────────────
 
     const totalClientsCount      = client_rankings.length;
     const totalDetailModuleCases = detailModuleRankings.reduce((sum, item) => sum + (item.value ?? 0), 0);
@@ -1072,7 +1151,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                             <ScrollArea className="h-[140px] pr-4">
                                 <div className="space-y-2">
                                     {client_rankings.map((item, index) => {
-                                        // FIX: guard undefined value
                                         const safeValue = item.value ?? 0;
                                         return (
                                             <TooltipProvider key={index} delayDuration={0}>
@@ -1113,7 +1191,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                                 <ScrollArea className="h-[140px] pr-4">
                                     <div className="space-y-2">
                                         {detailModuleRankings.map((item, index) => {
-                                            // FIX: guard undefined value
                                             const safeValue = item.value ?? 0;
                                             return (
                                                 <TooltipProvider key={index} delayDuration={0}>
