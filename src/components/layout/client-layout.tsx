@@ -77,7 +77,7 @@ function SidebarTooltip({ label, children, disabled }: { label: string; children
 
   return (
     <>
-      <div ref={triggerRef} onMouseEnter={show} onMouseLeave={hide} style={{ width: "100%" }}>
+      <div ref={triggerRef} onMouseEnter={show} onMouseLeave={hide} style={{ width: "100%", display: "flex", justifyContent: "center" }}>
         {children}
       </div>
       {pos && !disabled && createPortal(
@@ -189,7 +189,7 @@ function NavLinks({ isMobile = false, collapsed = false }: { isMobile?: boolean;
     !item.visibilityKey || menuVisibility[item.visibilityKey] === true;
 
   return (
-    <nav className="grid items-start gap-0 px-2 py-2">
+    <nav className={cn("flex flex-col gap-0 py-2 w-full", collapsed ? "px-0" : "px-2")}>
       {(Object.keys(navItems) as NavCategory[]).map(category => {
         const visibleItems = navItems[category].filter(isVisible);
         if (visibleItems.length === 0) return null;
@@ -231,20 +231,22 @@ function NavLinks({ isMobile = false, collapsed = false }: { isMobile?: boolean;
 
                 if (collapsed) {
                   return (
-                    // FIX: pass disabled=true agar tooltip tidak muncul di saat tidak perlu
                     <SidebarTooltip key={item.label} label={item.label}>
-                      <Link
-                        href={item.href}
-                        className={cn(
-                          "flex items-center justify-center h-10 w-10 mx-auto rounded-lg transition-all",
-                          isActive
-                            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg"
-                            : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-                          item.disabled && "pointer-events-none opacity-40"
-                        )}
-                      >
-                        <item.icon className="h-5 w-5 shrink-0" />
-                      </Link>
+                      {/* FIX: wrapper flex justify-center agar icon benar-benar center di sidebar 70px */}
+                      <div className="flex w-full justify-center">
+                        <Link
+                          href={item.href}
+                          className={cn(
+                            "flex items-center justify-center h-10 w-10 rounded-lg transition-all",
+                            isActive
+                              ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg"
+                              : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                            item.disabled && "pointer-events-none opacity-40"
+                          )}
+                        >
+                          <item.icon className="h-5 w-5 shrink-0" />
+                        </Link>
+                      </div>
                     </SidebarTooltip>
                   );
                 }
@@ -361,17 +363,19 @@ function SidebarFooter({ collapsed, pathname }: { collapsed: boolean; pathname: 
 
   return (
     <SidebarTooltip label="Settings">
-      <Link
-        href="/settings"
-        className={cn(
-          "flex items-center justify-center h-10 w-10 mx-auto rounded-lg transition-all",
-          pathname === "/settings"
-            ? "bg-sidebar-accent text-sidebar-foreground"
-            : "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
-        )}
-      >
-        <Settings className="h-5 w-5" />
-      </Link>
+      <div className="flex w-full justify-center">
+        <Link
+          href="/settings"
+          className={cn(
+            "flex items-center justify-center h-10 w-10 rounded-lg transition-all",
+            pathname === "/settings"
+              ? "bg-sidebar-accent text-sidebar-foreground"
+              : "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+          )}
+        >
+          <Settings className="h-5 w-5" />
+        </Link>
+      </div>
     </SidebarTooltip>
   );
 }
@@ -419,14 +423,20 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           collapsed ? "w-[70px]" : "w-[240px]",
         )}>
           {/* Sidebar Header / Logo */}
-          <div className="h-16 flex items-center px-4 shrink-0 border-b border-sidebar-border/50">
-            <Link href="/" className="flex items-center gap-3 overflow-hidden min-w-0">
-              <div className="w-10 h-10 bg-sidebar-primary rounded-xl flex items-center justify-center text-sidebar-primary-foreground text-xl shadow-lg shadow-sidebar-primary/20 shrink-0">
-                🎓
+          <div className={cn(
+            "h-16 flex items-center shrink-0 border-b border-sidebar-border/50",
+            collapsed ? "justify-center px-0" : "px-4"
+          )}>
+            <Link href="/" className={cn(
+              "flex items-center overflow-hidden min-w-0",
+              collapsed ? "gap-0 justify-center" : "gap-3"
+            )}>
+              <div className="w-10 h-10 bg-sidebar-primary rounded-xl flex items-center justify-center text-sidebar-primary-foreground shadow-lg shadow-sidebar-primary/20 shrink-0">
+                <LayoutDashboard className="h-5 w-5" />
               </div>
               {!collapsed && (
                 <div className="flex flex-col min-w-0">
-                  <span className="text-base font-bold text-white leading-tight whitespace-nowrap">EduDash Hub</span>
+                  <span className="text-base font-bold text-white leading-tight whitespace-nowrap">CS Support</span>
                   <span className="text-[10px] text-white/40 font-semibold tracking-widest uppercase">Admin Console</span>
                 </div>
               )}
@@ -438,8 +448,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <NavLinks collapsed={collapsed} />
           </div>
 
-          {/* Sidebar Footer — FIX: gunakan SidebarFooter component terpisah */}
-          <div className="p-4 border-t border-sidebar-border/50">
+          {/* Sidebar Footer */}
+          <div className={cn(
+            "border-t border-sidebar-border/50",
+            collapsed ? "p-2" : "p-4"
+          )}>
             <SidebarFooter collapsed={collapsed} pathname={pathname} />
           </div>
         </aside>
@@ -467,8 +480,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                   <SheetHeader className="h-16 flex flex-row items-center border-b border-white/10 px-4">
                     <SheetTitle asChild>
                       <Link href="/" className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-sidebar-primary rounded-lg flex items-center justify-center text-sidebar-primary-foreground text-base">
-                          📊
+                        <div className="w-8 h-8 bg-sidebar-primary rounded-lg flex items-center justify-center text-sidebar-primary-foreground">
+                          <LayoutDashboard className="h-4 w-4" />
                         </div>
                         <span className="text-lg font-bold text-white">EduDash</span>
                       </Link>

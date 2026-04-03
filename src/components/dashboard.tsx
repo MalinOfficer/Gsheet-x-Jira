@@ -948,7 +948,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                             </div>
                         </CardHeader>
                         <CardContent className="pb-3 px-4">
-                            <ScrollArea className="h-[140px] pr-4">
+                            <ScrollArea className="h-[120px] pr-4">
                                 <div className="space-y-1">
                                     {client_rankings.map((item, index) => {
                                         const safeValue = item.value ?? 0;
@@ -990,7 +990,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                             {detailModuleRankings.length === 0 ? (
                                 <div className="flex items-center justify-center h-[140px] text-muted-foreground text-sm border-2 border-dashed rounded-lg">No detail module data available.</div>
                             ) : (
-                                <ScrollArea className="h-[140px] pr-4">
+                                <ScrollArea className="h-[120px] pr-4">
                                     <div className="space-y-1">
                                         {detailModuleRankings.map((item, index) => {
                                             const safeValue = item.value ?? 0;
