@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -38,14 +39,21 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221 83% 53%;
 
-    /* SIDEBAR (Dark Navy like the image) */
-    --sidebar-background: 222 47% 11%;
+    /* CHART COLORS */
+    --chart-1: 221 83% 53%;
+    --chart-2: 142 76% 36%;
+    --chart-3: 48 96% 53%;
+    --chart-4: 24 95% 53%;
+    --chart-5: 0 84% 60%;
+
+    /* SIDEBAR — Deep Royal Blue (Disesuaikan agar lebih 'biru' dan kontras) */
+    --sidebar: 222 47% 12%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent: 222 47% 20%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
+    --sidebar-border: 222 47% 15%;
 
     --radius: 0.75rem;
   }
@@ -79,27 +87,58 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
 
-    --sidebar-background: 222 47% 11%;
+    /* CHART COLORS dark mode */
+    --chart-1: 217.2 91.2% 59.8%;
+    --chart-2: 142 70% 45%;
+    --chart-3: 48 96% 53%;
+    --chart-4: 24 90% 60%;
+    --chart-5: 0 80% 65%;
+
+    /* SIDEBAR dark */
+    --sidebar: 222 47% 10%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 217.2 91.2% 59.8%;
     --sidebar-primary-foreground: 222.2 47.4% 11.2%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent: 222 47% 18%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-border: 222 47% 12%;
   }
 }
 
 @layer base {
+  html {
+    height: 100%;
+  }
   * { @apply border-border; }
-  body { @apply bg-background text-foreground font-sans antialiased; }
+  body { @apply bg-background text-foreground font-sans antialiased; height: 100%; }
   h1, h2, h3, h4, h5, h6 { @apply font-bold tracking-tight; }
 }
 
 @layer utilities {
   .shadow-soft {
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0(0 0 / 0.05);
   }
   .shadow-card {
     box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.02), 0 4px 6px -4px rgb(0 0 0 / 0.02);
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
   }
 }
