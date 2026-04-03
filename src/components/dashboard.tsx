@@ -1148,7 +1148,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                             </div>
                         </CardHeader>
                         <CardContent className="pb-4">
-                            <ScrollArea className="h-[140px] pr-4">
+                            <ScrollArea className="h-[170px] pr-4">
                                 <div className="space-y-2">
                                     {client_rankings.map((item, index) => {
                                         const safeValue = item.value ?? 0;
