@@ -1,3 +1,4 @@
+/*Dashboard.tsx*/
 "use client";
 
 import { BarChart as BarChartIcon, CheckCircle, FolderKanban, Filter, RefreshCw, FilterX, AlertTriangle, Calendar as CalendarIcon, X, GripHorizontal, Maximize2, Minimize2, ChevronDown, Check, Layers, TrendingUp, TrendingDown, Minus, Download, FileText } from "lucide-react";
@@ -20,6 +21,7 @@ import { format, getISOWeek, getQuarter, subDays, subWeeks, subQuarters, subMont
 import { Calendar } from "@/components/ui/calendar";
 import { Separator } from "./ui/separator";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { ReportPreviewModal } from "@/components/report-preview-modal";
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,16 +76,12 @@ const TREND_PERIOD_OPTIONS: { value: TrendPeriod; label: string }[] = [
     { value: 'quarterly', label: 'Q' },
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FIX 1: Hardcode hex warna chart
-// SVG attribute (stopColor, stroke) TIDAK bisa baca CSS var() → harus hex
-// ─────────────────────────────────────────────────────────────────────────────
 const CHART_HEX_COLORS = [
-    "#3b82f6",  // biru   — tahun tertua
-    "#22c55e",  // hijau
-    "#eab308",  // kuning
-    "#f97316",  // oranye
-    "#ef4444",  // merah  — tahun terbaru
+    "#3b82f6",
+    "#22c55e",
+    "#eab308",
+    "#f97316",
+    "#ef4444",
 ];
 
 const chartConfig = {
@@ -239,79 +237,14 @@ function trendColor(direction: 'up' | 'down' | 'stable'): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DownloadReportButton
-// ─────────────────────────────────────────────────────────────────────────────
-interface DownloadReportButtonProps {
-    stats: DashboardStats;
-    filterSummary: {
-        years: string[];
-        dateRange?: string;
-        categories: string[];
-        clients: string[];
-        modules: string[];
-        detailModules: string[];
-        trendPeriod: string;
-    };
-    disabled?: boolean;
-}
-
-function DownloadReportButton({ stats, filterSummary, disabled }: DownloadReportButtonProps) {
-    const [isLoading, setIsLoading] = useState(false);
-    const { toast }                 = useToast();
-
-    const handleDownload = useCallback(async () => {
-        setIsLoading(true);
-        toast({ title: 'Generating Report…', description: 'Menyiapkan laporan Word, harap tunggu.' });
-        try {
-            let unresolvedCases: UnresolvedCase[] = [];
-            try { unresolvedCases = await getL3CasesForReport(); }
-            catch (fetchErr: any) { unresolvedCases = stats.unresolved_cases ?? []; }
-
-            const response = await fetch('/api/dashboard/report', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stats: { ...stats, unresolved_cases: unresolvedCases }, filterSummary }),
-            });
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({ error: 'Unknown error' }));
-                throw new Error(err.error ?? `HTTP ${response.status}`);
-            }
-            const blob = await response.blob();
-            const url  = URL.createObjectURL(blob);
-            const a    = document.createElement('a');
-            a.href     = url;
-            a.download = `dashboard-report-${new Date().toISOString().slice(0, 10)}.docx`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            toast({ title: 'Download selesai!', description: `${unresolvedCases.length} unresolved case(s) disertakan.` });
-        } catch (err: any) {
-            toast({ variant: 'destructive', title: 'Download gagal', description: err.message });
-        } finally { setIsLoading(false); }
-    }, [stats, filterSummary, toast]);
-
-    return (
-        <TooltipProvider delayDuration={200}>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button size="sm" variant="outline" disabled={disabled || isLoading} onClick={handleDownload}
-                        className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white border-0">
-                        {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                        <span className="hidden sm:inline">{isLoading ? 'Generating…' : 'Report'}</span>
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">Download laporan Word (.docx) sesuai filter aktif</TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-    );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // DraggableFilterPanel
 // ─────────────────────────────────────────────────────────────────────────────
 interface DraggableFilterPanelProps {
     open: boolean; onClose: () => void; children: React.ReactNode; activeCount: number;
+    headerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-function DraggableFilterPanel({ open, onClose, children, activeCount }: DraggableFilterPanelProps) {
+function DraggableFilterPanel({ open, onClose, children, activeCount, headerRef }: DraggableFilterPanelProps) {
     const panelRef  = useRef<HTMLDivElement>(null);
     const dragState = useRef({ dragging: false, startX: 0, startY: 0, origX: 0, origY: 0 });
     const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -341,7 +274,7 @@ function DraggableFilterPanel({ open, onClose, children, activeCount }: Draggabl
         <>
             <div className="fixed inset-0 z-40" onClick={onClose} />
             <div ref={panelRef} style={style} className="w-96 rounded-lg border bg-popover text-popover-foreground shadow-xl">
-                <div onMouseDown={onMouseDown} className="flex items-center justify-between px-4 py-2.5 border-b cursor-grab active:cursor-grabbing select-none bg-muted/50 rounded-t-lg">
+                <div ref={headerRef} onMouseDown={onMouseDown} className="flex items-center justify-between px-4 py-2.5 border-b cursor-grab active:cursor-grabbing select-none bg-muted/50 rounded-t-lg">
                     <div className="flex items-center gap-2">
                         <GripHorizontal className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-semibold">Filter Options</span>
@@ -494,6 +427,9 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
     const [isRefreshing, setIsRefreshing]   = useState(false);
     const [isRevalidating, setIsRevalidating] = useState(false);
     const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+    const [openFilter, setOpenFilter] = useState<string | null>(null);
+    const filterPanelHeaderRef = useRef<HTMLDivElement>(null);
+    const [reportModalOpen, setReportModalOpen] = useState(false);
     const [isFullscreen, setIsFullscreen]   = useState(false);
     const [hasMounted, setHasMounted]       = useState(false);
     const [trendPeriod, setTrendPeriod]     = useState<TrendPeriod>(prefs.dashboardTrendPeriod ?? 'monthly');
@@ -548,7 +484,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
         return () => window.removeEventListener('keydown', handler);
     }, [isFullscreen]);
 
-    // ── FIX 1: yearColorConfig pakai hex langsung ──────────────────────────
     const yearColorConfig = useMemo(() => {
         const allYears = filterOptions?.years?.slice().sort((a, b) => parseInt(a) - parseInt(b)) || [];
         const config: ChartConfig = {};
@@ -825,7 +760,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                             {(!stats.module_trends || stats.module_trends.length === 0) ? (
                                 <p className="text-xs text-muted-foreground mt-1">Not enough data to compare periods.</p>
                             ) : (
-                                <ScrollArea className="h-[70px]">
+                                <ScrollArea className="h-[65px]">
                                     <div className="space-y-0 pr-3">
                                         {stats.module_trends.map((t, i) => {
                                             const pct = derivePct(t);
@@ -889,7 +824,25 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
-                            <DownloadReportButton stats={stats} filterSummary={reportFilterSummary} disabled={isApplyingFilters || isRefreshing} />
+                            <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={isApplyingFilters || isRefreshing}
+                                            onClick={() => setReportModalOpen(true)}
+                                            className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white border-0"
+                                        >
+                                            <FileText className="h-4 w-4" />
+                                            <span className="hidden sm:inline">Report</span>
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" className="text-xs">
+                                        Buka preview report — bisa download .docx dari sana
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                             <YearMultiSelect years={filterOptions?.years ?? []} selectedYears={selectedYears} onChange={handleYearsChange} />
                             <Button size="sm" variant="outline" onClick={() => setIsFullscreen(p => !p)}
                                 title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'} className="h-9 w-9 p-0 flex-shrink-0">
@@ -901,7 +854,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                         <div className={cn("relative transition-opacity duration-300", isUpdating ? "opacity-60 pointer-events-none" : "opacity-100", isFullscreen ? "flex-1 h-full" : "")}>
                             {stats.monthly_stats.length > 0 ? (
                                 <ChartContainer config={dynamicChartConfig as ChartConfig}
-                                    className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[310px]")}>
+                                    className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[240px]")}>
                                     <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 4 }}>
                                         <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                         <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8}
@@ -910,7 +863,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                                         <defs>
                                             {chartKeys.map((year) => (
                                                 <linearGradient key={year} id={`fill${year}`} x1="0" y1="0" x2="0" y2="1">
-                                                    {/* FIX: stopColor pakai hex langsung dari config, bukan var() */}
                                                     <stop offset="5%"  stopColor={dynamicChartConfig[year]?.color} stopOpacity={0.8} />
                                                     <stop offset="95%" stopColor={dynamicChartConfig[year]?.color} stopOpacity={0.1} />
                                                 </linearGradient>
@@ -935,8 +887,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                     </CardContent>
                 </Card>
 
-                {/* ── Bottom Cards ──────────────────────────────────────────────────────── */}
-                {/* FIX 2: All Clients & Detail Module dibuat identik (w-48 label, h-[140px], py-2) */}
+                {/* Bottom Cards */}
                 <div className={cn("grid gap-4 md:grid-cols-2 lg:grid-cols-2 shrink-0 transition-opacity duration-300", isUpdating ? "opacity-60" : "opacity-100")}>
 
                     {/* All Clients */}
@@ -948,7 +899,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                             </div>
                         </CardHeader>
                         <CardContent className="pb-3 px-4">
-                            <ScrollArea className="h-[120px] pr-4">
+                            <ScrollArea className= "h-[100px] pr-2">
                                 <div className="space-y-1">
                                     {client_rankings.map((item, index) => {
                                         const safeValue = item.value ?? 0;
@@ -957,7 +908,6 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <div className="flex items-center gap-3">
-                                                            {/* FIX: w-48 sama dengan Detail Module */}
                                                             <div className="w-48 flex-shrink-0 text-right text-sm text-foreground pr-2 truncate">{item.name}</div>
                                                             <div className="flex-1 flex items-center gap-2 min-w-0">
                                                                 <div className="flex-1 bg-muted rounded-full h-4 relative overflow-hidden">
@@ -990,7 +940,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                             {detailModuleRankings.length === 0 ? (
                                 <div className="flex items-center justify-center h-[140px] text-muted-foreground text-sm border-2 border-dashed rounded-lg">No detail module data available.</div>
                             ) : (
-                                <ScrollArea className="h-[120px] pr-4">
+                                <ScrollArea className="h-[100px] pr-2">
                                     <div className="space-y-1">
                                         {detailModuleRankings.map((item, index) => {
                                             const safeValue = item.value ?? 0;
@@ -1022,8 +972,8 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                 </div>
             </div>
 
-            {/* Draggable Filter Panel */}
-            <DraggableFilterPanel open={filterPanelOpen} onClose={() => setFilterPanelOpen(false)} activeCount={activeFilterCount}>
+            {/* ── Draggable Filter Panel ─────────────────────────────────────────── */}
+            <DraggableFilterPanel open={filterPanelOpen} onClose={() => { setFilterPanelOpen(false); setOpenFilter(null); }} activeCount={activeFilterCount} headerRef={filterPanelHeaderRef}>
                 <div className="space-y-2">
                     <h4 className="text-sm font-semibold leading-none">Filter by Date</h4>
                     <Popover>
@@ -1041,19 +991,23 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                 <Separator />
                 <div className="space-y-2">
                     <h4 className="text-sm font-semibold leading-none">Filter by Category</h4>
-                    <MultiSelect options={filterOptions?.categories || []} selected={categoryFilter} onChange={setCategoryFilter} placeholder="Select categories..." />
+                    <MultiSelect options={filterOptions?.categories || []} selected={categoryFilter} onChange={setCategoryFilter} placeholder="Select categories..."
+                        open={openFilter === 'category'} onOpenChange={(o) => setOpenFilter(o ? 'category' : null)} side="left" panelLabel="Filter by Category" alignTopRef={filterPanelHeaderRef} />
                 </div>
                 <div className="space-y-2">
                     <h4 className="text-sm font-semibold leading-none">Filter by Client</h4>
-                    <MultiSelect options={filterOptions?.clients || []} selected={clientFilter} onChange={setClientFilter} placeholder="Select clients..." />
+                    <MultiSelect options={filterOptions?.clients || []} selected={clientFilter} onChange={setClientFilter} placeholder="Select clients..."
+                        open={openFilter === 'client'} onOpenChange={(o) => setOpenFilter(o ? 'client' : null)} side="left" panelLabel="Filter by Client" alignTopRef={filterPanelHeaderRef} />
                 </div>
                 <div className="space-y-2">
                     <h4 className="text-sm font-semibold leading-none">Filter by Module</h4>
-                    <MultiSelect options={filterOptions?.modules || []} selected={moduleFilter} onChange={setModuleFilter} placeholder="Select modules..." />
+                    <MultiSelect options={filterOptions?.modules || []} selected={moduleFilter} onChange={setModuleFilter} placeholder="Select modules..."
+                        open={openFilter === 'module'} onOpenChange={(o) => setOpenFilter(o ? 'module' : null)} side="left" panelLabel="Filter by Module" alignTopRef={filterPanelHeaderRef} />
                 </div>
                 <div className="space-y-2">
                     <h4 className="text-sm font-semibold leading-none">Filter by Detail Module</h4>
-                    <MultiSelect options={filterOptions?.detailModules || []} selected={detailModuleFilter} onChange={setDetailModuleFilter} placeholder="Select detail modules..." />
+                    <MultiSelect options={filterOptions?.detailModules || []} selected={detailModuleFilter} onChange={setDetailModuleFilter} placeholder="Select detail modules..."
+                        open={openFilter === 'detailModule'} onOpenChange={(o) => setOpenFilter(o ? 'detailModule' : null)} side="left" panelLabel="Filter by Detail Module" alignTopRef={filterPanelHeaderRef} />
                 </div>
                 {areFiltersActive && (
                     <>
@@ -1064,6 +1018,14 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                     </>
                 )}
             </DraggableFilterPanel>
+
+            {/* ── Report Preview Modal — di LUAR DraggableFilterPanel ────────────── */}
+            <ReportPreviewModal
+                open={reportModalOpen}
+                onClose={() => setReportModalOpen(false)}
+                stats={stats}
+                filterSummary={reportFilterSummary}
+            />
         </div>
     );
 }
