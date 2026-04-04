@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { getL3CasesForReport } from "@/app/actions";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Types (mirror dari dashboard.tsx)
+// Types
 // ─────────────────────────────────────────────────────────────────────────────
 type ModuleTrend = {
     name: string;
@@ -90,6 +90,24 @@ function extractYearKeys(items: Record<string, any>[]): string[] {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper: render judul case — ticket number di-highlight, sisa teks biasa
+// ─────────────────────────────────────────────────────────────────────────────
+function CaseTitle({ title }: { title: string }) {
+    const match = title.match(/^(IHO-\d+)\s*(.*)/i);
+    if (match) {
+        return (
+            <>
+                <span className="font-mono font-semibold text-[#1E3A5F] dark:text-blue-400 mr-1.5">
+                    {match[1]}
+                </span>
+                <span>{match[2]}</span>
+            </>
+        );
+    }
+    return <span>{title}</span>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -114,10 +132,10 @@ function SectionTitle({ children, count, number }: { children: React.ReactNode; 
 
 function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
     return (
-        <th className={cn(
-            "px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#1E3A5F] border border-[#2D4F7C] whitespace-nowrap",
-            right ? "text-right" : "text-left"
-        )}>
+        <th
+            style={{ textAlign: right ? "right" : "left" }}
+            className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#1E3A5F] border border-[#2D4F7C] whitespace-nowrap"
+        >
             {children}
         </th>
     );
@@ -127,13 +145,16 @@ function Td({ children, right, bold, muted, color }: {
     children: React.ReactNode; right?: boolean; bold?: boolean; muted?: boolean; color?: string;
 }) {
     return (
-        <td className={cn(
-            "px-3 py-1.5 text-xs border border-border whitespace-nowrap",
-            right ? "text-right tabular-nums" : "text-left",
-            bold && "font-semibold",
-            muted && "text-muted-foreground",
-            color
-        )}>
+        <td
+            style={{ textAlign: right ? "right" : "left" }}
+            className={cn(
+                "px-3 py-1.5 text-xs border border-border whitespace-nowrap",
+                right && "tabular-nums",
+                bold && "font-semibold",
+                muted && "text-muted-foreground",
+                color
+            )}
+        >
             {children}
         </td>
     );
@@ -156,7 +177,7 @@ function SummarySection({ stats, unresolvedCount, sectionNumber }: { stats: Dash
         <section>
             <SectionTitle number={sectionNumber}>Executive Summary</SectionTitle>
             <div className="overflow-x-auto rounded-md border border-border">
-                <table className="w-full border-collapse text-xs">
+                <table className="w-auto border-collapse text-xs">
                     <thead>
                         <tr><Th>Metric</Th><Th right>Value</Th></tr>
                     </thead>
@@ -194,16 +215,16 @@ function RankingTable({
         <p className="text-xs text-muted-foreground italic">No data available.</p>
     );
 
-    const sliced   = items.slice(0, limit);
-    const yearKeys = extractYearKeys(sliced);
-    const isMulti  = yearKeys.length > 0;
+    const sliced    = items.slice(0, limit);
+    const yearKeys  = extractYearKeys(sliced);
+    const isMulti   = yearKeys.length > 0;
     const hasChange = yearKeys.length >= 2;
-    const fromYear = hasChange ? yearKeys[yearKeys.length - 2] : "";
-    const toYear   = hasChange ? yearKeys[yearKeys.length - 1]  : "";
+    const fromYear  = hasChange ? yearKeys[yearKeys.length - 2] : "";
+    const toYear    = hasChange ? yearKeys[yearKeys.length - 1]  : "";
 
     return (
         <div className="overflow-x-auto rounded-md border border-border">
-            <table className="w-full border-collapse text-xs">
+            <table className="w-auto border-collapse text-xs">
                 <thead>
                     <tr>
                         <Th>#</Th>
@@ -218,14 +239,14 @@ function RankingTable({
                 </thead>
                 <tbody>
                     {sliced.map((item, i) => {
-                        const stripe = i % 2 === 1;
-                        const total  = isMulti
+                        const stripe    = i % 2 === 1;
+                        const total     = isMulti
                             ? yearKeys.reduce((s, y) => s + (item[y] ?? 0), 0)
                             : (item.value ?? 0);
-                        const prev   = hasChange ? (item[fromYear] ?? 0) : 0;
-                        const curr   = hasChange ? (item[toYear]   ?? 0) : 0;
-                        const change = curr - prev;
-                        const pct    = prev !== 0 ? Math.round((change / prev) * 100) : null;
+                        const prev      = hasChange ? (item[fromYear] ?? 0) : 0;
+                        const curr      = hasChange ? (item[toYear]   ?? 0) : 0;
+                        const change    = curr - prev;
+                        const pct       = prev !== 0 ? Math.round((change / prev) * 100) : null;
                         const changeStr = change === 0
                             ? "—"
                             : `${change > 0 ? "+" : ""}${change.toLocaleString()}${pct !== null ? ` (${change > 0 ? "+" : ""}${pct}%)` : ""}`;
@@ -273,7 +294,7 @@ function MonthlyStatsSection({ monthly, sectionNumber }: { monthly: Record<strin
         <section>
             <SectionTitle number={sectionNumber}>Monthly Statistics</SectionTitle>
             <div className="overflow-x-auto rounded-md border border-border">
-                <table className="w-full border-collapse text-xs">
+                <table className="w-auto border-collapse text-xs">
                     <thead>
                         <tr>
                             <Th>Month</Th>
@@ -284,14 +305,14 @@ function MonthlyStatsSection({ monthly, sectionNumber }: { monthly: Record<strin
                     </thead>
                     <tbody>
                         {monthly.map((row, i) => {
-                            const stripe  = i % 2 === 1;
-                            const vals    = yearKeys.map(y => (row[y] ?? 0) as number);
-                            const total   = vals.reduce((s, v) => s + v, 0);
-                            const prev    = hasChange ? (row[fromYear] ?? 0) as number : 0;
-                            const curr    = hasChange ? (row[toYear]   ?? 0) as number : 0;
-                            const change  = curr - prev;
-                            const pct     = prev !== 0 ? Math.round((change / prev) * 100) : null;
-                            const chStr   = change === 0 ? "—" : `${change > 0 ? "+" : ""}${change.toLocaleString()}${pct !== null ? ` (${change > 0 ? "+" : ""}${pct}%)` : ""}`;
+                            const stripe = i % 2 === 1;
+                            const vals   = yearKeys.map(y => (row[y] ?? 0) as number);
+                            const total  = vals.reduce((s, v) => s + v, 0);
+                            const prev   = hasChange ? (row[fromYear] ?? 0) as number : 0;
+                            const curr   = hasChange ? (row[toYear]   ?? 0) as number : 0;
+                            const change = curr - prev;
+                            const pct    = prev !== 0 ? Math.round((change / prev) * 100) : null;
+                            const chStr  = change === 0 ? "—" : `${change > 0 ? "+" : ""}${change.toLocaleString()}${pct !== null ? ` (${change > 0 ? "+" : ""}${pct}%)` : ""}`;
 
                             return (
                                 <tr key={i} className={stripe ? "bg-blue-50/50 dark:bg-blue-950/20" : "bg-white dark:bg-background"}>
@@ -330,7 +351,7 @@ function TrendsSection({ trends, trendPeriod, sectionNumber }: { trends: ModuleT
         <section>
             <SectionTitle number={sectionNumber}>Case Trend — {trendPeriod.charAt(0).toUpperCase() + trendPeriod.slice(1)}</SectionTitle>
             <div className="overflow-x-auto rounded-md border border-border">
-                <table className="w-full border-collapse text-xs">
+                <table className="w-auto border-collapse text-xs">
                     <thead>
                         <tr>
                             <Th>Module</Th>
@@ -341,16 +362,16 @@ function TrendsSection({ trends, trendPeriod, sectionNumber }: { trends: ModuleT
                     </thead>
                     <tbody>
                         {trends.map((t, i) => {
-                            const pct = t.change_pct ?? (t.previous !== 0 ? Math.round((t.change / t.previous) * 100) : null);
-                            const chStr = `${t.direction === "up" ? "+" : ""}${t.change}${pct !== null ? ` (${t.direction === "up" ? "+" : ""}${pct}%)` : ""}`;
+                            const pct    = t.change_pct ?? (t.previous !== 0 ? Math.round((t.change / t.previous) * 100) : null);
+                            const chStr  = `${t.direction === "up" ? "+" : ""}${t.change}${pct !== null ? ` (${t.direction === "up" ? "+" : ""}${pct}%)` : ""}`;
                             const stripe = i % 2 === 1;
                             return (
                                 <tr key={i} className={stripe ? "bg-blue-50/50 dark:bg-blue-950/20" : "bg-white dark:bg-background"}>
                                     <Td>
                                         <span className="flex items-center gap-1.5">
-                                            {t.direction === "up"   && <TrendingUp   className="h-3 w-3 text-red-500 flex-shrink-0" />}
-                                            {t.direction === "down" && <TrendingDown className="h-3 w-3 text-emerald-500 flex-shrink-0" />}
-                                            {t.direction === "stable" && <Minus className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
+                                            {t.direction === "up"     && <TrendingUp   className="h-3 w-3 text-red-500 flex-shrink-0" />}
+                                            {t.direction === "down"   && <TrendingDown className="h-3 w-3 text-emerald-500 flex-shrink-0" />}
+                                            {t.direction === "stable" && <Minus        className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
                                             {t.name}
                                         </span>
                                     </Td>
@@ -400,16 +421,16 @@ function UnresolvedSection({ cases, sectionNumber }: { cases: UnresolvedCase[]; 
                         Sorted by severity: L3 → L2 → L1 → Pending → On Hold
                     </p>
                     <div className="overflow-x-auto rounded-md border border-red-200">
-                        <table className="w-full border-collapse text-xs">
+                        <table className="w-auto border-collapse text-xs">
                             <thead>
                                 <tr>
-                                    <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-left">#</th>
-                                    <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-left">Client</th>
-                                    <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-left">Case / Title</th>
-                                    <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-center">Status</th>
-                                    {hasModule    && <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-left">Module</th>}
-                                    {hasDetail    && <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-left">Detail Module</th>}
-                                    {hasCreatedAt && <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-center">Created At</th>}
+                                    <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-left whitespace-nowrap">#</th>
+                                    <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-left whitespace-nowrap">Client</th>
+                                    <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-left whitespace-nowrap">Case / Title</th>
+                                    <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-center whitespace-nowrap">Status</th>
+                                    {hasModule    && <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-left whitespace-nowrap">Module</th>}
+                                    {hasDetail    && <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-left whitespace-nowrap">Detail Module</th>}
+                                    {hasCreatedAt && <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-[#7F1D1D] border border-[#991B1B] text-center whitespace-nowrap">Created At</th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -425,18 +446,20 @@ function UnresolvedSection({ cases, sectionNumber }: { cases: UnresolvedCase[]; 
                                     return (
                                         <tr key={i} className={stripe ? "bg-red-50/60 dark:bg-red-950/20" : "bg-white dark:bg-background"}>
                                             <td className="px-3 py-1.5 text-xs border border-border text-muted-foreground text-right tabular-nums">{i + 1}</td>
-                                            <td className="px-3 py-1.5 text-xs border border-border font-medium max-w-[160px] truncate">{c.client_name}</td>
-                                            <td className="px-3 py-1.5 text-xs border border-border max-w-[220px]">
-                                                <span className="line-clamp-2">{c.title}</span>
+                                            <td className="px-3 py-1.5 text-xs border border-border font-medium whitespace-nowrap">{c.client_name}</td>
+                                            <td className="px-3 py-1.5 text-xs border border-border max-w-[320px]">
+                                                <span className="line-clamp-2">
+                                                    <CaseTitle title={c.title} />
+                                                </span>
                                             </td>
                                             <td className="px-3 py-1.5 text-xs border border-border text-center">
                                                 <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase", statusBadgeClass(c.status))}>
                                                     {c.status}
                                                 </span>
                                             </td>
-                                            {hasModule    && <td className="px-3 py-1.5 text-xs border border-border text-muted-foreground">{c.module || "—"}</td>}
-                                            {hasDetail    && <td className="px-3 py-1.5 text-xs border border-border text-muted-foreground">{c.detail_module || "—"}</td>}
-                                            {hasCreatedAt && <td className="px-3 py-1.5 text-xs border border-border text-center text-muted-foreground tabular-nums">{displayDate}</td>}
+                                            {hasModule    && <td className="px-3 py-1.5 text-xs border border-border text-muted-foreground whitespace-nowrap">{c.module || "—"}</td>}
+                                            {hasDetail    && <td className="px-3 py-1.5 text-xs border border-border text-muted-foreground whitespace-nowrap">{c.detail_module || "—"}</td>}
+                                            {hasCreatedAt && <td className="px-3 py-1.5 text-xs border border-border text-center text-muted-foreground tabular-nums whitespace-nowrap">{displayDate}</td>}
                                         </tr>
                                     );
                                 })}
@@ -458,7 +481,6 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary }: Repo
     const [unresolvedCases, setUnresolvedCases] = useState<UnresolvedCase[]>(stats.unresolved_cases ?? []);
     const [loadingCases, setLoadingCases]       = useState(false);
 
-    // Fetch unresolved cases saat modal dibuka
     const fetchUnresolved = useCallback(async () => {
         if (unresolvedCases.length > 0) return;
         setLoadingCases(true);
@@ -472,7 +494,6 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary }: Repo
         }
     }, [unresolvedCases.length]);
 
-    // Jalankan saat open berubah jadi true
     if (open && unresolvedCases.length === 0 && !loadingCases) {
         fetchUnresolved();
     }
@@ -506,7 +527,6 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary }: Repo
         } finally { setIsDownloading(false); }
     }, [stats, filterSummary, unresolvedCases, toast]);
 
-    // Filter summary text
     const filterParts = useMemo(() => {
         const parts: string[] = [];
         if (filterSummary.years?.length)        parts.push(`Years: ${filterSummary.years.join(", ")}`);
@@ -523,18 +543,12 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary }: Repo
     if (!open) return null;
 
     return (
-        /* Overlay */
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                onClick={onClose}
-            />
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-            {/* Panel */}
             <div className="relative z-10 flex flex-col w-full max-w-5xl max-h-[92vh] mx-4 rounded-xl border bg-background shadow-2xl overflow-hidden">
 
-                {/* ── Header ─────────────────────────────────────────── */}
+                {/* ── Header ── */}
                 <div className="flex items-center justify-between px-5 py-3 border-b bg-[#1E3A5F] shrink-0">
                     <div className="flex items-center gap-3 min-w-0">
                         <FileText className="h-4 w-4 text-blue-300 flex-shrink-0" />
@@ -569,7 +583,7 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary }: Repo
                     </div>
                 </div>
 
-                {/* ── Generated timestamp ─────────────────────────────── */}
+                {/* ── Timestamp bar ── */}
                 <div className="flex items-center gap-2 px-5 py-1.5 bg-muted/40 border-b shrink-0">
                     <span className="text-[10px] text-muted-foreground">
                         Generated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
@@ -584,7 +598,7 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary }: Repo
                     )}
                 </div>
 
-                {/* ── Scrollable Content ──────────────────────────────── */}
+                {/* ── Scrollable Content ── */}
                 <div className="flex-1 min-h-0 overflow-y-auto">
                     <div className="p-5 space-y-6">
 
@@ -627,7 +641,7 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary }: Repo
                     </div>
                 </div>
 
-                {/* ── Footer ──────────────────────────────────────────── */}
+                {/* ── Footer ── */}
                 <div className="flex items-center justify-between px-5 py-2.5 border-t bg-muted/30 shrink-0">
                     <span className="text-[10px] text-muted-foreground">
                         {stats.summary.total_cases.toLocaleString()} total cases
