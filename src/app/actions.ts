@@ -978,7 +978,7 @@ export async function getL3CasesForReport(): Promise<{
 }[]> {
   noStore();
 
-  const SELECT_COLS = 'client_name, detail_case, check_in, module_case, detail_module, status_case, ticket_number';
+  const SELECT_COLS = 'client_name, detail_case, check_in, module_case, detail_module, status_case, ticket_number, source_link_op';
 
   // ── Query 1: L1 / L2 / L3 / PENDING ────────────────────────────────────
   const { data: escalated, error: err1 } = await supabaseAdmin
@@ -993,7 +993,7 @@ export async function getL3CasesForReport(): Promise<{
     throw new Error(`Gagal mengambil data escalated: ${err1.message}`);
   }
 
-  // ── Query 2: ON HOLD — query terpisah agar spasi tidak break parser ─────
+  // ── Query 2: ON HOLD ─────────────────────────────────────────────────────
   const { data: onHold, error: err2 } = await supabaseAdmin
     .from('all_cases')
     .select(SELECT_COLS)
@@ -1013,13 +1013,42 @@ export async function getL3CasesForReport(): Promise<{
     `onHold=${onHold?.length ?? 0}, total=${combined.length}`
   );
 
+  // Debug: cek isi row pertama di server terminal
+  if (combined.length > 0) {
+    console.log('🔍 [getL3CasesForReport] Sample row:', JSON.stringify(combined[0], null, 2));
+  }
+
   if (combined.length === 0) return [];
 
   return combined.map((row: any) => {
-    const parts = [row.ticket_number, row.detail_case].filter(Boolean);
+    const ticketRaw  = row.ticket_number?.trim() || null;
+    const detailRaw  = row.detail_case?.trim()   || null;
+
+    let finalTicket = ticketRaw;
+    let finalTitle  = detailRaw;
+
+    // Fallback 1: detail_case mengandung "IHO-XXXX ..." tapi ticket_number kosong
+    if (!finalTicket && detailRaw) {
+      const match = detailRaw.match(/^(IHO-\d+)\s*(.*)/i);
+      if (match) {
+        finalTicket = match[1].toUpperCase();
+        finalTitle  = match[2].trim() || null;
+      }
+    }
+
+    // Fallback 2: ticket_number ada tapi detail_case kosong — pakai ticket saja
+    // (sudah handled karena parts.filter(Boolean))
+
+    const parts = [finalTicket, finalTitle].filter(Boolean);
+
+    // Fallback 3: jika keduanya kosong, pakai source_link_op sebagai penanda
+    const title = parts.join(' ').trim()
+      || row.source_link_op?.trim()
+      || '(No title)';
+
     return {
       client_name:   row.client_name   ?? '—',
-      title:         parts.join(' ').trim() || '—',
+      title,
       status:        row.status_case   ?? 'L3',
       module:        row.module_case   ?? '',
       detail_module: row.detail_module ?? '',

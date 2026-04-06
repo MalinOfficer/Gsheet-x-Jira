@@ -1025,6 +1025,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                 onClose={() => setReportModalOpen(false)}
                 stats={stats}
                 filterSummary={reportFilterSummary}
+                filterOptions={filterOptions}
             />
         </div>
     );
