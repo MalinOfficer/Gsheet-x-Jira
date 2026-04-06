@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useState, useMemo } from "react";
-import { X, Download, RefreshCw, TrendingUp, TrendingDown, Minus, AlertTriangle, FileText } from "lucide-react";
+import { X, Download, RefreshCw, TrendingUp, TrendingDown, Minus, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -91,6 +90,8 @@ function extractYearKeys(items: Record<string, any>[]): string[] {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: render judul case — ticket number di-highlight, sisa teks biasa
+// title sudah berbentuk "IHO-1811 Permintaan hide option AIS..."
+// (digabung di getL3CasesForReport: parts.join(' ').trim())
 // ─────────────────────────────────────────────────────────────────────────────
 function CaseTitle({ title }: { title: string }) {
     const match = title.match(/^(IHO-\d+)\s*(.*)/i);
@@ -447,11 +448,14 @@ function UnresolvedSection({ cases, sectionNumber }: { cases: UnresolvedCase[]; 
                                         <tr key={i} className={stripe ? "bg-red-50/60 dark:bg-red-950/20" : "bg-white dark:bg-background"}>
                                             <td className="px-3 py-1.5 text-xs border border-border text-muted-foreground text-right tabular-nums">{i + 1}</td>
                                             <td className="px-3 py-1.5 text-xs border border-border font-medium whitespace-nowrap">{c.client_name}</td>
+
+                                            {/* ── Case / Title — ticket number di-highlight ── */}
                                             <td className="px-3 py-1.5 text-xs border border-border max-w-[320px]">
                                                 <span className="line-clamp-2">
                                                     <CaseTitle title={c.title} />
                                                 </span>
                                             </td>
+
                                             <td className="px-3 py-1.5 text-xs border border-border text-center">
                                                 <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase", statusBadgeClass(c.status))}>
                                                     {c.status}
