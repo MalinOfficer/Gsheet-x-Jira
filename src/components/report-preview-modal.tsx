@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useMemo, useEffect } from "react";
+import { useCallback, useState, useMemo, useEffect, useRef } from "react";
 import {
     X, Download, RefreshCw, TrendingUp, TrendingDown, Minus, FileText,
     Loader2, Table2, LayoutList, AlertCircle, Search,
@@ -376,8 +376,12 @@ interface DetailedCasesSheetProps {
     initialClients: string[];
     initialModules: string[];
     initialDetailModules: string[];
-    initialDateFrom?: string;   // ISO "2024-01-01"
-    initialDateTo?: string;     // ISO "2024-12-31"
+    initialDateFrom?: string;
+    initialDateTo?: string;
+    // Callbacks to lift download state to parent header
+    onDownloadReady?: (handler: () => void) => void;
+    onDownloadUnavailable?: () => void;
+    onDownloadingChange?: (v: boolean) => void;
 }
 
 function DetailedCasesSheet({
@@ -389,6 +393,9 @@ function DetailedCasesSheet({
     initialDetailModules,
     initialDateFrom,
     initialDateTo,
+    onDownloadReady,
+    onDownloadUnavailable,
+    onDownloadingChange,
 }: DetailedCasesSheetProps) {
     const { toast } = useToast();
 
@@ -415,14 +422,14 @@ function DetailedCasesSheet({
         search:        "",
     }));
 
-    const [cases, setCases]           = useState<DetailedCase[] | null>(null);
-    const [loading, setLoading]       = useState(false);
-    const [isDownloading, setIsDownloading] = useState(false);
-    const [hasGenerated, setHasGenerated] = useState(false);
-    const [sortKey, setSortKey]       = useState<keyof DetailedCase>("created_at");
-    const [sortDir, setSortDir]       = useState<"asc" | "desc">("desc");
-    const [page, setPage]             = useState(1);
-    const PAGE_SIZE                   = 50;
+    const [cases, setCases]                     = useState<DetailedCase[] | null>(null);
+    const [loading, setLoading]                 = useState(false);
+    const [isDownloading, setIsDownloading]     = useState(false);
+    const [hasGenerated, setHasGenerated]       = useState(false);
+    const [sortKey, setSortKey]                 = useState<keyof DetailedCase>("created_at");
+    const [sortDir, setSortDir]                 = useState<"asc" | "desc">("desc");
+    const [page, setPage]                       = useState(1);
+    const PAGE_SIZE                             = 50;
 
     const setF = <K extends keyof DetailedFilters>(key: K, value: DetailedFilters[K]) =>
         setFilters(f => ({ ...f, [key]: value }));
@@ -446,7 +453,6 @@ function DetailedCasesSheet({
         setLoading(true); setHasGenerated(true); setPage(1);
         try {
             const params = new URLSearchParams();
-
             const activeYears = filters.years.filter(y => y !== "__all__");
             if (activeYears.length)           params.append("years",         activeYears.join(","));
             if (filters.categories.length)    params.append("categories",    filters.categories.join(","));
@@ -473,7 +479,6 @@ function DetailedCasesSheet({
 
     const handleDownloadDetail = useCallback(async () => {
         if (!cases?.length) return;
-
         setIsDownloading(true);
         try {
             const res = await fetch("/api/dashboard/report/detail", {
@@ -482,7 +487,6 @@ function DetailedCasesSheet({
                 body:    JSON.stringify({ cases, filters }),
             });
 
-            // ── Cek limit exceeded (413) ──────────────────────────────────────
             if (res.status === 413) {
                 const err = await res.json().catch(() => ({}));
                 toast({
@@ -493,14 +497,11 @@ function DetailedCasesSheet({
                 });
                 return;
             }
-
-            // ── Cek error lain ────────────────────────────────────────────────
             if (!res.ok) {
                 const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
                 throw new Error(err.message ?? err.error ?? `HTTP ${res.status}`);
             }
 
-            // ── Trigger download ──────────────────────────────────────────────
             const blob = await res.blob();
             const url  = URL.createObjectURL(blob);
             const a    = document.createElement("a");
@@ -510,19 +511,28 @@ function DetailedCasesSheet({
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-
             toast({ title: "Download selesai!" });
-
         } catch (err: any) {
-            toast({
-                variant:     "destructive",
-                title:       "Download gagal",
-                description: err.message,
-            });
+            toast({ variant: "destructive", title: "Download gagal", description: err.message });
         } finally {
             setIsDownloading(false);
         }
     }, [cases, filters, toast]);
+
+    // ── Notify parent when download availability changes ──────────────────
+    useEffect(() => {
+        const canDownload = hasGenerated && !loading && (cases?.length ?? 0) > 0;
+        if (canDownload) {
+            onDownloadReady?.(handleDownloadDetail);
+        } else {
+            onDownloadUnavailable?.();
+        }
+    }, [hasGenerated, loading, cases, handleDownloadDetail, onDownloadReady, onDownloadUnavailable]);
+
+    // ── Notify parent when downloading state changes ──────────────────────
+    useEffect(() => {
+        onDownloadingChange?.(isDownloading);
+    }, [isDownloading, onDownloadingChange]);
 
     const sorted = useMemo(() => {
         if (!cases) return [];
@@ -563,7 +573,7 @@ function DetailedCasesSheet({
     return (
         <div className="flex flex-col h-full min-h-0">
 
-            {/* ── FIX: Banner "Filter dari Dashboard" ─────────────────────── */}
+            {/* ── Banner "Filter dari Dashboard" ─────────────────────────── */}
             {hasInheritedFilters && (
                 <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-800">
                     <span className="text-blue-500 text-sm">✦</span>
@@ -571,12 +581,12 @@ function DetailedCasesSheet({
                         Filter otomatis diisi dari Dashboard —{" "}
                         <span className="font-semibold">
                             {[
-                                initialYears.length     && `${initialYears.length} year(s)`,
-                                initialClients.length   && `${initialClients.length} client(s)`,
-                                initialCategories.length && `${initialCategories.length} categor${initialCategories.length > 1 ? "ies" : "y"}`,
-                                initialModules.length   && `${initialModules.length} module(s)`,
-                                initialDetailModules.length && `${initialDetailModules.length} detail module(s)`,
-                                initialDateFrom         && `date range`,
+                                initialYears.length          && `${initialYears.length} year(s)`,
+                                initialClients.length        && `${initialClients.length} client(s)`,
+                                initialCategories.length     && `${initialCategories.length} categor${initialCategories.length > 1 ? "ies" : "y"}`,
+                                initialModules.length        && `${initialModules.length} module(s)`,
+                                initialDetailModules.length  && `${initialDetailModules.length} detail module(s)`,
+                                initialDateFrom              && `date range`,
                             ].filter(Boolean).join(", ")}
                         </span>
                         {" "}— kamu bisa ubah sebelum generate.
@@ -584,9 +594,8 @@ function DetailedCasesSheet({
                 </div>
             )}
 
-            {/* ── New InlineFilterBar Component ── */}
+            {/* ── InlineFilterBar — Download disembunyikan (ada di header) ── */}
             <InlineFilterBar
-                // Options
                 yearOptions={yearOptions}
                 statusOptions={STATUS_OPTIONS}
                 categoryOptions={filterOptions?.categories ?? []}
@@ -594,7 +603,6 @@ function DetailedCasesSheet({
                 moduleOptions={filterOptions?.modules ?? []}
                 detailModuleOptions={filterOptions?.detailModules ?? []}
 
-                // Selected values
                 selectedYears={filters.years}
                 selectedStatuses={filters.statuses}
                 selectedCategories={filters.categories}
@@ -604,7 +612,6 @@ function DetailedCasesSheet({
                 dateRange={filters.dateRange}
                 search={filters.search}
 
-                // Callbacks
                 onYearsChange={v => setF("years", v)}
                 onStatusesChange={v => setF("statuses", v)}
                 onCategoriesChange={v => setF("categories", v)}
@@ -615,13 +622,14 @@ function DetailedCasesSheet({
                 onSearchChange={v => setF("search", v)}
                 onClearAll={clearAll}
 
-                // State & actions
                 isLoading={loading}
                 isDownloading={isDownloading}
                 hasGenerated={hasGenerated}
                 casesCount={filtered.length}
                 onGenerate={handleGenerate}
                 onDownload={handleDownloadDetail}
+
+                hideDownload // ← Download dipindah ke header modal
             />
 
             {/* ── Results ── */}
@@ -774,14 +782,23 @@ function DetailedCasesSheet({
 // ─────────────────────────────────────────────────────────────────────────────
 export function ReportPreviewModal({ open, onClose, stats, filterSummary, filterOptions }: ReportPreviewModalProps) {
     const { toast } = useToast();
-    const [isDownloading, setIsDownloading] = useState(false);
-    const [activeSheet, setActiveSheet]     = useState<1 | 2>(1);
+    const [isDownloading, setIsDownloading]     = useState(false);
+    const [activeSheet, setActiveSheet]         = useState<1 | 2>(1);
     const [unresolvedCases, setUnresolvedCases] = useState<UnresolvedCase[]>([]);
     const [loadingCases, setLoadingCases]       = useState(false);
+
+    // ── Sheet 2 download state (lifted from child) ────────────────────────
+    const sheet2DownloadFn                      = useRef<(() => void) | null>(null);
+    const [sheet2CanDownload, setSheet2CanDownload] = useState(false);
+    const [sheet2Downloading, setSheet2Downloading] = useState(false);
 
     useEffect(() => {
         if (!open) return;
         setActiveSheet(1);
+        // Reset sheet 2 download state when modal reopens
+        sheet2DownloadFn.current = null;
+        setSheet2CanDownload(false);
+        setSheet2Downloading(false);
         const run = async () => {
             setLoadingCases(true); setUnresolvedCases([]);
             try { const c = await getL3CasesForReport(); setUnresolvedCases(c); }
@@ -832,7 +849,7 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
             <div className="relative z-10 flex flex-col w-full max-w-5xl h-[90vh] rounded-xl border bg-background shadow-2xl overflow-hidden">
 
-                {/* Header */}
+                {/* ── Header ──────────────────────────────────────────────── */}
                 <div className="flex items-center justify-between px-5 py-3 border-b bg-[#1E3A5F] shrink-0">
                     <div className="flex items-center gap-3 min-w-0">
                         <FileText className="h-4 w-4 text-blue-300 flex-shrink-0" />
@@ -842,20 +859,53 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
                         </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+
+                        {/* Sheet 1: Download Summary */}
                         {activeSheet === 1 && (
-                            <Button size="sm" onClick={handleDownloadSummary} disabled={isDownloading || loadingCases}
-                                className="gap-1.5 bg-blue-500 hover:bg-blue-400 text-white border-0 h-8">
-                                {isDownloading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                                <span className="hidden sm:inline text-xs">{isDownloading ? "Generating…" : "Download .docx"}</span>
+                            <Button
+                                size="sm"
+                                onClick={handleDownloadSummary}
+                                disabled={isDownloading || loadingCases}
+                                className="gap-1.5 bg-blue-500 hover:bg-blue-400 text-white border-0 h-8"
+                            >
+                                {isDownloading
+                                    ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                    : <Download className="h-3.5 w-3.5" />
+                                }
+                                <span className="hidden sm:inline text-xs">
+                                    {isDownloading ? "Generating…" : "Download .docx"}
+                                </span>
                             </Button>
                         )}
-                        <button onClick={onClose} className="rounded-sm p-1 text-blue-300 hover:text-white hover:bg-white/10 transition-colors">
+
+                        {/* Sheet 2: Download Detailed (lifted from child) */}
+                        {activeSheet === 2 && (
+                            <Button
+                                size="sm"
+                                onClick={() => sheet2DownloadFn.current?.()}
+                                disabled={!sheet2CanDownload || sheet2Downloading}
+                                className="gap-1.5 bg-blue-500 hover:bg-blue-400 text-white border-0 h-8 disabled:opacity-40"
+                            >
+                                {sheet2Downloading
+                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    : <Download className="h-3.5 w-3.5" />
+                                }
+                                <span className="hidden sm:inline text-xs">
+                                    {sheet2Downloading ? "Downloading…" : "Download .docx"}
+                                </span>
+                            </Button>
+                        )}
+
+                        <button
+                            onClick={onClose}
+                            className="rounded-sm p-1 text-blue-300 hover:text-white hover:bg-white/10 transition-colors"
+                        >
                             <X className="h-4 w-4" />
                         </button>
                     </div>
                 </div>
 
-                {/* Sheet tabs */}
+                {/* ── Sheet tabs ───────────────────────────────────────────── */}
                 <div className="flex items-center px-5 border-b bg-muted/20 shrink-0">
                     {([{ id: 1 as const, label: "Summary Report" }, { id: 2 as const, label: "Detailed Cases" }] as const).map(({ id, label }) => (
                         <button key={id} onClick={() => setActiveSheet(id)}
@@ -884,8 +934,9 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
                     </div>
                 </div>
 
-                {/* Content */}
+                {/* ── Content ──────────────────────────────────────────────── */}
                 <div className="flex-1 min-h-0 flex flex-col">
+
                     {/* Sheet 1 */}
                     <div className={cn("flex-1 min-h-0 overflow-y-auto", activeSheet !== 1 && "hidden")}>
                         <div className="p-5 space-y-6">
@@ -925,11 +976,21 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
                             initialDetailModules={filterSummary.detailModules}
                             initialDateFrom={filterSummary.dateFrom}
                             initialDateTo={filterSummary.dateTo}
+                            // ── Lift download state ke header ──
+                            onDownloadReady={fn => {
+                                sheet2DownloadFn.current = fn;
+                                setSheet2CanDownload(true);
+                            }}
+                            onDownloadUnavailable={() => {
+                                sheet2DownloadFn.current = null;
+                                setSheet2CanDownload(false);
+                            }}
+                            onDownloadingChange={setSheet2Downloading}
                         />
                     </div>
                 </div>
 
-                {/* Footer */}
+                {/* ── Footer ───────────────────────────────────────────────── */}
                 <div className="flex items-center justify-between px-5 py-2.5 border-t bg-muted/30 shrink-0">
                     <span className="text-[10px] text-muted-foreground">
                         {stats.summary.total_cases.toLocaleString()} total cases · {stats.summary.total_clients ?? 0} clients

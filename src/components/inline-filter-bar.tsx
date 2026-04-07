@@ -45,12 +45,15 @@ interface InlineFilterBarProps {
     onClearAll:            () => void;
 
     // State & actions
-    isLoading:    boolean;
+    isLoading:     boolean;
     isDownloading: boolean;
-    hasGenerated: boolean;
-    casesCount:   number;
-    onGenerate:   () => void;
-    onDownload:   () => void;
+    hasGenerated:  boolean;
+    casesCount:    number;
+    onGenerate:    () => void;
+    onDownload:    () => void;
+
+    // Optional: hide download button (e.g. when it's lifted to a parent header)
+    hideDownload?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,7 +78,6 @@ function MultiSelect({
         );
     };
 
-    // Close on outside click
     const handleBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
         if (!ref.current?.contains(e.relatedTarget as Node)) setOpen(false);
     }, []);
@@ -205,6 +207,7 @@ export function InlineFilterBar({
     onYearsChange, onStatusesChange, onCategoriesChange, onClientsChange, onModulesChange, onDetailModulesChange,
     onDateRangeChange, onSearchChange, onClearAll,
     isLoading, isDownloading, hasGenerated, casesCount, onGenerate, onDownload,
+    hideDownload = false,
 }: InlineFilterBarProps) {
 
     const totalActive =
@@ -262,7 +265,7 @@ export function InlineFilterBar({
                 <DateRangeFilter value={dateRange} onChange={onDateRangeChange} />
             </div>
 
-            {/* ── Row 2: Clear badge · · · Search + Download + Generate ── */}
+            {/* ── Row 2: Clear badge · · · Search + (Download) + Generate ── */}
             <div className="flex items-center gap-2 px-4 py-2">
 
                 {/* Left: clear badge */}
@@ -277,13 +280,13 @@ export function InlineFilterBar({
                     </button>
                 )}
 
-                {/* Spacer pushes the right group all the way right */}
+                {/* Spacer */}
                 <div className="flex-1" />
 
-                {/* Right: Search + cases count + Download + Generate */}
+                {/* Right: cases count + Search + Download (optional) + Generate */}
                 <div className="flex items-center gap-2">
 
-                    {/* cases count */}
+                    {/* Cases count */}
                     {hasGenerated && !isLoading && (
                         <span className="text-[11px] text-muted-foreground tabular-nums whitespace-nowrap">
                             {casesCount.toLocaleString()} cases
@@ -311,13 +314,16 @@ export function InlineFilterBar({
                         )}
                     </div>
 
-                    {/* Download */}
-                    {hasGenerated && (
+                    {/* Divider */}
+                    <div className="h-4 w-px bg-border/60 flex-shrink-0" />
+
+                    {/* Download — always visible, disabled until hasGenerated, hidden if hideDownload */}
+                    {!hideDownload && (
                         <Button
                             size="sm"
                             variant="outline"
                             onClick={onDownload}
-                            disabled={isDownloading || isLoading || casesCount === 0}
+                            disabled={!hasGenerated || isDownloading || isLoading || casesCount === 0}
                             className="h-7 gap-1.5 text-xs px-2.5"
                         >
                             {isDownloading

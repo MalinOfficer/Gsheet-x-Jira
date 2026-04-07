@@ -395,7 +395,7 @@ function TrendPeriodDropdown({ value, onChange }: { value: TrendPeriod; onChange
 // ─────────────────────────────────────────────────────────────────────────────
 function SkeletonDashboard() {
     return (
-        <div className="flex-1 bg-background text-foreground p-4 sm:p-6 md:p-8">
+        <div className="flex-1 bg-background text-foreground p-40 sm:p-6 md:p-4">
             <div className="max-w-7xl mx-auto space-y-4">
                 <style>{`@media (min-width: 1024px) { .header-cards-grid { grid-template-columns: repeat(4, 7fr) 12fr !important; } }`}</style>
                 <div className="header-cards-grid grid gap-4 md:grid-cols-2 md:gap-8">
@@ -686,10 +686,13 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
     const isUpdating             = (isApplyingFilters && hasLoadedOnce.current) || isRevalidating;
 
     return (
+        // Wrapper luar: fixed height, no scroll
         <div className={cn("bg-background text-foreground transition-all duration-300",
-            isFullscreen ? "fixed inset-0 z-50 flex flex-col p-3 md:p-4 overflow-hidden" : "flex-1 p-2 sm:p-3 md:p-4 overflow-auto")}>
-            <div className={cn("mx-auto w-full transition-all duration-300 flex flex-col gap-3",
-                isFullscreen ? "flex-1 max-w-none min-h-0" : "max-w-7xl")}>
+            isFullscreen 
+                ? "fixed inset-0 z-50 flex flex-col p-3 md:p-4 overflow-hidden" 
+                : "flex-1 flex flex-col overflow-hidden p-2 sm:p-3 md:p-4")}>
+            <div className={cn("mx-auto w-full flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-2",
+                isFullscreen ? "max-w-none overflow-hidden" : "max-w-7xl")}>
 
                 {isRevalidating && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse self-end">
@@ -701,14 +704,14 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                 <style>{`@media (min-width: 1024px) { .header-cards-grid { grid-template-columns: repeat(4, 7fr) 12fr !important; } }`}</style>
                 <div className={cn("header-cards-grid grid gap-3 md:grid-cols-2 md:gap-4 shrink-0 transition-opacity duration-300", isUpdating ? "opacity-60" : "opacity-100")}>
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-4">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-4 pb-1 pt-2 px-4">
                             <CardTitle className="text-xs font-medium text-muted-foreground">Total Cases</CardTitle>
                             <BarChartIcon className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
                         <CardContent className="pb-2 px-4"><div className="text-2xl font-bold">{stats.summary.total_cases}</div></CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-4">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-4 pb-1 pt-2 px-4">
                             <CardTitle className="text-xs font-medium text-muted-foreground">Status Solved</CardTitle>
                             <CheckCircle className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
@@ -724,14 +727,14 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-4">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-4 pb-1 pt-2 px-4">
                             <CardTitle className="text-xs font-medium text-muted-foreground">Trending Category</CardTitle>
                             <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
                         <CardContent className="pb-2 px-4"><div className="text-2xl font-bold truncate">{stats.summary.trending_category}</div></CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-4">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-4 pb-1 pt-2 px-4">
                             <CardTitle className="text-xs font-medium text-muted-foreground">Trend Module</CardTitle>
                             <Layers className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
@@ -760,7 +763,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                             {(!stats.module_trends || stats.module_trends.length === 0) ? (
                                 <p className="text-xs text-muted-foreground mt-1">Not enough data to compare periods.</p>
                             ) : (
-                                <ScrollArea className="h-[65px]">
+                                <ScrollArea className="h-[75px]">
                                     <div className="space-y-0 pr-3">
                                         {stats.module_trends.map((t, i) => {
                                             const pct = derivePct(t);
@@ -854,7 +857,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                         <div className={cn("relative transition-opacity duration-300", isUpdating ? "opacity-60 pointer-events-none" : "opacity-100", isFullscreen ? "flex-1 h-full" : "")}>
                             {stats.monthly_stats.length > 0 ? (
                                 <ChartContainer config={dynamicChartConfig as ChartConfig}
-                                    className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[240px]")}>
+                                    className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[270px]")}>
                                     <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 4 }}>
                                         <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                         <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8}
@@ -898,8 +901,8 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                                 <span className="text-xs font-semibold text-muted-foreground bg-muted rounded-full px-2.5 py-1 tabular-nums">{totalClientsCount.toLocaleString()} clients</span>
                             </div>
                         </CardHeader>
-                        <CardContent className="pb-3 px-4">
-                            <ScrollArea className= "h-[100px] pr-2">
+                        <CardContent className="py-2 px-4">
+                            <ScrollArea className="h-[110px] pr-2">
                                 <div className="space-y-1">
                                     {client_rankings.map((item, index) => {
                                         const safeValue = item.value ?? 0;
@@ -936,11 +939,11 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                                 <span className="text-xs font-semibold text-muted-foreground bg-muted rounded-full px-2.5 py-1 tabular-nums">{totalDetailModuleCases.toLocaleString()} cases</span>
                             </div>
                         </CardHeader>
-                        <CardContent className="pb-3 px-4">
+                        <CardContent className="py-2 px-4">
                             {detailModuleRankings.length === 0 ? (
                                 <div className="flex items-center justify-center h-[140px] text-muted-foreground text-sm border-2 border-dashed rounded-lg">No detail module data available.</div>
                             ) : (
-                                <ScrollArea className="h-[100px] pr-2">
+                                <ScrollArea className="h-[110px] pr-2">
                                     <div className="space-y-1">
                                         {detailModuleRankings.map((item, index) => {
                                             const safeValue = item.value ?? 0;
