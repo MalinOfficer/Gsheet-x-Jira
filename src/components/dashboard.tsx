@@ -395,7 +395,7 @@ function TrendPeriodDropdown({ value, onChange }: { value: TrendPeriod; onChange
 // ─────────────────────────────────────────────────────────────────────────────
 function SkeletonDashboard() {
     return (
-        <div className="flex-1 bg-background text-foreground p-40 sm:p-6 md:p-4">
+        <div className="flex-1 bg-background text-foreground p-2 sm:p-3 md:p-4">
             <div className="max-w-7xl mx-auto space-y-4">
                 <style>{`@media (min-width: 1024px) { .header-cards-grid { grid-template-columns: repeat(4, 7fr) 12fr !important; } }`}</style>
                 <div className="header-cards-grid grid gap-4 md:grid-cols-2 md:gap-8">
@@ -691,7 +691,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
             isFullscreen 
                 ? "fixed inset-0 z-50 flex flex-col p-3 md:p-4 overflow-hidden" 
                 : "flex-1 flex flex-col overflow-hidden p-2 sm:p-3 md:p-4")}>
-            <div className={cn("mx-auto w-full flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-2",
+            <div className={cn("mx-auto w-full flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto custom-scrollbar",
                 isFullscreen ? "max-w-none overflow-hidden" : "max-w-7xl")}>
 
                 {isRevalidating && (
@@ -704,14 +704,14 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                 <style>{`@media (min-width: 1024px) { .header-cards-grid { grid-template-columns: repeat(4, 7fr) 12fr !important; } }`}</style>
                 <div className={cn("header-cards-grid grid gap-3 md:grid-cols-2 md:gap-4 shrink-0 transition-opacity duration-300", isUpdating ? "opacity-60" : "opacity-100")}>
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-4 pb-1 pt-2 px-4">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-2 pb-1 pt-2 px-4">
                             <CardTitle className="text-xs font-medium text-muted-foreground">Total Cases</CardTitle>
                             <BarChartIcon className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
                         <CardContent className="pb-2 px-4"><div className="text-2xl font-bold">{stats.summary.total_cases}</div></CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-4 pb-1 pt-2 px-4">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-2 pb-1 pt-2 px-4">
                             <CardTitle className="text-xs font-medium text-muted-foreground">Status Solved</CardTitle>
                             <CheckCircle className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
@@ -727,14 +727,14 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-4 pb-1 pt-2 px-4">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-2 pb-1 pt-2 px-4">
                             <CardTitle className="text-xs font-medium text-muted-foreground">Trending Category</CardTitle>
                             <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
                         <CardContent className="pb-2 px-4"><div className="text-2xl font-bold truncate">{stats.summary.trending_category}</div></CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-4 pb-1 pt-2 px-4">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-2 pb-1 pt-2 px-4">
                             <CardTitle className="text-xs font-medium text-muted-foreground">Trend Module</CardTitle>
                             <Layers className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
@@ -743,7 +743,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                         </CardContent>
                     </Card>
                     <Card className="flex flex-col">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2 px-4 shrink-0">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-4 shrink-0">
                             <div className="flex items-center gap-1 min-w-0">
                                 <CardTitle className="text-xs font-medium text-muted-foreground flex-shrink-0">Case Trend</CardTitle>
                                 <TrendPeriodDropdown value={trendPeriod} onChange={handleTrendPeriodChange} />
@@ -763,7 +763,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                             {(!stats.module_trends || stats.module_trends.length === 0) ? (
                                 <p className="text-xs text-muted-foreground mt-1">Not enough data to compare periods.</p>
                             ) : (
-                                <ScrollArea className="h-[75px]">
+                                <ScrollArea className="h-[50px]">
                                     <div className="space-y-0 pr-3">
                                         {stats.module_trends.map((t, i) => {
                                             const pct = derivePct(t);
@@ -857,7 +857,7 @@ export function Dashboard({ initialStats, initialOptions, defaultYears, error: i
                         <div className={cn("relative transition-opacity duration-300", isUpdating ? "opacity-60 pointer-events-none" : "opacity-100", isFullscreen ? "flex-1 h-full" : "")}>
                             {stats.monthly_stats.length > 0 ? (
                                 <ChartContainer config={dynamicChartConfig as ChartConfig}
-                                    className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[270px]")}>
+                                    className={cn("w-full transition-all duration-300", isFullscreen ? "h-full" : "h-[250px]")}>
                                     <AreaChart data={stats.monthly_stats} margin={{ left: 0, right: 20, top: 10, bottom: 4 }}>
                                         <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                         <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8}
