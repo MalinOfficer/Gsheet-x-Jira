@@ -15,6 +15,7 @@ import {
   Pencil, Clock, Play, Pause, ChevronDown,
   Eye, ArrowRight, AlertCircle, Database,
   ListTree, BarChart, GitBranch, Combine, HardHat,
+  Trash2, Plus,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SettingsContext } from '@/contexts/settings-provider';
@@ -23,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuLabel,
   DropdownMenuRadioGroup, DropdownMenuRadioItem,
@@ -70,6 +72,17 @@ const CRON_LABELS: Record<CronInterval, string> = {
 const CRON_MS: Record<Exclude<CronInterval, 'off'>, number> = {
   '5m': 5*60*1000, '15m': 15*60*1000, '30m': 30*60*1000,
   '1h': 60*60*1000, '6h': 6*60*60*1000, '24h': 24*60*60*1000,
+};
+
+// Tipe untuk Rincian Kendala
+type RincianKendalaItem = {
+  id: number;
+  id_module: number;
+  rincian_kendala: string;
+};
+type DetailModuleItem = {
+  id_module: number;
+  detail_module: string;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -224,9 +237,6 @@ function SyncPreviewDialog({
           ) : (
             <ScrollArea className="h-[340px] rounded-lg border">
               <table className="w-full text-sm">
-                {/* FIX: Hapus backdrop-blur-sm — menyebabkan konten tabel di bawah header terlihat blur
-                    di beberapa browser (terutama Chromium) ketika dirender dalam ScrollArea.
-                    Ganti bg-muted/80 → bg-muted agar background solid tanpa efek blur. */}
                 <thead className="sticky top-0 bg-muted z-10">
                   <tr className="border-b">
                     <th className="text-left py-2.5 px-3 font-medium text-xs text-muted-foreground w-6">#</th>
@@ -331,6 +341,14 @@ export default function SettingsPage() {
   });
   const [cronTimerId, setCronTimerId] = useState<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── State Rincian Kendala ────────────────────────────────────────────────────
+  const [detailModules, setDetailModules]         = useState<DetailModuleItem[]>([]);
+  const [rincianList, setRincianList]             = useState<RincianKendalaItem[]>([]);
+  const [rincianLoading, setRincianLoading]       = useState(false);
+  const [editingRincian, setEditingRincian]       = useState<Record<number, string>>({});
+  const [savingRincian, setSavingRincian]         = useState<Record<number, boolean>>({});
+  const [deletingRincian, setDeletingRincian]     = useState<Record<number, boolean>>({});
+
   const { toast } = useToast();
 
   // ── Init ────────────────────────────────────────────────────────────────────
@@ -364,7 +382,38 @@ export default function SettingsPage() {
       const saved = localStorage.getItem(MENU_VISIBILITY_KEY);
       if (saved) setMenuVisibility({ ...DEFAULT_MENU_VISIBILITY, ...JSON.parse(saved) });
     } catch (_) {}
+
+    // Fetch rincian kendala data
+    fetchRincianData();
   }, []);
+
+  // ── Fetch Rincian Kendala ────────────────────────────────────────────────────
+  const fetchRincianData = async () => {
+    setRincianLoading(true);
+    try {
+      const [modRes, rincianRes] = await Promise.all([
+        fetch('/api/master/detail-module'),
+        fetch('/api/master/rincian-kendala'),
+      ]);
+      const modJson     = await modRes.json();
+      const rincianJson = await rincianRes.json();
+
+      const modules: DetailModuleItem[]     = modJson.data ?? [];
+      const rincians: RincianKendalaItem[]  = rincianJson.data ?? [];
+
+      setDetailModules(modules);
+      setRincianList(rincians);
+
+      // Pre-fill editingRincian dari data yang sudah ada di DB
+      const draftMap: Record<number, string> = {};
+      rincians.forEach(r => { draftMap[r.id_module] = r.rincian_kendala; });
+      setEditingRincian(draftMap);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Gagal memuat data rincian kendala', description: e.message });
+    } finally {
+      setRincianLoading(false);
+    }
+  };
 
   // ── Sync menuVisibility dari DB ──────────────────────────────────────────────
   useEffect(() => {
@@ -422,7 +471,60 @@ export default function SettingsPage() {
     }
   }
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Handlers Rincian Kendala ─────────────────────────────────────────────────
+
+  const handleSaveRincian = async (idModule: number) => {
+    const text = (editingRincian[idModule] ?? '').trim();
+    if (!text) return;
+
+    setSavingRincian(p => ({ ...p, [idModule]: true }));
+    try {
+      const res = await fetch('/api/master/rincian-kendala', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ id_module: idModule, rincian_kendala: text }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Gagal menyimpan');
+
+      setRincianList(prev => {
+        const exists = prev.find(r => r.id_module === idModule);
+        if (exists) return prev.map(r => r.id_module === idModule ? { ...r, rincian_kendala: text } : r);
+        return [...prev, { id: json.data.id, id_module: idModule, rincian_kendala: text }];
+      });
+
+      toast({ title: '✅ Rincian kendala disimpan.' });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Gagal simpan', description: e.message });
+    } finally {
+      setSavingRincian(p => ({ ...p, [idModule]: false }));
+    }
+  };
+
+  const handleDeleteRincian = async (idModule: number) => {
+    const existing = rincianList.find(r => r.id_module === idModule);
+    if (!existing) {
+      setEditingRincian(p => ({ ...p, [idModule]: '' }));
+      return;
+    }
+
+    setDeletingRincian(p => ({ ...p, [idModule]: true }));
+    try {
+      const res = await fetch(`/api/master/rincian-kendala?id=${existing.id}`, { method: 'DELETE' });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+
+      setRincianList(prev => prev.filter(r => r.id_module !== idModule));
+      setEditingRincian(p => ({ ...p, [idModule]: '' }));
+
+      toast({ title: '🗑️ Rincian kendala dihapus.' });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Gagal hapus', description: e.message });
+    } finally {
+      setDeletingRincian(p => ({ ...p, [idModule]: false }));
+    }
+  };
+
+  // ── URL & Sync Handlers ──────────────────────────────────────────────────────
 
   const handleSaveUrls = () => {
     startSaving(async () => {
@@ -616,6 +718,7 @@ export default function SettingsPage() {
         <div className="max-w-4xl mx-auto space-y-8">
           <Skeleton className="h-72 w-full" />
           <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-64 w-full" />
         </div>
       </div>
     );
@@ -820,6 +923,142 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* ── Rincian Kendala Card ── */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Rincian Kendala per Modul</CardTitle>
+                <CardDescription className="mt-1.5">
+                  Isi keterangan rincian kendala untuk setiap Detail Module. Keterangan ini akan
+                  ditampilkan di kolom <strong>Rincian Kendala</strong> pada Summary Report Case
+                  di Report Preview.
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchRincianData}
+                disabled={rincianLoading}
+                className="gap-2 shrink-0"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", rincianLoading && "animate-spin")} />
+                Refresh
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            {rincianLoading ? (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-10">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Memuat data modul...
+              </div>
+            ) : detailModules.length === 0 ? (
+              <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                Belum ada data detail module. Pastikan tabel{' '}
+                <code className="bg-muted px-1 py-0.5 rounded text-[11px]">master_detail_module</code>{' '}
+                terisi.
+              </div>
+            ) : (
+              <div className="space-y-0 rounded-lg border border-border overflow-hidden">
+                {detailModules.map((mod, idx) => {
+                  const existing   = rincianList.find(r => r.id_module === mod.id_module);
+                  const draftText  = editingRincian[mod.id_module] ?? '';
+                  const savedText  = existing?.rincian_kendala ?? '';
+                  const isDirty    = draftText.trim() !== savedText;
+                  const isSavingNow   = savingRincian[mod.id_module]   ?? false;
+                  const isDeletingNow = deletingRincian[mod.id_module] ?? false;
+
+                  return (
+                    <div
+                      key={mod.id_module}
+                      className={cn(
+                        'grid grid-cols-[200px_1fr_auto] gap-3 items-start px-4 py-3 border-b last:border-b-0 transition-colors',
+                        idx % 2 === 1 ? 'bg-muted/20' : 'bg-background'
+                      )}
+                    >
+                      {/* Kolom 1: Nama Detail Module */}
+                      <div className="pt-1.5">
+                        <p className="text-sm font-medium leading-snug text-foreground">
+                          {mod.detail_module}
+                        </p>
+                        {existing ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 mt-0.5 font-medium">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Terisi
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                            <span className="w-3 h-3 rounded-full border border-current inline-block" />
+                            Kosong
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Kolom 2: Textarea */}
+                      <Textarea
+                        placeholder={`Tulis rincian kendala untuk "${mod.detail_module}"…`}
+                        value={draftText}
+                        onChange={e =>
+                          setEditingRincian(p => ({ ...p, [mod.id_module]: e.target.value }))
+                        }
+                        rows={2}
+                        className="text-sm resize-none min-h-[60px]"
+                        disabled={isSavingNow || isDeletingNow}
+                      />
+
+                      {/* Kolom 3: Action buttons */}
+                      <div className="flex flex-col gap-1.5 pt-0.5">
+                        <Button
+                          size="sm"
+                          variant={isDirty && draftText.trim() ? 'default' : 'outline'}
+                          onClick={() => handleSaveRincian(mod.id_module)}
+                          disabled={!isDirty || !draftText.trim() || isSavingNow || isDeletingNow}
+                          className="h-8 gap-1.5 min-w-[85px]"
+                        >
+                          {isSavingNow
+                            ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                            : <Save className="h-3.5 w-3.5" />
+                          }
+                          <span className="text-xs">{isSavingNow ? 'Menyimpan…' : 'Simpan'}</span>
+                        </Button>
+
+                        {existing && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteRincian(mod.id_module)}
+                            disabled={isSavingNow || isDeletingNow}
+                            className="h-8 gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 min-w-[85px]"
+                          >
+                            {isDeletingNow
+                              ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                              : <Trash2 className="h-3.5 w-3.5" />
+                            }
+                            <span className="text-xs">{isDeletingNow ? 'Menghapus…' : 'Hapus'}</span>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+
+          <CardFooter className="bg-muted/20 border-t">
+            <p className="text-xs text-muted-foreground">
+              Rincian kendala disimpan ke tabel{' '}
+              <code className="bg-muted px-1 py-0.5 rounded text-[10px]">master_rincian_kendala</code>{' '}
+              dan langsung muncul di kolom <strong>Rincian Kendala</strong> pada Section 8 laporan.
+              <span className="ml-2 text-muted-foreground/60">· {detailModules.length} modul terdaftar · {rincianList.length} sudah terisi</span>
+            </p>
+          </CardFooter>
+        </Card>
+
       </div>
 
       {/* ── Preview Dialog ── */}

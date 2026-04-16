@@ -745,11 +745,12 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
 
       console.log('🚀 [actions] RPC fn_dashboard_filtered:', rpcParams);
 
-      const [rpcResult, trendRows, categoryRankings] = await Promise.all([
+      const [rpcResult, trendRows, categoryRankings, rincianMap] = await Promise.all([
         supabaseAdmin.rpc('fn_dashboard_filtered', rpcParams),
         _fetchTrendRowsDirect({ ...sharedFilters, trendPeriod }),
         _fetchCategoryRankingsDirect(sharedFilters),
-      ]);
+        _fetchRincianMap(),
+    ]);
 
       const { data, error } = rpcResult;
 
@@ -768,7 +769,15 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
         .map((i: any) => ({ name: i.client, value: i.cases }));
 
       const detailModuleRankings = _parseJSONB(result.out_detail_module_rankings)
-        .map((i: any) => ({ name: i.detail_module, value: i.cases }));
+        .map((i: any) => {
+            const meta = rincianMap[i.detail_module] ?? {};
+            return {
+                name:      i.detail_module,
+                value:     i.cases,
+                id_module: meta.id_module ?? null,
+                rincian:   meta.rincian   ?? "",
+            };
+        });
 
       const moduleTrends = _computeModuleTrends(trendRows, trendPeriod);
 
@@ -799,7 +808,17 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
 
     if (allData.length === 0) return { success: true, data: _emptyStats() };
 
-    return { success: true, data: _computeStats(allData, trendPeriod) };
+    const [computedStats, rincianMap] = await Promise.all([
+      Promise.resolve(_computeStats(allData, trendPeriod)),
+      _fetchRincianMap(),
+      ]);
+      
+      computedStats.detail_module_rankings = computedStats.detail_module_rankings.map(item => {
+          const meta = rincianMap[item.name] ?? {};
+          return { ...item, id_module: meta.id_module ?? null, rincian: meta.rincian ?? "" };
+      });
+      
+  return { success: true, data: computedStats };
 
   } catch (error: any) {
     console.error('❌ [getDashboardStats] Error:', error);
@@ -807,6 +826,44 @@ export async function getDashboardStats(filters: DashboardFilters): Promise<{
   }
 }
 
+// Letakkan setelah fungsi _buildRpcDateParams
+async function _fetchRincianMap(): Promise<Record<string, { id_module: number; rincian: string }>> {
+  // Query master_detail_module untuk dapat name → id_module
+  const { data: detailData, error: detailErr } = await supabaseAdmin
+    .from("master_detail_module")
+    .select("id_module, detail_module")
+    .is('deleted_at', null);
+
+  if (detailErr) { console.warn('⚠️ [_fetchRincianMap]', detailErr.message); return {}; }
+
+  // Query master_rincian_kendala langsung (tanpa nested join)
+  const { data: rincianData, error: rincianErr } = await supabaseAdmin
+    .from("master_rincian_kendala")
+    .select("id_module, rincian_kendala")
+    .order("id", { ascending: true });  // ambil urutan pertama per id_module
+
+  if (rincianErr) { console.warn('⚠️ [_fetchRincianMap] rincian:', rincianErr.message); }
+
+  // Build id_module → rincian (gunakan entry pertama jika multiple)
+  const rincianById: Record<number, string> = {};
+  (rincianData ?? []).forEach((r: any) => {
+    if (!(r.id_module in rincianById)) {   // first-write-wins
+      rincianById[r.id_module] = r.rincian_kendala ?? "";
+    }
+  });
+
+  // Build detail_module name → { id_module, rincian }
+  const map: Record<string, { id_module: number; rincian: string }> = {};
+  (detailData ?? []).forEach((row: any) => {
+    map[row.detail_module] = {
+      id_module: row.id_module,
+      rincian:   rincianById[row.id_module] ?? "",
+    };
+  });
+
+  console.log(`✅ [_fetchRincianMap] ${Object.keys(map).length} entries loaded`);
+  return map;
+}
 // ============================================
 // USER PREFERENCES
 // ============================================

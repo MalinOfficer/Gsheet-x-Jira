@@ -11,8 +11,6 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { getL3CasesForReport } from "@/app/actions";
 import { DateRange } from "react-day-picker";
-
-// 1. Import InlineFilterBar
 import { InlineFilterBar } from "@/components/inline-filter-bar";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -65,6 +63,18 @@ type FilterOptions = {
     detailModules: { label: string; value: string }[];
     years:         string[];
 };
+
+// Tipe untuk Rincian Kendala
+type RincianKendalaItem = {
+    id: number;
+    id_module: number;
+    rincian_kendala: string;
+};
+type DetailModuleMasterItem = {
+    id_module: number;
+    detail_module: string;
+};
+
 interface ReportPreviewModalProps {
     open: boolean; onClose: () => void;
     stats: DashboardStats; filterSummary: ReportFilterSummary;
@@ -145,6 +155,25 @@ function SectionTitle({ children, count, number }: { children: React.ReactNode; 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PctBar
+// ─────────────────────────────────────────────────────────────────────────────
+function PctBar({ pct }: { pct: number }) {
+    return (
+        <div className="flex items-center gap-1.5 min-w-[90px]">
+            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                    className="h-full rounded-full bg-yellow-400 transition-all"
+                    style={{ width: `${Math.min(pct, 100)}%` }}
+                />
+            </div>
+            <span className="tabular-nums text-[10px] text-muted-foreground w-9 text-right">
+                {pct.toFixed(1)}%
+            </span>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Sheet 1 sub-components
 // ─────────────────────────────────────────────────────────────────────────────
 function SummarySection({ stats, unresolvedCount, sectionNumber }: { stats: DashboardStats; unresolvedCount: number; sectionNumber?: number }) {
@@ -177,49 +206,117 @@ function SummarySection({ stats, unresolvedCount, sectionNumber }: { stats: Dash
         </section>
     );
 }
-function RankingTable({ items, nameHeader, limit = 50 }: { items: { name: string; value?: number; [year: string]: any }[]; nameHeader: string; limit?: number }) {
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RankingTable
+// ─────────────────────────────────────────────────────────────────────────────
+function RankingTable({
+    items,
+    nameHeader,
+    limit = 50,
+    showPct,
+}: {
+    items: { name: string; value?: number; [year: string]: any }[];
+    nameHeader: string;
+    limit?: number;
+    showPct?: boolean;
+}) {
     if (!items?.length) return <p className="text-xs text-muted-foreground italic">No data available.</p>;
+
     const sliced    = items.slice(0, limit);
     const yearKeys  = extractYearKeys(sliced);
     const isMulti   = yearKeys.length > 0;
     const hasChange = yearKeys.length >= 2;
     const fromYear  = hasChange ? yearKeys[yearKeys.length - 2] : "";
-    const toYear    = hasChange ? yearKeys[yearKeys.length - 1]  : "";
+    const toYear    = hasChange ? yearKeys[yearKeys.length - 1] : "";
+
+    const grandTotal = sliced.reduce((s, item) => {
+        const t = isMulti
+            ? yearKeys.reduce((acc, y) => acc + ((item[y] ?? 0) as number), 0)
+            : (item.value ?? 0);
+        return s + t;
+    }, 0);
+
     return (
         <div className="overflow-x-auto rounded-md border border-border">
             <table className="w-auto border-collapse text-xs">
                 <thead>
                     <tr>
-                        <Th>#</Th><Th>{nameHeader}</Th>
+                        <Th>#</Th>
+                        <Th>{nameHeader}</Th>
                         {isMulti ? yearKeys.map(y => <Th key={y} right>{y}</Th>) : <Th right>Cases</Th>}
                         {isMulti && <Th right>Total</Th>}
+                        {showPct && <Th right>Share</Th>}
                         {hasChange && <Th right>Change ({fromYear}→{toYear})</Th>}
                     </tr>
                 </thead>
                 <tbody>
                     {sliced.map((item, i) => {
-                        const stripe  = i % 2 === 1;
-                        const total   = isMulti ? yearKeys.reduce((s, y) => s + (item[y] ?? 0), 0) : (item.value ?? 0);
-                        const prev    = hasChange ? (item[fromYear] ?? 0) : 0;
-                        const curr    = hasChange ? (item[toYear]   ?? 0) : 0;
-                        const change  = curr - prev;
-                        const pct     = prev !== 0 ? Math.round((change / prev) * 100) : null;
-                        const chStr   = change === 0 ? "—" : `${change > 0 ? "+" : ""}${change.toLocaleString()}${pct !== null ? ` (${change > 0 ? "+" : ""}${pct}%)` : ""}`;
+                        const stripe = i % 2 === 1;
+                        const total  = isMulti
+                            ? yearKeys.reduce((s, y) => s + ((item[y] ?? 0) as number), 0)
+                            : (item.value ?? 0);
+                        const pct    = grandTotal > 0 ? (total / grandTotal) * 100 : 0;
+                        const prev   = hasChange ? (item[fromYear] ?? 0) as number : 0;
+                        const curr   = hasChange ? (item[toYear]   ?? 0) as number : 0;
+                        const change = curr - prev;
+                        const chPct  = prev !== 0 ? Math.round((change / prev) * 100) : null;
+                        const chStr  = change === 0
+                            ? "—"
+                            : `${change > 0 ? "+" : ""}${change.toLocaleString()}${chPct !== null ? ` (${change > 0 ? "+" : ""}${chPct}%)` : ""}`;
+
                         return (
                             <tr key={i} className={stripe ? "bg-blue-50/50 dark:bg-blue-950/20" : "bg-white dark:bg-background"}>
                                 <Td muted right>{i + 1}</Td>
                                 <Td bold={i === 0}>{item.name}</Td>
-                                {isMulti ? yearKeys.map(y => <Td key={y} right muted={(item[y] ?? 0) === 0}>{(item[y] ?? 0) > 0 ? (item[y] as number).toLocaleString() : "—"}</Td>) : <Td right bold>{(item.value ?? 0).toLocaleString()}</Td>}
+                                {isMulti
+                                    ? yearKeys.map(y => (
+                                        <Td key={y} right muted={(item[y] ?? 0) === 0}>
+                                            {(item[y] ?? 0) > 0 ? (item[y] as number).toLocaleString() : "—"}
+                                        </Td>
+                                    ))
+                                    : <Td right bold>{(item.value ?? 0).toLocaleString()}</Td>
+                                }
                                 {isMulti && <Td right bold>{total.toLocaleString()}</Td>}
-                                {hasChange && <Td right bold color={change > 0 ? "text-red-600" : change < 0 ? "text-emerald-600" : "text-muted-foreground"}>{chStr}</Td>}
+                                {showPct && (
+                                    <td className="px-3 py-1.5 text-xs border border-border">
+                                        <PctBar pct={pct} />
+                                    </td>
+                                )}
+                                {hasChange && (
+                                    <Td right bold color={change > 0 ? "text-red-600" : change < 0 ? "text-emerald-600" : "text-muted-foreground"}>
+                                        {chStr}
+                                    </Td>
+                                )}
                             </tr>
                         );
                     })}
                 </tbody>
+
+                {showPct && grandTotal > 0 && (
+                    <tfoot>
+                        <tr className="bg-muted/50 border-t-2 border-border">
+                            <td
+                                colSpan={isMulti ? yearKeys.length + 2 : 2}
+                                className="px-3 py-1.5 text-xs font-bold text-right border border-border text-muted-foreground uppercase tracking-wide"
+                            >
+                                Total
+                            </td>
+                            <td className="px-3 py-1.5 text-xs font-bold text-right border border-border tabular-nums">
+                                {grandTotal.toLocaleString()}
+                            </td>
+                            <td className="px-3 py-1.5 text-xs border border-border">
+                                <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">100.0%</span>
+                            </td>
+                            {hasChange && <td className="border border-border" />}
+                        </tr>
+                    </tfoot>
+                )}
             </table>
         </div>
     );
 }
+
 function MonthlyStatsSection({ monthly, sectionNumber }: { monthly: Record<string, any>[]; sectionNumber?: number }) {
     if (!monthly?.length) return null;
     const yearKeys  = Object.keys(monthly[0]).filter(k => /^\d{4}$/.test(k)).sort();
@@ -264,21 +361,42 @@ function MonthlyStatsSection({ monthly, sectionNumber }: { monthly: Record<strin
         </section>
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TrendsSection
+// ─────────────────────────────────────────────────────────────────────────────
 function TrendsSection({ trends, trendPeriod, sectionNumber }: { trends: ModuleTrend[]; trendPeriod: string; sectionNumber?: number }) {
     const title = `Case Trend — ${trendPeriod.charAt(0).toUpperCase() + trendPeriod.slice(1)}`;
+
     if (!trends?.length) return (
-        <section><SectionTitle number={sectionNumber}>{title}</SectionTitle><p className="text-xs text-muted-foreground italic">No trend data available.</p></section>
+        <section>
+            <SectionTitle number={sectionNumber}>{title}</SectionTitle>
+            <p className="text-xs text-muted-foreground italic">No trend data available.</p>
+        </section>
     );
+
+    const sorted = [...trends].sort((a, b) => b.current - a.current);
+    const grandCurrentTotal = trends.reduce((s, t) => s + t.current, 0);
+
     return (
         <section>
             <SectionTitle number={sectionNumber}>{title}</SectionTitle>
             <div className="overflow-x-auto rounded-md border border-border">
                 <table className="w-auto border-collapse text-xs">
-                    <thead><tr><Th>Module</Th><Th right>Previous</Th><Th right>Current</Th><Th right>Change</Th></tr></thead>
+                    <thead>
+                        <tr>
+                            <Th>Module</Th>
+                            <Th right>Previous</Th>
+                            <Th right>Current</Th>
+                            <Th right>Share (current)</Th>
+                            <Th right>Change</Th>
+                        </tr>
+                    </thead>
                     <tbody>
-                        {trends.map((t, i) => {
-                            const pct   = t.change_pct ?? (t.previous !== 0 ? Math.round((t.change / t.previous) * 100) : null);
-                            const chStr = `${t.direction === "up" ? "+" : ""}${t.change}${pct !== null ? ` (${t.direction === "up" ? "+" : ""}${pct}%)` : ""}`;
+                        {sorted.map((t, i) => {
+                            const pct      = t.change_pct ?? (t.previous !== 0 ? Math.round((t.change / t.previous) * 100) : null);
+                            const chStr    = `${t.direction === "up" ? "+" : ""}${t.change}${pct !== null ? ` (${t.direction === "up" ? "+" : ""}${pct}%)` : ""}`;
+                            const sharePct = grandCurrentTotal > 0 ? (t.current / grandCurrentTotal) * 100 : 0;
                             return (
                                 <tr key={i} className={i % 2 === 1 ? "bg-blue-50/50 dark:bg-blue-950/20" : "bg-white dark:bg-background"}>
                                     <Td>
@@ -291,16 +409,39 @@ function TrendsSection({ trends, trendPeriod, sectionNumber }: { trends: ModuleT
                                     </Td>
                                     <Td right>{t.previous.toLocaleString()}</Td>
                                     <Td right>{t.current.toLocaleString()}</Td>
-                                    <Td right bold color={t.direction === "up" ? "text-red-600" : t.direction === "down" ? "text-emerald-600" : "text-muted-foreground"}>{chStr}</Td>
+                                    <td className="px-3 py-1.5 text-xs border border-border">
+                                        <PctBar pct={sharePct} />
+                                    </td>
+                                    <Td right bold color={t.direction === "up" ? "text-red-600" : t.direction === "down" ? "text-emerald-600" : "text-muted-foreground"}>
+                                        {chStr}
+                                    </Td>
                                 </tr>
                             );
                         })}
                     </tbody>
+                    <tfoot>
+                        <tr className="bg-muted/50 border-t-2 border-border">
+                            <td className="px-3 py-1.5 text-xs font-bold border border-border text-muted-foreground uppercase tracking-wide">
+                                Total
+                            </td>
+                            <td className="px-3 py-1.5 text-xs font-bold text-right border border-border tabular-nums">
+                                {trends.reduce((s, t) => s + t.previous, 0).toLocaleString()}
+                            </td>
+                            <td className="px-3 py-1.5 text-xs font-bold text-right border border-border tabular-nums">
+                                {grandCurrentTotal.toLocaleString()}
+                            </td>
+                            <td className="px-3 py-1.5 text-xs border border-border">
+                                <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">100.0%</span>
+                            </td>
+                            <td className="border border-border" />
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </section>
     );
 }
+
 function UnresolvedSection({ cases, sectionNumber }: { cases: UnresolvedCase[]; sectionNumber?: number }) {
     const STATUS_ORDER: Record<string, number> = { l3: 0, l2: 1, l1: 2, pending: 3, "on hold": 4 };
     const sorted       = [...cases].sort((a, b) => (STATUS_ORDER[a.status.toLowerCase()] ?? 99) - (STATUS_ORDER[b.status.toLowerCase()] ?? 99));
@@ -351,6 +492,300 @@ function UnresolvedSection({ cases, sectionNumber }: { cases: UnresolvedCase[]; 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Section 8 — Summary Report Case (narasi top 10)
+// ─────────────────────────────────────────────────────────────────────────────
+function SummaryReportCaseSection({
+    items,
+    total,
+    sectionNumber,
+    rincianList,
+    detailModuleMaster,
+}: {
+    items: { name: string; value?: number; [year: string]: any }[];
+    total: number;
+    sectionNumber?: number;
+    rincianList: RincianKendalaItem[];
+    detailModuleMaster: DetailModuleMasterItem[];
+}) {
+    if (!items?.length) return null;
+
+    const { toast } = useToast();
+
+    // ── Fix 1: Build lookup BOTH by id_module→name AND name→rincian ──────────
+    const idModuleByName = useMemo(() => {
+        const map: Record<string, number> = {};
+        detailModuleMaster.forEach(d => {
+            map[d.detail_module.toLowerCase().trim()] = d.id_module;
+        });
+        return map;
+    }, [detailModuleMaster]);
+
+    // Direct lookup: id_module → rincian_kendala
+    const rincianById = useMemo(() => {
+        const map: Record<number, string> = {};
+        rincianList.forEach(r => {
+            map[r.id_module] = r.rincian_kendala;
+        });
+        return map;
+    }, [rincianList]);
+
+    const yearKeys = extractYearKeys(items);
+    const isMulti  = yearKeys.length > 0;
+
+    const top10 = useMemo(() => {
+        return items
+            .map(item => {
+                const count = isMulti
+                    ? yearKeys.reduce((s, y) => s + ((item[y] ?? 0) as number), 0)
+                    : (item.value ?? 0);
+                const pct = total > 0 ? (count / total) * 100 : 0;
+                // Fix: resolve id_module via name lookup, then get rincian via id
+                const id_module = idModuleByName[item.name.toLowerCase().trim()] ?? null;
+                const rincian   = id_module != null ? (rincianById[id_module] ?? "") : "";
+                return { name: item.name, count, pct, id_module, rincian };
+            })
+            .filter(x => x.count > 0)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+    }, [items, isMulti, yearKeys, total, idModuleByName, rincianById]);
+
+    if (!top10.length) return null;
+
+    // ── Edit state per item ────────────────────────────────────────────────
+    const [editState, setEditState] = useState<
+        Record<number, { text: string; editing: boolean; saving: boolean; copied: boolean }>
+    >(() =>
+        Object.fromEntries(top10.map((item, i) => [i, {
+            text: item.rincian, editing: false, saving: false, copied: false,
+        }]))
+    );
+
+    // SESUDAH — benar: pakai top10 (yang sudah include resolved rincian)
+    useEffect(() => {
+        setEditState(Object.fromEntries(top10.map((item, i) => [i, {
+            text: item.rincian,   // <-- ini sudah dari rincianById lookup
+            editing: false,
+            saving: false,
+            copied: false,
+        }])));
+    }, [top10]);  // ← dependency ke top10, bukan ke raw props  
+
+    const setField = (idx: number, patch: Partial<{ text: string; editing: boolean; saving: boolean; copied: boolean }>) =>
+        setEditState(prev => ({ ...prev, [idx]: { ...prev[idx], ...patch } }));
+
+    const handleSave = async (idx: number, item: typeof top10[0]) => {
+        const text = editState[idx]?.text?.trim() ?? "";
+        if (!item.id_module) {
+            toast({ variant: "destructive", title: "id_module tidak ditemukan untuk modul ini." });
+            return;
+        }
+        setField(idx, { saving: true });
+        try {
+            const res = await fetch("/api/master/rincian-kendala", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id_module: item.id_module, rincian_kendala: text }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+                throw new Error(err.error ?? `HTTP ${res.status}`);
+            }
+            toast({ title: "Rincian kendala disimpan." });
+            setField(idx, { editing: false, saving: false });
+        } catch (err: any) {
+            toast({ variant: "destructive", title: "Gagal simpan", description: err.message });
+            setField(idx, { saving: false });
+        }
+    };
+
+    const handleCopyOne = (idx: number, item: typeof top10[0]) => {
+        const rincian = editState[idx]?.text?.trim() || "(rincian_kendala)";
+        const line = `${idx + 1}. ${item.name} — ${item.count} case (${item.pct.toFixed(1)}%)\n     ${rincian}`;
+        navigator.clipboard.writeText(line).then(() => {
+            setField(idx, { copied: true });
+            setTimeout(() => setField(idx, { copied: false }), 2000);
+        });
+    };
+
+    const [allCopied, setAllCopied] = useState(false);
+    const handleCopyAll = () => {
+        const lines = top10.map((item, idx) => {
+            const rincian = editState[idx]?.text?.trim() || "(rincian_kendala)";
+            return `${idx + 1}. ${item.name} — ${item.count} case (${item.pct.toFixed(1)}%)\n     ${rincian}`;
+        }).join("\n\n");
+        navigator.clipboard.writeText(lines).then(() => {
+            setAllCopied(true);
+            setTimeout(() => setAllCopied(false), 2000);
+            toast({ title: "Semua formula disalin!" });
+        });
+    };
+
+    // ── Fix 2: Single unified card ─────────────────────────────────────────
+    return (
+        <section>
+            <div className="flex items-center gap-3 mb-3">
+                <h2 className="text-sm font-bold text-foreground tracking-wide uppercase">
+                    <span className="text-[#1E3A5F] dark:text-blue-400 mr-1.5">{sectionNumber}.</span>
+                    Summary Report Case
+                </h2>
+                <div className="flex-1 h-px bg-border" />
+                <button
+                    onClick={handleCopyAll}
+                    className={cn(
+                        "flex-shrink-0 flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-md border transition-colors",
+                        allCopied
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30"
+                            : "border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground"
+                    )}
+                >
+                    {allCopied
+                        ? <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        : <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                    }
+                    {allCopied ? "Tersalin!" : "Salin semua"}
+                </button>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground mb-3 italic">
+                10 Detail Module dengan jumlah case terbanyak. Klik pensil untuk mengedit rincian kendala.
+            </p>
+
+            {/* ── SINGLE CARD wrapping all items ── */}
+            <div className="rounded-lg border border-border bg-background overflow-hidden">
+                {top10.map((item, idx) => {
+                    const es = editState[idx] ?? { text: "", editing: false, saving: false, copied: false };
+                    const rankColors = [
+                        "bg-yellow-400 text-yellow-900",
+                        "bg-slate-300 text-slate-700",
+                        "bg-amber-600/70 text-white",
+                    ];
+                    const rankColor = rankColors[idx] ?? "bg-muted text-muted-foreground";
+                    const isLast = idx === top10.length - 1;
+
+                    return (
+                        <div
+                            key={item.name}
+                            className={cn(
+                                "px-4 py-3",
+                                !isLast && "border-b border-border",
+                                idx % 2 === 1 && "bg-muted/20"
+                            )}
+                        >
+                            <div className="flex gap-3 items-start">
+                                {/* Rank badge */}
+                                <span className={cn(
+                                    "flex-shrink-0 inline-flex w-5 h-5 rounded-full items-center justify-center text-[9px] font-bold mt-0.5",
+                                    rankColor
+                                )}>
+                                    {idx + 1}
+                                </span>
+
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs leading-relaxed">
+                                        <span className={cn("font-semibold", idx === 0 && "text-[#1E3A5F] dark:text-blue-400")}>
+                                            {item.name}
+                                        </span>
+                                        <span className="text-muted-foreground"> — </span>
+                                        <span className="tabular-nums font-semibold">{item.count.toLocaleString()} case</span>
+                                        <span className="text-muted-foreground"> ({item.pct.toFixed(1)}%)</span>
+                                    </p>
+
+                                    {!es.editing && (
+                                        <p className={cn(
+                                            "mt-0.5 text-[11px] leading-relaxed",
+                                            es.text.trim()
+                                                ? "text-muted-foreground italic"
+                                                : "text-muted-foreground/40 italic"
+                                        )}>
+                                            {es.text.trim() || "Belum ada rincian kendala — klik pensil untuk menambahkan"}
+                                        </p>
+                                    )}
+
+                                    {es.editing && (
+                                        <>
+                                            <textarea
+                                                autoFocus
+                                                value={es.text}
+                                                onChange={e => setField(idx, { text: e.target.value })}
+                                                placeholder="Tulis rincian kendala di sini…"
+                                                rows={3}
+                                                className="mt-1.5 w-full text-[11px] rounded border px-2 py-1.5 resize-y leading-relaxed bg-background border-border focus:outline-none focus:ring-1 focus:ring-[#1E3A5F]/30 text-foreground placeholder:text-muted-foreground/50"
+                                            />
+                                            <pre className="mt-1.5 text-[10px] leading-relaxed font-mono px-2 py-1.5 rounded bg-muted/60 text-muted-foreground whitespace-pre-wrap break-words">
+{`${idx + 1}. ${item.name} — ${item.count} case (${item.pct.toFixed(1)}%)
+     ${es.text.trim() || "(rincian_kendala)"}`}
+                                            </pre>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex-shrink-0 flex items-center gap-0.5 mt-0.5">
+                                    {!es.editing ? (
+                                        <button
+                                            onClick={() => setField(idx, { editing: true })}
+                                            title="Edit rincian kendala"
+                                            className="p-1 rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted transition-colors"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                        </button>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={() => setField(idx, { editing: false, text: item.rincian })}
+                                                disabled={es.saving}
+                                                title="Batal"
+                                                className="p-1 rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted transition-colors disabled:opacity-40"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                            </button>
+                                            <button
+                                                onClick={() => handleSave(idx, item)}
+                                                disabled={es.saving}
+                                                title="Simpan"
+                                                className="p-1 rounded text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-40"
+                                            >
+                                                {es.saving
+                                                    ? <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                                    : <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                                }
+                                            </button>
+                                        </>
+                                    )}
+                                    <button
+                                        onClick={() => handleCopyOne(idx, item)}
+                                        title="Salin formula"
+                                        className={cn(
+                                            "p-1 rounded transition-colors",
+                                            es.copied
+                                                ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40"
+                                                : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted"
+                                        )}
+                                    >
+                                        {es.copied
+                                            ? <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                            : <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                        }
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {/* Footer inside card */}
+                <div className="px-4 py-2 border-t border-border bg-muted/30">
+                    <p className="text-[11px] text-muted-foreground text-right tabular-nums">
+                        Total keseluruhan: <span className="font-semibold text-foreground">{total.toLocaleString()} cases</span>
+                    </p>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Sheet 2 — Detailed Cases
 // ─────────────────────────────────────────────────────────────────────────────
 const STATUS_OPTIONS = [
@@ -378,7 +813,6 @@ interface DetailedCasesSheetProps {
     initialDetailModules: string[];
     initialDateFrom?: string;
     initialDateTo?: string;
-    // Callbacks to lift download state to parent header
     onDownloadReady?: (handler: () => void) => void;
     onDownloadUnavailable?: () => void;
     onDownloadingChange?: (v: boolean) => void;
@@ -422,14 +856,14 @@ function DetailedCasesSheet({
         search:        "",
     }));
 
-    const [cases, setCases]                     = useState<DetailedCase[] | null>(null);
-    const [loading, setLoading]                 = useState(false);
-    const [isDownloading, setIsDownloading]     = useState(false);
-    const [hasGenerated, setHasGenerated]       = useState(false);
-    const [sortKey, setSortKey]                 = useState<keyof DetailedCase>("created_at");
-    const [sortDir, setSortDir]                 = useState<"asc" | "desc">("desc");
-    const [page, setPage]                       = useState(1);
-    const PAGE_SIZE                             = 50;
+    const [cases, setCases]                 = useState<DetailedCase[] | null>(null);
+    const [loading, setLoading]             = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [hasGenerated, setHasGenerated]   = useState(false);
+    const [sortKey, setSortKey]             = useState<keyof DetailedCase>("created_at");
+    const [sortDir, setSortDir]             = useState<"asc" | "desc">("desc");
+    const [page, setPage]                   = useState(1);
+    const PAGE_SIZE                         = 50;
 
     const setF = <K extends keyof DetailedFilters>(key: K, value: DetailedFilters[K]) =>
         setFilters(f => ({ ...f, [key]: value }));
@@ -519,7 +953,6 @@ function DetailedCasesSheet({
         }
     }, [cases, filters, toast]);
 
-    // ── Notify parent when download availability changes ──────────────────
     useEffect(() => {
         const canDownload = hasGenerated && !loading && (cases?.length ?? 0) > 0;
         if (canDownload) {
@@ -529,7 +962,6 @@ function DetailedCasesSheet({
         }
     }, [hasGenerated, loading, cases, handleDownloadDetail, onDownloadReady, onDownloadUnavailable]);
 
-    // ── Notify parent when downloading state changes ──────────────────────
     useEffect(() => {
         onDownloadingChange?.(isDownloading);
     }, [isDownloading, onDownloadingChange]);
@@ -573,7 +1005,6 @@ function DetailedCasesSheet({
     return (
         <div className="flex flex-col h-full min-h-0">
 
-            {/* ── Banner "Filter dari Dashboard" ─────────────────────────── */}
             {hasInheritedFilters && (
                 <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-800">
                     <span className="text-blue-500 text-sm">✦</span>
@@ -594,7 +1025,6 @@ function DetailedCasesSheet({
                 </div>
             )}
 
-            {/* ── InlineFilterBar — Download disembunyikan (ada di header) ── */}
             <InlineFilterBar
                 yearOptions={yearOptions}
                 statusOptions={STATUS_OPTIONS}
@@ -629,10 +1059,9 @@ function DetailedCasesSheet({
                 onGenerate={handleGenerate}
                 onDownload={handleDownloadDetail}
 
-                hideDownload // ← Download dipindah ke header modal
+                hideDownload
             />
 
-            {/* ── Results ── */}
             <div className="flex-1 min-h-0 overflow-y-auto">
 
                 {!hasGenerated && !loading && (
@@ -670,7 +1099,6 @@ function DetailedCasesSheet({
                 {!loading && hasGenerated && filtered.length > 0 && (
                     <div className="p-4 space-y-3">
 
-                        {/* Status summary strip */}
                         <div className="flex flex-wrap gap-1.5">
                             {(() => {
                                 const byStatus: Record<string, number> = {};
@@ -683,7 +1111,6 @@ function DetailedCasesSheet({
                             })()}
                         </div>
 
-                        {/* Table */}
                         <div className="overflow-x-auto rounded-md border border-border">
                             <table className="w-auto border-collapse text-xs">
                                 <thead>
@@ -757,7 +1184,6 @@ function DetailedCasesSheet({
                             </table>
                         </div>
 
-                        {/* Pagination */}
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between pt-1">
                                 <span className="text-xs text-muted-foreground tabular-nums">
@@ -787,25 +1213,47 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
     const [unresolvedCases, setUnresolvedCases] = useState<UnresolvedCase[]>([]);
     const [loadingCases, setLoadingCases]       = useState(false);
 
-    // ── Sheet 2 download state (lifted from child) ────────────────────────
-    const sheet2DownloadFn                      = useRef<(() => void) | null>(null);
+    // State untuk Rincian Kendala
+    const [rincianList, setRincianList]               = useState<RincianKendalaItem[]>([]);
+    const [detailModuleMaster, setDetailModuleMaster] = useState<DetailModuleMasterItem[]>([]);
+
+    const sheet2DownloadFn                          = useRef<(() => void) | null>(null);
     const [sheet2CanDownload, setSheet2CanDownload] = useState(false);
     const [sheet2Downloading, setSheet2Downloading] = useState(false);
 
     useEffect(() => {
         if (!open) return;
         setActiveSheet(1);
-        // Reset sheet 2 download state when modal reopens
         sheet2DownloadFn.current = null;
         setSheet2CanDownload(false);
         setSheet2Downloading(false);
-        const run = async () => {
+
+        // Fetch unresolved cases
+        const runUnresolved = async () => {
             setLoadingCases(true); setUnresolvedCases([]);
             try { const c = await getL3CasesForReport(); setUnresolvedCases(c); }
             catch (err: any) { toast({ variant: "destructive", title: "Gagal load unresolved cases", description: err.message }); }
             finally { setLoadingCases(false); }
         };
-        run();
+
+        // Fetch rincian kendala + master detail module (parallel, silent fail)
+        const fetchRincian = async () => {
+            try {
+                const [rincianRes, modRes] = await Promise.all([
+                    fetch("/api/master/rincian-kendala"),
+                    fetch("/api/master/detail-module"),
+                ]);
+                const rincianJson = await rincianRes.json();
+                const modJson     = await modRes.json();
+                setRincianList(rincianJson.data ?? []);
+                setDetailModuleMaster(modJson.data ?? []);
+            } catch (_) {
+                // Silent fail — rincian kendala tidak kritis
+            }
+        };
+
+        runUnresolved();
+        fetchRincian();
     }, [open]);
 
     const handleDownloadSummary = useCallback(async () => {
@@ -860,7 +1308,6 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
 
-                        {/* Sheet 1: Download Summary */}
                         {activeSheet === 1 && (
                             <Button
                                 size="sm"
@@ -878,7 +1325,6 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
                             </Button>
                         )}
 
-                        {/* Sheet 2: Download Detailed (lifted from child) */}
                         {activeSheet === 2 && (
                             <Button
                                 size="sm"
@@ -940,28 +1386,52 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
                     {/* Sheet 1 */}
                     <div className={cn("flex-1 min-h-0 overflow-y-auto", activeSheet !== 1 && "hidden")}>
                         <div className="p-5 space-y-6">
+                            {/* 1. Executive Summary */}
                             <SummarySection stats={stats} unresolvedCount={unresolvedCases.length} sectionNumber={1} />
+
+                            {/* 2. Category Rankings */}
                             {(stats.category_rankings?.length ?? 0) > 0 && (
                                 <section>
                                     <SectionTitle number={2}>Category Rankings</SectionTitle>
                                     <RankingTable items={stats.category_rankings!} nameHeader="Category" />
                                 </section>
                             )}
+
+                            {/* 3. Case Trend */}
                             <TrendsSection trends={stats.module_trends ?? []} trendPeriod={filterSummary.trendPeriod} sectionNumber={3} />
+
+                            {/* 4. Monthly Statistics */}
                             <MonthlyStatsSection monthly={stats.monthly_stats ?? []} sectionNumber={4} />
+
+                            {/* 5. Client Rankings */}
                             {stats.client_rankings?.length > 0 && (
                                 <section>
                                     <SectionTitle count={stats.client_rankings.length} number={5}>Client Rankings</SectionTitle>
                                     <RankingTable items={stats.client_rankings} nameHeader="Client" />
                                 </section>
                             )}
+
+                            {/* 6. Detail Module Rankings */}
                             {detailModules.length > 0 && (
                                 <section>
                                     <SectionTitle number={6}>Detail Module Rankings</SectionTitle>
-                                    <RankingTable items={detailModules} nameHeader="Detail Module" />
+                                    <RankingTable items={detailModules} nameHeader="Detail Module" showPct />
                                 </section>
                             )}
+
+                            {/* 7. Outstanding Unresolved Cases */}
                             <UnresolvedSection cases={unresolvedCases} sectionNumber={7} />
+
+                            {/* 8. Summary Report Case — narasi top 10 */}
+                            {detailModules.length > 0 && (
+                                <SummaryReportCaseSection
+                                    items={detailModules}
+                                    total={stats.summary.total_cases}
+                                    sectionNumber={8}
+                                    rincianList={rincianList}
+                                    detailModuleMaster={detailModuleMaster}
+                                />
+                            )}
                         </div>
                     </div>
 
@@ -976,7 +1446,6 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
                             initialDetailModules={filterSummary.detailModules}
                             initialDateFrom={filterSummary.dateFrom}
                             initialDateTo={filterSummary.dateTo}
-                            // ── Lift download state ke header ──
                             onDownloadReady={fn => {
                                 sheet2DownloadFn.current = fn;
                                 setSheet2CanDownload(true);
