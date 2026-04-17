@@ -13,9 +13,9 @@ import {
 import {
   Files, Link, Save, CheckCircle2, XCircle, RefreshCw,
   Pencil, Clock, Play, Pause, ChevronDown,
-  Eye, ArrowRight, AlertCircle, Database,
+  Eye, EyeOff, ArrowRight, AlertCircle, Database,
   ListTree, BarChart, GitBranch, Combine, HardHat,
-  Trash2, Plus,
+  Trash2, Plus, FileText,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SettingsContext } from '@/contexts/settings-provider';
@@ -35,8 +35,17 @@ import { useToast } from '@/hooks/use-toast';
 import { getSpreadsheetTitle, syncGSheetToDB, saveAppSetting, getAppSetting } from '@/app/actions';
 import { previewGSheetSync, type PreviewRow } from '@/app/preview-sync';
 import { useUserPreferences } from '@/hooks/use-user-preferences';
+import {
+  type SectionKey,
+  type SectionVisibility,
+  DEFAULT_SECTION_VISIBILITY,
+  SECTION_LABELS,
+  SECTION_VISIBILITY_KEY,
+} from '@/components/report-preview-modal'; // ← import dari report-preview-modal
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+type SettingsTab = 'url' | 'feature' | 'rincian' | 'download';
 
 type CronInterval = '5m' | '15m' | '30m' | '1h' | '6h' | '24h' | 'off';
 interface CronConfig {
@@ -74,7 +83,6 @@ const CRON_MS: Record<Exclude<CronInterval, 'off'>, number> = {
   '1h': 60*60*1000, '6h': 6*60*60*1000, '24h': 24*60*60*1000,
 };
 
-// Tipe untuk Rincian Kendala
 type RincianKendalaItem = {
   id: number;
   id_module: number;
@@ -302,6 +310,269 @@ function SyncPreviewDialog({
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Download Report Tab — Section Visibility Manager
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Icon per section
+const SECTION_ICONS: Record<SectionKey, React.ElementType> = {
+  executive_summary:       BarChart,
+  category_rankings:       ListTree,
+  case_trend:              GitBranch,
+  monthly_stats:           Database,
+  client_rankings:         Combine,
+  detail_module_rankings:  ListTree,
+  unresolved_cases:        AlertCircle,
+  summary_report_case:     FileText,
+};
+
+const SECTION_DESCRIPTIONS: Record<SectionKey, string> = {
+  executive_summary:       'Ringkasan total cases, solved rate, trending category, dan top client.',
+  category_rankings:       'Peringkat case berdasarkan kategori, dengan perbandingan antar tahun.',
+  case_trend:              'Tren naik/turun case per modul berdasarkan periode terpilih.',
+  monthly_stats:           'Statistik bulanan dengan perbandingan antar tahun.',
+  client_rankings:         'Peringkat client berdasarkan jumlah case yang dilaporkan.',
+  detail_module_rankings:  'Peringkat detail modul beserta share persentase masing-masing.',
+  unresolved_cases:        'Daftar case yang belum diselesaikan, diurutkan berdasarkan severity.',
+  summary_report_case:     'Narasi top 10 detail modul dengan rincian kendala.',
+};
+
+function DownloadReportTab() {
+  const { toast } = useToast();
+
+  const [visibility, setVisibility] = useState<SectionVisibility>(() => {
+    try {
+      const saved = localStorage.getItem(SECTION_VISIBILITY_KEY);
+      if (saved) return { ...DEFAULT_SECTION_VISIBILITY, ...JSON.parse(saved) };
+    } catch (_) {}
+    return DEFAULT_SECTION_VISIBILITY;
+  });
+
+  const activeCount = Object.values(visibility).filter(Boolean).length;
+  const totalCount  = Object.keys(visibility).length;
+  const allOn       = activeCount === totalCount;
+  const allOff      = activeCount === 0;
+
+  const handleChange = (key: SectionKey, val: boolean) => {
+    setVisibility(prev => {
+      const next = { ...prev, [key]: val };
+      try { localStorage.setItem(SECTION_VISIBILITY_KEY, JSON.stringify(next)); } catch (_) {}
+      toast({
+        title: val ? `✅ Section "${SECTION_LABELS[key]}" diaktifkan` : `🙈 Section "${SECTION_LABELS[key]}" disembunyikan`,
+        duration: 1800,
+      });
+      return next;
+    });
+  };
+
+  const handleToggleAll = () => {
+    const next = !allOn;
+    const updated = Object.fromEntries(
+      (Object.keys(visibility) as SectionKey[]).map(k => [k, next])
+    ) as SectionVisibility;
+    setVisibility(updated);
+    try { localStorage.setItem(SECTION_VISIBILITY_KEY, JSON.stringify(updated)); } catch (_) {}
+    toast({ title: next ? '✅ Semua section diaktifkan' : '🙈 Semua section disembunyikan', duration: 1800 });
+  };
+
+  const handleReset = () => {
+    setVisibility(DEFAULT_SECTION_VISIBILITY);
+    try { localStorage.setItem(SECTION_VISIBILITY_KEY, JSON.stringify(DEFAULT_SECTION_VISIBILITY)); } catch (_) {}
+    toast({ title: '🔄 Section direset ke default (semua aktif)', duration: 2000 });
+  };
+
+  const sectionOrder: SectionKey[] = [
+    'executive_summary', 'category_rankings', 'case_trend', 'monthly_stats',
+    'client_rankings', 'detail_module_rankings', 'unresolved_cases', 'summary_report_case',
+  ];
+
+  // Hitung section number aktif
+  let numCounter = 1;
+  const sectionNumbers: Partial<Record<SectionKey, number>> = {};
+  for (const key of sectionOrder) {
+    if (visibility[key]) sectionNumbers[key] = numCounter++;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#1E3A5F]" />
+              Konfigurasi Section Report
+            </CardTitle>
+            <CardDescription className="mt-1.5">
+              Pilih section mana yang akan ditampilkan di <strong>Report Preview</strong> dan
+              disertakan dalam file <strong>.docx</strong> yang diunduh. Pengaturan tersimpan
+              otomatis di browser ini.
+            </CardDescription>
+          </div>
+
+          {/* Status badge */}
+          <div className={cn(
+            'flex-shrink-0 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors',
+            allOn
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400'
+              : allOff
+              ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-800 dark:text-red-400'
+              : 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-800 dark:text-amber-400'
+          )}>
+            {allOn
+              ? <><CheckCircle2 className="h-3.5 w-3.5" />Semua aktif</>
+              : allOff
+              ? <><EyeOff className="h-3.5 w-3.5" />Semua disembunyikan</>
+              : <><Eye className="h-3.5 w-3.5" />{activeCount}/{totalCount} aktif</>
+            }
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Action bar */}
+        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-2.5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleToggleAll}
+              className="text-xs font-medium text-[#1E3A5F] dark:text-blue-400 hover:underline transition-colors"
+            >
+              {allOn ? 'Nonaktifkan semua' : 'Aktifkan semua'}
+            </button>
+            <span className="text-muted-foreground text-xs">·</span>
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Reset ke default
+            </button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Nomor urut section menyesuaikan otomatis
+          </p>
+        </div>
+
+        {/* Section list */}
+        <div className="space-y-0 rounded-xl border border-border overflow-hidden">
+          {sectionOrder.map((key, idx) => {
+            const isOn    = visibility[key];
+            const Icon    = SECTION_ICONS[key];
+            const isLast  = idx === sectionOrder.length - 1;
+            const num     = sectionNumbers[key];
+
+            return (
+              <div
+                key={key}
+                className={cn(
+                  'flex items-center gap-4 px-4 py-3.5 transition-colors',
+                  !isLast && 'border-b border-border',
+                  isOn
+                    ? 'bg-background hover:bg-blue-50/30 dark:hover:bg-blue-950/10'
+                    : 'bg-muted/30 opacity-60'
+                )}
+              >
+                {/* Section number badge */}
+                <div className={cn(
+                  'flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors',
+                  isOn
+                    ? 'bg-[#1E3A5F] text-white'
+                    : 'bg-muted-foreground/20 text-muted-foreground'
+                )}>
+                  {isOn ? num : '—'}
+                </div>
+
+                {/* Icon */}
+                <div className={cn(
+                  'flex-shrink-0 p-2 rounded-lg transition-colors',
+                  isOn ? 'bg-[#1E3A5F]/8 text-[#1E3A5F]' : 'bg-muted text-muted-foreground'
+                )}>
+                  <Icon className="h-4 w-4" />
+                </div>
+
+                {/* Text */}
+                <div className="flex-1 min-w-0">
+                  <p className={cn('text-sm font-semibold', !isOn && 'text-muted-foreground')}>
+                    {SECTION_LABELS[key]}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground leading-snug mt-0.5 line-clamp-1">
+                    {SECTION_DESCRIPTIONS[key]}
+                  </p>
+                </div>
+
+                {/* Toggle */}
+                <div className="flex-shrink-0 flex items-center gap-2.5">
+                  {isOn ? (
+                    <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <Eye className="h-3 w-3" />Tampil
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                      <EyeOff className="h-3 w-3" />Tersembunyi
+                    </span>
+                  )}
+                  <Switch
+                    checked={isOn}
+                    onCheckedChange={val => handleChange(key, val)}
+                    aria-label={`Toggle section ${SECTION_LABELS[key]}`}
+                    className={isOn ? 'data-[state=checked]:bg-[#1E3A5F]' : ''}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Info box */}
+        {allOff && (
+          <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800 px-4 py-3">
+            <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-semibold text-red-700 dark:text-red-400">Semua section dinonaktifkan</p>
+              <p className="text-[11px] text-red-600 dark:text-red-500 mt-0.5">
+                Report Preview tidak akan menampilkan konten apapun. Aktifkan setidaknya satu section.
+              </p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+
+      <CardFooter className="bg-muted/20 border-t flex-col items-start gap-2">
+        <div className="flex items-center gap-2 w-full">
+          <div className="flex-1">
+            <p className="text-xs text-muted-foreground">
+              Pengaturan disimpan di browser ini (localStorage) dan berlaku saat membuka
+              <strong> Report Preview</strong>. Perubahan langsung terlihat tanpa reload.
+            </p>
+          </div>
+        </div>
+
+        {/* Preview urutan section aktif */}
+        {activeCount > 0 && (
+          <div className="w-full pt-1 border-t border-border/50">
+            <p className="text-[10px] text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">
+              Urutan section dalam report:
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {sectionOrder
+                .filter(k => visibility[k])
+                .map((k, i) => (
+                  <span
+                    key={k}
+                    className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#1E3A5F]/8 text-[#1E3A5F] dark:text-blue-400 border border-[#1E3A5F]/15"
+                  >
+                    <span className="font-bold opacity-60">{i + 1}.</span>
+                    {SECTION_LABELS[k]}
+                  </span>
+                ))
+              }
+            </div>
+          </div>
+        )}
+      </CardFooter>
+    </Card>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -313,6 +584,8 @@ export default function SettingsPage() {
   } = useContext(SettingsContext);
 
   const { prefs, updatePref, isLoading: isPrefsLoading } = useUserPreferences();
+
+  const [activeTab, setActiveTab] = useState<SettingsTab>('url');
 
   const [isClient, setIsClient]           = useState(false);
   const [isSaving, startSaving]           = useTransition();
@@ -341,7 +614,6 @@ export default function SettingsPage() {
   });
   const [cronTimerId, setCronTimerId] = useState<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── State Rincian Kendala ────────────────────────────────────────────────────
   const [detailModules, setDetailModules]         = useState<DetailModuleItem[]>([]);
   const [rincianList, setRincianList]             = useState<RincianKendalaItem[]>([]);
   const [rincianLoading, setRincianLoading]       = useState(false);
@@ -383,11 +655,9 @@ export default function SettingsPage() {
       if (saved) setMenuVisibility({ ...DEFAULT_MENU_VISIBILITY, ...JSON.parse(saved) });
     } catch (_) {}
 
-    // Fetch rincian kendala data
     fetchRincianData();
   }, []);
 
-  // ── Fetch Rincian Kendala ────────────────────────────────────────────────────
   const fetchRincianData = async () => {
     setRincianLoading(true);
     try {
@@ -404,7 +674,6 @@ export default function SettingsPage() {
       setDetailModules(modules);
       setRincianList(rincians);
 
-      // Pre-fill editingRincian dari data yang sudah ada di DB
       const draftMap: Record<number, string> = {};
       rincians.forEach(r => { draftMap[r.id_module] = r.rincian_kendala; });
       setEditingRincian(draftMap);
@@ -415,7 +684,6 @@ export default function SettingsPage() {
     }
   };
 
-  // ── Sync menuVisibility dari DB ──────────────────────────────────────────────
   useEffect(() => {
     if (isPrefsLoading) return;
     if (!prefs.menuVisibility) return;
@@ -430,7 +698,6 @@ export default function SettingsPage() {
     }, 0);
   }, [isPrefsLoading, prefs.menuVisibility]);
 
-  // ── Cron scheduler ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (cronTimerId) clearTimeout(cronTimerId);
     if (!cronConfig.enabled || cronConfig.interval === 'off') return;
@@ -443,8 +710,6 @@ export default function SettingsPage() {
     return () => clearTimeout(id);
   }, [cronConfig.enabled, cronConfig.interval]);
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
-
   function updateCronConfig(patch: Partial<CronConfig>) {
     setCronConfig(prev => {
       const next = { ...prev, ...patch };
@@ -455,23 +720,16 @@ export default function SettingsPage() {
 
   function updateMenuVisibility(key: keyof MenuVisibility, value: boolean) {
     const next: MenuVisibility = { ...menuVisibility, [key]: value };
-
     setMenuVisibility(next);
-
     try { localStorage.setItem(MENU_VISIBILITY_KEY, JSON.stringify(next)); } catch (_) {}
-
     updatePref('menuVisibility', next);
-
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent('menuVisibilityChange', { detail: next }));
     }, 0);
-
     if (key === 'showSecondaryTools' && value !== areSecondaryToolsEnabled) {
       toggleSecondaryTools();
     }
   }
-
-  // ── Handlers Rincian Kendala ─────────────────────────────────────────────────
 
   const handleSaveRincian = async (idModule: number) => {
     const text = (editingRincian[idModule] ?? '').trim();
@@ -523,8 +781,6 @@ export default function SettingsPage() {
       setDeletingRincian(p => ({ ...p, [idModule]: false }));
     }
   };
-
-  // ── URL & Sync Handlers ──────────────────────────────────────────────────────
 
   const handleSaveUrls = () => {
     startSaving(async () => {
@@ -662,8 +918,6 @@ export default function SettingsPage() {
     });
   };
 
-  // ── Menu toggles definition ──────────────────────────────────────────────────
-
   type MenuToggle = {
     id: string;
     label: string;
@@ -710,15 +964,19 @@ export default function SettingsPage() {
     },
   ];
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  const tabs = [
+    { id: 'url' as SettingsTab,      label: 'URL Configuration',  icon: Link     },
+    { id: 'feature' as SettingsTab,  label: 'Feature Activation', icon: Combine  },
+    { id: 'rincian' as SettingsTab,  label: 'Rincian Kendala',    icon: ListTree },
+    { id: 'download' as SettingsTab, label: 'Download Report',    icon: FileText },
+  ];
 
   if (!isClient) {
     return (
       <div className="flex-1 overflow-auto p-4 sm:p-6 md:p-8">
         <div className="max-w-4xl mx-auto space-y-8">
+          <Skeleton className="h-10 w-full" />
           <Skeleton className="h-72 w-full" />
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-64 w-full" />
         </div>
       </div>
     );
@@ -729,335 +987,364 @@ export default function SettingsPage() {
 
   return (
     <div className="flex-1 overflow-auto p-4 sm:p-6 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-6">
 
-        {/* ── URL Configuration Card ── */}
-        <Card>
-          <CardHeader>
-            <CardTitle>URL Configuration</CardTitle>
-            <CardDescription>
-              Atur URL Google Sheet untuk sinkronisasi data. Data baru dari GSheet akan di-insert ke DB;
-              data yang sudah ada (berdasarkan nomor tiket) akan di-skip.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-6">
-            <div className="grid gap-2">
-              <Label htmlFor="url-destination">URL Destination (Import & Update)</Label>
-              <div className="flex items-center gap-2">
-                <Link className="h-9 w-9 p-2 bg-muted rounded-md flex items-center justify-center shrink-0" />
-                <Input
-                  id="url-destination"
-                  type="url"
-                  placeholder="https://docs.google.com/spreadsheets/d/..."
-                  value={sheetUrl}
-                  onChange={e => setSheetUrl(e.target.value)}
-                  readOnly={!isEditing}
-                  disabled={isSaving || isValidating}
-                  className={!isEditing ? 'bg-muted/50' : ''}
-                />
-              </div>
-              <div className="mt-1 pl-11">
-                <ValidationResult isLoading={isValidating} title={spreadsheetTitle} error={mainSheetError} />
-              </div>
-            </div>
-
-            <div className={cn(
-              'rounded-xl border bg-muted/30 p-4 space-y-4 transition-opacity duration-200',
-              !canSync && 'opacity-40 pointer-events-none'
-            )}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold">GSheet → DB Sync</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Insert tiket baru dari GSheet; tiket yang sudah ada di DB akan di-skip otomatis.
-                  </p>
-                </div>
-                {lastSyncResult && <SyncResultBadge result={lastSyncResult} />}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleSyncNowClick}
-                  disabled={isFetchingPreview || isSyncRunning || isSaving}
-                  className="gap-2"
-                >
-                  {isFetchingPreview
-                    ? <><RefreshCw className="h-4 w-4 animate-spin" />Memuat Preview...</>
-                    : <><Eye className="h-4 w-4" />Sync Now</>
-                  }
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Clock className="h-4 w-4" />
-                      {CRON_LABELS[cronConfig.interval]}
-                      <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-52">
-                    <DropdownMenuLabel>Auto-sync interval</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuRadioGroup value={cronConfig.interval} onValueChange={handleIntervalChange}>
-                      {(Object.keys(CRON_LABELS) as CronInterval[]).map(key => (
-                        <DropdownMenuRadioItem key={key} value={key}>{CRON_LABELS[key]}</DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <Button
-                  variant={cronIsActive ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={handleToggleCron}
-                  disabled={cronConfig.interval === 'off'}
-                  className={cn('gap-2', cronIsActive && 'text-amber-600 border-amber-400 bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100')}
-                >
-                  {cronIsActive
-                    ? <><Pause className="h-4 w-4" />Pause Auto-Sync</>
-                    : <><Play className="h-4 w-4" />Start Auto-Sync</>
-                  }
-                </Button>
-              </div>
-
-              {(cronConfig.lastRun || cronIsActive) && (
-                <div className="flex items-center gap-4 text-xs text-muted-foreground border-t pt-3">
-                  {cronIsActive && (
-                    <span className="flex items-center gap-1.5">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-                      </span>
-                      Next sync: <span className="font-medium text-foreground">{formatNextRun(cronConfig.nextRun)}</span>
-                    </span>
-                  )}
-                  {cronConfig.lastRun && (
-                    <span>Last run: <span className="font-medium text-foreground">{formatRelativeTime(cronConfig.lastRun)}</span></span>
-                  )}
-                </div>
-              )}
-            </div>
-          </CardContent>
-
-          <CardFooter>
-            {isEditing ? (
-              <Button onClick={handleSaveUrls} disabled={isSaving || isValidating}>
-                {(isSaving || isValidating)
-                  ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  : <Save className="mr-2 h-4 w-4" />
-                }
-                {(isSaving || isValidating) ? 'Validating...' : 'Save URL'}
-              </Button>
-            ) : (
-              <Button onClick={() => setIsEditing(true)} variant="destructive">
-                <Pencil className="mr-2 h-4 w-4" />Change URL
-              </Button>
-            )}
-          </CardFooter>
-        </Card>
-
-        {/* ── Feature Activation Card ── */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Feature Activation</CardTitle>
-            <CardDescription>
-              Aktifkan atau nonaktifkan menu navigasi tertentu. Menu <strong>Dashboard</strong> dan{' '}
-              <strong>Data All Case</strong> selalu ditampilkan.
-              {isPrefsLoading && (
-                <span className="ml-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <RefreshCw className="h-3 w-3 animate-spin" />
-                  Memuat preferensi...
-                </span>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {menuToggles.map(toggle => {
-                const isOn = menuVisibility[toggle.visibilityKey];
-                return (
-                  <div
-                    key={toggle.id}
-                    className={cn(
-                      'flex items-center justify-between rounded-lg border p-4 transition-colors',
-                      !isOn && 'bg-muted/30 opacity-70'
-                    )}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className={cn('p-2 rounded-full transition-colors', isOn ? 'bg-primary/10' : 'bg-muted')}>
-                        <toggle.icon className={cn('h-5 w-5 transition-colors', isOn ? 'text-primary' : 'text-muted-foreground')} />
-                      </div>
-                      <div className="space-y-0.5">
-                        <Label
-                          htmlFor={toggle.id}
-                          className={cn('text-base font-medium cursor-pointer', !isOn && 'text-muted-foreground')}
-                        >
-                          {toggle.label}
-                        </Label>
-                        <p className="text-xs text-muted-foreground">{toggle.description}</p>
-                      </div>
-                    </div>
-                    <Switch
-                      id={toggle.id}
-                      checked={isOn}
-                      onCheckedChange={val => updateMenuVisibility(toggle.visibilityKey, val)}
-                      aria-label={`Toggle ${toggle.label}`}
-                      disabled={isPrefsLoading}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 rounded-lg border border-dashed bg-muted/20 px-4 py-3">
-              <p className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">Selalu tampil:</span>{' '}
-                Dashboard dan Data All Case tidak dapat disembunyikan.
-                <span className="ml-2 text-muted-foreground/70">
-                  · Pengaturan tersimpan otomatis dan berlaku di semua perangkat.
-                </span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* ── Rincian Kendala Card ── */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Rincian Kendala per Modul</CardTitle>
-                <CardDescription className="mt-1.5">
-                  Isi keterangan rincian kendala untuk setiap Detail Module. Keterangan ini akan
-                  ditampilkan di kolom <strong>Rincian Kendala</strong> pada Summary Report Case
-                  di Report Preview.
-                </CardDescription>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchRincianData}
-                disabled={rincianLoading}
-                className="gap-2 shrink-0"
+        {/* ── Tab Navigation ─────────────────────────────────────────────── */}
+        <div className="flex items-center gap-1 p-1 bg-muted rounded-xl border flex-wrap">
+          {tabs.map(tab => {
+            const Icon     = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all duration-150',
+                  isActive
+                    ? 'bg-background text-foreground border shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-background/60'
+                )}
               >
-                <RefreshCw className={cn("h-3.5 w-3.5", rincianLoading && "animate-spin")} />
-                Refresh
-              </Button>
-            </div>
-          </CardHeader>
+                <Icon className="h-4 w-4 shrink-0" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-          <CardContent>
-            {rincianLoading ? (
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-10">
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                Memuat data modul...
-              </div>
-            ) : detailModules.length === 0 ? (
-              <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                Belum ada data detail module. Pastikan tabel{' '}
-                <code className="bg-muted px-1 py-0.5 rounded text-[11px]">master_detail_module</code>{' '}
-                terisi.
-              </div>
-            ) : (
-              <div className="space-y-0 rounded-lg border border-border overflow-hidden">
-                {detailModules.map((mod, idx) => {
-                  const existing   = rincianList.find(r => r.id_module === mod.id_module);
-                  const draftText  = editingRincian[mod.id_module] ?? '';
-                  const savedText  = existing?.rincian_kendala ?? '';
-                  const isDirty    = draftText.trim() !== savedText;
-                  const isSavingNow   = savingRincian[mod.id_module]   ?? false;
-                  const isDeletingNow = deletingRincian[mod.id_module] ?? false;
+        {/* ── TAB: URL Configuration ─────────────────────────────────────── */}
+        {activeTab === 'url' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>URL Configuration</CardTitle>
+              <CardDescription>
+                Atur URL Google Sheet untuk sinkronisasi data. Data baru dari GSheet akan di-insert ke DB;
+                data yang sudah ada (berdasarkan nomor tiket) akan di-skip.
+              </CardDescription>
+            </CardHeader>
 
+            <CardContent className="space-y-6">
+              <div className="grid gap-2">
+                <Label htmlFor="url-destination">URL Destination (Import & Update)</Label>
+                <div className="flex items-center gap-2">
+                  <Link className="h-9 w-9 p-2 bg-muted rounded-md flex items-center justify-center shrink-0" />
+                  <Input
+                    id="url-destination"
+                    type="url"
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    value={sheetUrl}
+                    onChange={e => setSheetUrl(e.target.value)}
+                    readOnly={!isEditing}
+                    disabled={isSaving || isValidating}
+                    className={!isEditing ? 'bg-muted/50' : ''}
+                  />
+                </div>
+                <div className="mt-1 pl-11">
+                  <ValidationResult isLoading={isValidating} title={spreadsheetTitle} error={mainSheetError} />
+                </div>
+              </div>
+
+              <div className={cn(
+                'rounded-xl border bg-muted/30 p-4 space-y-4 transition-opacity duration-200',
+                !canSync && 'opacity-40 pointer-events-none'
+              )}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">GSheet → DB Sync</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Insert tiket baru dari GSheet; tiket yang sudah ada di DB akan di-skip otomatis.
+                    </p>
+                  </div>
+                  {lastSyncResult && <SyncResultBadge result={lastSyncResult} />}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleSyncNowClick}
+                    disabled={isFetchingPreview || isSyncRunning || isSaving}
+                    className="gap-2"
+                  >
+                    {isFetchingPreview
+                      ? <><RefreshCw className="h-4 w-4 animate-spin" />Memuat Preview...</>
+                      : <><Eye className="h-4 w-4" />Sync Now</>
+                    }
+                  </Button>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Clock className="h-4 w-4" />
+                        {CRON_LABELS[cronConfig.interval]}
+                        <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-52">
+                      <DropdownMenuLabel>Auto-sync interval</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioGroup value={cronConfig.interval} onValueChange={handleIntervalChange}>
+                        {(Object.keys(CRON_LABELS) as CronInterval[]).map(key => (
+                          <DropdownMenuRadioItem key={key} value={key}>{CRON_LABELS[key]}</DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <Button
+                    variant={cronIsActive ? 'secondary' : 'outline'}
+                    size="sm"
+                    onClick={handleToggleCron}
+                    disabled={cronConfig.interval === 'off'}
+                    className={cn('gap-2', cronIsActive && 'text-amber-600 border-amber-400 bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100')}
+                  >
+                    {cronIsActive
+                      ? <><Pause className="h-4 w-4" />Pause Auto-Sync</>
+                      : <><Play className="h-4 w-4" />Start Auto-Sync</>
+                    }
+                  </Button>
+                </div>
+
+                {(cronConfig.lastRun || cronIsActive) && (
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground border-t pt-3">
+                    {cronIsActive && (
+                      <span className="flex items-center gap-1.5">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                        </span>
+                        Next sync: <span className="font-medium text-foreground">{formatNextRun(cronConfig.nextRun)}</span>
+                      </span>
+                    )}
+                    {cronConfig.lastRun && (
+                      <span>Last run: <span className="font-medium text-foreground">{formatRelativeTime(cronConfig.lastRun)}</span></span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+
+            <CardFooter>
+              {isEditing ? (
+                <Button onClick={handleSaveUrls} disabled={isSaving || isValidating}>
+                  {(isSaving || isValidating)
+                    ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    : <Save className="mr-2 h-4 w-4" />
+                  }
+                  {(isSaving || isValidating) ? 'Validating...' : 'Save URL'}
+                </Button>
+              ) : (
+                <Button onClick={() => setIsEditing(true)} variant="destructive">
+                  <Pencil className="mr-2 h-4 w-4" />Change URL
+                </Button>
+              )}
+            </CardFooter>
+          </Card>
+        )}
+
+        {/* ── TAB: Feature Activation ────────────────────────────────────── */}
+        {activeTab === 'feature' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Feature Activation</CardTitle>
+              <CardDescription>
+                Aktifkan atau nonaktifkan menu navigasi tertentu. Menu <strong>Dashboard</strong> dan{' '}
+                <strong>Data All Case</strong> selalu ditampilkan.
+                {isPrefsLoading && (
+                  <span className="ml-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                    Memuat preferensi...
+                  </span>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {menuToggles.map(toggle => {
+                  const isOn = menuVisibility[toggle.visibilityKey];
                   return (
                     <div
-                      key={mod.id_module}
+                      key={toggle.id}
                       className={cn(
-                        'grid grid-cols-[200px_1fr_auto] gap-3 items-start px-4 py-3 border-b last:border-b-0 transition-colors',
-                        idx % 2 === 1 ? 'bg-muted/20' : 'bg-background'
+                        'flex items-center justify-between rounded-lg border p-4 transition-colors',
+                        !isOn && 'bg-muted/30 opacity-70'
                       )}
                     >
-                      {/* Kolom 1: Nama Detail Module */}
-                      <div className="pt-1.5">
-                        <p className="text-sm font-medium leading-snug text-foreground">
-                          {mod.detail_module}
-                        </p>
-                        {existing ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 mt-0.5 font-medium">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Terisi
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-                            <span className="w-3 h-3 rounded-full border border-current inline-block" />
-                            Kosong
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Kolom 2: Textarea */}
-                      <Textarea
-                        placeholder={`Tulis rincian kendala untuk "${mod.detail_module}"…`}
-                        value={draftText}
-                        onChange={e =>
-                          setEditingRincian(p => ({ ...p, [mod.id_module]: e.target.value }))
-                        }
-                        rows={2}
-                        className="text-sm resize-none min-h-[60px]"
-                        disabled={isSavingNow || isDeletingNow}
-                      />
-
-                      {/* Kolom 3: Action buttons */}
-                      <div className="flex flex-col gap-1.5 pt-0.5">
-                        <Button
-                          size="sm"
-                          variant={isDirty && draftText.trim() ? 'default' : 'outline'}
-                          onClick={() => handleSaveRincian(mod.id_module)}
-                          disabled={!isDirty || !draftText.trim() || isSavingNow || isDeletingNow}
-                          className="h-8 gap-1.5 min-w-[85px]"
-                        >
-                          {isSavingNow
-                            ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                            : <Save className="h-3.5 w-3.5" />
-                          }
-                          <span className="text-xs">{isSavingNow ? 'Menyimpan…' : 'Simpan'}</span>
-                        </Button>
-
-                        {existing && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDeleteRincian(mod.id_module)}
-                            disabled={isSavingNow || isDeletingNow}
-                            className="h-8 gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 min-w-[85px]"
+                      <div className="flex items-center space-x-3">
+                        <div className={cn('p-2 rounded-full transition-colors', isOn ? 'bg-primary/10' : 'bg-muted')}>
+                          <toggle.icon className={cn('h-5 w-5 transition-colors', isOn ? 'text-primary' : 'text-muted-foreground')} />
+                        </div>
+                        <div className="space-y-0.5">
+                          <Label
+                            htmlFor={toggle.id}
+                            className={cn('text-base font-medium cursor-pointer', !isOn && 'text-muted-foreground')}
                           >
-                            {isDeletingNow
-                              ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                              : <Trash2 className="h-3.5 w-3.5" />
-                            }
-                            <span className="text-xs">{isDeletingNow ? 'Menghapus…' : 'Hapus'}</span>
-                          </Button>
-                        )}
+                            {toggle.label}
+                          </Label>
+                          <p className="text-xs text-muted-foreground">{toggle.description}</p>
+                        </div>
                       </div>
+                      <Switch
+                        id={toggle.id}
+                        checked={isOn}
+                        onCheckedChange={val => updateMenuVisibility(toggle.visibilityKey, val)}
+                        aria-label={`Toggle ${toggle.label}`}
+                        disabled={isPrefsLoading}
+                      />
                     </div>
                   );
                 })}
               </div>
-            )}
-          </CardContent>
 
-          <CardFooter className="bg-muted/20 border-t">
-            <p className="text-xs text-muted-foreground">
-              Rincian kendala disimpan ke tabel{' '}
-              <code className="bg-muted px-1 py-0.5 rounded text-[10px]">master_rincian_kendala</code>{' '}
-              dan langsung muncul di kolom <strong>Rincian Kendala</strong> pada Section 8 laporan.
-              <span className="ml-2 text-muted-foreground/60">· {detailModules.length} modul terdaftar · {rincianList.length} sudah terisi</span>
-            </p>
-          </CardFooter>
-        </Card>
+              <div className="mt-4 rounded-lg border border-dashed bg-muted/20 px-4 py-3">
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">Selalu tampil:</span>{' '}
+                  Dashboard dan Data All Case tidak dapat disembunyikan.
+                  <span className="ml-2 text-muted-foreground/70">
+                    · Pengaturan tersimpan otomatis dan berlaku di semua perangkat.
+                  </span>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── TAB: Rincian Kendala ───────────────────────────────────────── */}
+        {activeTab === 'rincian' && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Rincian Kendala per Modul</CardTitle>
+                  <CardDescription className="mt-1.5">
+                    Isi keterangan rincian kendala untuk setiap Detail Module. Keterangan ini akan
+                    ditampilkan di kolom <strong>Rincian Kendala</strong> pada Summary Report Case
+                    di Report Preview.
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchRincianData}
+                  disabled={rincianLoading}
+                  className="gap-2 shrink-0"
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5", rincianLoading && "animate-spin")} />
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent>
+              {rincianLoading ? (
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-10">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Memuat data modul...
+                </div>
+              ) : detailModules.length === 0 ? (
+                <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  Belum ada data detail module. Pastikan tabel{' '}
+                  <code className="bg-muted px-1 py-0.5 rounded text-[11px]">master_detail_module</code>{' '}
+                  terisi.
+                </div>
+              ) : (
+                <div className="space-y-0 rounded-lg border border-border overflow-hidden">
+                  {detailModules.map((mod, idx) => {
+                    const existing   = rincianList.find(r => r.id_module === mod.id_module);
+                    const draftText  = editingRincian[mod.id_module] ?? '';
+                    const savedText  = existing?.rincian_kendala ?? '';
+                    const isDirty    = draftText.trim() !== savedText;
+                    const isSavingNow   = savingRincian[mod.id_module]   ?? false;
+                    const isDeletingNow = deletingRincian[mod.id_module] ?? false;
+
+                    return (
+                      <div
+                        key={mod.id_module}
+                        className={cn(
+                          'grid grid-cols-[200px_1fr_auto] gap-3 items-start px-4 py-3 border-b last:border-b-0 transition-colors',
+                          idx % 2 === 1 ? 'bg-muted/20' : 'bg-background'
+                        )}
+                      >
+                        <div className="pt-1.5">
+                          <p className="text-sm font-medium leading-snug text-foreground">
+                            {mod.detail_module}
+                          </p>
+                          {existing ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 mt-0.5 font-medium">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Terisi
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                              <span className="w-3 h-3 rounded-full border border-current inline-block" />
+                              Kosong
+                            </span>
+                          )}
+                        </div>
+
+                        <Textarea
+                          placeholder={`Tulis rincian kendala untuk "${mod.detail_module}"…`}
+                          value={draftText}
+                          onChange={e =>
+                            setEditingRincian(p => ({ ...p, [mod.id_module]: e.target.value }))
+                          }
+                          rows={2}
+                          className="text-sm resize-none min-h-[60px]"
+                          disabled={isSavingNow || isDeletingNow}
+                        />
+
+                        <div className="flex flex-col gap-1.5 pt-0.5">
+                          <Button
+                            size="sm"
+                            variant={isDirty && draftText.trim() ? 'default' : 'outline'}
+                            onClick={() => handleSaveRincian(mod.id_module)}
+                            disabled={!isDirty || !draftText.trim() || isSavingNow || isDeletingNow}
+                            className="h-8 gap-1.5 min-w-[85px]"
+                          >
+                            {isSavingNow
+                              ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                              : <Save className="h-3.5 w-3.5" />
+                            }
+                            <span className="text-xs">{isSavingNow ? 'Menyimpan…' : 'Simpan'}</span>
+                          </Button>
+
+                          {existing && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteRincian(mod.id_module)}
+                              disabled={isSavingNow || isDeletingNow}
+                              className="h-8 gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 min-w-[85px]"
+                            >
+                              {isDeletingNow
+                                ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                : <Trash2 className="h-3.5 w-3.5" />
+                              }
+                              <span className="text-xs">{isDeletingNow ? 'Menghapus…' : 'Hapus'}</span>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+
+            <CardFooter className="bg-muted/20 border-t">
+              <p className="text-xs text-muted-foreground">
+                Rincian kendala disimpan ke tabel{' '}
+                <code className="bg-muted px-1 py-0.5 rounded text-[10px]">master_rincian_kendala</code>{' '}
+                dan langsung muncul di kolom <strong>Rincian Kendala</strong> pada Section 8 laporan.
+                <span className="ml-2 text-muted-foreground/60">· {detailModules.length} modul terdaftar · {rincianList.length} sudah terisi</span>
+              </p>
+            </CardFooter>
+          </Card>
+        )}
+
+        {/* ── TAB: Download Report ───────────────────────────────────────── */}
+        {activeTab === 'download' && <DownloadReportTab />}
 
       </div>
 

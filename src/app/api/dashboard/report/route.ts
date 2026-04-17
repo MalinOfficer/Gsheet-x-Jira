@@ -40,6 +40,29 @@ export type UnresolvedCase = {
     created_at?: string;
 };
 
+type SectionKey =
+    | 'executive_summary'
+    | 'category_rankings'
+    | 'case_trend'
+    | 'monthly_stats'
+    | 'client_rankings'
+    | 'detail_module_rankings'
+    | 'unresolved_cases'
+    | 'summary_report_case';
+
+type SectionVisibility = Record<SectionKey, boolean>;
+
+const DEFAULT_SECTION_VISIBILITY: SectionVisibility = {
+    executive_summary:       true,
+    category_rankings:       true,
+    case_trend:              true,
+    monthly_stats:           true,
+    client_rankings:         true,
+    detail_module_rankings:  true,
+    unresolved_cases:        true,
+    summary_report_case:     true,
+};
+
 type DashboardStats = {
     summary: {
         total_cases: number;
@@ -276,8 +299,12 @@ function spacer(space = 160): Paragraph {
 // ─────────────────────────────────────────────────────────────────────────────
 // buildRankingTable
 // ─────────────────────────────────────────────────────────────────────────────
-function buildRankingTable(items: RankingItem[], nameHeader: string, limit = 50): Table | null {
-    if (!items || items.length === 0) return null;
+function buildRankingTable(
+    items: RankingItem[], 
+    nameHeader: string, 
+    limit = 50, 
+    showPct = false   // ← pastikan ini ada
+): Table | null {
 
     const sliced    = items.slice(0, limit);
     const yearKeys  = extractYearKeys(sliced);
@@ -287,15 +314,19 @@ function buildRankingTable(items: RankingItem[], nameHeader: string, limit = 50)
     const COL_NO     = 700;
     const COL_TOTAL  = isMulti ? 1300 : 0;
     const COL_CHANGE = hasChange ? 1800 : 0;
+    const COL_PCT    = showPct ? 1100 : 0;           // ← BARU
     const singleValW = 2360;
 
-    const fixedWidth = COL_NO + COL_TOTAL + COL_CHANGE;
+    const fixedWidth = COL_NO + COL_TOTAL + COL_CHANGE + COL_PCT;  // ← tambah COL_PCT
     const yearColW   = isMulti
         ? Math.max(900, Math.floor((CONTENT_WIDTH - fixedWidth) / (yearKeys.length + 1.5)))
         : 0;
     const nameColW   = isMulti
-        ? CONTENT_WIDTH - COL_NO - yearColW * yearKeys.length - COL_TOTAL - COL_CHANGE
-        : CONTENT_WIDTH - COL_NO - singleValW;
+        ? CONTENT_WIDTH - COL_NO - yearColW * yearKeys.length - COL_TOTAL - COL_CHANGE - COL_PCT
+        : CONTENT_WIDTH - COL_NO - singleValW - COL_PCT;
+
+    // Hitung grand total untuk % share
+    const grandTotal = sliced.reduce((sum, item) => sum + getRankingTotal(item, yearKeys), 0);
 
     const headerCells: TableCell[] = [
         headerCell('#',        COL_NO),
@@ -305,6 +336,7 @@ function buildRankingTable(items: RankingItem[], nameHeader: string, limit = 50)
     if (isMulti) {
         yearKeys.forEach(y => headerCells.push(headerCell(y, yearColW)));
         headerCells.push(headerCell('Total', COL_TOTAL));
+        if (showPct) headerCells.push(headerCell('Share', COL_PCT));   // ← BARU
         if (hasChange) {
             headerCells.push(headerCellTwoLine(
                 'Change',
@@ -314,21 +346,25 @@ function buildRankingTable(items: RankingItem[], nameHeader: string, limit = 50)
         }
     } else {
         headerCells.push(headerCell('Cases', singleValW));
+        if (showPct) headerCells.push(headerCell('Share', COL_PCT));   // ← BARU
     }
 
     const colWidths: number[] = [COL_NO, nameColW];
     if (isMulti) {
         yearKeys.forEach(() => colWidths.push(yearColW));
         colWidths.push(COL_TOTAL);
-        if (hasChange) colWidths.push(COL_CHANGE);
+        if (showPct)    colWidths.push(COL_PCT);                       // ← BARU
+        if (hasChange)  colWidths.push(COL_CHANGE);
     } else {
         colWidths.push(singleValW);
+        if (showPct)    colWidths.push(COL_PCT);                       // ← BARU
     }
 
     const dataRows = sliced.map((item, i) => {
         const stripe     = i % 2 === 1;
         const total      = getRankingTotal(item, yearKeys);
         const changeInfo = hasChange ? getChangeInfo(item, yearKeys) : null;
+        const pct        = grandTotal > 0 ? (total / grandTotal) * 100 : 0;  // ← BARU
 
         const cells: TableCell[] = [
             dataCell(String(i + 1), COL_NO,   { center: true, stripe, color: '6B7280' }),
@@ -351,6 +387,15 @@ function buildRankingTable(items: RankingItem[], nameHeader: string, limit = 50)
                 { center: true, bold: true, stripe }
             ));
 
+            // ← BARU: kolom Share setelah Total, sebelum Change
+            if (showPct) {
+                cells.push(dataCell(
+                    `${pct.toFixed(1)}%`,
+                    COL_PCT,
+                    { center: true, stripe, color: '6B7280' }
+                ));
+            }
+
             if (hasChange && changeInfo !== null) {
                 const prevVal     = item[changeInfo.fromYear] ?? 0;
                 const changeStr   = formatChangeStr(changeInfo.change, prevVal);
@@ -365,6 +410,15 @@ function buildRankingTable(items: RankingItem[], nameHeader: string, limit = 50)
                 singleValW,
                 { center: true, bold: true, stripe }
             ));
+
+            // ← BARU: kolom Share untuk single-year
+            if (showPct) {
+                cells.push(dataCell(
+                    `${pct.toFixed(1)}%`,
+                    COL_PCT,
+                    { center: true, stripe, color: '6B7280' }
+                ));
+            }
         }
 
         return new TableRow({ children: cells });
@@ -554,15 +608,21 @@ function buildUnresolvedCasesTable(cases: UnresolvedCase[]): Table | null {
 // ─────────────────────────────────────────────────────────────────────────────
 // DOCX Generator
 // ─────────────────────────────────────────────────────────────────────────────
-async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary): Promise<Buffer> {
+async function generateReport(
+    stats: DashboardStats,
+    filters: FilterSummary,
+    sectionVisibility: SectionVisibility,
+    top10: { name: string; count: number; pct: number; rincian: string }[] = []
+): Promise<Buffer> {
     const now        = new Date();
     const reportDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     const reportTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const { summary } = stats;
     const detailModules = stats.detail_module_rankings ?? stats.module_rankings ?? [];
 
-    // ── FIX: Re-validate unresolved_cases setelah diterima dari JSON parse ──
-    // JSON.parse mempertahankan array, tapi pastikan tidak ada item corrupt
+    // Shorthand: apakah section ini aktif?
+    const sec = (key: SectionKey) => sectionVisibility[key] !== false;
+
     const rawUnresolved = stats.unresolved_cases;
     const unresolvedCases: UnresolvedCase[] = Array.isArray(rawUnresolved)
         ? rawUnresolved.filter(c =>
@@ -586,7 +646,6 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
 
     const periodLabels = getPeriodLabels(trendPeriod);
 
-    // ── Filter summary string ────────────────────────────────────────────────
     const filterParts: string[] = [];
     if (filters.years?.length)         filterParts.push(`Years: ${filters.years.join(', ')}`);
     if (filters.dateRange)             filterParts.push(`Date Range: ${filters.dateRange}`);
@@ -596,6 +655,17 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
     if (filters.detailModules?.length) filterParts.push(`Detail Modules: ${filters.detailModules.join(', ')}`);
     const filterText = filterParts.length ? filterParts.join('  |  ') : 'No filters applied — showing all data';
     const trendLabel = trendPeriod.charAt(0).toUpperCase() + trendPeriod.slice(1);
+
+    // Hitung section number aktif saja
+    const sectionOrder: SectionKey[] = [
+        'executive_summary', 'category_rankings', 'case_trend', 'monthly_stats',
+        'client_rankings', 'detail_module_rankings', 'unresolved_cases', 'summary_report_case',
+    ];
+    let sNum = 1;
+    const sectionNumbers: Partial<Record<SectionKey, number>> = {};
+    for (const key of sectionOrder) {
+        if (sec(key)) sectionNumbers[key] = sNum++;
+    }
 
     // ── Cover section ────────────────────────────────────────────────────────
     const coverSection: Paragraph[] = [
@@ -628,9 +698,21 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         }),
         new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing:   { after: 480 },
+            spacing:   { after: 200 },
             children:  [new TextRun({ text: filterText, size: 18, font: 'Arial', color: '6B7280', italics: true })],
         }),
+        // Mention disabled sections in cover
+        ...(sNum <= sectionOrder.length
+            ? [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing:   { after: 480 },
+                children:  [new TextRun({
+                    text: `Sections included: ${Object.values(sectionNumbers).length} of ${sectionOrder.length}`,
+                    size: 17, font: 'Arial', color: '9CA3AF', italics: true,
+                })],
+              })]
+            : [spacer(480)]
+        ),
     ];
 
     // ── Executive Summary table ──────────────────────────────────────────────
@@ -698,16 +780,9 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         ],
     });
 
-    // ── Monthly Statistics table ─────────────────────────────────────────────
-    const monthlyTable = buildMonthlyTable(stats.monthly_stats ?? []);
-
-    // ── Client Rankings table ────────────────────────────────────────────────
-    const clientTable = buildRankingTable(stats.client_rankings ?? [], 'Client');
-
-    // ── Detail Module Rankings table ─────────────────────────────────────────
-    const moduleTable = buildRankingTable(detailModules, 'Detail Module');
-
-    // ── Unresolved Cases table ───────────────────────────────────────────────
+    const monthlyTable    = buildMonthlyTable(stats.monthly_stats ?? []);
+    const clientTable     = buildRankingTable(stats.client_rankings ?? [], 'Client');
+    const moduleTable = buildRankingTable(detailModules, 'Detail Module', 50, true);
     const unresolvedTable = buildUnresolvedCasesTable(unresolvedCases);
 
     // ── Footer ───────────────────────────────────────────────────────────────
@@ -723,11 +798,175 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
         ],
     });
 
-    // ── Section numbering ────────────────────────────────────────────────────
-    let sectionNum = 1;
-    const s = () => sectionNum++;
+    // ── Assemble document children berdasarkan sectionVisibility ─────────────
+    const docChildren: (Paragraph | Table)[] = [...coverSection];
 
-    // ── Assemble document ─────────────────────────────────────────────────────
+    // 1. Executive Summary
+    if (sec('executive_summary')) {
+        docChildren.push(
+            sectionHeading(`${sectionNumbers.executive_summary}. Executive Summary`),
+            spacer(80),
+            summaryTable,
+            spacer(200),
+        );
+    }
+
+    // 2. Category Rankings
+    if (sec('category_rankings') && categoryTable) {
+        docChildren.push(
+            sectionHeading(`${sectionNumbers.category_rankings}. Category Rankings`),
+            spacer(80),
+            categoryTable,
+            spacer(200),
+        );
+    }
+
+    // 3. Case Trend
+    if (sec('case_trend')) {
+        docChildren.push(
+            sectionHeading(`${sectionNumbers.case_trend}. Case Trend — ${trendLabel}`),
+            spacer(80),
+        );
+        if (trendsTable) {
+            docChildren.push(trendsTable);
+        } else {
+            docChildren.push(new Paragraph({
+                children: [new TextRun({ text: 'No trend data available for the selected period.', italics: true, color: '6B7280', font: 'Arial', size: 20 })],
+            }));
+        }
+        docChildren.push(spacer(200));
+    }
+
+    // 4. Monthly Statistics
+    if (sec('monthly_stats') && monthlyTable) {
+        docChildren.push(
+            sectionHeading(`${sectionNumbers.monthly_stats}. Monthly Statistics`),
+            spacer(80),
+            monthlyTable,
+            spacer(200),
+        );
+    }
+
+    // 5. Client Rankings
+    if (sec('client_rankings') && clientTable) {
+        docChildren.push(
+            sectionHeading(`${sectionNumbers.client_rankings}. Client Rankings`),
+            spacer(80),
+            clientTable,
+            spacer(200),
+        );
+    }
+
+    // 6. Detail Module Rankings
+    if (sec('detail_module_rankings') && moduleTable) {
+        docChildren.push(
+            sectionHeading(`${sectionNumbers.detail_module_rankings}. Detail Module Rankings`),
+            spacer(80),
+            moduleTable,
+            spacer(200),
+        );
+    }
+
+    // 7. Outstanding Unresolved Cases
+    if (sec('unresolved_cases')) {
+        docChildren.push(
+            sectionHeading(`${sectionNumbers.unresolved_cases}. Outstanding Unresolved Cases`),
+            spacer(80),
+            new Paragraph({
+                spacing: { after: 120 },
+                children: [
+                    new TextRun({
+                        text: `${unresolvedCases.length} case${unresolvedCases.length !== 1 ? 's' : ''} outstanding`,
+                        bold: true, size: 22, font: 'Arial',
+                        color: unresolvedCases.length > 0 ? 'DC2626' : '16A34A',
+                    }),
+                    new TextRun({
+                        text: unresolvedCases.length > 0
+                            ? '  —  sorted by severity (L3 → L2 → L1 → Pending → On Hold)'
+                            : '  —  all cases have been resolved ✓',
+                        size: 19, font: 'Arial', color: '6B7280', italics: true,
+                    }),
+                ],
+            }),
+        );
+        if (unresolvedTable) {
+            docChildren.push(unresolvedTable);
+        } else {
+            docChildren.push(new Paragraph({
+                children: [new TextRun({
+                    text: 'No outstanding cases at the time of this report.',
+                    italics: true, color: '16A34A', font: 'Arial', size: 20,
+                })],
+            }));
+        }
+        docChildren.push(spacer(200));
+    }
+
+    // 8. Summary Report Case — section ini intentionally tidak dirender di DOCX
+    // karena kontennya (rincian_kendala teks narratif) tidak ada di stats,
+    // namun section heading tetap ditampilkan agar nomor section konsisten.
+    // Jika di masa depan data narasi dikirim ke API, bisa dirender di sini.
+    if (sec('summary_report_case')) {
+        docChildren.push(
+            sectionHeading(`${sectionNumbers.summary_report_case}. Summary Report Case`),
+            spacer(80),
+            new Paragraph({
+                spacing: { after: 120 },
+                children: [new TextRun({
+                    text: '10 Detail Module dengan jumlah case terbanyak.',
+                    italics: true, color: '6B7280', font: 'Arial', size: 20,
+                })],
+            }),
+        );
+
+        if (top10.length > 0) {
+            const COL_NO_S      = 600;
+            const COL_NAME_S    = 4000;
+            const COL_COUNT_S   = 1200;
+            const COL_PCT_S     = 1000;
+            const COL_RINCIAN_S = CONTENT_WIDTH - COL_NO_S - COL_NAME_S - COL_COUNT_S - COL_PCT_S;
+
+            const summaryReportTable = new Table({
+                width:        { size: CONTENT_WIDTH, type: WidthType.DXA },
+                columnWidths: [COL_NO_S, COL_NAME_S, COL_COUNT_S, COL_PCT_S, COL_RINCIAN_S],
+                rows: [
+                    new TableRow({
+                        children: [
+                            headerCell('#',               COL_NO_S),
+                            headerCell('Detail Module',   COL_NAME_S),
+                            headerCell('Cases',           COL_COUNT_S),
+                            headerCell('Share',           COL_PCT_S),
+                            headerCell('Rincian Kendala', COL_RINCIAN_S),
+                        ],
+                    }),
+                    ...top10.map((item, i) => {
+                        const stripe = i % 2 === 1;
+                        return new TableRow({
+                            children: [
+                                dataCell(String(i + 1),               COL_NO_S,       { center: true, stripe, color: '6B7280' }),
+                                dataCell(item.name,                   COL_NAME_S,     { stripe, bold: i === 0 }),
+                                dataCell(item.count.toLocaleString(), COL_COUNT_S,    { center: true, bold: true, stripe }),
+                                dataCell(`${item.pct.toFixed(1)}%`,   COL_PCT_S,      { center: true, stripe }),
+                                dataCell(item.rincian.trim() || '—',  COL_RINCIAN_S,  { stripe, color: item.rincian.trim() ? '374151' : '9CA3AF' }),
+                            ],
+                        });
+                    }),
+                ],
+            });
+
+            docChildren.push(summaryReportTable);
+        } else {
+            docChildren.push(new Paragraph({
+                children: [new TextRun({
+                    text: 'Tidak ada data detail module tersedia.',
+                    italics: true, color: '6B7280', font: 'Arial', size: 20,
+                })],
+            }));
+        }
+        docChildren.push(spacer(200));
+    }
+
+    // ── Build document ────────────────────────────────────────────────────────
     const doc = new Document({
         styles: {
             default: {
@@ -755,79 +994,7 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
                     },
                 },
                 footers: { default: new Footer({ children: [footerParagraph] }) },
-                children: [
-                    ...coverSection,
-
-                    sectionHeading(`${s()}. Executive Summary`),
-                    spacer(80),
-                    summaryTable,
-                    spacer(200),
-
-                    ...(categoryTable ? [
-                        sectionHeading(`${s()}. Category Rankings`),
-                        spacer(80),
-                        categoryTable,
-                        spacer(200),
-                    ] : []),
-
-                    sectionHeading(`${s()}. Case Trend — ${trendLabel}`),
-                    spacer(80),
-                    ...(trendsTable
-                        ? [trendsTable]
-                        : [new Paragraph({ children: [new TextRun({ text: 'No trend data available for the selected period.', italics: true, color: '6B7280', font: 'Arial', size: 20 })] })]
-                    ),
-                    spacer(200),
-
-                    ...(monthlyTable ? [
-                        sectionHeading(`${s()}. Monthly Statistics`),
-                        spacer(80),
-                        monthlyTable,
-                        spacer(200),
-                    ] : []),
-
-                    ...(clientTable ? [
-                        sectionHeading(`${s()}. Client Rankings`),
-                        spacer(80),
-                        clientTable,
-                        spacer(200),
-                    ] : []),
-
-                    ...(moduleTable ? [
-                        sectionHeading(`${s()}. Detail Module Rankings`),
-                        spacer(80),
-                        moduleTable,
-                        spacer(200),
-                    ] : []),
-
-                    sectionHeading(`${s()}. Outstanding Unresolved Cases`),
-                    spacer(80),
-                    new Paragraph({
-                        spacing: { after: 120 },
-                        children: [
-                            new TextRun({
-                                text: `${unresolvedCases.length} case${unresolvedCases.length !== 1 ? 's' : ''} outstanding`,
-                                bold: true, size: 22, font: 'Arial',
-                                color: unresolvedCases.length > 0 ? 'DC2626' : '16A34A',
-                            }),
-                            new TextRun({
-                                text: unresolvedCases.length > 0
-                                    ? '  —  sorted by severity (L3 → L2 → L1 → Pending → On Hold)'
-                                    : '  —  all cases have been resolved ✓',
-                                size: 19, font: 'Arial', color: '6B7280', italics: true,
-                            }),
-                        ],
-                    }),
-                    ...(unresolvedTable
-                        ? [unresolvedTable]
-                        : [new Paragraph({
-                            children: [new TextRun({
-                                text: 'No outstanding cases at the time of this report.',
-                                italics: true, color: '16A34A', font: 'Arial', size: 20,
-                            })],
-                          })]
-                    ),
-                    spacer(80),
-                ],
+                children: docChildren,
             },
         ],
     });
@@ -838,43 +1005,84 @@ async function generateDocxBuffer(stats: DashboardStats, filters: FilterSummary)
 // ─────────────────────────────────────────────────────────────────────────────
 // Route Handler
 // ─────────────────────────────────────────────────────────────────────────────
+// /api/dashboard/report/route.ts
+
+// Tambah parameter top10 ke signature
+// Tambah parameter top10 ke signature
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json() as {
-            stats: DashboardStats;
-            filterSummary: FilterSummary;
-        };
+        const body = await request.json();
+        const {
+            stats,
+            filterSummary,
+            sectionVisibility,
+            rincianList        = [],
+            detailModuleMaster = [],
+        } = body;
 
-        const { stats, filterSummary } = body;
-
-        if (!stats) {
-            return NextResponse.json({ error: 'Missing stats' }, { status: 400 });
+        if (!stats || !filterSummary) {
+            return NextResponse.json(
+                { error: 'Missing required fields: stats, filterSummary' },
+                { status: 400 }
+            );
         }
 
-        // ── FIX: Log payload yang diterima untuk debug ───────────────────────
-        const rawCount = Array.isArray(stats.unresolved_cases)
-            ? stats.unresolved_cases.length
-            : 'undefined/null';
-        console.log(`[POST /api/report] unresolved_cases received: ${rawCount}`);
-        if (Array.isArray(stats.unresolved_cases) && stats.unresolved_cases.length > 0) {
-            console.log(`[POST /api/report] sample[0]:`, JSON.stringify(stats.unresolved_cases[0]));
-        }
+        const sv = { ...DEFAULT_SECTION_VISIBILITY, ...(sectionVisibility ?? {}) };
 
-        const docxBuffer = await generateDocxBuffer(stats, filterSummary ?? {
-            years: [], categories: [], clients: [], modules: [], detailModules: [], trendPeriod: 'monthly',
+        // ── Compute top10 untuk Section 8 ────────────────────────────────────
+        const detailModules: { name: string; value?: number; [year: string]: any }[] =
+            stats.detail_module_rankings ?? stats.module_rankings ?? [];
+
+        const idModuleByName: Record<string, number> = {};
+        (detailModuleMaster as { id_module: number; detail_module: string }[]).forEach(d => {
+            idModuleByName[d.detail_module.toLowerCase().trim()] = d.id_module;
         });
 
-        const dateSlug = new Date().toISOString().slice(0, 10);
+        const rincianById: Record<number, string> = {};
+        (rincianList as { id_module: number; rincian_kendala: string }[]).forEach(r => {
+            if (!(r.id_module in rincianById)) {
+                rincianById[r.id_module] = r.rincian_kendala ?? '';
+            }
+        });
 
-        return new NextResponse(docxBuffer, {
+        const yearKeys = (() => {
+            const set = new Set<string>();
+            detailModules.forEach(item =>
+                Object.keys(item).forEach(k => { if (/^\d{4}$/.test(k)) set.add(k); })
+            );
+            return Array.from(set).sort();
+        })();
+        const isMulti    = yearKeys.length > 0;
+        const totalCases = (stats.summary?.total_cases ?? 0) as number;
+
+        const top10 = detailModules
+            .map((item: any) => {
+                const count     = isMulti
+                    ? yearKeys.reduce((s, y) => s + ((item[y] ?? 0) as number), 0)
+                    : (item.value ?? 0);
+                const pct       = totalCases > 0 ? (count / totalCases) * 100 : 0;
+                const id_module = idModuleByName[item.name.toLowerCase().trim()] ?? null;
+                const rincian   = id_module != null ? (rincianById[id_module] ?? '') : '';
+                return { name: item.name as string, count, pct, rincian };
+            })
+            .filter((x: any) => x.count > 0)
+            .sort((a: any, b: any) => b.count - a.count)
+            .slice(0, 10);
+
+        const buffer = await generateReport(stats, filterSummary, sv, top10);
+
+        return new NextResponse(buffer, {
             headers: {
                 'Content-Type':        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'Content-Disposition': `attachment; filename="dashboard-report-${dateSlug}.docx"`,
+                'Content-Disposition': `attachment; filename="dashboard-report-${format(new Date(), 'yyyy-MM-dd')}.docx"`,
             },
         });
 
     } catch (error: any) {
-        console.error('[Report API Error]', error);
-        return NextResponse.json({ error: error.message ?? 'Unknown error' }, { status: 500 });
+        console.error('[POST /api/dashboard/report]', error);
+        return NextResponse.json(
+            { error: error?.message ?? 'Internal server error' },
+            { status: 500 }
+        );
     }
 }

@@ -3,7 +3,7 @@
 import { useCallback, useState, useMemo, useEffect, useRef } from "react";
 import {
     X, Download, RefreshCw, TrendingUp, TrendingDown, Minus, FileText,
-    Loader2, Table2, LayoutList, AlertCircle, Search,
+    Loader2, Table2, LayoutList, AlertCircle, Search, Settings2, Eye, EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -74,6 +74,43 @@ type DetailModuleMasterItem = {
     id_module: number;
     detail_module: string;
 };
+
+// ─── Section visibility ───────────────────────────────────────────────────────
+export type SectionKey =
+    | "executive_summary"
+    | "category_rankings"
+    | "case_trend"
+    | "monthly_stats"
+    | "client_rankings"
+    | "detail_module_rankings"
+    | "unresolved_cases"
+    | "summary_report_case";
+
+export type SectionVisibility = Record<SectionKey, boolean>;
+
+export const DEFAULT_SECTION_VISIBILITY: SectionVisibility = {
+    executive_summary:       true,
+    category_rankings:       true,
+    case_trend:              true,
+    monthly_stats:           true,
+    client_rankings:         true,
+    detail_module_rankings:  true,
+    unresolved_cases:        true,
+    summary_report_case:     true,
+};
+
+export const SECTION_LABELS: Record<SectionKey, string> = {
+    executive_summary:       "Executive Summary",
+    category_rankings:       "Category Rankings",
+    case_trend:              "Case Trend",
+    monthly_stats:           "Monthly Statistics",
+    client_rankings:         "Client Rankings",
+    detail_module_rankings:  "Detail Module Rankings",
+    unresolved_cases:        "Outstanding Unresolved Cases",
+    summary_report_case:     "Summary Report Case",
+};
+
+export const SECTION_VISIBILITY_KEY = "reportSectionVisibility";
 
 interface ReportPreviewModalProps {
     open: boolean; onClose: () => void;
@@ -169,6 +206,91 @@ function PctBar({ pct }: { pct: number }) {
             <span className="tabular-nums text-[10px] text-muted-foreground w-9 text-right">
                 {pct.toFixed(1)}%
             </span>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section Toggle Panel
+// ─────────────────────────────────────────────────────────────────────────────
+function SectionTogglePanel({
+    visibility,
+    onChange,
+    onClose,
+}: {
+    visibility: SectionVisibility;
+    onChange: (key: SectionKey, val: boolean) => void;
+    onClose: () => void;
+}) {
+    const allOn  = Object.values(visibility).every(Boolean);
+    const allOff = Object.values(visibility).every(v => !v);
+
+    const toggleAll = () => {
+        const next = !allOn;
+        (Object.keys(visibility) as SectionKey[]).forEach(k => onChange(k, next));
+    };
+
+    return (
+        <div className="absolute right-0 top-full mt-1 z-50 w-72 rounded-xl border border-border bg-background shadow-xl">
+            {/* header */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b">
+                <span className="text-xs font-bold uppercase tracking-wide text-foreground">Tampilkan Section</span>
+                <button
+                    onClick={onClose}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            </div>
+
+            {/* toggle all */}
+            <div className="px-4 py-2 border-b bg-muted/30">
+                <button
+                    onClick={toggleAll}
+                    className="text-[11px] font-medium text-[#1E3A5F] dark:text-blue-400 hover:underline"
+                >
+                    {allOn ? "Sembunyikan semua" : "Tampilkan semua"}
+                </button>
+            </div>
+
+            {/* list */}
+            <div className="py-1.5 max-h-72 overflow-y-auto">
+                {(Object.keys(SECTION_LABELS) as SectionKey[]).map((key, idx) => {
+                    const on = visibility[key];
+                    return (
+                        <button
+                            key={key}
+                            onClick={() => onChange(key, !on)}
+                            className={cn(
+                                "w-full flex items-center gap-3 px-4 py-2 text-left transition-colors",
+                                on ? "hover:bg-blue-50/50 dark:hover:bg-blue-950/20" : "opacity-50 hover:opacity-70 hover:bg-muted/50"
+                            )}
+                        >
+                            <span className="flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
+                                style={{
+                                    borderColor: on ? "#1E3A5F" : "#9CA3AF",
+                                    backgroundColor: on ? "#1E3A5F" : "transparent",
+                                }}>
+                                {on && (
+                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                        <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                )}
+                            </span>
+                            <span className="text-xs font-medium">
+                                <span className="text-muted-foreground mr-1.5">{idx + 1}.</span>
+                                {SECTION_LABELS[key]}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            <div className="px-4 py-2 border-t bg-muted/20">
+                <p className="text-[10px] text-muted-foreground">
+                    {Object.values(visibility).filter(Boolean).length} dari {Object.keys(visibility).length} section aktif
+                </p>
+            </div>
         </div>
     );
 }
@@ -492,7 +614,7 @@ function UnresolvedSection({ cases, sectionNumber }: { cases: UnresolvedCase[]; 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section 8 — Summary Report Case (narasi top 10)
+// Section 8 — Summary Report Case
 // ─────────────────────────────────────────────────────────────────────────────
 function SummaryReportCaseSection({
     items,
@@ -511,7 +633,6 @@ function SummaryReportCaseSection({
 
     const { toast } = useToast();
 
-    // ── Fix 1: Build lookup BOTH by id_module→name AND name→rincian ──────────
     const idModuleByName = useMemo(() => {
         const map: Record<string, number> = {};
         detailModuleMaster.forEach(d => {
@@ -520,7 +641,6 @@ function SummaryReportCaseSection({
         return map;
     }, [detailModuleMaster]);
 
-    // Direct lookup: id_module → rincian_kendala
     const rincianById = useMemo(() => {
         const map: Record<number, string> = {};
         rincianList.forEach(r => {
@@ -538,8 +658,7 @@ function SummaryReportCaseSection({
                 const count = isMulti
                     ? yearKeys.reduce((s, y) => s + ((item[y] ?? 0) as number), 0)
                     : (item.value ?? 0);
-                const pct = total > 0 ? (count / total) * 100 : 0;
-                // Fix: resolve id_module via name lookup, then get rincian via id
+                const pct       = total > 0 ? (count / total) * 100 : 0;
                 const id_module = idModuleByName[item.name.toLowerCase().trim()] ?? null;
                 const rincian   = id_module != null ? (rincianById[id_module] ?? "") : "";
                 return { name: item.name, count, pct, id_module, rincian };
@@ -551,76 +670,28 @@ function SummaryReportCaseSection({
 
     if (!top10.length) return null;
 
-    // ── Edit state per item ────────────────────────────────────────────────
-    const [editState, setEditState] = useState<
-        Record<number, { text: string; editing: boolean; saving: boolean; copied: boolean }>
-    >(() =>
-        Object.fromEntries(top10.map((item, i) => [i, {
-            text: item.rincian, editing: false, saving: false, copied: false,
-        }]))
-    );
-
-    // SESUDAH — benar: pakai top10 (yang sudah include resolved rincian)
-    useEffect(() => {
-        setEditState(Object.fromEntries(top10.map((item, i) => [i, {
-            text: item.rincian,   // <-- ini sudah dari rincianById lookup
-            editing: false,
-            saving: false,
-            copied: false,
-        }])));
-    }, [top10]);  // ← dependency ke top10, bukan ke raw props  
-
-    const setField = (idx: number, patch: Partial<{ text: string; editing: boolean; saving: boolean; copied: boolean }>) =>
-        setEditState(prev => ({ ...prev, [idx]: { ...prev[idx], ...patch } }));
-
-    const handleSave = async (idx: number, item: typeof top10[0]) => {
-        const text = editState[idx]?.text?.trim() ?? "";
-        if (!item.id_module) {
-            toast({ variant: "destructive", title: "id_module tidak ditemukan untuk modul ini." });
-            return;
-        }
-        setField(idx, { saving: true });
-        try {
-            const res = await fetch("/api/master/rincian-kendala", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id_module: item.id_module, rincian_kendala: text }),
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-                throw new Error(err.error ?? `HTTP ${res.status}`);
-            }
-            toast({ title: "Rincian kendala disimpan." });
-            setField(idx, { editing: false, saving: false });
-        } catch (err: any) {
-            toast({ variant: "destructive", title: "Gagal simpan", description: err.message });
-            setField(idx, { saving: false });
-        }
-    };
-
-    const handleCopyOne = (idx: number, item: typeof top10[0]) => {
-        const rincian = editState[idx]?.text?.trim() || "(rincian_kendala)";
-        const line = `${idx + 1}. ${item.name} — ${item.count} case (${item.pct.toFixed(1)}%)\n     ${rincian}`;
-        navigator.clipboard.writeText(line).then(() => {
-            setField(idx, { copied: true });
-            setTimeout(() => setField(idx, { copied: false }), 2000);
-        });
-    };
-
     const [allCopied, setAllCopied] = useState(false);
+
     const handleCopyAll = () => {
+        const DIVIDER = "─".repeat(30);
+    
+        const header = `📊 *Summary Report Case*\n${DIVIDER}`;
+    
         const lines = top10.map((item, idx) => {
-            const rincian = editState[idx]?.text?.trim() || "(rincian_kendala)";
-            return `${idx + 1}. ${item.name} — ${item.count} case (${item.pct.toFixed(1)}%)\n     ${rincian}`;
-        }).join("\n\n");
-        navigator.clipboard.writeText(lines).then(() => {
+            const rincian = item.rincian.trim() || "_belum ada rincian kendala_";
+            return `${idx + 1}. *${item.name}* — ${item.count} case (${item.pct.toFixed(1)}%)\n    ${rincian}`;        });
+    
+        const footer = `${DIVIDER}\nTotal: ${total.toLocaleString()} cases`;
+    
+        const text = [header, ...lines, footer].join("\n\n");
+    
+        navigator.clipboard.writeText(text).then(() => {
             setAllCopied(true);
             setTimeout(() => setAllCopied(false), 2000);
             toast({ title: "Semua formula disalin!" });
         });
     };
 
-    // ── Fix 2: Single unified card ─────────────────────────────────────────
     return (
         <section>
             <div className="flex items-center gap-3 mb-3">
@@ -647,20 +718,18 @@ function SummaryReportCaseSection({
             </div>
 
             <p className="text-[11px] text-muted-foreground mb-3 italic">
-                10 Detail Module dengan jumlah case terbanyak. Klik pensil untuk mengedit rincian kendala.
+                10 Detail Module dengan jumlah case terbanyak.
             </p>
 
-            {/* ── SINGLE CARD wrapping all items ── */}
             <div className="rounded-lg border border-border bg-background overflow-hidden">
                 {top10.map((item, idx) => {
-                    const es = editState[idx] ?? { text: "", editing: false, saving: false, copied: false };
                     const rankColors = [
                         "bg-yellow-400 text-yellow-900",
                         "bg-slate-300 text-slate-700",
                         "bg-amber-600/70 text-white",
                     ];
                     const rankColor = rankColors[idx] ?? "bg-muted text-muted-foreground";
-                    const isLast = idx === top10.length - 1;
+                    const isLast    = idx === top10.length - 1;
 
                     return (
                         <div
@@ -672,15 +741,12 @@ function SummaryReportCaseSection({
                             )}
                         >
                             <div className="flex gap-3 items-start">
-                                {/* Rank badge */}
                                 <span className={cn(
                                     "flex-shrink-0 inline-flex w-5 h-5 rounded-full items-center justify-center text-[9px] font-bold mt-0.5",
                                     rankColor
                                 )}>
                                     {idx + 1}
                                 </span>
-
-                                {/* Content */}
                                 <div className="flex-1 min-w-0">
                                     <p className="text-xs leading-relaxed">
                                         <span className={cn("font-semibold", idx === 0 && "text-[#1E3A5F] dark:text-blue-400")}>
@@ -690,91 +756,20 @@ function SummaryReportCaseSection({
                                         <span className="tabular-nums font-semibold">{item.count.toLocaleString()} case</span>
                                         <span className="text-muted-foreground"> ({item.pct.toFixed(1)}%)</span>
                                     </p>
-
-                                    {!es.editing && (
-                                        <p className={cn(
-                                            "mt-0.5 text-[11px] leading-relaxed",
-                                            es.text.trim()
-                                                ? "text-muted-foreground italic"
-                                                : "text-muted-foreground/40 italic"
-                                        )}>
-                                            {es.text.trim() || "Belum ada rincian kendala — klik pensil untuk menambahkan"}
-                                        </p>
-                                    )}
-
-                                    {es.editing && (
-                                        <>
-                                            <textarea
-                                                autoFocus
-                                                value={es.text}
-                                                onChange={e => setField(idx, { text: e.target.value })}
-                                                placeholder="Tulis rincian kendala di sini…"
-                                                rows={3}
-                                                className="mt-1.5 w-full text-[11px] rounded border px-2 py-1.5 resize-y leading-relaxed bg-background border-border focus:outline-none focus:ring-1 focus:ring-[#1E3A5F]/30 text-foreground placeholder:text-muted-foreground/50"
-                                            />
-                                            <pre className="mt-1.5 text-[10px] leading-relaxed font-mono px-2 py-1.5 rounded bg-muted/60 text-muted-foreground whitespace-pre-wrap break-words">
-{`${idx + 1}. ${item.name} — ${item.count} case (${item.pct.toFixed(1)}%)
-     ${es.text.trim() || "(rincian_kendala)"}`}
-                                            </pre>
-                                        </>
-                                    )}
-                                </div>
-
-                                {/* Actions */}
-                                <div className="flex-shrink-0 flex items-center gap-0.5 mt-0.5">
-                                    {!es.editing ? (
-                                        <button
-                                            onClick={() => setField(idx, { editing: true })}
-                                            title="Edit rincian kendala"
-                                            className="p-1 rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted transition-colors"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                                        </button>
-                                    ) : (
-                                        <>
-                                            <button
-                                                onClick={() => setField(idx, { editing: false, text: item.rincian })}
-                                                disabled={es.saving}
-                                                title="Batal"
-                                                className="p-1 rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted transition-colors disabled:opacity-40"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                                            </button>
-                                            <button
-                                                onClick={() => handleSave(idx, item)}
-                                                disabled={es.saving}
-                                                title="Simpan"
-                                                className="p-1 rounded text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-40"
-                                            >
-                                                {es.saving
-                                                    ? <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                                                    : <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                                                }
-                                            </button>
-                                        </>
-                                    )}
-                                    <button
-                                        onClick={() => handleCopyOne(idx, item)}
-                                        title="Salin formula"
-                                        className={cn(
-                                            "p-1 rounded transition-colors",
-                                            es.copied
-                                                ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40"
-                                                : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted"
-                                        )}
-                                    >
-                                        {es.copied
-                                            ? <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                                            : <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                                        }
-                                    </button>
+                                    <p className={cn(
+                                        "mt-0.5 text-[11px] leading-relaxed",
+                                        item.rincian.trim()
+                                            ? "text-muted-foreground italic"
+                                            : "text-muted-foreground/40 italic"
+                                    )}>
+                                        {item.rincian.trim() || "Belum ada rincian kendala"}
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     );
                 })}
 
-                {/* Footer inside card */}
                 <div className="px-4 py-2 border-t border-border bg-muted/30">
                     <p className="text-[11px] text-muted-foreground text-right tabular-nums">
                         Total keseluruhan: <span className="font-semibold text-foreground">{total.toLocaleString()} cases</span>
@@ -1213,6 +1208,17 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
     const [unresolvedCases, setUnresolvedCases] = useState<UnresolvedCase[]>([]);
     const [loadingCases, setLoadingCases]       = useState(false);
 
+    // Section visibility — load dari localStorage, merge dengan default
+    const [sectionVisibility, setSectionVisibility] = useState<SectionVisibility>(() => {
+        try {
+            const saved = localStorage.getItem(SECTION_VISIBILITY_KEY);
+            if (saved) return { ...DEFAULT_SECTION_VISIBILITY, ...JSON.parse(saved) };
+        } catch (_) {}
+        return DEFAULT_SECTION_VISIBILITY;
+    });
+    const [showTogglePanel, setShowTogglePanel] = useState(false);
+    const togglePanelRef = useRef<HTMLDivElement>(null);
+
     // State untuk Rincian Kendala
     const [rincianList, setRincianList]               = useState<RincianKendalaItem[]>([]);
     const [detailModuleMaster, setDetailModuleMaster] = useState<DetailModuleMasterItem[]>([]);
@@ -1221,14 +1227,40 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
     const [sheet2CanDownload, setSheet2CanDownload] = useState(false);
     const [sheet2Downloading, setSheet2Downloading] = useState(false);
 
+    // Close toggle panel on outside click
+    useEffect(() => {
+        if (!showTogglePanel) return;
+        const handler = (e: MouseEvent) => {
+            if (togglePanelRef.current && !togglePanelRef.current.contains(e.target as Node)) {
+                setShowTogglePanel(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, [showTogglePanel]);
+
+    const handleSectionVisibilityChange = (key: SectionKey, val: boolean) => {
+        setSectionVisibility(prev => {
+            const next = { ...prev, [key]: val };
+            try { localStorage.setItem(SECTION_VISIBILITY_KEY, JSON.stringify(next)); } catch (_) {}
+            return next;
+        });
+    };
+
     useEffect(() => {
         if (!open) return;
         setActiveSheet(1);
+        setShowTogglePanel(false);
         sheet2DownloadFn.current = null;
         setSheet2CanDownload(false);
         setSheet2Downloading(false);
 
-        // Fetch unresolved cases
+        // Reload section visibility from localStorage when modal opens
+        try {
+            const saved = localStorage.getItem(SECTION_VISIBILITY_KEY);
+            if (saved) setSectionVisibility({ ...DEFAULT_SECTION_VISIBILITY, ...JSON.parse(saved) });
+        } catch (_) {}
+
         const runUnresolved = async () => {
             setLoadingCases(true); setUnresolvedCases([]);
             try { const c = await getL3CasesForReport(); setUnresolvedCases(c); }
@@ -1236,7 +1268,6 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
             finally { setLoadingCases(false); }
         };
 
-        // Fetch rincian kendala + master detail module (parallel, silent fail)
         const fetchRincian = async () => {
             try {
                 const [rincianRes, modRes] = await Promise.all([
@@ -1247,9 +1278,7 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
                 const modJson     = await modRes.json();
                 setRincianList(rincianJson.data ?? []);
                 setDetailModuleMaster(modJson.data ?? []);
-            } catch (_) {
-                // Silent fail — rincian kendala tidak kritis
-            }
+            } catch (_) {}
         };
 
         runUnresolved();
@@ -1260,22 +1289,55 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
         setIsDownloading(true);
         toast({ title: "Generating Report…", description: "Menyiapkan laporan Word, harap tunggu." });
         try {
+            // Sama persis dengan yang dirender di preview
+            const detailModules = stats.detail_module_rankings ?? stats.module_rankings ?? [];
+    
             const res = await fetch("/api/dashboard/report", {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ stats: { ...stats, unresolved_cases: unresolvedCases }, filterSummary }),
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    stats: {
+                        ...stats,
+                        unresolved_cases: unresolvedCases,      // ✅ sama dengan preview
+                        detail_module_rankings: detailModules,  // ✅ sudah resolve fallback
+                    },
+                    filterSummary,
+                    sectionVisibility,
+                    rincianList,        // ✅ kirim untuk Summary Report Case
+                    detailModuleMaster, // ✅ kirim untuk Summary Report Case
+                }),
             });
-            if (!res.ok) { const e = await res.json().catch(() => ({ error: "Unknown" })); throw new Error(e.error ?? `HTTP ${res.status}`); }
+    
+            if (!res.ok) {
+                const e = await res.json().catch(() => ({ error: "Unknown" }));
+                throw new Error(e.error ?? `HTTP ${res.status}`);
+            }
+    
             const blob = await res.blob();
             const url  = URL.createObjectURL(blob);
             const a    = document.createElement("a");
-            a.href = url; a.download = `dashboard-report-${new Date().toISOString().slice(0, 10)}.docx`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            a.href     = url;
+            a.download = `dashboard-report-${new Date().toISOString().slice(0, 10)}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
             URL.revokeObjectURL(url);
             toast({ title: "Download selesai!" });
+    
         } catch (err: any) {
             toast({ variant: "destructive", title: "Download gagal", description: err.message });
-        } finally { setIsDownloading(false); }
-    }, [stats, filterSummary, unresolvedCases, toast]);
+        } finally {
+            setIsDownloading(false);
+        }
+    }, [
+        stats,
+        filterSummary,
+        unresolvedCases,
+        sectionVisibility,
+        rincianList,           // ✅ tambah dependency
+        detailModuleMaster,    // ✅ tambah dependency
+        toast,
+    ]);
 
     const filterParts = useMemo(() => {
         const p: string[] = [];
@@ -1289,6 +1351,30 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
     }, [filterSummary]);
 
     const detailModules = stats.detail_module_rankings ?? stats.module_rankings ?? [];
+
+    // Hitung section number hanya untuk yang aktif
+    const activeSections = useMemo(() => {
+        const order: SectionKey[] = [
+            "executive_summary",
+            "category_rankings",
+            "case_trend",
+            "monthly_stats",
+            "client_rankings",
+            "detail_module_rankings",
+            "unresolved_cases",
+            "summary_report_case",
+        ];
+        let num = 1;
+        const map: Partial<Record<SectionKey, number>> = {};
+        for (const key of order) {
+            if (sectionVisibility[key]) {
+                map[key] = num++;
+            }
+        }
+        return map;
+    }, [sectionVisibility]);
+
+    const activeCount = Object.values(sectionVisibility).filter(Boolean).length;
 
     if (!open) return null;
 
@@ -1307,6 +1393,41 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
                         </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+
+                        {/* Section toggle button — hanya muncul di Sheet 1 */}
+                        {activeSheet === 1 && (
+                            <div className="relative" ref={togglePanelRef}>
+                                <button
+                                    onClick={() => setShowTogglePanel(v => !v)}
+                                    className={cn(
+                                        "flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium border transition-colors",
+                                        showTogglePanel
+                                            ? "bg-white/20 border-white/30 text-white"
+                                            : "bg-white/10 border-white/20 text-blue-200 hover:bg-white/15 hover:text-white"
+                                    )}
+                                    title="Atur section yang ditampilkan"
+                                >
+                                    <Settings2 className="h-3.5 w-3.5" />
+                                    <span className="hidden sm:inline">Sections</span>
+                                    <span className={cn(
+                                        "inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold",
+                                        activeCount < 8
+                                            ? "bg-yellow-400 text-yellow-900"
+                                            : "bg-white/20 text-white"
+                                    )}>
+                                        {activeCount}
+                                    </span>
+                                </button>
+
+                                {showTogglePanel && (
+                                    <SectionTogglePanel
+                                        visibility={sectionVisibility}
+                                        onChange={handleSectionVisibilityChange}
+                                        onClose={() => setShowTogglePanel(false)}
+                                    />
+                                )}
+                            </div>
+                        )}
 
                         {activeSheet === 1 && (
                             <Button
@@ -1369,6 +1490,13 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
                         </button>
                     ))}
                     <div className="ml-auto flex items-center gap-2 py-1.5">
+                        {/* Section disabled indicator */}
+                        {activeSheet === 1 && activeCount < 8 && (
+                            <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                <EyeOff className="h-3 w-3" />
+                                {8 - activeCount} section disembunyikan
+                            </span>
+                        )}
                         <span className="text-[10px] text-muted-foreground">
                             {new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
                         </span>
@@ -1386,51 +1514,85 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
                     {/* Sheet 1 */}
                     <div className={cn("flex-1 min-h-0 overflow-y-auto", activeSheet !== 1 && "hidden")}>
                         <div className="p-5 space-y-6">
+
                             {/* 1. Executive Summary */}
-                            <SummarySection stats={stats} unresolvedCount={unresolvedCases.length} sectionNumber={1} />
+                            {sectionVisibility.executive_summary && (
+                                <SummarySection
+                                    stats={stats}
+                                    unresolvedCount={unresolvedCases.length}
+                                    sectionNumber={activeSections.executive_summary}
+                                />
+                            )}
 
                             {/* 2. Category Rankings */}
-                            {(stats.category_rankings?.length ?? 0) > 0 && (
+                            {sectionVisibility.category_rankings && (stats.category_rankings?.length ?? 0) > 0 && (
                                 <section>
-                                    <SectionTitle number={2}>Category Rankings</SectionTitle>
+                                    <SectionTitle number={activeSections.category_rankings}>Category Rankings</SectionTitle>
                                     <RankingTable items={stats.category_rankings!} nameHeader="Category" />
                                 </section>
                             )}
 
                             {/* 3. Case Trend */}
-                            <TrendsSection trends={stats.module_trends ?? []} trendPeriod={filterSummary.trendPeriod} sectionNumber={3} />
+                            {sectionVisibility.case_trend && (
+                                <TrendsSection
+                                    trends={stats.module_trends ?? []}
+                                    trendPeriod={filterSummary.trendPeriod}
+                                    sectionNumber={activeSections.case_trend}
+                                />
+                            )}
 
                             {/* 4. Monthly Statistics */}
-                            <MonthlyStatsSection monthly={stats.monthly_stats ?? []} sectionNumber={4} />
+                            {sectionVisibility.monthly_stats && (
+                                <MonthlyStatsSection
+                                    monthly={stats.monthly_stats ?? []}
+                                    sectionNumber={activeSections.monthly_stats}
+                                />
+                            )}
 
                             {/* 5. Client Rankings */}
-                            {stats.client_rankings?.length > 0 && (
+                            {sectionVisibility.client_rankings && stats.client_rankings?.length > 0 && (
                                 <section>
-                                    <SectionTitle count={stats.client_rankings.length} number={5}>Client Rankings</SectionTitle>
+                                    <SectionTitle count={stats.client_rankings.length} number={activeSections.client_rankings}>Client Rankings</SectionTitle>
                                     <RankingTable items={stats.client_rankings} nameHeader="Client" />
                                 </section>
                             )}
 
                             {/* 6. Detail Module Rankings */}
-                            {detailModules.length > 0 && (
+                            {sectionVisibility.detail_module_rankings && detailModules.length > 0 && (
                                 <section>
-                                    <SectionTitle number={6}>Detail Module Rankings</SectionTitle>
+                                    <SectionTitle number={activeSections.detail_module_rankings}>Detail Module Rankings</SectionTitle>
                                     <RankingTable items={detailModules} nameHeader="Detail Module" showPct />
                                 </section>
                             )}
 
                             {/* 7. Outstanding Unresolved Cases */}
-                            <UnresolvedSection cases={unresolvedCases} sectionNumber={7} />
+                            {sectionVisibility.unresolved_cases && (
+                                <UnresolvedSection
+                                    cases={unresolvedCases}
+                                    sectionNumber={activeSections.unresolved_cases}
+                                />
+                            )}
 
-                            {/* 8. Summary Report Case — narasi top 10 */}
-                            {detailModules.length > 0 && (
+                            {/* 8. Summary Report Case */}
+                            {sectionVisibility.summary_report_case && detailModules.length > 0 && (
                                 <SummaryReportCaseSection
                                     items={detailModules}
                                     total={stats.summary.total_cases}
-                                    sectionNumber={8}
+                                    sectionNumber={activeSections.summary_report_case}
                                     rincianList={rincianList}
                                     detailModuleMaster={detailModuleMaster}
                                 />
+                            )}
+
+                            {/* Empty state jika semua section dinonaktifkan */}
+                            {activeCount === 0 && (
+                                <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+                                    <EyeOff className="h-10 w-10 text-muted-foreground/25" />
+                                    <p className="text-sm font-medium text-muted-foreground">Semua section disembunyikan</p>
+                                    <p className="text-xs text-muted-foreground max-w-xs">
+                                        Klik tombol <strong>Sections</strong> di header untuk menampilkan kembali section yang diinginkan.
+                                    </p>
+                                </div>
                             )}
                         </div>
                     </div>
@@ -1464,6 +1626,11 @@ export function ReportPreviewModal({ open, onClose, stats, filterSummary, filter
                     <span className="text-[10px] text-muted-foreground">
                         {stats.summary.total_cases.toLocaleString()} total cases · {stats.summary.total_clients ?? 0} clients
                         {activeSheet === 1 && ` · ${loadingCases ? "loading…" : `${unresolvedCases.length} unresolved`}`}
+                        {activeSheet === 1 && activeCount < 8 && (
+                            <span className="ml-2 text-amber-600 dark:text-amber-400 font-medium">
+                                · {activeCount}/8 sections aktif
+                            </span>
+                        )}
                     </span>
                     <Button variant="ghost" size="sm" onClick={onClose} className="h-7 text-xs">Close</Button>
                 </div>
